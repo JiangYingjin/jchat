@@ -703,35 +703,13 @@ export function ChatActions(props: {
   return (
     <div className={styles["chat-input-actions"]}>
       <>
-        {couldStop && (
-          <ChatAction
-            onClick={stopAll}
-            text={Locale.Chat.InputActions.Stop}
-            icon={<StopIcon />}
-          />
-        )}
-        {!props.hitBottom && (
-          <ChatAction
-            onClick={props.scrollToBottom}
-            text={Locale.Chat.InputActions.ToBottom}
-            icon={<BottomIcon />}
-          />
-        )}
-        {props.hitBottom && (
-          <ChatAction
-            onClick={props.showPromptModal}
-            text={Locale.Chat.InputActions.Settings}
-            icon={<SettingsIcon />}
-          />
-        )}
-
-        {showUploadImage && (
+        {/* {showUploadImage && (
           <ChatAction
             onClick={props.uploadImage}
             text={Locale.Chat.InputActions.UploadImage}
             icon={props.uploading ? <LoadingButtonIcon /> : <ImageIcon />}
           />
-        )}
+        )} */}
         {showUploadFile && (
           <ChatAction
             onClick={props.uploadFile}
@@ -739,7 +717,7 @@ export function ChatActions(props: {
             icon={props.uploading ? <LoadingButtonIcon /> : <UploadIcon />}
           />
         )}
-        <ChatAction
+        {/* <ChatAction
           onClick={nextTheme}
           text={Locale.Chat.InputActions.Theme[theme]}
           icon={
@@ -782,7 +760,7 @@ export function ChatActions(props: {
               }
             });
           }}
-        />
+        /> */}
 
         {config.pluginConfig.enable && isFunctionCallModel(currentModel) && (
           <ChatAction
@@ -1020,13 +998,35 @@ export function ChatActions(props: {
           />
         )}
 
-        {!isMobileScreen && (
+        {couldStop && (
+          <ChatAction
+            onClick={stopAll}
+            text={Locale.Chat.InputActions.Stop}
+            icon={<StopIcon />}
+          />
+        )}
+        {!props.hitBottom && (
+          <ChatAction
+            onClick={props.scrollToBottom}
+            text={Locale.Chat.InputActions.ToBottom}
+            icon={<BottomIcon />}
+          />
+        )}
+        {props.hitBottom && (
+          <ChatAction
+            onClick={props.showPromptModal}
+            text={Locale.Chat.InputActions.Settings}
+            icon={<SettingsIcon />}
+          />
+        )}
+
+        {/* {!isMobileScreen && (
           <ChatAction
             onClick={() => props.setShowShortcutKeyModal(true)}
             text={Locale.Chat.ShortcutKey.Title}
             icon={<ShortcutkeyIcon />}
           />
-        )}
+        )} */}
       </>
       <div className={styles["chat-input-actions-end"]}>
         {config.realtimeConfig.enable && (
