@@ -301,7 +301,6 @@ export class ChatGPTApi implements LLMApi {
         // Please do not ask me why not send max_tokens, no reason, this param is just shit, I dont want to explain anymore.
       };
 
-
       // add max_tokens to vision model
       // O系列 使用 max_completion_tokens 控制token数 (https://platform.openai.com/docs/guides/reasoning#controlling-costs)
       if (visionModel) {
@@ -377,6 +376,7 @@ export class ChatGPTApi implements LLMApi {
                 content: string;
                 tool_calls: ChatMessageTool[];
                 reasoning_content: string | null;
+                reasoning: string | null;
               };
             }>;
 
@@ -402,7 +402,9 @@ export class ChatGPTApi implements LLMApi {
               }
             }
 
-            const reasoning = choices[0]?.delta?.reasoning_content;
+            const reasoning =
+              choices[0]?.delta?.reasoning_content ||
+              choices[0]?.delta?.reasoning;
             const content = choices[0]?.delta?.content;
 
             // Skip if both content and reasoning_content are empty or null
