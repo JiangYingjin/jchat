@@ -2,6 +2,7 @@ import clsx from "clsx";
 import { useState, useRef, useEffect } from "react";
 import { ChatMessage } from "../store";
 import Locale from "../locales";
+import { Markdown } from "./markdown";
 
 import styles from "./thinking-content.module.scss";
 import MaxIcon from "../icons/max.svg";
@@ -10,12 +11,22 @@ import MinIcon from "../icons/min.svg";
 export function ThinkingContent({ message }: { message: ChatMessage }) {
   const [expanded, setExpanded] = useState(false);
   const thinkingContentRef = useRef<HTMLDivElement>(null);
+  const hasAutoExpandedRef = useRef(false);
 
   const thinkingContent = message.reasoningContent;
   const isThinking =
     message.streaming && thinkingContent && thinkingContent.length > 0;
 
-  // Auto-scroll to bottom of thinking container
+  useEffect(() => {
+    if (isThinking && !hasAutoExpandedRef.current) {
+      setExpanded(true);
+      hasAutoExpandedRef.current = true;
+    }
+    if (!isThinking) {
+      hasAutoExpandedRef.current = false;
+    }
+  }, [isThinking]);
+
   useEffect(() => {
     if (isThinking && thinkingContentRef.current) {
       requestAnimationFrame(() => {
@@ -57,7 +68,7 @@ export function ThinkingContent({ message }: { message: ChatMessage }) {
           ref={thinkingContentRef}
         >
           <div className={styles["thinking-content-text"]}>
-            {thinkingContent}
+            <Markdown content={thinkingContent} />
           </div>
         </div>
         {!expanded && <div className={styles["thinking-content-bottom"]}></div>}

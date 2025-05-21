@@ -64,6 +64,7 @@
       max-height 0.3s ease,
       overflow-y 0.3s ease;
     padding: 10px;
+    padding-top: 16px;
 
     .thinking-content-text {
       position: relative;
@@ -103,4 +104,19 @@
       rgba(255, 255, 255, 0) 100%
     );
   }
+}
+
+// 覆盖 markdown 标题在思考内容区域的间距
+.thinking-content :global(.markdown-body p) {
+  margin-bottom: 0px;
+}
+
+.thinking-content :global(.markdown-body h1),
+.thinking-content :global(.markdown-body h2),
+.thinking-content :global(.markdown-body h3),
+.thinking-content :global(.markdown-body h4),
+.thinking-content :global(.markdown-body h5),
+.thinking-content :global(.markdown-body h6) {
+  margin-top: -4px !important;
+  margin-bottom: -8px !important;
 }
