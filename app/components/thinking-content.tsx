@@ -7,8 +7,16 @@ import { Markdown } from "./markdown";
 import styles from "./thinking-content.module.scss";
 import MaxIcon from "../icons/max.svg";
 import MinIcon from "../icons/min.svg";
+import CopyIcon from "../icons/copy.svg";
+import { copyToClipboard } from "../utils";
 
-export function ThinkingContent({ message }: { message: ChatMessage }) {
+export function ThinkingContent({
+  message,
+  onDoubleClick,
+}: {
+  message: ChatMessage;
+  onDoubleClick?: () => void;
+}) {
   const [expanded, setExpanded] = useState(false);
   const thinkingContentRef = useRef<HTMLDivElement>(null);
   const hasAutoExpandedRef = useRef(false);
@@ -51,11 +59,20 @@ export function ThinkingContent({ message }: { message: ChatMessage }) {
         <div className={styles["thinking-title"]}>
           {Locale.Chat.Thinking.Title}
         </div>
-        <div
-          className={styles["thinking-toggle"]}
-          onClick={() => setExpanded(!expanded)}
-        >
-          {expanded ? <MinIcon /> : <MaxIcon />}
+        <div style={{ display: "flex", gap: 4 }}>
+          {/* <div
+            className={styles["thinking-toggle"]}
+            title={Locale.Copy.Success}
+            onClick={() => copyToClipboard(thinkingContent)}
+          >
+            <CopyIcon />
+          </div> */}
+          <div
+            className={styles["thinking-toggle"]}
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? <MinIcon /> : <MaxIcon />}
+          </div>
         </div>
       </div>
       <div className={styles["thinking-content-wrapper"]}>
@@ -66,6 +83,11 @@ export function ThinkingContent({ message }: { message: ChatMessage }) {
             expanded && styles["expanded"],
           )}
           ref={thinkingContentRef}
+          onDoubleClick={() => {
+            if (onDoubleClick) {
+              onDoubleClick();
+            }
+          }}
         >
           <div className={styles["thinking-content-text"]}>
             <Markdown content={thinkingContent} />

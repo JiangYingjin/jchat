@@ -67,6 +67,11 @@
     flex-direction: column;
     margin-bottom: 15px;
 
+    // 滚动条
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
     .sidebar-search-bar-input {
       position: relative;
       width: 100%;
@@ -115,6 +120,8 @@
     }
 
     .search-result {
+      overflow-y: scroll;
+
       .search-result-item {
         padding: 10px 14px;
         background-color: var(--white);
@@ -193,8 +200,8 @@
 
   .sidebar-search-bar-isSearching {
     flex: 1 1;
-    overflow: auto;
     overflow-x: hidden;
+    margin-bottom: 0px;
   }
   &:hover,
   &:active {

@@ -175,7 +175,7 @@ export class AgentApi {
       },
       async handleAgentAction(action) {
         try {
-          // console.log("[handleAgentAction]", { action });
+          console.log("[handleAgentAction]", { action });
           if (!reqBody.returnIntermediateSteps) return;
           var response = new ResponseBody();
           response.isToolMessage = true;

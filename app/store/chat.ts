@@ -432,8 +432,14 @@ export const useChatStore = createPersistStore(
         const isEnableRAG =
           session.attachFiles && session.attachFiles.length > 0;
         // get recent messages
-        const recentMessages = get().getMessagesWithMemory();
-        const sendMessages = recentMessages.concat(userMessage);
+        let recentMessages = get().getMessagesWithMemory();
+        let sendMessages;
+        if (typeof messageIdx === "number" && messageIdx >= 0) {
+          // 只取到 messageIdx（含）为止的消息
+          sendMessages = recentMessages.slice(0, messageIdx + 1);
+        } else {
+          sendMessages = recentMessages.concat(userMessage);
+        }
         const messageIndex = session.messages.length + 1;
 
         const config = useAppConfig.getState();

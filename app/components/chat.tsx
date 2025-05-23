@@ -78,6 +78,7 @@ import {
   autoGrowTextArea,
   useMobileScreen,
   getMessageTextContent,
+  getMessageTextReasoningContent,
   getMessageImages,
   isVisionModel,
   isOpenAIImageGenerationModel,
@@ -1296,7 +1297,7 @@ function _Chat() {
     if (n === 0) {
       setPromptHints([]);
     } else if (text.match(ChatCommandPrefix)) {
-      setPromptHints(chatCommands.search(text));
+      // setPromptHints(chatCommands.search(text));
     } else if (!config.disablePromptHint && n < SEARCH_TEXT_LIMIT) {
       // check if need to trigger auto completion
       if (text.startsWith("/")) {
@@ -1487,6 +1488,8 @@ function _Chat() {
       (m) => m.id === message.id,
     );
 
+    let requestIndex = resendingIndex;
+
     if (resendingIndex < 0 || resendingIndex >= session.messages.length) {
       console.error("[Chat] failed to find resending message", message);
       return;
@@ -1501,6 +1504,7 @@ function _Chat() {
       for (let i = resendingIndex; i >= 0; i -= 1) {
         if (session.messages[i].role === "user") {
           userMessage = session.messages[i];
+          requestIndex = i;
           break;
         }
       }
@@ -1534,7 +1538,7 @@ function _Chat() {
         images,
         userMessage.fileInfos,
         userMessage.webSearchReferences,
-        resendingIndex,
+        requestIndex,
       )
       .then(() => setIsLoading(false));
     inputRef.current?.focus();
@@ -1610,8 +1614,8 @@ function _Chat() {
     const copiedHello = Object.assign({}, BOT_HELLO);
     if (!accessStore.isAuthorized()) {
       copiedHello.content = Locale.Error.Unauthorized;
+      context.push(copiedHello);
     }
-    context.push(copiedHello);
   }
 
   // preview messages
@@ -1758,9 +1762,9 @@ function _Chat() {
           accessStore.update((access) => (access.accessCode = payload.code!));
           if (accessStore.isAuthorized()) {
             context.pop();
-            const copiedHello = Object.assign({}, BOT_HELLO);
-            context.push(copiedHello);
-            setUserInput(" ");
+            // const copiedHello = Object.assign({}, BOT_HELLO);
+            // context.push(copiedHello);
+            // setUserInput(" ");
           }
         }
       } catch {
@@ -1920,68 +1924,111 @@ function _Chat() {
   // 快捷键 shortcut keys
   const [showShortcutKeyModal, setShowShortcutKeyModal] = useState(false);
 
-  useEffect(() => {
-    const handleKeyDown = (event: any) => {
-      // 打开新聊天 command + shift + o
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        event.shiftKey &&
-        event.key.toLowerCase() === "o"
-      ) {
-        event.preventDefault();
-        setTimeout(() => {
-          chatStore.newSession();
-          navigate(Path.Chat);
-        }, 10);
-      }
-      // 聚焦聊天输入 shift + esc
-      else if (event.shiftKey && event.key.toLowerCase() === "escape") {
-        event.preventDefault();
-        inputRef.current?.focus();
-      }
-      // 复制最后一个代码块 command + shift + ;
-      else if (
-        (event.metaKey || event.ctrlKey) &&
-        event.shiftKey &&
-        event.code === "Semicolon"
-      ) {
-        event.preventDefault();
-        const copyCodeButton =
-          document.querySelectorAll<HTMLElement>(".copy-code-button");
-        if (copyCodeButton.length > 0) {
-          copyCodeButton[copyCodeButton.length - 1].click();
-        }
-      }
-      // 复制最后一个回复 command + shift + c
-      else if (
-        (event.metaKey || event.ctrlKey) &&
-        event.shiftKey &&
-        event.key.toLowerCase() === "c"
-      ) {
-        event.preventDefault();
-        const lastNonUserMessage = messages
-          .filter((message) => message.role !== "user")
-          .pop();
-        if (lastNonUserMessage) {
-          const lastMessageContent = getMessageTextContent(lastNonUserMessage);
-          copyToClipboard(lastMessageContent);
-        }
-      }
-      // 展示快捷键 command + /
-      else if ((event.metaKey || event.ctrlKey) && event.key === "/") {
-        event.preventDefault();
-        setShowShortcutKeyModal(true);
-      }
-    };
+  // useEffect(() => {
+  //   const handleKeyDown = (event: any) => {
+  //     // 打开新聊天 command + shift + o
+  //     if (
+  //       (event.metaKey || event.ctrlKey) &&
+  //       event.shiftKey &&
+  //       event.key.toLowerCase() === "o"
+  //     ) {
+  //       event.preventDefault();
+  //       setTimeout(() => {
+  //         chatStore.newSession();
+  //         navigate(Path.Chat);
+  //       }, 10);
+  //     }
+  //     // 聚焦聊天输入 shift + esc
+  //     else if (event.shiftKey && event.key.toLowerCase() === "escape") {
+  //       event.preventDefault();
+  //       inputRef.current?.focus();
+  //     }
+  //     // 复制最后一个代码块 command + shift + ;
+  //     else if (
+  //       (event.metaKey || event.ctrlKey) &&
+  //       event.shiftKey &&
+  //       event.code === "Semicolon"
+  //     ) {
+  //       event.preventDefault();
+  //       const copyCodeButton =
+  //         document.querySelectorAll<HTMLElement>(".copy-code-button");
+  //       if (copyCodeButton.length > 0) {
+  //         copyCodeButton[copyCodeButton.length - 1].click();
+  //       }
+  //     }
+  //     // 复制最后一个回复 command + shift + c
+  //     else if (
+  //       (event.metaKey || event.ctrlKey) &&
+  //       event.shiftKey &&
+  //       event.key.toLowerCase() === "c"
+  //     ) {
+  //       event.preventDefault();
+  //       const lastNonUserMessage = messages
+  //         .filter((message) => message.role !== "user")
+  //         .pop();
+  //       if (lastNonUserMessage) {
+  //         const lastMessageContent = getMessageTextContent(lastNonUserMessage);
+  //         copyToClipboard(lastMessageContent);
+  //       }
+  //     }
+  //     // 展示快捷键 command + /
+  //     else if ((event.metaKey || event.ctrlKey) && event.key === "/") {
+  //       event.preventDefault();
+  //       setShowShortcutKeyModal(true);
+  //     }
+  //   };
 
-    window.addEventListener("keydown", handleKeyDown);
+  //   window.addEventListener("keydown", handleKeyDown);
 
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [messages, chatStore, navigate]);
+  //   return () => {
+  //     window.removeEventListener("keydown", handleKeyDown);
+  //   };
+  // }, [messages, chatStore, navigate]);
 
   const [showChatSidePanel, setShowChatSidePanel] = useState(false);
+
+  const handleEditMessage = async (
+    message: ChatMessage,
+    type: "content" | "reasoningContent" = "content",
+  ) => {
+    if (message.streaming) return;
+    const newMessage = await showPrompt(
+      Locale.Chat.Actions.Edit,
+      type === "content"
+        ? getMessageTextContent(message)
+        : getMessageTextReasoningContent(message),
+      16,
+    );
+    let newContent: string | MultimodalContent[] = newMessage;
+    const images = getMessageImages(message);
+    if (type === "content" && images.length > 0) {
+      newContent = [{ type: "text", text: newMessage }];
+      for (let i = 0; i < images.length; i++) {
+        newContent.push({
+          type: "image_url",
+          image_url: {
+            url: images[i],
+          },
+        });
+      }
+    }
+    chatStore.updateTargetSession(session, (session) => {
+      const m = session.mask.context
+        .concat(session.messages)
+        .find((m) => m.id === message.id);
+      if (m) {
+        if (type === "content") {
+          m.content = newContent;
+        }
+        if (type === "reasoningContent") {
+          m.reasoningContent = newContent as string;
+        }
+      }
+    });
+    // if (message.role === "user") {
+    //   onResend(message);
+    // }
+  };
 
   return (
     <>
@@ -2101,7 +2148,6 @@ function _Chat() {
                 const isUser = message.role === "user";
                 const isContext = i < context.length;
                 const showActions =
-                  i > 0 &&
                   !(message.preview || message.content.length === 0) &&
                   !isContext;
                 const showTyping = message.preview || message.streaming;
@@ -2252,47 +2298,7 @@ function _Chat() {
                                     <ChatAction
                                       text={Locale.Chat.Actions.Edit}
                                       icon={<EditIcon />}
-                                      onClick={async () => {
-                                        const newMessage = await showPrompt(
-                                          Locale.Chat.Actions.Edit,
-                                          getMessageTextContent(message),
-                                          16,
-                                        );
-                                        let newContent:
-                                          | string
-                                          | MultimodalContent[] = newMessage;
-                                        const images =
-                                          getMessageImages(message);
-                                        if (images.length > 0) {
-                                          newContent = [
-                                            { type: "text", text: newMessage },
-                                          ];
-                                          for (
-                                            let i = 0;
-                                            i < images.length;
-                                            i++
-                                          ) {
-                                            newContent.push({
-                                              type: "image_url",
-                                              image_url: {
-                                                url: images[i],
-                                              },
-                                            });
-                                          }
-                                        }
-                                        chatStore.updateTargetSession(
-                                          session,
-                                          (session) => {
-                                            const m = session.mask.context
-                                              .concat(session.messages)
-                                              .find((m) => m.id === message.id);
-                                            if (m) {
-                                              m.content = newContent;
-                                            }
-                                          },
-                                        );
-                                        isUser && onResend(message);
-                                      }}
+                                      onClick={() => handleEditMessage(message)}
                                     />
                                   </>
                                 )}
@@ -2350,8 +2356,22 @@ function _Chat() {
                             ))}
                           </div>
                         )}
-                        {!isUser && <ThinkingContent message={message} />}
-                        <div className={styles["chat-message-item"]}>
+                        {!isUser && (
+                          <ThinkingContent
+                            message={message}
+                            onDoubleClick={() => {
+                              if (message.streaming) return;
+                              handleEditMessage(message);
+                            }}
+                          />
+                        )}
+                        <div
+                          className={styles["chat-message-item"]}
+                          onDoubleClick={async () => {
+                            if (message.streaming) return;
+                            handleEditMessage(message);
+                          }}
+                        >
                           {Array.isArray(message.content) ? (
                             message.content.map((content, index) => (
                               <Fragment key={index}>
@@ -2518,8 +2538,8 @@ function _Chat() {
                   onInput={(e) => onInput(e.currentTarget.value)}
                   value={userInput}
                   onKeyDown={onInputKeyDown}
-                  onFocus={scrollToBottom}
-                  onClick={scrollToBottom}
+                  // onFocus={scrollToBottom}
+                  // onClick={scrollToBottom}
                   onPaste={handlePaste}
                   rows={inputRows}
                   autoFocus={autoFocus}

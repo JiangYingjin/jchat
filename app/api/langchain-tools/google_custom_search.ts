@@ -72,6 +72,9 @@ export class GoogleCustomSearch extends Tool {
 
     const json = await res.json();
 
+    // 打印调试信息
+    console.log("[Google custom search] response json:", json);
+
     const results =
       json?.items?.map(
         (item: { title?: string; link?: string; snippet?: string }) => ({
