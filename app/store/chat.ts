@@ -433,7 +433,7 @@ export const useChatStore = createPersistStore(
           session.attachFiles && session.attachFiles.length > 0;
         // get recent messages
         let recentMessages = get().getMessagesWithMemory();
-        let sendMessages;
+        let sendMessages: ChatMessage[];
         if (typeof messageIdx === "number" && messageIdx >= 0) {
           // 只取到 messageIdx（含）为止的消息
           sendMessages = recentMessages.slice(0, messageIdx + 1);
