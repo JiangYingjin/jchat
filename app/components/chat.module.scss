@@ -425,7 +425,6 @@
 }
 
 .chat-message-container {
-  max-width: var(--message-max-width);
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -441,6 +440,14 @@
       transform: scale(1) translateY(0);
     }
   }
+}
+
+.chat-message-container-user {
+  max-width: var(--message-max-width-user);
+}
+
+.chat-message-container-assistant {
+  max-width: var(--message-max-width-assistant);
 }
 
 .chat-message-user > .chat-message-container {

@@ -1005,21 +1005,20 @@ export function ChatActions(props: {
             icon={<StopIcon />}
           />
         )}
-        {!props.hitBottom && (
+        {/* {!props.hitBottom && (
           <ChatAction
             onClick={props.scrollToBottom}
             text={Locale.Chat.InputActions.ToBottom}
             icon={<BottomIcon />}
           />
-        )}
-        {props.hitBottom && (
+        )} */}
+        {/* {props.hitBottom && (
           <ChatAction
             onClick={props.showPromptModal}
             text={Locale.Chat.InputActions.Settings}
             icon={<SettingsIcon />}
           />
-        )}
-
+        )} */}
         {/* {!isMobileScreen && (
           <ChatAction
             onClick={() => props.setShowShortcutKeyModal(true)}
@@ -1090,6 +1089,15 @@ export function EditMessageModal(props: { onClose: () => void }) {
                 )
               }
             ></input>
+            <IconButton
+              icon={<ReloadIcon />}
+              bordered
+              title={Locale.Chat.Actions.RefreshTitle}
+              onClick={() => {
+                showToast(Locale.Chat.Actions.RefreshToast);
+                chatStore.summarizeSession(true, session);
+              }}
+            />
           </ListItem>
         </List>
         <ContextPrompts
@@ -1447,7 +1455,25 @@ function _Chat() {
   };
 
   const onDelete = (msgId: string) => {
+    // 保存删除前的 messages 状态
+    const prevMessages = session.messages.slice();
+
     deleteMessage(msgId);
+
+    // 显示 Toast，提供撤销按钮
+    showToast(
+      Locale.Home.DeleteToast, // 你可以在 Locale 里加一个类似 "消息已删除"
+      {
+        text: Locale.Home.Revert, // 你可以在 Locale 里加一个 "撤销"
+        onClick() {
+          chatStore.updateTargetSession(
+            session,
+            (session) => (session.messages = prevMessages),
+          );
+        },
+      },
+      5000,
+    );
   };
 
   const onResend = (message: ChatMessage) => {
@@ -1494,9 +1520,9 @@ function _Chat() {
       return;
     }
 
-    // delete the original messages
-    deleteMessage(userMessage.id);
-    deleteMessage(botMessage?.id);
+    // // delete the original messages
+    // deleteMessage(userMessage.id);
+    // deleteMessage(botMessage?.id);
 
     // resend the message
     setIsLoading(true);
@@ -1508,6 +1534,7 @@ function _Chat() {
         images,
         userMessage.fileInfos,
         userMessage.webSearchReferences,
+        resendingIndex,
       )
       .then(() => setIsLoading(false));
     inputRef.current?.focus();
@@ -1990,7 +2017,7 @@ function _Chat() {
             </div>
           </div>
           <div className="window-actions">
-            <div className="window-action-button">
+            {/* <div className="window-action-button">
               <IconButton
                 icon={<ReloadIcon />}
                 bordered
@@ -2000,8 +2027,8 @@ function _Chat() {
                   chatStore.summarizeSession(true, session);
                 }}
               />
-            </div>
-            {!isMobileScreen && (
+            </div> */}
+            {/* {!isMobileScreen && (
               <div className="window-action-button">
                 <IconButton
                   icon={<RenameIcon />}
@@ -2011,7 +2038,20 @@ function _Chat() {
                   onClick={() => setIsEditingMessage(true)}
                 />
               </div>
-            )}
+            )} */}
+            <div className="window-action-button">
+              <IconButton
+                icon={<DeleteIcon />}
+                bordered
+                title={Locale.Chat.Actions.Delete}
+                onClick={async () => {
+                  chatStore.deleteSession(chatStore.currentSessionIndex);
+                  // if (await showConfirm(Locale.Home.DeleteChat)) {
+                  //   chatStore.deleteSession(chatStore.currentSessionIndex);
+                  // }
+                }}
+              />
+            </div>
             <div className="window-action-button">
               <IconButton
                 icon={<ExportIcon />}
@@ -2022,7 +2062,7 @@ function _Chat() {
                 }}
               />
             </div>
-            {showMaxIcon && (
+            {/* {showMaxIcon && (
               <div className="window-action-button">
                 <IconButton
                   icon={config.tightBorder ? <MinIcon /> : <MaxIcon />}
@@ -2036,7 +2076,7 @@ function _Chat() {
                   }}
                 />
               </div>
-            )}
+            )} */}
           </div>
 
           <PromptToast
@@ -2078,9 +2118,17 @@ function _Chat() {
                           : styles["chat-message"]
                       }
                     >
-                      <div className={styles["chat-message-container"]}>
+                      <div
+                        className={
+                          styles["chat-message-container"] +
+                          " " +
+                          (isUser
+                            ? styles["chat-message-container-user"]
+                            : styles["chat-message-container-assistant"])
+                        }
+                      >
                         <div className={styles["chat-message-header"]}>
-                          <div className={styles["chat-message-avatar"]}>
+                          {/* <div className={styles["chat-message-avatar"]}>
                             <div className={styles["chat-message-edit"]}>
                               <IconButton
                                 icon={<EditIcon />}
@@ -2138,7 +2186,7 @@ function _Chat() {
                                 )}
                               </>
                             )}
-                          </div>
+                          </div> */}
                           {!isUser && (
                             <div className={styles["chat-model-name"]}>
                               {message.model}
@@ -2161,18 +2209,6 @@ function _Chat() {
                                       icon={<ResetIcon />}
                                       onClick={() => onResend(message)}
                                     />
-
-                                    <ChatAction
-                                      text={Locale.Chat.Actions.Delete}
-                                      icon={<DeleteIcon />}
-                                      onClick={() => onDelete(message.id ?? i)}
-                                    />
-
-                                    <ChatAction
-                                      text={Locale.Chat.Actions.Pin}
-                                      icon={<PinIcon />}
-                                      onClick={() => onPinMessage(message)}
-                                    />
                                     <ChatAction
                                       text={Locale.Chat.Actions.Copy}
                                       icon={<CopyIcon />}
@@ -2182,6 +2218,16 @@ function _Chat() {
                                         )
                                       }
                                     />
+                                    <ChatAction
+                                      text={Locale.Chat.Actions.Delete}
+                                      icon={<DeleteIcon />}
+                                      onClick={() => onDelete(message.id ?? i)}
+                                    />
+                                    {/* <ChatAction
+                                      text={Locale.Chat.Actions.Pin}
+                                      icon={<PinIcon />}
+                                      onClick={() => onPinMessage(message)}
+                                    /> */}
                                     {config.ttsConfig.enable && (
                                       <ChatAction
                                         text={
@@ -2203,6 +2249,51 @@ function _Chat() {
                                         }
                                       />
                                     )}
+                                    <ChatAction
+                                      text={Locale.Chat.Actions.Edit}
+                                      icon={<EditIcon />}
+                                      onClick={async () => {
+                                        const newMessage = await showPrompt(
+                                          Locale.Chat.Actions.Edit,
+                                          getMessageTextContent(message),
+                                          16,
+                                        );
+                                        let newContent:
+                                          | string
+                                          | MultimodalContent[] = newMessage;
+                                        const images =
+                                          getMessageImages(message);
+                                        if (images.length > 0) {
+                                          newContent = [
+                                            { type: "text", text: newMessage },
+                                          ];
+                                          for (
+                                            let i = 0;
+                                            i < images.length;
+                                            i++
+                                          ) {
+                                            newContent.push({
+                                              type: "image_url",
+                                              image_url: {
+                                                url: images[i],
+                                              },
+                                            });
+                                          }
+                                        }
+                                        chatStore.updateTargetSession(
+                                          session,
+                                          (session) => {
+                                            const m = session.mask.context
+                                              .concat(session.messages)
+                                              .find((m) => m.id === message.id);
+                                            if (m) {
+                                              m.content = newContent;
+                                            }
+                                          },
+                                        );
+                                        isUser && onResend(message);
+                                      }}
+                                    />
                                   </>
                                 )}
                               </div>

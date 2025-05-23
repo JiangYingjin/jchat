@@ -164,7 +164,7 @@ export function MessageSelector(props: {
             className={styles["filter-item"]}
             onClick={selectAll}
           />
-          <IconButton
+          {/* <IconButton
             text={Locale.Select.Latest}
             bordered
             className={styles["filter-item"]}
@@ -176,7 +176,7 @@ export function MessageSelector(props: {
                   .forEach((m) => selection.add(m.id!));
               })
             }
-          />
+          /> */}
           <IconButton
             text={Locale.Select.Clear}
             bordered

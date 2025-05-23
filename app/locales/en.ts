@@ -109,6 +109,8 @@ const en: LocaleType = {
       copyLastCode: "Copy Last Code Block",
       showShortcutKey: "Show Shortcuts",
     },
+    DeleteMessageToast: "Message Deleted",
+    Revert: "Revert",
   },
   Export: {
     Title: "Export Messages",

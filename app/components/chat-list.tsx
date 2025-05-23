@@ -77,16 +77,16 @@ export function ChatItem(props: {
           ) : (
             <>
               <div className={styles["chat-item-title"]}>{props.title}</div>
-              <div className={styles["chat-item-info"]}>
+              {/* <div className={styles["chat-item-info"]}>
                 <div className={styles["chat-item-count"]}>
                   {Locale.ChatItem.ChatItemCount(props.count)}
                 </div>
                 <div className={styles["chat-item-date"]}>{props.time}</div>
-              </div>
+              </div> */}
             </>
           )}
 
-          <div
+          {/* <div
             className={styles["chat-item-delete"]}
             onClickCapture={(e) => {
               props.onDelete?.();
@@ -95,7 +95,7 @@ export function ChatItem(props: {
             }}
           >
             <DeleteIcon />
-          </div>
+          </div> */}
         </div>
       )}
     </Draggable>
@@ -156,6 +156,7 @@ export function ChatList(props: { narrow?: boolean }) {
                 onDelete={async () => {
                   if (
                     (!props.narrow && !isMobileScreen) ||
+                    true ||
                     (await showConfirm(Locale.Home.DeleteChat))
                   ) {
                     chatStore.deleteSession(i);

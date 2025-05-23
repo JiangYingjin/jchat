@@ -30,10 +30,10 @@ export function ThinkingContent({ message }: { message: ChatMessage }) {
   useEffect(() => {
     if (isThinking && thinkingContentRef.current) {
       requestAnimationFrame(() => {
-        if (thinkingContentRef.current) {
-          thinkingContentRef.current.scrollTop =
-            thinkingContentRef.current.scrollHeight;
-        }
+        // if (thinkingContentRef.current) {
+        //   thinkingContentRef.current.scrollTop =
+        //     thinkingContentRef.current.scrollHeight;
+        // }
       });
     }
   }, [thinkingContent, isThinking, expanded]);

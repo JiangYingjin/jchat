@@ -41,7 +41,7 @@
   top: 0;
   width: var(--sidebar-width);
   box-sizing: border-box;
-  padding: 20px;
+  padding: 12px;
   background-color: var(--second);
   display: flex;
   flex-direction: column;
@@ -97,7 +97,7 @@
         padding-right: 35px;
         outline: none;
       }
-      
+
       .search-input:focus {
         border: 1px solid var(--primary);
       }
@@ -115,7 +115,6 @@
     }
 
     .search-result {
-
       .search-result-item {
         padding: 10px 14px;
         background-color: var(--white);
@@ -296,10 +295,22 @@
   flex: 1;
   overflow: auto;
   overflow-x: hidden;
+
+  // // 隐藏滚动条
+  // scrollbar-width: none;
+  // -ms-overflow-style: none;
+  // &::-webkit-scrollbar {
+  //   display: none;
+  // }
+
+  // 非常细的滚动条
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
 }
 
 .chat-item {
-  padding: 10px 14px;
+  padding: 8px 8px;
   background-color: var(--white);
   border-radius: 10px;
   margin-bottom: 10px;
@@ -324,7 +335,7 @@
   font-size: 14px;
   font-weight: bolder;
   display: block;
-  width: calc(100% - 15px);
+  width: calc(100%);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -8,8 +8,16 @@
   --white: white;
   --black: rgb(48, 48, 48);
   --gray: rgb(250, 250, 250);
-  --primary: rgb(29, 147, 171);
-  --second: rgb(231, 248, 255);
+
+  // --primary: rgb(70, 100, 190);
+  // --second: rgb(238, 242, 248);
+
+  --primary: rgb(60, 85, 180);
+  --second: rgb(235, 238, 245);
+
+  // --primary: rgb(29, 147, 171);
+  // --second: rgb(231, 248, 255);
+
   --hover-color: #f3f3f3;
   --bar-color: rgba(0, 0, 0, 0.1);
   // --theme-color: #e7f8ff;
@@ -60,7 +68,8 @@
   --window-height: 90vh;
   --sidebar-width: 300px;
   --window-content-width: calc(100% - var(--sidebar-width));
-  --message-max-width: 80%;
+  --message-max-width-user: 80%;
+  --message-max-width-assistant: 100%;
   --full-height: 100%;
 }
 
@@ -70,7 +79,8 @@
     --window-height: var(--full-height);
     --sidebar-width: 100vw;
     --window-content-width: var(--window-width);
-    --message-max-width: 100%;
+    --message-max-width-user: 100%;
+    --message-max-width-assistant: 100%;
   }
 
   .no-mobile {

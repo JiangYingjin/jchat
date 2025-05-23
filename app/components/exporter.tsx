@@ -50,19 +50,20 @@ export function ExportMessageModal(props: { onClose: () => void }) {
     <div className="modal-mask">
       <Modal
         title={Locale.Export.Title}
+        defaultMax={true}
         onClose={props.onClose}
-        footer={
-          <div
-            style={{
-              width: "100%",
-              textAlign: "center",
-              fontSize: 14,
-              opacity: 0.5,
-            }}
-          >
-            {Locale.Exporter.Description.Title}
-          </div>
-        }
+        // footer={
+        //   <div
+        //     style={{
+        //       width: "100%",
+        //       textAlign: "center",
+        //       fontSize: 14,
+        //       opacity: 0.5,
+        //     }}
+        //   >
+        //     {Locale.Exporter.Description.Title}
+        //   </div>
+        // }
       >
         <div style={{ minHeight: "40vh" }}>
           <MessageExporter />
@@ -79,7 +80,7 @@ function useSteps(
   }>,
 ) {
   const stepCount = steps.length;
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [currentStepIndex, setCurrentStepIndex] = useState(1);
   const nextStep = () =>
     setCurrentStepIndex((currentStepIndex + 1) % stepCount);
   const prevStep = () =>
@@ -153,7 +154,7 @@ export function MessageExporter() {
   type ExportFormat = (typeof formats)[number];
 
   const [exportConfig, setExportConfig] = useState({
-    format: "image" as ExportFormat,
+    format: "text" as ExportFormat,
     includeContext: true,
   });
 
@@ -205,7 +206,7 @@ export function MessageExporter() {
         className={styles["message-exporter-body"]}
         style={currentStep.value !== "select" ? { display: "none" } : {}}
       >
-        <List>
+        {/* <List>
           <ListItem
             title={Locale.Export.Format.Title}
             subTitle={Locale.Export.Format.SubTitle}
@@ -240,7 +241,7 @@ export function MessageExporter() {
               }}
             ></input>
           </ListItem>
-        </List>
+        </List> */}
         <MessageSelector
           selection={selection}
           updateSelection={updateSelection}
@@ -248,7 +249,33 @@ export function MessageExporter() {
         />
       </div>
       {currentStep.value === "preview" && (
-        <div className={styles["message-exporter-body"]}>{preview()}</div>
+        <>
+          <div className={styles["message-exporter-body"]}>
+            <List>
+              <ListItem
+                title={Locale.Export.Format.Title}
+                subTitle={Locale.Export.Format.SubTitle}
+              >
+                <Select
+                  value={exportConfig.format}
+                  onChange={(e) =>
+                    updateExportConfig(
+                      (config) =>
+                        (config.format = e.currentTarget.value as ExportFormat),
+                    )
+                  }
+                >
+                  {formats.map((f) => (
+                    <option key={f} value={f}>
+                      {f}
+                    </option>
+                  ))}
+                </Select>
+              </ListItem>
+            </List>
+            <div className={styles["message-exporter-body"]}>{preview()}</div>
+          </div>
+        </>
       )}
     </>
   );
@@ -379,13 +406,13 @@ export function PreviewActions(props: {
           icon={<DownloadIcon />}
           onClick={props.download}
         ></IconButton>
-        <IconButton
+        {/* <IconButton
           text={Locale.Export.Share}
           bordered
           shadow
           icon={loading ? <LoadingIcon /> : <ShareIcon />}
           onClick={share}
-        ></IconButton>
+        ></IconButton> */}
       </div>
       <div
         style={{
@@ -523,24 +550,25 @@ export function ImagePreviewer(props: {
       <PreviewActions
         copy={copy}
         download={download}
-        showCopy={!isMobile}
+        showCopy={false}
         messages={props.messages}
       />
       <div
         className={`${styles["preview-body"]} ${styles["default-theme"]}`}
         ref={previewRef}
+        onClick={copy}
       >
         <div className={styles["chat-info"]}>
-          <div className={styles["logo"] + " no-dark"}>
+          {/* <div className={styles["logo"] + " no-dark"}>
             <NextImage
               src={ChatGptIcon.src}
               alt="logo"
               width={50}
               height={50}
             />
-          </div>
+          </div> */}
 
-          <div>
+          {/* <div>
             <div className={styles["main-title"]}>NextChat</div>
             <div className={styles["sub-title"]}>
               github.com/ChatGPTNextWeb/ChatGPT-Next-Web
@@ -550,19 +578,19 @@ export function ImagePreviewer(props: {
               <span className={styles["icon-space"]}>&</span>
               <ExportAvatar avatar={mask.avatar} />
             </div>
-          </div>
+          </div> */}
           <div>
             <div className={styles["chat-info-item"]}>
-              {Locale.Exporter.Model}: {mask.modelConfig.model}
+              {Locale.Exporter.Model}：{mask.modelConfig.model}
             </div>
+            {/* <div className={styles["chat-info-item"]}>
+              {Locale.Exporter.Messages}：{props.messages.length}
+            </div> */}
+            {/* <div className={styles["chat-info-item"]}>
+              {Locale.Exporter.Topic}：{session.topic}
+            </div> */}
             <div className={styles["chat-info-item"]}>
-              {Locale.Exporter.Messages}: {props.messages.length}
-            </div>
-            <div className={styles["chat-info-item"]}>
-              {Locale.Exporter.Topic}: {session.topic}
-            </div>
-            <div className={styles["chat-info-item"]}>
-              {Locale.Exporter.Time}:{" "}
+              {Locale.Exporter.Time}：
               {new Date(
                 props.messages.at(-1)?.date ?? Date.now(),
               ).toLocaleString()}
@@ -575,11 +603,11 @@ export function ImagePreviewer(props: {
               className={styles["message"] + " " + styles["message-" + m.role]}
               key={i}
             >
-              <div className={styles["avatar"]}>
+              {/* <div className={styles["avatar"]}>
                 <ExportAvatar
                   avatar={m.role === "user" ? config.avatar : mask.avatar}
                 />
-              </div>
+              </div> */}
 
               <div className={styles["body"]}>
                 <Markdown
@@ -630,11 +658,12 @@ export function MarkdownPreviewer(props: {
 }) {
   const mdText =
     `# ${props.topic}\n\n` +
+    `> 以下是用户与模型的对话记录\n\n` +
     props.messages
       .map((m) => {
         return m.role === "user"
-          ? `## ${Locale.Export.MessageFromYou}:\n${getMessageTextContent(m)}`
-          : `## ${Locale.Export.MessageFromChatGPT}:\n${getMessageTextContent(
+          ? `## ${Locale.Export.MessageFromYou}\n\n${getMessageTextContent(m)}`
+          : `## ${Locale.Export.MessageFromChatGPT}\n\n${getMessageTextContent(
               m,
             ).trim()}`;
       })
@@ -651,10 +680,11 @@ export function MarkdownPreviewer(props: {
       <PreviewActions
         copy={copy}
         download={download}
-        showCopy={true}
+        showCopy={false}
         messages={props.messages}
       />
-      <div className="markdown-body">
+      <div className="markdown-body" onClick={copy}>
+        {/* <Markdown content={mdText} /> */}
         <pre className={styles["export-content"]}>{mdText}</pre>
       </div>
     </>

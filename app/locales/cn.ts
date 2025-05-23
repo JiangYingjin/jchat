@@ -107,14 +107,16 @@ const cn = {
       copyLastCode: "复制最后一个代码块",
       showShortcutKey: "显示快捷方式",
     },
+    DeleteMessageToast: "消息已删除",
+    Revert: "撤销",
   },
   Export: {
     Title: "分享聊天记录",
-    Copy: "全部复制",
-    Download: "下载文件",
+    Copy: "复制",
+    Download: "下载",
     Share: "分享到 ShareGPT",
     MessageFromYou: "用户",
-    MessageFromChatGPT: "ChatGPT",
+    MessageFromChatGPT: "模型",
     Format: {
       Title: "导出格式",
       SubTitle: "可以导出 Markdown 文本或者 PNG 图片",
@@ -124,8 +126,8 @@ const cn = {
       SubTitle: "是否在消息中展示面具上下文",
     },
     Steps: {
-      Select: "选取",
-      Preview: "预览",
+      Select: "对话选取",
+      Preview: "预览导出",
     },
     Image: {
       Toast: "正在生成截图",
@@ -644,13 +646,14 @@ const cn = {
     },
   },
   Store: {
-    DefaultTopic: "新的聊天",
+    DefaultTopic: "新的对话",
     BotHello: "有什么可以帮你的吗",
     Error: "出错了，稍后重试吧",
     Prompt: {
       History: (content: string) => "这是历史聊天总结作为前情提要：" + content,
       Topic:
-        "使用四到五个字直接返回这句话的简要主题，不要解释、不要标点、不要语气词、不要多余文本，不要加粗，如果没有主题，请直接返回“闲聊”",
+        "简要概述上述对话主题，字数5~7字以内，纯文本，不要解释、不要标点、不要语气词、不要多余文本、不要加粗",
+      // "使用四到五个字直接返回这句话的简要主题，不要解释、不要标点、不要语气词、不要多余文本，不要加粗，如果没有主题，请直接返回“闲聊”",
       Summarize:
         "简要总结一下对话内容，用作后续的上下文提示 prompt，控制在 200 字以内",
     },

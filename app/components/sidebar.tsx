@@ -75,6 +75,7 @@ function useDragSideBar() {
   };
   const expandSidebar = () => {
     config.update((config) => (config.sidebarWidth = MAX_SIDEBAR_WIDTH));
+    // config.update((config) => (config.sidebarWidth = MAX_SIDEBAR_WIDTH));
   };
 
   const onDragStart = (e: MouseEvent) => {
@@ -172,7 +173,7 @@ export function SideBar(props: { className?: string }) {
         transition: isMobileScreen && isIOSMobile ? "none" : undefined,
       }}
     >
-      <div className={styles["sidebar-header"]} data-tauri-drag-region>
+      {/* <div className={styles["sidebar-header"]} data-tauri-drag-region>
         <div className={styles["sidebar-title"]} data-tauri-drag-region>
           NextChat
         </div>
@@ -182,29 +183,9 @@ export function SideBar(props: { className?: string }) {
         <div className={styles["sidebar-logo"] + " no-dark"}>
           <ChatGptIcon />
         </div>
-      </div>
+      </div> */}
 
-      <div className={styles["sidebar-header-bar"]}>
-        <IconButton
-          icon={<MaskIcon />}
-          text={shouldNarrow ? undefined : Locale.Mask.Name}
-          className={styles["sidebar-bar-button"]}
-          onClick={() => {
-            if (config.dontShowMaskSplashScreen !== true) {
-              navigate(Path.NewChat, { state: { fromHome: true } });
-            } else {
-              navigate(Path.Masks, { state: { fromHome: true } });
-            }
-          }}
-          shadow
-        />
-        <IconButton
-          icon={<PluginIcon />}
-          text={shouldNarrow ? undefined : Locale.Plugin.Name}
-          className={styles["sidebar-bar-button"]}
-          onClick={() => navigate(Path.Plugins, { state: { fromHome: true } })}
-          shadow
-        />
+      {/* <div className={styles["sidebar-header-bar"]}>
         {shouldNarrow && (
           <IconButton
             icon={<SearchIcon />}
@@ -219,7 +200,22 @@ export function SideBar(props: { className?: string }) {
             shadow
           />
         )}
-      </div>
+      </div> */}
+
+      {shouldNarrow && (
+        <IconButton
+          icon={<SearchIcon />}
+          className={styles["sidebar-bar-button"]}
+          onClick={() => {
+            expandSidebar();
+            // use setTimeout to avoid the input element not ready
+            setTimeout(() => {
+              searchBarRef.current?.inputElement?.focus();
+            }, 0);
+          }}
+          shadow
+        />
+      )}
 
       <div
         className={
@@ -248,7 +244,7 @@ export function SideBar(props: { className?: string }) {
 
       <div className={styles["sidebar-tail"]}>
         <div className={styles["sidebar-actions"]}>
-          <div className={styles["sidebar-action"] + " " + styles.mobile}>
+          {/* <div className={styles["sidebar-action"] + " " + styles.mobile}>
             <IconButton
               icon={<DeleteIcon />}
               onClick={async () => {
@@ -257,22 +253,33 @@ export function SideBar(props: { className?: string }) {
                 }
               }}
             />
-          </div>
+          </div> */}
           <div className={styles["sidebar-action"]}>
             <Link to={Path.Settings}>
               <IconButton icon={<SettingsIcon />} shadow />
             </Link>
           </div>
-          <div className={styles["sidebar-action"]}>
+          {/* <div className={styles["sidebar-action"]}>
             <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
               <IconButton icon={<GithubIcon />} shadow />
             </a>
+          </div> */}
+          <div className={styles["sidebar-action"]}>
+            <IconButton
+              icon={<PluginIcon />}
+              // text={shouldNarrow ? undefined : Locale.Plugin.Name}
+              className={styles["sidebar-bar-button"]}
+              onClick={() =>
+                navigate(Path.Plugins, { state: { fromHome: true } })
+              }
+              shadow
+            />
           </div>
         </div>
         <div>
           <IconButton
             icon={<AddIcon />}
-            text={shouldNarrow ? undefined : Locale.Home.NewChat}
+            // text={shouldNarrow ? undefined : Locale.Home.NewChat}
             onClick={() => {
               if (config.dontShowMaskSplashScreen) {
                 chatStore.newSession();

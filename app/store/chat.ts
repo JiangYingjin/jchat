@@ -349,14 +349,14 @@ export const useChatStore = createPersistStore(
         }));
 
         showToast(
-          Locale.Home.DeleteToast,
+          Locale.Chat.DeleteMessageToast,
           {
-            text: Locale.Home.Revert,
+            text: Locale.Chat.Revert,
             onClick() {
               set(() => restoreState);
             },
           },
-          5000,
+          8000,
         );
       },
 
@@ -388,6 +388,7 @@ export const useChatStore = createPersistStore(
         attachImages?: string[],
         attachFiles?: FileInfo[],
         webSearchReference?: TavilySearchResponse,
+        messageIdx?: number,
       ) {
         const session = get().currentSession();
         const modelConfig = session.mask.modelConfig;
@@ -452,10 +453,33 @@ export const useChatStore = createPersistStore(
             ...userMessage,
             content: mContent,
           };
-          session.messages = session.messages.concat([
-            savedUserMessage,
-            botMessage,
-          ]);
+          if (typeof messageIdx === "number" && messageIdx >= 0) {
+            // 入参 messageIdx，插入到指定位置
+            const insertIdx = Math.min(messageIdx, session.messages.length);
+            // 要确定 messageIdx+1 位置消息的 role 是否为 assistant
+            const nextMessage = session.messages[insertIdx + 1];
+            if (nextMessage && nextMessage.role === "assistant") {
+              // 如果 nextMessage 是 assistant，则插入到 nextMessage 后面
+              session.messages = [
+                ...session.messages.slice(0, insertIdx + 1),
+                botMessage,
+                ...session.messages.slice(insertIdx + 2),
+              ];
+            } else {
+              // 如果 nextMessage 不是 assistant，则插入到 nextMessage 前面
+              session.messages = [
+                ...session.messages.slice(0, insertIdx + 1),
+                botMessage,
+                ...session.messages.slice(insertIdx + 1),
+              ];
+            }
+          } else {
+            // 没有入参 messageIdx，插入到末尾
+            session.messages = session.messages.concat([
+              savedUserMessage,
+              botMessage,
+            ]);
+          }
         });
 
         const api: ClientApi = getClientApi(modelConfig.providerName);
