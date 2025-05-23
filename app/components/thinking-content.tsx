@@ -75,7 +75,12 @@ export function ThinkingContent({
           </div>
         </div>
       </div>
-      <div className={styles["thinking-content-wrapper"]}>
+      <div
+        className={styles["thinking-content-wrapper"]}
+        onClick={() => {
+          !expanded && setExpanded(true);
+        }}
+      >
         {!expanded && <div className={styles["thinking-content-top"]}></div>}
         <div
           className={clsx(

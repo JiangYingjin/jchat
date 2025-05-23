@@ -2298,7 +2298,9 @@ function _Chat() {
                                     <ChatAction
                                       text={Locale.Chat.Actions.Edit}
                                       icon={<EditIcon />}
-                                      onClick={() => handleEditMessage(message)}
+                                      onClick={() =>
+                                        handleEditMessage(message, "content")
+                                      }
                                     />
                                   </>
                                 )}
@@ -2361,7 +2363,7 @@ function _Chat() {
                             message={message}
                             onDoubleClick={() => {
                               if (message.streaming) return;
-                              handleEditMessage(message);
+                              handleEditMessage(message, "reasoningContent");
                             }}
                           />
                         )}
@@ -2369,7 +2371,7 @@ function _Chat() {
                           className={styles["chat-message-item"]}
                           onDoubleClick={async () => {
                             if (message.streaming) return;
-                            handleEditMessage(message);
+                            handleEditMessage(message, "content");
                           }}
                         >
                           {Array.isArray(message.content) ? (
