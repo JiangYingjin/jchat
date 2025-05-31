@@ -285,6 +285,7 @@
   left: 0;
   height: 100vh;
   width: 100vw;
+  padding-top: 28vh;
   background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
@@ -293,7 +294,7 @@
 
   &-content {
     .list {
-      max-height: 90vh;
+      max-height: 40vh;
       overflow-x: hidden;
       overflow-y: auto;
 

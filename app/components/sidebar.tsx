@@ -264,7 +264,7 @@ export function SideBar(props: { className?: string }) {
               <IconButton icon={<GithubIcon />} shadow />
             </a>
           </div> */}
-          <div className={styles["sidebar-action"]}>
+          {/* <div className={styles["sidebar-action"]}>
             <IconButton
               icon={<PluginIcon />}
               // text={shouldNarrow ? undefined : Locale.Plugin.Name}
@@ -274,7 +274,7 @@ export function SideBar(props: { className?: string }) {
               }
               shadow
             />
-          </div>
+          </div> */}
         </div>
         <div>
           <IconButton
