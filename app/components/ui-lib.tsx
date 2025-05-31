@@ -368,6 +368,7 @@ function PromptInput(props: {
   value: string;
   onChange: (value: string) => void;
   rows?: number;
+  onConfirm?: () => void;
 }) {
   const [input, setInput] = useState(props.value);
   const onInput = (value: string) => {
@@ -382,6 +383,11 @@ function PromptInput(props: {
       value={input}
       onInput={(e) => onInput(e.currentTarget.value)}
       rows={props.rows ?? 3}
+      onKeyDown={(e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+          props.onConfirm?.();
+        }
+      }}
     ></textarea>
   );
 }
@@ -397,8 +403,15 @@ export function showPrompt(content: any, value = "", rows = 3) {
     div.remove();
   };
 
-  return new Promise<string>((resolve) => {
+  return new Promise<{ value: string; byCtrlEnter: boolean }>((resolve) => {
     let userInput = value;
+    let resolved = false;
+    const doResolve = (byCtrlEnter: boolean) => {
+      if (resolved) return;
+      resolved = true;
+      resolve({ value: userInput, byCtrlEnter });
+      closeModal();
+    };
 
     root.render(
       <Modal
@@ -420,8 +433,7 @@ export function showPrompt(content: any, value = "", rows = 3) {
             text={Locale.UI.Confirm}
             type="primary"
             onClick={() => {
-              resolve(userInput);
-              closeModal();
+              doResolve(false);
             }}
             icon={<ConfirmIcon />}
             bordered
@@ -435,6 +447,7 @@ export function showPrompt(content: any, value = "", rows = 3) {
           onChange={(val) => (userInput = val)}
           value={value}
           rows={rows}
+          onConfirm={() => doResolve(true)}
         ></PromptInput>
       </Modal>,
     );

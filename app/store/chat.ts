@@ -436,7 +436,9 @@ export const useChatStore = createPersistStore(
         let sendMessages: ChatMessage[];
         if (typeof messageIdx === "number" && messageIdx >= 0) {
           // 只取到 messageIdx（含）为止的消息
-          sendMessages = recentMessages.slice(0, messageIdx + 1);
+          sendMessages = recentMessages
+            .slice(0, messageIdx)
+            .concat(userMessage);
         } else {
           sendMessages = recentMessages.concat(userMessage);
         }

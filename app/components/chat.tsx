@@ -675,7 +675,7 @@ export function ChatActions(props: {
 
   useEffect(() => {
     const show = isVisionModel(currentModel);
-    setShowUploadImage(show);
+    setShowUploadImage(show && isMobileScreen);
     setShowUploadFile(isEnableRAG && isSupportRAGModel(currentModel));
     if (!show) {
       props.setAttachImages([]);
@@ -697,6 +697,8 @@ export function ChatActions(props: {
         nextModel?.provider?.providerName == "ByteDance"
           ? nextModel.displayName
           : nextModel.name,
+        undefined,
+        1000,
       );
     }
   }, [chatStore, currentModel, models, session]);
@@ -704,13 +706,13 @@ export function ChatActions(props: {
   return (
     <div className={styles["chat-input-actions"]}>
       <>
-        {/* {showUploadImage && (
+        {showUploadImage && (
           <ChatAction
             onClick={props.uploadImage}
             text={Locale.Chat.InputActions.UploadImage}
             icon={props.uploading ? <LoadingButtonIcon /> : <ImageIcon />}
           />
-        )} */}
+        )}
         {showUploadFile && (
           <ChatAction
             onClick={props.uploadFile}
@@ -836,9 +838,9 @@ export function ChatActions(props: {
                     m.name == model &&
                     m?.provider?.providerName == providerName,
                 );
-                showToast(selectedModel?.displayName ?? "");
+                showToast(selectedModel?.displayName ?? "", undefined, 1000);
               } else {
-                showToast(model);
+                showToast(model, undefined, 1000);
               }
             }}
           />
@@ -1992,13 +1994,15 @@ function _Chat() {
     type: "content" | "reasoningContent" = "content",
   ) => {
     if (message.streaming) return;
-    const newMessage = await showPrompt(
+    const result = await showPrompt(
       Locale.Chat.Actions.Edit,
       type === "content"
         ? getMessageTextContent(message)
         : getMessageTextReasoningContent(message),
       16,
     );
+    // result: { value, byCtrlEnter }
+    let newMessage = result.value;
     let newContent: string | MultimodalContent[] = newMessage;
     const images = getMessageImages(message);
     if (type === "content" && images.length > 0) {
@@ -2025,9 +2029,9 @@ function _Chat() {
         }
       }
     });
-    // if (message.role === "user") {
-    //   onResend(message);
-    // }
+    if (result.byCtrlEnter && message.role === "user") {
+      onResend(message);
+    }
   };
 
   return (
@@ -2059,9 +2063,11 @@ function _Chat() {
             >
               {!session.topic ? DEFAULT_TOPIC : session.topic}
             </div>
-            <div className="window-header-sub-title">
-              {Locale.Chat.SubTitle(session.messages.length)}
-            </div>
+            {!isMobileScreen && (
+              <div className="window-header-sub-title">
+                {Locale.Chat.SubTitle(session.messages.length)}
+              </div>
+            )}
           </div>
           <div className="window-actions">
             {/* <div className="window-action-button">
