@@ -812,6 +812,20 @@ ${file.partial}
               session.mask.modelConfig.model,
               session.mask.modelConfig.providerName,
             );
+        console.log("modelConfig.compressModel", modelConfig.compressModel);
+        console.log(
+          "modelConfig.compressProviderName",
+          modelConfig.compressProviderName,
+        );
+        console.log(
+          "session.mask.modelConfig.model",
+          session.mask.modelConfig.model,
+        );
+        console.log(
+          "session.mask.modelConfig.providerName",
+          session.mask.modelConfig.providerName,
+        );
+
         const api: ClientApi = getClientApi(providerName as ServiceProvider);
 
         // remove error messages if any

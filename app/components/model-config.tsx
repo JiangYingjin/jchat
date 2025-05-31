@@ -283,6 +283,14 @@ export function ModelConfigList(props: {
             props.updateConfig((config) => {
               config.compressModel = ModalConfigValidator.model(model);
               config.compressProviderName = providerName as ServiceProvider;
+              console.log(
+                "[updateConfig] config.compressModel",
+                config.compressModel,
+              );
+              console.log(
+                "[updateConfig] config.compressProviderName",
+                config.compressProviderName,
+              );
             });
           }}
         >
