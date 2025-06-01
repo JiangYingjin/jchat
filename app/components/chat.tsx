@@ -417,6 +417,7 @@ function ChatAction(props: {
   innerNode?: JSX.Element;
   onClick: () => void;
   style?: React.CSSProperties;
+  alwaysFullWidth?: boolean; // 新增参数，控制是否总是 full 宽度
 }) {
   const iconRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -436,6 +437,33 @@ function ChatAction(props: {
     });
   }
 
+  // 计算最终宽度
+  const iconWidthValue = width.icon;
+  const fullWidthValue = width.full;
+  const style =
+    props.icon && !props.loding
+      ? ({
+          "--icon-width": `${iconWidthValue}px`,
+          "--full-width": `${fullWidthValue}px`,
+          ...props.style,
+          ...(props.alwaysFullWidth ? { width: `${fullWidthValue}px` } : {}),
+        } as React.CSSProperties)
+      : props.loding
+        ? ({
+            "--icon-width": `30px`,
+            "--full-width": `30px`,
+            ...props.style,
+            ...(props.alwaysFullWidth ? { width: `30px` } : {}),
+          } as React.CSSProperties)
+        : props.style;
+
+  // 保证 alwaysFullWidth 时宽度总是最新
+  useEffect(() => {
+    if (props.alwaysFullWidth) {
+      updateWidth();
+    }
+  }, [props.text, props.icon, props.alwaysFullWidth]);
+
   return (
     <div
       className={clsx(styles["chat-input-action"], "clickable")}
@@ -446,21 +474,7 @@ function ChatAction(props: {
       }}
       onMouseEnter={props.icon ? updateWidth : undefined}
       onTouchStart={props.icon ? updateWidth : undefined}
-      style={
-        props.icon && !props.loding
-          ? ({
-              "--icon-width": `${width.icon}px`,
-              "--full-width": `${width.full}px`,
-              ...props.style,
-            } as React.CSSProperties)
-          : props.loding
-            ? ({
-                "--icon-width": `30px`,
-                "--full-width": `30px`,
-                ...props.style,
-              } as React.CSSProperties)
-            : props.style
-      }
+      style={style}
     >
       {props.icon ? (
         <div ref={iconRef} className={styles["icon"]}>
@@ -468,7 +482,11 @@ function ChatAction(props: {
         </div>
       ) : null}
       <div
-        className={props.icon && !props.loding ? styles["text"] : undefined}
+        className={
+          props.icon && !props.loding
+            ? `${styles["text"]}${props.alwaysFullWidth ? " " + styles["text-always-show"] : ""}`
+            : undefined
+        }
         ref={textRef}
       >
         {!props.loding && props.text}
@@ -693,13 +711,13 @@ export function ChatActions(props: {
         session.mask.modelConfig.providerName = nextModel?.provider
           ?.providerName as ServiceProvider;
       });
-      showToast(
-        nextModel?.provider?.providerName == "ByteDance"
-          ? nextModel.displayName
-          : nextModel.name,
-        undefined,
-        1000,
-      );
+      // showToast(
+      //   nextModel?.provider?.providerName == "ByteDance"
+      //     ? nextModel.displayName
+      //     : nextModel.name,
+      //   undefined,
+      //   1000,
+      // );
     }
   }, [chatStore, currentModel, models, session]);
 
@@ -711,6 +729,7 @@ export function ChatActions(props: {
             onClick={props.uploadImage}
             text={Locale.Chat.InputActions.UploadImage}
             icon={props.uploading ? <LoadingButtonIcon /> : <ImageIcon />}
+            alwaysFullWidth={false}
           />
         )}
         {showUploadFile && (
@@ -718,6 +737,7 @@ export function ChatActions(props: {
             onClick={props.uploadFile}
             text={Locale.Chat.InputActions.UploadFle}
             icon={props.uploading ? <LoadingButtonIcon /> : <UploadIcon />}
+            alwaysFullWidth={false}
           />
         )}
         {/* <ChatAction
@@ -774,6 +794,7 @@ export function ChatActions(props: {
                 : Locale.Chat.InputActions.EnablePlugins
             }
             icon={usePlugins ? <EnablePluginIcon /> : <DisablePluginIcon />}
+            alwaysFullWidth={false}
           />
         )}
 
@@ -781,6 +802,7 @@ export function ChatActions(props: {
           onClick={() => setShowModelSelector(true)}
           text={currentModelName}
           icon={<RobotIcon />}
+          alwaysFullWidth={true}
         />
 
         {!isFunctionCallModel(currentModel) &&
@@ -794,6 +816,7 @@ export function ChatActions(props: {
                   : Locale.Chat.InputActions.OpenWebSearch
               }
               icon={webSearch ? <SearchOpenIcon /> : <SearchCloseIcon />}
+              alwaysFullWidth={false}
             />
           )}
 
@@ -808,6 +831,7 @@ export function ChatActions(props: {
             icon={
               claudeThinking ? <EnableThinkingIcon /> : <DisableThinkingIcon />
             }
+            alwaysFullWidth={false}
           />
         )}
 
@@ -832,16 +856,16 @@ export function ChatActions(props: {
                   providerName as ServiceProvider;
                 session.mask.syncGlobalConfig = false;
               });
-              if (providerName == "ByteDance") {
-                const selectedModel = models.find(
-                  (m) =>
-                    m.name == model &&
-                    m?.provider?.providerName == providerName,
-                );
-                showToast(selectedModel?.displayName ?? "", undefined, 1000);
-              } else {
-                showToast(model, undefined, 1000);
-              }
+              // if (providerName == "ByteDance") {
+              //   const selectedModel = models.find(
+              //     (m) =>
+              //       m.name == model &&
+              //       m?.provider?.providerName == providerName,
+              //   );
+              //   showToast(selectedModel?.displayName ?? "", undefined, 1000);
+              // } else {
+              //   showToast(model, undefined, 1000);
+              // }
             }}
           />
         )}
@@ -851,6 +875,7 @@ export function ChatActions(props: {
             onClick={() => setShowSizeSelector(true)}
             text={currentSize}
             icon={<SizeIcon />}
+            alwaysFullWidth={false}
           />
         )}
 
@@ -885,6 +910,7 @@ export function ChatActions(props: {
             onClick={() => setShowQualitySelector(true)}
             text={currentQuality}
             icon={<QualityIcon />}
+            alwaysFullWidth={false}
           />
         )}
 
@@ -919,6 +945,7 @@ export function ChatActions(props: {
             onClick={() => setShowBackgroundSelector(true)}
             text={currentBackground}
             icon={<BackgroundIcon />}
+            alwaysFullWidth={false}
           />
         )}
 
@@ -947,6 +974,7 @@ export function ChatActions(props: {
               onClick={() => setShowStyleSelector(true)}
               text={currentStyle}
               icon={<StyleIcon />}
+              alwaysFullWidth={false}
             />
           )}
 
@@ -1006,6 +1034,7 @@ export function ChatActions(props: {
             onClick={stopAll}
             text={Locale.Chat.InputActions.Stop}
             icon={<StopIcon />}
+            alwaysFullWidth={false}
           />
         )}
         {/* {!props.hitBottom && (
@@ -1036,6 +1065,7 @@ export function ChatActions(props: {
             onClick={() => props.setShowChatSidePanel(true)}
             text={Locale.Settings.Realtime.Enable.Title}
             icon={<HeadphoneIcon />}
+            alwaysFullWidth={false}
           />
         )}
       </div>
@@ -2253,6 +2283,7 @@ function _Chat() {
                                     text={Locale.Chat.Actions.Stop}
                                     icon={<StopIcon />}
                                     onClick={() => onUserStop(message.id ?? i)}
+                                    alwaysFullWidth={false}
                                   />
                                 ) : (
                                   <>
@@ -2260,6 +2291,7 @@ function _Chat() {
                                       text={Locale.Chat.Actions.Retry}
                                       icon={<ResetIcon />}
                                       onClick={() => onResend(message)}
+                                      alwaysFullWidth={false}
                                     />
                                     <ChatAction
                                       text={Locale.Chat.Actions.Copy}
@@ -2269,11 +2301,13 @@ function _Chat() {
                                           getMessageTextContent(message),
                                         )
                                       }
+                                      alwaysFullWidth={false}
                                     />
                                     <ChatAction
                                       text={Locale.Chat.Actions.Delete}
                                       icon={<DeleteIcon />}
                                       onClick={() => onDelete(message.id ?? i)}
+                                      alwaysFullWidth={false}
                                     />
                                     {/* <ChatAction
                                       text={Locale.Chat.Actions.Pin}
@@ -2299,6 +2333,7 @@ function _Chat() {
                                             getMessageTextContent(message),
                                           )
                                         }
+                                        alwaysFullWidth={false}
                                       />
                                     )}
                                     <ChatAction
@@ -2307,6 +2342,7 @@ function _Chat() {
                                       onClick={() =>
                                         handleEditMessage(message, "content")
                                       }
+                                      alwaysFullWidth={false}
                                     />
                                   </>
                                 )}

@@ -141,6 +141,13 @@
       transform: translateX(-5px);
       transition: all ease 0.3s;
       pointer-events: none;
+
+      &.text-always-show {
+        opacity: 1 !important;
+        transform: translate(0) !important;
+        transition: none !important;
+        pointer-events: auto;
+      }
     }
 
     &:hover {
