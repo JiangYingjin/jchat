@@ -1229,6 +1229,69 @@ function _Chat() {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
   const config = useAppConfig();
+  const accessStore = useAccessStore();
+  const allModels = useAllModels();
+  // 自动修正模型配置
+  useEffect(() => {
+    // 获取当前模型和 provider
+    const { model, providerName, compressModel, compressProviderName } =
+      config.modelConfig;
+    // 检查主模型是否有效
+    const isModelValid = allModels.some(
+      (m) =>
+        m.name === model &&
+        m.provider?.providerName === providerName &&
+        m.available,
+    );
+    // 检查压缩模型是否有效
+    const isCompressModelValid = allModels.some(
+      (m) =>
+        m.name === compressModel &&
+        m.provider?.providerName === compressProviderName &&
+        m.available,
+    );
+    console.log("[updateConfig] isModelValid", isModelValid);
+    console.log("[updateConfig] isCompressModelValid", isCompressModelValid);
+    // 如果主模型或压缩模型无效，自动 fetch 并更新为 defaultModel
+    if (!isModelValid || !isCompressModelValid) {
+      // 拉取服务器配置，获取 defaultModel
+      accessStore.fetch();
+      // 取最新 defaultModel
+      const defaultModelStr = accessStore.defaultModel;
+      if (defaultModelStr) {
+        const [defaultModel, defaultProvider] =
+          getModelProvider(defaultModelStr);
+        config.update((cfg) => {
+          // 主模型无效时修正
+          if (!isModelValid) {
+            cfg.modelConfig.model = defaultModel;
+            cfg.modelConfig.providerName = defaultProvider as any;
+            console.log(
+              "[updateConfig] cfg.modelConfig.model",
+              cfg.modelConfig.model,
+            );
+            console.log(
+              "[updateConfig] cfg.modelConfig.providerName",
+              cfg.modelConfig.providerName,
+            );
+          }
+          // 压缩模型无效时修正
+          if (!isCompressModelValid) {
+            cfg.modelConfig.compressModel = defaultModel;
+            cfg.modelConfig.compressProviderName = defaultProvider as any;
+            console.log(
+              "[updateConfig] cfg.modelConfig.compressModel",
+              cfg.modelConfig.compressModel,
+            );
+            console.log(
+              "[updateConfig] cfg.modelConfig.compressProviderName",
+              cfg.modelConfig.compressProviderName,
+            );
+          }
+        });
+      }
+    }
+  }, [accessStore]);
   const fontSize = config.fontSize;
   const fontFamily = config.fontFamily;
 
@@ -1589,7 +1652,6 @@ function _Chat() {
     });
   };
 
-  const accessStore = useAccessStore();
   const [speechStatus, setSpeechStatus] = useState(false);
   const [speechLoading, setSpeechLoading] = useState(false);
   async function openaiSpeech(text: string) {
@@ -1955,67 +2017,6 @@ function _Chat() {
 
   // 快捷键 shortcut keys
   const [showShortcutKeyModal, setShowShortcutKeyModal] = useState(false);
-
-  // useEffect(() => {
-  //   const handleKeyDown = (event: any) => {
-  //     // 打开新聊天 command + shift + o
-  //     if (
-  //       (event.metaKey || event.ctrlKey) &&
-  //       event.shiftKey &&
-  //       event.key.toLowerCase() === "o"
-  //     ) {
-  //       event.preventDefault();
-  //       setTimeout(() => {
-  //         chatStore.newSession();
-  //         navigate(Path.Chat);
-  //       }, 10);
-  //     }
-  //     // 聚焦聊天输入 shift + esc
-  //     else if (event.shiftKey && event.key.toLowerCase() === "escape") {
-  //       event.preventDefault();
-  //       inputRef.current?.focus();
-  //     }
-  //     // 复制最后一个代码块 command + shift + ;
-  //     else if (
-  //       (event.metaKey || event.ctrlKey) &&
-  //       event.shiftKey &&
-  //       event.code === "Semicolon"
-  //     ) {
-  //       event.preventDefault();
-  //       const copyCodeButton =
-  //         document.querySelectorAll<HTMLElement>(".copy-code-button");
-  //       if (copyCodeButton.length > 0) {
-  //         copyCodeButton[copyCodeButton.length - 1].click();
-  //       }
-  //     }
-  //     // 复制最后一个回复 command + shift + c
-  //     else if (
-  //       (event.metaKey || event.ctrlKey) &&
-  //       event.shiftKey &&
-  //       event.key.toLowerCase() === "c"
-  //     ) {
-  //       event.preventDefault();
-  //       const lastNonUserMessage = messages
-  //         .filter((message) => message.role !== "user")
-  //         .pop();
-  //       if (lastNonUserMessage) {
-  //         const lastMessageContent = getMessageTextContent(lastNonUserMessage);
-  //         copyToClipboard(lastMessageContent);
-  //       }
-  //     }
-  //     // 展示快捷键 command + /
-  //     else if ((event.metaKey || event.ctrlKey) && event.key === "/") {
-  //       event.preventDefault();
-  //       setShowShortcutKeyModal(true);
-  //     }
-  //   };
-
-  //   window.addEventListener("keydown", handleKeyDown);
-
-  //   return () => {
-  //     window.removeEventListener("keydown", handleKeyDown);
-  //   };
-  // }, [messages, chatStore, navigate]);
 
   const [showChatSidePanel, setShowChatSidePanel] = useState(false);
 
