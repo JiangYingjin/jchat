@@ -805,7 +805,7 @@ export function ChatActions(props: {
           alwaysFullWidth={true}
         />
 
-        {!isFunctionCallModel(currentModel) &&
+        {/* {!isFunctionCallModel(currentModel) &&
           isEnableWebSearch &&
           !isOpenAIImageGenerationModel(currentModel) && (
             <ChatAction
@@ -818,7 +818,7 @@ export function ChatActions(props: {
               icon={webSearch ? <SearchOpenIcon /> : <SearchCloseIcon />}
               alwaysFullWidth={false}
             />
-          )}
+          )} */}
 
         {isClaudeThinkingModel(currentModel) && (
           <ChatAction
