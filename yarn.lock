@@ -9402,10 +9402,10 @@ openai@^4.55.0, openai@^4.77.0:
     formdata-node "^4.3.2"
     node-fetch "^2.6.7"
 
-openapi-client-axios@^7.5.5:
-  version "7.5.5"
-  resolved "https://registry.yarnpkg.com/openapi-client-axios/-/openapi-client-axios-7.5.5.tgz#4cb2bb7484ff9d1c92d9ff509db235cc35d64f38"
-  integrity sha512-pgCo1z+rxtYmGQXzB+N5DiXvRurTP6JqV+Ao/wtaGUMIIIM+znh3nTztps+FZS8mZgWnDHpdEzL9bWtZuWuvoA==
+openapi-client-axios@^7.6.0:
+  version "7.6.0"
+  resolved "https://registry.yarnpkg.com/openapi-client-axios/-/openapi-client-axios-7.6.0.tgz#28f44c6050e9b0604a6f8ba57c3a168f4c61645d"
+  integrity sha512-WfOjOtGaYDKCtf7mbLD4AH1HcJRo6VRFdHNNZClgihloYGkNyD/E/34l1LH0Vx2XHLGqP9phIid2rUFmVfbG7A==
   dependencies:
     bath-es5 "^3.0.3"
     dereference-json-schema "^0.2.1"
