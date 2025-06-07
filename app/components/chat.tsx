@@ -2157,20 +2157,31 @@ function _Chat() {
                   );
 
                   // 只从第一个分隔符处分割，最多分成两个部分
-                  const splitResult =
-                    result.value.split("> 以下是用户与模型的对话记录");
-                  let newContent = "";
-                  if (splitResult.length == 1) {
-                    newContent = splitResult[0]?.trim();
-                  } else if (splitResult.length == 2) {
-                    newContent = splitResult[1]?.trim();
-                  } else {
-                    // 舍弃第一个，将后面的部分拼接起来
-                    newContent = splitResult
-                      .slice(1)
-                      .join("> 以下是用户与模型的对话记录")
-                      .trim();
+                  function splitSystemMessage(
+                    content: string,
+                    splitStr: string,
+                  ) {
+                    const splitResult = content.split(splitStr);
+                    let newContent = "";
+                    if (splitResult.length == 1) {
+                      newContent = splitResult[0]?.trim();
+                    } else if (splitResult.length == 2) {
+                      newContent = splitResult[1]?.trim();
+                    } else {
+                      // 舍弃第一个，将后面的部分拼接起来
+                      newContent = splitResult.slice(1).join(splitStr).trim();
+                    }
+                    return newContent;
                   }
+
+                  let tmpContent = splitSystemMessage(
+                    result.value,
+                    "> 以下是用户与模型的对话记录\n\n## 系统",
+                  );
+                  const newContent = splitSystemMessage(
+                    tmpContent,
+                    "> 以下是用户与模型的对话记录",
+                  );
 
                   chatStore.updateTargetSession(session, (session) => {
                     // 移除现有的 system 消息
