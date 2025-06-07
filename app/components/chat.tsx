@@ -1121,6 +1121,16 @@ export function EditMessageModal(props: { onClose: () => void }) {
                   (session) => (session.topic = e.currentTarget.value),
                 )
               }
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && e.ctrlKey) {
+                  e.preventDefault();
+                  chatStore.updateTargetSession(
+                    session,
+                    (session) => (session.topic = e.currentTarget.value),
+                  );
+                  props.onClose();
+                }
+              }}
             ></input>
             <IconButton
               icon={<ReloadIcon />}
