@@ -661,11 +661,13 @@ export function MarkdownPreviewer(props: {
     `> 以下是用户与模型的对话记录\n\n` +
     props.messages
       .map((m) => {
-        return m.role === "user"
-          ? `## ${Locale.Export.MessageFromYou}\n\n${getMessageTextContent(m)}`
-          : `## ${Locale.Export.MessageFromChatGPT}\n\n${getMessageTextContent(
-              m,
-            ).trim()}`;
+        if (m.role === "user") {
+          return `## ${Locale.Export.MessageFromYou}\n\n${getMessageTextContent(m)}`;
+        } else if (m.role === "system") {
+          return `## ${Locale.Export.MessageFromSystem}\n\n${getMessageTextContent(m).trim()}`;
+        } else {
+          return `## ${Locale.Export.MessageFromChatGPT}\n\n${getMessageTextContent(m).trim()}`;
+        }
       })
       .join("\n\n");
 
@@ -695,12 +697,20 @@ export function JsonPreviewer(props: {
   messages: ChatMessage[];
   topic: string;
 }) {
+  // 检查是否已有 system 消息
+  const hasSystemMessage = props.messages.some((m) => m.role === "system");
+
   const msgs = {
     messages: [
-      {
-        role: "system",
-        content: `${Locale.FineTuned.Sysmessage} ${props.topic}`,
-      },
+      // 只有在没有 system 消息时才添加默认的 system 消息
+      ...(hasSystemMessage
+        ? []
+        : [
+            {
+              role: "system",
+              content: `${Locale.FineTuned.Sysmessage} ${props.topic}`,
+            },
+          ]),
       ...props.messages.map((m) => ({
         role: m.role,
         content: m.content,

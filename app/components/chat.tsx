@@ -1796,9 +1796,16 @@ function _Chat() {
   }
 
   // clear context index = context length + index in messages
+  // 需要考虑隐藏的 system 消息对索引的影响
+  const systemMessagesCount = renderMessages.filter(
+    (m) => m.role === "system",
+  ).length;
   const clearContextIndex =
     (session.clearContextIndex ?? -1) >= 0
-      ? session.clearContextIndex! + context.length - msgRenderIndex
+      ? session.clearContextIndex! +
+        context.length -
+        msgRenderIndex -
+        systemMessagesCount
       : -1;
 
   const [showPromptModal, setShowPromptModal] = useState(false);
@@ -2069,7 +2076,7 @@ function _Chat() {
     <>
       <div className={styles.chat} key={session.id}>
         <div className="window-header" data-tauri-drag-region>
-          {isMobileScreen && (
+          {/* {isMobileScreen && (
             <div className="window-actions">
               <div className={"window-action-button"}>
                 <IconButton
@@ -2080,7 +2087,7 @@ function _Chat() {
                 />
               </div>
             </div>
-          )}
+          )} */}
 
           <div
             className={clsx("window-header-title", styles["chat-body-title"])}
@@ -2125,14 +2132,61 @@ function _Chat() {
             )} */}
             <div className="window-action-button">
               <IconButton
-                icon={<DeleteIcon />}
+                icon={<EditIcon />}
                 bordered
-                title={Locale.Chat.Actions.Delete}
+                title="编辑上下文"
                 onClick={async () => {
-                  chatStore.deleteSession(chatStore.currentSessionIndex);
-                  // if (await showConfirm(Locale.Home.DeleteChat)) {
-                  //   chatStore.deleteSession(chatStore.currentSessionIndex);
-                  // }
+                  // 获取当前 session 的 system 消息
+                  let systemMessage = session.messages.find(
+                    (m) => m.role === "system",
+                  );
+
+                  // 如果没有 system 消息，创建一个空的
+                  if (!systemMessage) {
+                    systemMessage = createMessage({
+                      role: "system",
+                      content: "",
+                    });
+                  }
+
+                  // 复用双击消息编辑的逻辑
+                  const result = await showPrompt(
+                    "编辑系统提示词",
+                    getMessageTextContent(systemMessage),
+                    16,
+                  );
+
+                  // 只从第一个分隔符处分割，最多分成两个部分
+                  const splitResult =
+                    result.value.split("> 以下是用户与模型的对话记录");
+                  let newContent = "";
+                  if (splitResult.length == 1) {
+                    newContent = splitResult[0]?.trim();
+                  } else if (splitResult.length == 2) {
+                    newContent = splitResult[1]?.trim();
+                  } else {
+                    // 舍弃第一个，将后面的部分拼接起来
+                    newContent = splitResult
+                      .slice(1)
+                      .join("> 以下是用户与模型的对话记录")
+                      .trim();
+                  }
+
+                  chatStore.updateTargetSession(session, (session) => {
+                    // 移除现有的 system 消息
+                    session.messages = session.messages.filter(
+                      (m) => m.role !== "system",
+                    );
+
+                    // 如果新内容不为空，添加新的 system 消息到开头
+                    if (newContent) {
+                      const newSystemMessage = createMessage({
+                        role: "system",
+                        content: newContent,
+                      });
+                      session.messages.unshift(newSystemMessage);
+                    }
+                  });
                 }}
               />
             </div>
@@ -2143,6 +2197,19 @@ function _Chat() {
                 title={Locale.Chat.Actions.Export}
                 onClick={() => {
                   setShowExport(true);
+                }}
+              />
+            </div>
+            <div className="window-action-button">
+              <IconButton
+                icon={<DeleteIcon />}
+                bordered
+                title={Locale.Chat.Actions.Delete}
+                onClick={async () => {
+                  chatStore.deleteSession(chatStore.currentSessionIndex);
+                  // if (await showConfirm(Locale.Home.DeleteChat)) {
+                  //   chatStore.deleteSession(chatStore.currentSessionIndex);
+                  // }
                 }}
               />
             </div>
@@ -2183,6 +2250,7 @@ function _Chat() {
             >
               {messages.map((message, i) => {
                 const isUser = message.role === "user";
+                const isSystem = message.role === "system";
                 const isContext = i < context.length;
                 const showActions =
                   !(message.preview || message.content.length === 0) &&
@@ -2191,6 +2259,11 @@ function _Chat() {
 
                 const shouldShowClearContextDivider =
                   i === clearContextIndex - 1;
+
+                // 在对话界面隐藏 system 消息
+                if (isSystem) {
+                  return null;
+                }
 
                 return (
                   <Fragment key={message.id}>
