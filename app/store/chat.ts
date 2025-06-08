@@ -855,21 +855,28 @@ ${file.partial}
                 content: Locale.Store.Prompt.Topic,
               }),
             );
+          let topicContent: string | MultimodalContent[] = "";
           api.llm.chat({
             messages: topicMessages,
             config: {
               model,
-              stream: false,
+              stream: true,
               providerName,
             },
+            onUpdate(message) {
+              if (message) {
+                topicContent = message;
+              }
+            },
             onFinish(message, responseRes) {
-              if (responseRes?.status === 200) {
+              const finalMessage = message || topicContent;
+              if (responseRes?.status === 200 && finalMessage) {
                 get().updateTargetSession(
                   session,
                   (session) =>
                     (session.topic =
-                      message.length > 0
-                        ? trimTopic(getTextContent(message))
+                      finalMessage.length > 0
+                        ? trimTopic(getTextContent(finalMessage))
                         : DEFAULT_TOPIC),
                 );
               }
