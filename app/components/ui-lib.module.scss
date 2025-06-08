@@ -85,7 +85,7 @@
   min-width: 300px;
   animation: slide-in ease 0.3s;
 
-  --modal-padding: 20px;
+  --modal-padding: 16px;
 
   &-max {
     width: 95vw;
@@ -276,6 +276,37 @@
 
   &:focus {
     border: 1px solid var(--primary);
+  }
+
+  // 滚动条样式 - 美观的交互效果
+  &::-webkit-scrollbar {
+    width: 10px;
+    cursor: default !important;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 4px;
+    cursor: default !important;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.10);
+    border-radius: 4px;
+    cursor: default !important;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    &:active {
+      background: rgba(0, 0, 0, 0.20);
+    }
+  }
+
+  &::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }
 
