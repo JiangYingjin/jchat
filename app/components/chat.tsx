@@ -1150,6 +1150,7 @@ export function EditMessageModal(props: { onClose: () => void }) {
             updater(newMessages);
             setMessages(newMessages);
           }}
+          onModalClose={props.onClose}
         />
       </Modal>
     </div>

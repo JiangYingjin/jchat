@@ -256,6 +256,7 @@ function ContextPromptItem(props: {
   prompt: ChatMessage;
   update: (prompt: ChatMessage) => void;
   remove: () => void;
+  onModalClose?: () => void;
 }) {
   const [focusingInput, setFocusingInput] = useState(false);
 
@@ -302,6 +303,12 @@ function ContextPromptItem(props: {
             content: e.currentTarget.value as any,
           })
         }
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && e.ctrlKey) {
+            e.preventDefault();
+            props.onModalClose?.();
+          }
+        }}
       />
       {!focusingInput && (
         <IconButton
@@ -318,6 +325,7 @@ function ContextPromptItem(props: {
 export function ContextPrompts(props: {
   context: ChatMessage[];
   updateContext: (updater: (context: ChatMessage[]) => void) => void;
+  onModalClose?: () => void;
 }) {
   const context = props.context;
 
@@ -382,6 +390,7 @@ export function ContextPrompts(props: {
                           prompt={c}
                           update={(prompt) => updateContextPrompt(i, prompt)}
                           remove={() => removeContextPrompt(i)}
+                          onModalClose={props.onModalClose}
                         />
                         <div
                           className={chatStyle["context-prompt-insert"]}
