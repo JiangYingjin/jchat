@@ -60,7 +60,6 @@ import DisableThinkingIcon from "../icons/thinking_disable.svg";
 import BackgroundIcon from "../icons/background.svg";
 import {
   ChatMessage,
-  SubmitKey,
   useChatStore,
   BOT_HELLO,
   createMessage,
@@ -270,8 +269,6 @@ function PromptToast(props: {
 }
 
 function useSubmitHandler() {
-  const config = useAppConfig();
-  const submitKey = config.submitKey;
   const isComposing = useRef(false);
 
   useEffect(() => {
@@ -297,21 +294,15 @@ function useSubmitHandler() {
     if (e.key !== "Enter") return false;
     if (e.key === "Enter" && (e.nativeEvent.isComposing || isComposing.current))
       return false;
-    return (
-      (config.submitKey === SubmitKey.AltEnter && e.altKey) ||
-      (config.submitKey === SubmitKey.CtrlEnter && e.ctrlKey) ||
-      (config.submitKey === SubmitKey.ShiftEnter && e.shiftKey) ||
-      (config.submitKey === SubmitKey.MetaEnter && e.metaKey) ||
-      (config.submitKey === SubmitKey.Enter &&
-        !e.altKey &&
-        !e.ctrlKey &&
-        !e.shiftKey &&
-        !e.metaKey)
-    );
+
+    // Shift + Enter 用于换行，不发送
+    if (e.shiftKey) return false;
+
+    // Enter 或 Ctrl + Enter 发送
+    return !e.altKey && !e.metaKey;
   };
 
   return {
-    submitKey,
     shouldSubmit,
   };
 }
@@ -1311,7 +1302,7 @@ function _Chat() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [userInput, setUserInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const { submitKey, shouldSubmit } = useSubmitHandler();
+  const { shouldSubmit } = useSubmitHandler();
   const scrollRef = useRef<HTMLDivElement>(null);
   const isScrolledToBottom = scrollRef?.current
     ? Math.abs(
@@ -2674,7 +2665,7 @@ function _Chat() {
                   id="chat-input"
                   ref={inputRef}
                   className={styles["chat-input"]}
-                  placeholder={Locale.Chat.Input(submitKey)}
+                  // placeholder="Enter 或 Ctrl + Enter 发送，Shift + Enter 换行，/ 搜索提示词，: 使用命令"
                   onInput={(e) => onInput(e.currentTarget.value)}
                   value={userInput}
                   onKeyDown={onInputKeyDown}

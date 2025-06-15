@@ -214,44 +214,6 @@ export function ModelConfigList(props: {
           </ListItem>
         </>
       )}
-      <ListItem
-        title={Locale.Settings.HistoryCount.Title}
-        subTitle={Locale.Settings.HistoryCount.SubTitle}
-      >
-        <InputRange
-          aria={Locale.Settings.HistoryCount.Title}
-          title={props.modelConfig.historyMessageCount.toString()}
-          value={props.modelConfig.historyMessageCount}
-          min="0"
-          max="64"
-          step="1"
-          onChange={(e) =>
-            props.updateConfig(
-              (config) => (config.historyMessageCount = e.target.valueAsNumber),
-            )
-          }
-        ></InputRange>
-      </ListItem>
-
-      <ListItem
-        title={Locale.Settings.CompressThreshold.Title}
-        subTitle={Locale.Settings.CompressThreshold.SubTitle}
-      >
-        <input
-          aria-label={Locale.Settings.CompressThreshold.Title}
-          type="number"
-          min={500}
-          max={4000}
-          value={props.modelConfig.compressMessageLengthThreshold}
-          onChange={(e) =>
-            props.updateConfig(
-              (config) =>
-                (config.compressMessageLengthThreshold =
-                  e.currentTarget.valueAsNumber),
-            )
-          }
-        ></input>
-      </ListItem>
       <ListItem title={Locale.Memory.Title} subTitle={Locale.Memory.Send}>
         <input
           aria-label={Locale.Memory.Title}

@@ -1,5 +1,4 @@
 import { getClientConfig } from "../config/client";
-import { SubmitKey } from "../store/config";
 
 const isApp = !!getClientConfig()?.isApp;
 
@@ -85,11 +84,12 @@ const cn = {
     Typing: "正在输入…",
     Searching: "联网搜索中…",
     Input: (submitKey: string) => {
-      var inputHints = `${submitKey} 发送`;
-      if (submitKey === String(SubmitKey.Enter)) {
-        inputHints += "，Shift + Enter 换行";
-      }
-      return inputHints;
+      return "";
+      // var inputHints = `${submitKey} 发送`;
+      // if (submitKey === String(SubmitKey.Enter)) {
+      //   inputHints += "，Shift + Enter 换行";
+      // }
+      // return inputHints;
       // return inputHints + "，/ 触发补全，: 触发命令";
     },
     Send: "发送",
@@ -295,15 +295,6 @@ const cn = {
         Title: "编辑提示词",
       },
     },
-    HistoryCount: {
-      Title: "附带历史消息数",
-      SubTitle: "每次请求携带的历史消息数",
-    },
-    CompressThreshold: {
-      Title: "历史消息长度压缩阈值",
-      SubTitle: "当未压缩的历史消息超过该值时，将进行压缩",
-    },
-
     Usage: {
       Title: "余额查询",
       SubTitle(used: any, total: any) {
@@ -655,7 +646,7 @@ const cn = {
       History: (content: string) => "这是历史聊天总结作为前情提要：" + content,
       Topic:
         "简要概述上述对话主题，字数5~7字以内，纯文本，不要解释、不要标点、不要语气词、不要多余文本、不要加粗",
-      // "使用四到五个字直接返回这句话的简要主题，不要解释、不要标点、不要语气词、不要多余文本，不要加粗，如果没有主题，请直接返回“闲聊”",
+      // "使用四到五个字直接返回这句话的简要主题，不要解释、不要标点、不要语气词、不要多余文本，不要加粗，如果没有主题，请直接返回"闲聊"",
       Summarize:
         "简要总结一下对话内容，用作后续的上下文提示 prompt，控制在 200 字以内",
     },

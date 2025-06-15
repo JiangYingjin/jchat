@@ -1,5 +1,4 @@
 import { getClientConfig } from "../config/client";
-import { SubmitKey } from "../store/config";
 import { LocaleType } from "./index";
 
 // if you are adding a new translation, please use PartialLocaleType instead of LocaleType
@@ -87,11 +86,12 @@ const en: LocaleType = {
     Typing: "Typing…",
     Searching: "Searching…",
     Input: (submitKey: string) => {
-      var inputHints = `${submitKey} to send`;
-      if (submitKey === String(SubmitKey.Enter)) {
-        inputHints += ", Shift + Enter to wrap";
-      }
-      return inputHints + ", / to search prompts, : to use commands";
+      return "";
+      // var inputHints = `${submitKey} to send`;
+      // if (submitKey === String(SubmitKey.Enter)) {
+      //   inputHints += ", Shift + Enter to wrap";
+      // }
+      // return inputHints + ", / to search prompts, : to use commands";
     },
     Send: "Send",
     StartSpeak: "Talk",
@@ -297,15 +297,6 @@ const en: LocaleType = {
       EditModal: {
         Title: "Edit Prompt",
       },
-    },
-    HistoryCount: {
-      Title: "Attached Messages Count",
-      SubTitle: "Number of sent messages attached per request",
-    },
-    CompressThreshold: {
-      Title: "History Compression Threshold",
-      SubTitle:
-        "Will compress if uncompressed messages length exceeds the value",
     },
 
     Usage: {

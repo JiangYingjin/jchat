@@ -32,14 +32,6 @@ export type TTSEngineType = (typeof DEFAULT_TTS_ENGINES)[number];
 
 export type STTEngineType = (typeof DEFAULT_STT_ENGINES)[number];
 
-export enum SubmitKey {
-  Enter = "Enter",
-  CtrlEnter = "Ctrl + Enter",
-  ShiftEnter = "Shift + Enter",
-  AltEnter = "Alt + Enter",
-  MetaEnter = "Meta + Enter",
-}
-
 export enum Theme {
   Auto = "auto",
   Dark = "dark",
@@ -51,7 +43,6 @@ const config = getClientConfig();
 export const DEFAULT_CONFIG = {
   lastUpdate: Date.now(), // timestamp, to merge state
 
-  submitKey: SubmitKey.Enter,
   avatar: "1f603",
   fontSize: 14,
   fontFamily: "",
@@ -80,16 +71,14 @@ export const DEFAULT_CONFIG = {
     providerName: "OpenAI" as ServiceProvider,
     temperature: 0.5,
     top_p: 1,
-    max_tokens: 8000,
+    max_tokens: 1000000,
     budget_tokens: 4000,
     presence_penalty: 0,
     frequency_penalty: 0,
-    sendMemory: true,
-    historyMessageCount: 16,
-    compressMessageLengthThreshold: 1000000,
+    sendMemory: false,
     compressModel: "",
     compressProviderName: "",
-    enableInjectSystemPrompts: true,
+    enableInjectSystemPrompts: false,
     template: config?.template ?? DEFAULT_INPUT_TEMPLATE,
     size: "1024x1024" as DalleSize | GPTImageSize,
     quality: "standard" as DalleQuality | GPTImageQuality,
@@ -132,7 +121,6 @@ export const DEFAULT_CONFIG = {
 };
 
 export type ChatConfig = typeof DEFAULT_CONFIG;
-
 export type ModelConfig = ChatConfig["modelConfig"];
 export type PluginConfig = ChatConfig["pluginConfig"];
 export type TTSConfig = ChatConfig["ttsConfig"];
@@ -234,17 +222,6 @@ export const useAppConfig = createPersistStore(
     version: 3.9,
     migrate(persistedState, version) {
       const state = persistedState as ChatConfig;
-
-      if (version < 3.4) {
-        state.modelConfig.sendMemory = true;
-        state.modelConfig.historyMessageCount = 4;
-        state.modelConfig.compressMessageLengthThreshold = 1000;
-        state.modelConfig.frequency_penalty = 0;
-        state.modelConfig.top_p = 1;
-        state.modelConfig.template = DEFAULT_INPUT_TEMPLATE;
-        state.dontShowMaskSplashScreen = false;
-        state.hideBuiltinMasks = false;
-      }
 
       if (version < 3.5) {
         state.customModels = "claude,claude-100k";

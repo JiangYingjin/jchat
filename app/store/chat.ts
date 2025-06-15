@@ -732,46 +732,24 @@ ${file.partial}
           shouldSendLongTermMemory && memoryPrompt ? [memoryPrompt] : [];
         const longTermMemoryStartIndex = session.lastSummarizeIndex;
 
-        // short term memory
-        const shortTermMemoryStartIndex = Math.max(
-          0,
-          totalMessageCount - modelConfig.historyMessageCount,
-        );
-
-        // lets concat send messages, including 4 parts:
-        // 0. system prompt: to get close to OpenAI Web ChatGPT
-        // 1. long term memory: summarized memory messages
-        // 2. pre-defined in-context prompts
-        // 3. short term memory: latest n messages
-        // 4. newest input message
+        // 直接使用 clearContextIndex 作为起始索引
         const memoryStartIndex = shouldSendLongTermMemory
-          ? Math.min(longTermMemoryStartIndex, shortTermMemoryStartIndex)
-          : shortTermMemoryStartIndex;
-        // and if user has cleared history messages, we should exclude the memory too.
+          ? Math.min(longTermMemoryStartIndex, clearContextIndex)
+          : clearContextIndex;
         const contextStartIndex = Math.max(clearContextIndex, memoryStartIndex);
-        const maxTokenThreshold = modelConfig.max_tokens;
 
-        // get recent messages as much as possible
-        const reversedRecentMessages = [];
-        for (
-          let i = totalMessageCount - 1, tokenCount = 0;
-          i >= contextStartIndex && tokenCount < maxTokenThreshold;
-          i -= 1
-        ) {
-          const msg = messages[i];
-          if (!msg || msg.isError) continue;
-          tokenCount += estimateTokenLength(getMessageTextContent(msg));
-          reversedRecentMessages.push(msg);
-        }
-        // concat all messages
-        const recentMessages = [
+        // 获取所有消息，不再限制数量
+        const recentMessages = messages
+          .slice(contextStartIndex)
+          .filter((msg) => !msg.isError);
+
+        // 合并所有消息
+        return [
           ...systemPrompts,
           ...longTermMemoryPrompts,
           ...contextPrompts,
-          ...reversedRecentMessages.reverse(),
+          ...recentMessages,
         ];
-
-        return recentMessages;
       },
 
       updateMessage(
@@ -793,7 +771,7 @@ ${file.partial}
         });
       },
 
-      summarizeSession(
+      async summarizeSession(
         refreshTitle: boolean = false,
         targetSession: ChatSession,
       ) {
@@ -812,19 +790,6 @@ ${file.partial}
               session.mask.modelConfig.model,
               session.mask.modelConfig.providerName,
             );
-        console.log("modelConfig.compressModel", modelConfig.compressModel);
-        console.log(
-          "modelConfig.compressProviderName",
-          modelConfig.compressProviderName,
-        );
-        console.log(
-          "session.mask.modelConfig.model",
-          session.mask.modelConfig.model,
-        );
-        console.log(
-          "session.mask.modelConfig.providerName",
-          session.mask.modelConfig.providerName,
-        );
 
         const api: ClientApi = getClientApi(providerName as ServiceProvider);
 
@@ -840,21 +805,12 @@ ${file.partial}
             countMessages(messages) >= SUMMARIZE_MIN_LEN) ||
           refreshTitle
         ) {
-          const startIndex = Math.max(
-            0,
-            messages.length - modelConfig.historyMessageCount,
+          const topicMessages = messages.concat(
+            createMessage({
+              role: "user",
+              content: Locale.Store.Prompt.Topic,
+            }),
           );
-          const topicMessages = messages
-            .slice(
-              startIndex < messages.length ? startIndex : messages.length - 1,
-              messages.length,
-            )
-            .concat(
-              createMessage({
-                role: "user",
-                content: Locale.Store.Prompt.Topic,
-              }),
-            );
           let topicContent: string | MultimodalContent[] = "";
           api.llm.chat({
             messages: topicMessages,
@@ -883,6 +839,7 @@ ${file.partial}
             },
           });
         }
+
         const summarizeIndex = Math.max(
           session.lastSummarizeIndex,
           session.clearContextIndex ?? 0,
@@ -891,14 +848,6 @@ ${file.partial}
           .filter((msg) => !msg.isError)
           .slice(summarizeIndex);
 
-        const historyMsgLength = countMessages(toBeSummarizedMsgs);
-
-        if (historyMsgLength > (modelConfig?.max_tokens || 4000)) {
-          const n = toBeSummarizedMsgs.length;
-          toBeSummarizedMsgs = toBeSummarizedMsgs.slice(
-            Math.max(0, n - modelConfig.historyMessageCount),
-          );
-        }
         const memoryPrompt = get().getMemoryPrompt();
         if (memoryPrompt) {
           // add memory prompt
@@ -910,13 +859,11 @@ ${file.partial}
         console.log(
           "[Chat History] ",
           toBeSummarizedMsgs,
-          historyMsgLength,
-          modelConfig.compressMessageLengthThreshold,
+          countMessages(toBeSummarizedMsgs),
         );
 
         if (
           !process.env.NEXT_PUBLIC_DISABLE_SENDMEMORY &&
-          historyMsgLength > modelConfig.compressMessageLengthThreshold &&
           modelConfig.sendMemory
         ) {
           /** Destruct max_tokens while summarizing
@@ -1004,8 +951,6 @@ ${file.partial}
           newSession.topic = oldSession.topic;
           newSession.messages = [...oldSession.messages];
           newSession.mask.modelConfig.sendMemory = true;
-          newSession.mask.modelConfig.historyMessageCount = 4;
-          newSession.mask.modelConfig.compressMessageLengthThreshold = 1000;
           newState.sessions.push(newSession);
         }
       }
