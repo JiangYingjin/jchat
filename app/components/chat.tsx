@@ -2191,6 +2191,46 @@ function _Chat() {
     }
   };
 
+  const [messageHeights, setMessageHeights] = useState<{
+    [key: string]: number;
+  }>({});
+  const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // 使用 useEffect 和 ResizeObserver 来监听消息高度变化
+  useEffect(() => {
+    const observers = new Map<string, ResizeObserver>();
+
+    // 清理函数
+    const cleanup = () => {
+      observers.forEach((observer) => observer.disconnect());
+      observers.clear();
+    };
+
+    // 为每个消息创建 ResizeObserver
+    Object.entries(messageRefs.current).forEach(([messageId, element]) => {
+      if (!element) return;
+
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const height = entry.contentRect.height;
+          setMessageHeights((prev) => {
+            // 只有当高度真正改变时才更新状态
+            if (prev[messageId] === height) return prev;
+            return {
+              ...prev,
+              [messageId]: height,
+            };
+          });
+        }
+      });
+
+      observer.observe(element);
+      observers.set(messageId, observer);
+    });
+
+    return cleanup;
+  }, [session.messages.length]); // 只在消息列表长度变化时重新设置观察者
+
   return (
     <>
       <div className={styles.chat} key={session.id}>
@@ -2620,6 +2660,11 @@ function _Chat() {
                         )}
                         <div
                           className={styles["chat-message-item"]}
+                          ref={(el) => {
+                            if (message.id) {
+                              messageRefs.current[message.id] = el;
+                            }
+                          }}
                           onDoubleClick={async (e) => {
                             if (message.streaming) return;
                             // 用户消息保持双击编辑
@@ -2635,7 +2680,6 @@ function _Chat() {
                               });
                             }
                           }}
-                          ref={messageItemRef}
                         >
                           {Array.isArray(message.content) ? (
                             message.content.map((content, index) => (
@@ -2739,6 +2783,82 @@ function _Chat() {
                             </>
                           )}
                         </div>
+
+                        {/* 将底部操作按钮组移到这里，只在非用户消息时显示 */}
+                        {!isUser &&
+                          messageHeights[message.id ?? ""] >
+                            window.innerHeight * 0.1 && (
+                            <div
+                              className={styles["chat-message-bottom-actions"]}
+                            >
+                              <div className={styles["chat-input-actions"]}>
+                                {message.streaming ? (
+                                  <ChatAction
+                                    text={Locale.Chat.Actions.Stop}
+                                    icon={<StopIcon />}
+                                    onClick={() => onUserStop(message.id ?? i)}
+                                    alwaysFullWidth={false}
+                                  />
+                                ) : (
+                                  <>
+                                    <ChatAction
+                                      text={Locale.Chat.Actions.Retry}
+                                      icon={<ResetIcon />}
+                                      onClick={() => onResend(message)}
+                                      alwaysFullWidth={false}
+                                    />
+                                    <ChatAction
+                                      text={Locale.Chat.Actions.Copy}
+                                      icon={<CopyIcon />}
+                                      onClick={() =>
+                                        copyToClipboard(
+                                          getMessageTextContent(message),
+                                        )
+                                      }
+                                      alwaysFullWidth={false}
+                                    />
+                                    <ChatAction
+                                      text={Locale.Chat.Actions.Delete}
+                                      icon={<DeleteIcon />}
+                                      onClick={() => onDelete(message.id ?? i)}
+                                      alwaysFullWidth={false}
+                                    />
+                                    {config.ttsConfig.enable && (
+                                      <ChatAction
+                                        text={
+                                          speechStatus
+                                            ? Locale.Chat.Actions.StopSpeech
+                                            : Locale.Chat.Actions.Speech
+                                        }
+                                        icon={
+                                          speechStatus ? (
+                                            <SpeakStopIcon />
+                                          ) : (
+                                            <SpeakIcon />
+                                          )
+                                        }
+                                        onClick={() =>
+                                          openaiSpeech(
+                                            getMessageTextContent(message),
+                                          )
+                                        }
+                                        alwaysFullWidth={false}
+                                      />
+                                    )}
+                                    <ChatAction
+                                      text={Locale.Chat.Actions.Edit}
+                                      icon={<EditIcon />}
+                                      onClick={() =>
+                                        handleEditMessage(message, "content")
+                                      }
+                                      alwaysFullWidth={false}
+                                    />
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
                         {message?.audioUrl && (
                           <div className={styles["chat-message-audio"]}>
                             <audio src={message.audioUrl} controls />

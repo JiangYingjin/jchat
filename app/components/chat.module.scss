@@ -436,6 +436,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  position: relative;
 
   &:hover {
     .chat-message-edit {
@@ -446,6 +447,12 @@
       opacity: 1;
       pointer-events: all;
       transform: scale(1) translateY(0);
+    }
+
+    .chat-message-bottom-actions {
+      opacity: 1;
+      pointer-events: all;
+      transform: translateY(0);
     }
   }
 }
@@ -518,7 +525,7 @@
   max-width: 100%;
   margin-top: 10px;
   border-radius: 10px;
-  background-color: rgba(0, 0, 0, 0.00);
+  background-color: rgba(0, 0, 0, 0);
   padding: 10px;
   font-size: 14px;
   user-select: text;
@@ -526,6 +533,14 @@
   border: var(--border-in-light);
   position: relative;
   transition: all ease 0.3s;
+
+  &:hover {
+    .chat-message-bottom-actions {
+      opacity: 1;
+      pointer-events: all;
+      transform: translateY(0);
+    }
+  }
 }
 
 .chat-message-audio {
@@ -533,7 +548,7 @@
   align-items: center;
   justify-content: space-between;
   border-radius: 10px;
-  background-color: rgba(0, 0, 0, 0.00);
+  background-color: rgba(0, 0, 0, 0);
   border: var(--border-in-light);
   position: relative;
   transition: all ease 0.3s;
@@ -621,6 +636,12 @@
   padding-right: 10px;
   pointer-events: none;
   z-index: 1;
+
+  .chat-message-container-assistant & {
+    text-align: left;
+    padding-right: 0;
+    padding-left: 10px;
+  }
 }
 
 .chat-message-user > .chat-message-container > .chat-message-item {
@@ -872,4 +893,28 @@
   margin-left: 5px;
   font-weight: bold;
   color: #999;
+}
+
+.chat-message-bottom-actions {
+  position: absolute;
+  bottom: -30px;
+  right: 0;
+  display: flex;
+  gap: 5px;
+  padding: 5px 10px;
+  // background: var(--white);
+  border-radius: 10px 0 10px 0;
+  // box-shadow: var(--card-shadow);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+  transition: all ease 0.3s;
+  z-index: 1;
+  margin: 5px;
+
+  .chat-input-actions {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 5px;
+  }
 }
