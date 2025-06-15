@@ -19,6 +19,7 @@ export function ThinkingContent({
 }) {
   const [expanded, setExpanded] = useState(false);
   const thinkingContentRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const hasAutoExpandedRef = useRef(false);
 
   const thinkingContent = message.reasoningContent;
@@ -46,14 +47,54 @@ export function ThinkingContent({
     }
   }, [thinkingContent, isThinking, expanded]);
 
+  // 修改焦点离开事件处理
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setExpanded(false);
+      }
+    };
+
+    const handleFocusOut = (e: FocusEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.relatedTarget as Node)
+      ) {
+        setExpanded(false);
+      }
+    };
+
+    const handleClickInside = (e: MouseEvent) => {
+      // 无论是否在思考状态，点击思考框时都应该展开
+      if (!expanded) {
+        setExpanded(true);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    containerRef.current?.addEventListener("focusout", handleFocusOut);
+    containerRef.current?.addEventListener("click", handleClickInside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      containerRef.current?.removeEventListener("focusout", handleFocusOut);
+      containerRef.current?.removeEventListener("click", handleClickInside);
+    };
+  }, [expanded]); // 只需要 expanded 作为依赖
+
   if (!thinkingContent) return null;
 
   return (
     <div
+      ref={containerRef}
       className={clsx(
         styles["thinking-container"],
         expanded && styles["expanded"],
       )}
+      tabIndex={0}
     >
       <div className={styles["thinking-header"]}>
         <div className={styles["thinking-title"]}>
@@ -69,7 +110,10 @@ export function ThinkingContent({
           </div> */}
           <div
             className={styles["thinking-toggle"]}
-            onClick={() => setExpanded(!expanded)}
+            onClick={(e) => {
+              e.stopPropagation(); // 阻止事件冒泡
+              setExpanded(!expanded);
+            }}
           >
             {expanded ? <MinIcon /> : <MaxIcon />}
           </div>
@@ -78,6 +122,7 @@ export function ThinkingContent({
       <div
         className={styles["thinking-content-wrapper"]}
         onClick={(e) => {
+          // 无论是否在思考状态，点击时都应该展开
           if (!expanded) {
             setExpanded(true);
           }
