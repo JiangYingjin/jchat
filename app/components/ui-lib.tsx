@@ -369,6 +369,7 @@ function PromptInput(props: {
   onChange: (value: string) => void;
   rows?: number;
   onConfirm?: () => void;
+  messageEditRef?: React.RefObject<HTMLTextAreaElement>;
 }) {
   const [input, setInput] = useState(props.value);
   const onInput = (value: string) => {
@@ -388,11 +389,17 @@ function PromptInput(props: {
           props.onConfirm?.();
         }
       }}
+      ref={props.messageEditRef}
     ></textarea>
   );
 }
 
-export function showPrompt(content: any, value = "", rows = 3) {
+export function showPrompt(
+  content: any,
+  value = "",
+  rows = 3,
+  messageEditRef?: React.RefObject<HTMLTextAreaElement> | null,
+) {
   const div = document.createElement("div");
   div.className = "modal-mask";
   document.body.appendChild(div);
@@ -448,6 +455,7 @@ export function showPrompt(content: any, value = "", rows = 3) {
           value={value}
           rows={rows}
           onConfirm={() => doResolve(true)}
+          messageEditRef={messageEditRef ?? undefined}
         ></PromptInput>
       </Modal>,
     );

@@ -1225,6 +1225,58 @@ export function ShortcutKeyModal(props: { onClose: () => void }) {
   );
 }
 
+// 修改三击事件处理函数
+function useTripleClick(messageEditRef: React.RefObject<HTMLElement>) {
+  const [lastClickTime, setLastClickTime] = useState(0);
+  const [clickCount, setClickCount] = useState(0);
+  const [lastClickX, setLastClickX] = useState(0);
+  const [lastClickY, setLastClickY] = useState(0);
+
+  const handleClick = (
+    e: React.MouseEvent,
+    callback: (select: { anchorText: string; extendText: string }) => void,
+  ) => {
+    const now = Date.now();
+    const currentX = e.clientX;
+    const currentY = e.clientY;
+
+    setLastClickTime(now);
+    setLastClickX(currentX);
+    setLastClickY(currentY);
+
+    // 定义点击位置的最大允许偏差（像素）
+    const MAX_POSITION_DIFF = 1;
+
+    // 检查点击位置是否相近
+    const isPositionClose =
+      Math.abs(currentX - lastClickX) <= MAX_POSITION_DIFF &&
+      Math.abs(currentY - lastClickY) <= MAX_POSITION_DIFF;
+
+    if (now - lastClickTime > 300 || !isPositionClose) {
+      // 如果时间间隔过长或位置相差太大，重置计数
+      setClickCount(1);
+    } else {
+      // 只有在位置相近时才增加计数
+      setClickCount((prev) => prev + 1);
+
+      const selection = window.getSelection();
+
+      if (clickCount === 2) {
+        // 第三次点击
+        setClickCount(0);
+        const anchorText = selection?.anchorNode?.textContent;
+        const extendText = selection?.focusNode?.textContent;
+        callback({
+          anchorText: anchorText ?? "",
+          extendText: extendText ?? "",
+        });
+      }
+    }
+  };
+
+  return handleClick;
+}
+
 function _Chat() {
   type RenderMessage = ChatMessage & { preview?: boolean };
 
@@ -1300,6 +1352,8 @@ function _Chat() {
   const [showExport, setShowExport] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const messageItemRef = useRef<HTMLDivElement>(null);
+  const messageEditRef = useRef<HTMLTextAreaElement>(null);
   const [userInput, setUserInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { shouldSubmit } = useSubmitHandler();
@@ -2029,19 +2083,79 @@ function _Chat() {
 
   const [showChatSidePanel, setShowChatSidePanel] = useState(false);
 
+  const handleTripleClick = useTripleClick(messageEditRef);
+
+  // 修改编辑消息处理函数
   const handleEditMessage = async (
     message: ChatMessage,
     type: "content" | "reasoningContent" = "content",
+    select: { anchorText: string; extendText: string } = {
+      anchorText: "",
+      extendText: "",
+    },
   ) => {
     if (message.streaming) return;
-    const result = await showPrompt(
-      Locale.Chat.Actions.Edit,
+
+    const content =
       type === "content"
         ? getMessageTextContent(message)
-        : getMessageTextReasoningContent(message),
+        : getMessageTextReasoningContent(message);
+
+    console.log("[handleEditMessage] select:", select);
+
+    // 如果有选中的文本，尝试定位到该位置
+    if (select.anchorText || select.extendText) {
+      setTimeout(() => {
+        if (messageEditRef.current) {
+          const textarea = messageEditRef.current;
+          let searchText = select.anchorText || select.extendText;
+          if (!searchText) {
+            return;
+          }
+
+          // 搜索文本在 content 中的位置
+          const searchIndex = content.indexOf(searchText);
+          if (searchIndex === -1) {
+            return;
+          }
+
+          // 计算目标文本所在的行号
+          const contentBeforeSearch = content.substring(0, searchIndex);
+          const lineNumber = contentBeforeSearch.split("\n").length;
+
+          // 获取 textarea 的样式
+          const style = window.getComputedStyle(textarea);
+          const lineHeight = parseInt(style.lineHeight);
+
+          // 计算精确的滚动位置
+          const position = (lineNumber - 1) * 21;
+
+          console.log(
+            "[handleEditMessage] search text:",
+            searchText,
+            "line:",
+            lineNumber,
+            "position:",
+            position,
+          );
+
+          // 滚动到对应的 position，使用平滑滚动
+          textarea.scrollTo({
+            top: Math.max(0, position), // 稍微往上一点，让目标行更明显
+            behavior: "smooth",
+          });
+        }
+      }, 100);
+    }
+
+    const result = await showPrompt(
+      Locale.Chat.Actions.Edit,
+      content,
       16,
+      messageEditRef,
     );
-    // result: { value, byCtrlEnter }
+
+    // 处理编辑后的内容
     let newMessage = result.value;
     let newContent: string | MultimodalContent[] = newMessage;
     const images = getMessageImages(message);
@@ -2056,6 +2170,8 @@ function _Chat() {
         });
       }
     }
+
+    // 更新消息内容
     chatStore.updateTargetSession(session, (session) => {
       const m = session.mask.context
         .concat(session.messages)
@@ -2069,6 +2185,7 @@ function _Chat() {
         }
       }
     });
+
     if (result.byCtrlEnter && message.role === "user") {
       onResend(message);
     }
@@ -2487,21 +2604,38 @@ function _Chat() {
                             ))}
                           </div>
                         )}
-                        {!isUser && (
+                        {!isUser && message.reasoningContent && (
                           <ThinkingContent
                             message={message}
-                            onDoubleClick={() => {
-                              if (message.streaming) return;
-                              handleEditMessage(message, "reasoningContent");
-                            }}
+                            onDoubleClick={(e) =>
+                              handleTripleClick(e, (select) => {
+                                handleEditMessage(
+                                  message,
+                                  "reasoningContent",
+                                  select,
+                                );
+                              })
+                            }
                           />
                         )}
                         <div
                           className={styles["chat-message-item"]}
-                          onDoubleClick={async () => {
+                          onDoubleClick={async (e) => {
                             if (message.streaming) return;
-                            handleEditMessage(message, "content");
+                            // 用户消息保持双击编辑
+                            if (isUser) {
+                              handleEditMessage(message, "content");
+                            }
                           }}
+                          onClick={(e) => {
+                            // 非用户消息使用三击编辑
+                            if (!isUser) {
+                              handleTripleClick(e, (select) => {
+                                handleEditMessage(message, "content", select);
+                              });
+                            }
+                          }}
+                          ref={messageItemRef}
                         >
                           {Array.isArray(message.content) ? (
                             message.content.map((content, index) => (

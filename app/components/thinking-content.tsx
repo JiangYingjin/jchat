@@ -15,7 +15,7 @@ export function ThinkingContent({
   onDoubleClick,
 }: {
   message: ChatMessage;
-  onDoubleClick?: () => void;
+  onDoubleClick?: (e: React.MouseEvent) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const thinkingContentRef = useRef<HTMLDivElement>(null);
@@ -77,8 +77,10 @@ export function ThinkingContent({
       </div>
       <div
         className={styles["thinking-content-wrapper"]}
-        onClick={() => {
-          !expanded && setExpanded(true);
+        onClick={(e) => {
+          if (!expanded) {
+            setExpanded(true);
+          }
         }}
       >
         {!expanded && <div className={styles["thinking-content-top"]}></div>}
@@ -88,9 +90,11 @@ export function ThinkingContent({
             expanded && styles["expanded"],
           )}
           ref={thinkingContentRef}
-          onDoubleClick={() => {
-            if (onDoubleClick) {
-              onDoubleClick();
+          onClick={(e) => {
+            // 在展开状态下，直接传递点击事件给父组件
+            if (expanded && onDoubleClick) {
+              e.stopPropagation(); // 阻止事件冒泡
+              onDoubleClick(e);
             }
           }}
         >

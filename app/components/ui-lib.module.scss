@@ -273,6 +273,7 @@
   resize: none;
   outline: none;
   box-sizing: border-box;
+  line-height: 1.5;
 
   &:focus {
     border: 1px solid var(--primary);
