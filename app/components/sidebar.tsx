@@ -105,11 +105,11 @@ function useDragSideBar() {
       window.removeEventListener("pointermove", handleDragMove);
       window.removeEventListener("pointerup", handleDragEnd);
 
-      // if user click the drag icon, should toggle the sidebar
-      const shouldFireClick = Date.now() - dragStartTime < 300;
-      if (shouldFireClick) {
-        toggleSideBar();
-      }
+      // 移除点击 drag 图标时触发 toggleSideBar 的逻辑
+      // const shouldFireClick = Date.now() - dragStartTime < 300;
+      // if (shouldFireClick) {
+      //   toggleSideBar();
+      // }
     };
 
     window.addEventListener("pointermove", handleDragMove);
