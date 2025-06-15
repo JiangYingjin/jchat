@@ -18,9 +18,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": false,
-                "historyMessageCount": 0,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": false
             },
             "lang": "cn",
             "builtin": false,
@@ -63,9 +61,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": true,
-                "historyMessageCount": 32,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": true
             },
             "lang": "cn",
             "builtin": true,
@@ -88,9 +84,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": true,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": true
             },
             "lang": "cn",
             "builtin": true,
@@ -113,9 +107,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": true,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": true
             },
             "lang": "cn",
             "builtin": true,
@@ -138,9 +130,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": true,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": true
             },
             "lang": "cn",
             "builtin": true,
@@ -163,9 +153,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": true,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": true
             },
             "lang": "cn",
             "builtin": true,
@@ -188,9 +176,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": false,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": false
             },
             "lang": "cn",
             "builtin": true,
@@ -213,9 +199,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": false,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": false
             },
             "lang": "cn",
             "builtin": true,
@@ -238,9 +222,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": false,
-                "historyMessageCount": 0,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": false
             },
             "lang": "cn",
             "builtin": true,
@@ -269,9 +251,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": true,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": true
             },
             "lang": "cn",
             "builtin": true,
@@ -294,9 +274,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": true,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": true
             },
             "lang": "cn",
             "builtin": true,
@@ -325,9 +303,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": false,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": false
             },
             "lang": "cn",
             "builtin": true,
@@ -356,9 +332,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": false,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": false
             },
             "lang": "cn",
             "builtin": true,
@@ -411,9 +385,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": false,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": false
             },
             "lang": "cn",
             "builtin": true,
@@ -442,9 +414,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": true,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": true
             },
             "lang": "cn",
             "builtin": true,
@@ -470,9 +440,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": false,
-                "historyMessageCount": 0,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": false
             },
             "lang": "en",
             "builtin": false,
@@ -497,9 +465,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": true,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": true
             },
             "lang": "en",
             "builtin": true,
@@ -540,9 +506,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": true,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": true
             },
             "lang": "en",
             "builtin": true,
@@ -565,9 +529,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": true,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000
+                "sendMemory": true
             },
             "lang": "en",
             "builtin": true,
@@ -596,9 +558,7 @@
                 "max_tokens": 2000,
                 "presence_penalty": 0,
                 "frequency_penalty": 0,
-                "sendMemory": true,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 2000
+                "sendMemory": true
             },
             "lang": "en",
             "builtin": true,
@@ -632,8 +592,6 @@
                 "presence_penalty": 0,
                 "frequency_penalty": 0.4,
                 "sendMemory": true,
-                "historyMessageCount": 4,
-                "compressMessageLengthThreshold": 1000,
                 "enableInjectSystemPrompts": true,
                 "template": "{{input}}"
             },
