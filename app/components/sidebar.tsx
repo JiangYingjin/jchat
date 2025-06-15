@@ -112,8 +112,8 @@ function useDragSideBar() {
       // }
     };
 
-    window.addEventListener("pointermove", handleDragMove);
-    window.addEventListener("pointerup", handleDragEnd);
+    // window.addEventListener("pointermove", handleDragMove);
+    // window.addEventListener("pointerup", handleDragEnd);
   };
 
   const isMobileScreen = useMobileScreen();
