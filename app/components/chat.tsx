@@ -129,9 +129,10 @@ import {
   ModelProvider,
   Path,
   REQUEST_TIMEOUT_MS,
-  UNFINISHED_INPUT_TEXT,
+  CHAT_INPUT_TEXT,
+  CHAT_INPUT_IMAGES,
+  CHAT_INPUT_SCROLL_TOP,
   ServiceProvider,
-  UNFINISHED_INPUT_IMAGES,
 } from "../constant";
 import { Avatar } from "./emoji";
 import { ContextPrompts, MaskAvatar, MaskConfig } from "./mask";
@@ -1284,45 +1285,68 @@ function _Chat() {
   const allModels = useAllModels();
 
   // 记住未完成输入的防抖保存函数，间隔放宽到 1200ms
-  const saveUnfinishedInput = useDebouncedCallback((value: string) => {
-    const key = UNFINISHED_INPUT_TEXT(session.id);
+  const saveChatInputText = useDebouncedCallback((value: string) => {
+    const key = CHAT_INPUT_TEXT(session.id);
     localStorage.setItem(key, value);
-    console.log("[UserInput][Save] 保存未完成输入:", value);
+    // console.log("[UserInput][Save] 保存未完成输入:", value);
   }, 500);
-  function loadUnfinishedInputText(): string {
+  // 新增：立即保存 scrollTop
+  function saveChatInputScrollTop(scrollTop: number) {
     try {
-      const key = UNFINISHED_INPUT_TEXT(session.id);
+      const key = CHAT_INPUT_SCROLL_TOP(session.id);
+      localStorage.setItem(key, String(scrollTop));
+      // console.log("[UserInput][Save] 保存 scrollTop:", scrollTop);
+    } catch (e) {
+      // console.error("[UserInput][Save] 保存 scrollTop 失败:", e);
+    }
+  }
+  function loadChatInputText(): string {
+    try {
+      const key = CHAT_INPUT_TEXT(session.id);
       const value = localStorage.getItem(key);
-      console.log("[UserInput][Load] 加载未完成输入:", value);
+      // console.log("[UserInput][Load] 加载未完成输入:", value);
       return value ?? "";
     } catch (e) {
-      console.error("[UserInput][Load] 加载未完成输入失败:", e);
+      // console.error("[UserInput][Load] 加载未完成输入失败:", e);
       return "";
     }
   }
-  // 新增：保存和加载未完成图片的方法
-  function saveUnfinishedInputImages(images: string[]) {
+  // 新增：加载 scrollTop
+  function loadChatInputScrollTop(): number {
     try {
-      const key = UNFINISHED_INPUT_IMAGES(session.id);
-      localStorage.setItem(key, JSON.stringify(images));
-      console.log("[UserInput][Save] 保存未完成图片:", images);
+      const key = CHAT_INPUT_SCROLL_TOP(session.id);
+      const value = localStorage.getItem(key);
+      if (value) {
+        return Number(value);
+      }
     } catch (e) {
-      console.error("[UserInput][Save] 保存未完成图片失败:", e);
+      // console.error("[UserInput][Load] 加载未完成 scrollTop 失败:", e);
+    }
+    return 0;
+  }
+  // 新增：保存和加载未完成图片的方法
+  function saveChatInputImages(images: string[]) {
+    try {
+      const key = CHAT_INPUT_IMAGES(session.id);
+      localStorage.setItem(key, JSON.stringify(images));
+      // console.log("[UserInput][Save] 保存未完成图片:", images);
+    } catch (e) {
+      // console.error("[UserInput][Save] 保存未完成图片失败:", e);
     }
   }
-  function loadUnfinishedInputImages(): string[] {
+  function loadChatInputImages(): string[] {
     try {
-      const key = UNFINISHED_INPUT_IMAGES(session.id);
+      const key = CHAT_INPUT_IMAGES(session.id);
       const raw = localStorage.getItem(key);
       if (raw) {
         const images = JSON.parse(raw);
         if (Array.isArray(images)) {
-          console.log("[UserInput][Load] 加载未完成图片:", images);
+          // console.log("[UserInput][Load] 加载未完成图片:", images);
           return images;
         }
       }
     } catch (e) {
-      console.error("[UserInput][Load] 加载未完成图片失败:", e);
+      // console.error("[UserInput][Load] 加载未完成图片失败:", e);
     }
     return [];
   }
@@ -1488,12 +1512,16 @@ function _Chat() {
     // try to load from local storage
 
     // 加载会话文字输入
-    const userInputText = loadUnfinishedInputText();
-    if (inputRef.current) inputRef.current.value = userInputText;
+    const userInputText = loadChatInputText();
+    const userInputScrollTop = loadChatInputScrollTop();
+    if (inputRef.current) {
+      inputRef.current.value = userInputText;
+      inputRef.current.scrollTop = userInputScrollTop;
+    }
     setUserInput(userInputText);
 
     // 加载会话图像输入
-    const images = loadUnfinishedInputImages();
+    const images = loadChatInputImages();
     setAttachImages(images);
   }, []);
 
@@ -1502,7 +1530,7 @@ function _Chat() {
     text: string,
     event?: React.FormEvent<HTMLTextAreaElement>,
   ) => {
-    saveUnfinishedInput(text); // 防抖保存
+    saveChatInputText(text); // 只防抖保存 text
     // 只要内容有换行或长度变化较大（如粘贴/多行输入），就 setUserInput
     if (
       text.includes("\n") ||
@@ -2042,7 +2070,7 @@ function _Chat() {
             );
 
             setAttachImages(images);
-            saveUnfinishedInputImages(images); // 新增：保存图片
+            saveChatInputImages(images); // 新增：保存图片
           }
         }
       }
@@ -2050,7 +2078,7 @@ function _Chat() {
       setTimeout(() => {
         if (event.currentTarget) {
           setUserInput(event.currentTarget.value);
-          saveUnfinishedInput(event.currentTarget.value);
+          saveChatInputText(event.currentTarget.value);
           console.log(
             "[UserInput][Save][Paste] 粘贴后保存未完成输入:",
             event.currentTarget.value,
@@ -2097,7 +2125,7 @@ function _Chat() {
     );
 
     setAttachImages(images);
-    saveUnfinishedInputImages(images); // 新增：保存图片
+    saveChatInputImages(images); // 新增：保存图片
   }
 
   async function uploadFile() {
@@ -2972,8 +3000,11 @@ function _Chat() {
                   }}
                   onBlur={() => {
                     setUserInput(inputRef.current?.value ?? "");
-                    saveUnfinishedInput.flush && saveUnfinishedInput.flush();
+                    saveChatInputText.flush && saveChatInputText.flush();
                   }}
+                  onScroll={(e) =>
+                    saveChatInputScrollTop(e.currentTarget.scrollTop)
+                  }
                 />
                 {attachImages.length != 0 && (
                   <div className={styles["attach-images"]}>
