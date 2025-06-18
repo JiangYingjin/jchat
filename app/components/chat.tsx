@@ -2241,7 +2241,7 @@ function _Chat() {
     const result = await showPrompt(
       Locale.Chat.Actions.Edit,
       content,
-      16,
+      15,
       messageEditRef,
     );
 
@@ -2380,7 +2380,7 @@ function _Chat() {
                   const result = await showPrompt(
                     "编辑系统提示词",
                     getMessageTextContent(systemMessage),
-                    16,
+                    15,
                   );
 
                   // 只从第一个分隔符处分割，最多分成两个部分
