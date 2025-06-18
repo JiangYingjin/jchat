@@ -101,6 +101,9 @@ export interface ChatSession {
   mask: Mask;
 
   attachFiles: FileInfo[];
+
+  // 是否为长输入模式（Enter 换行，Ctrl+Enter 发送）
+  longInputMode?: boolean;
 }
 
 export const DEFAULT_TOPIC = Locale.Store.DefaultTopic;
@@ -122,10 +125,9 @@ function createEmptySession(): ChatSession {
     },
     lastUpdate: Date.now(),
     lastSummarizeIndex: 0,
-
     mask: createEmptyMask(),
-
     attachFiles: [],
+    longInputMode: false, // 默认不是长输入模式
   };
 }
 

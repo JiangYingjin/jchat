@@ -30,7 +30,7 @@ import BreakIcon from "../icons/break.svg";
 import SettingsIcon from "../icons/chat-settings.svg";
 import DeleteIcon from "../icons/clear.svg";
 import PinIcon from "../icons/pin.svg";
-import EditIcon from "../icons/rename.svg";
+import EditIcon from "../icons/edit.svg";
 import ConfirmIcon from "../icons/confirm.svg";
 import CloseIcon from "../icons/close.svg";
 import CancelIcon from "../icons/cancel.svg";
@@ -769,6 +769,28 @@ export function ChatActions(props: {
           text={currentModelName}
           icon={<RobotIcon />}
           alwaysFullWidth={true}
+        />
+        <ChatAction
+          onClick={() => {
+            chatStore.updateTargetSession(session, (s) => {
+              s.longInputMode = !s.longInputMode;
+            });
+          }}
+          text={"长输入模式"}
+          icon={<EditIcon />}
+          alwaysFullWidth={false}
+          style={{
+            backgroundColor: session.longInputMode
+              ? "var(--primary-light, #e6f0fa)"
+              : undefined,
+            color: session.longInputMode
+              ? "var(--primary, #2196f3)"
+              : undefined,
+            opacity: session.longInputMode ? 1 : 0.7,
+            border: session.longInputMode
+              ? "1.5px solid var(--primary)"
+              : undefined,
+          }}
         />
 
         {/* {!isFunctionCallModel(currentModel) &&
@@ -1581,7 +1603,16 @@ function _Chat() {
 
   // check if should send message
   const onInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // if ArrowUp and no userInput, fill with last input
+    // 如果是长输入模式，Enter 换行，Ctrl+Enter 发送
+    if (session.longInputMode) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        doSubmit(userInput);
+        e.preventDefault();
+      }
+      // 仅 Enter 时不发送，交给浏览器默认行为（换行）
+      return;
+    }
+    // 普通模式
     if (
       e.key === "ArrowUp" &&
       userInput.length <= 0 &&
