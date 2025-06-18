@@ -1415,10 +1415,30 @@ function _Chat() {
 
   // only search prompts when user input is short
   const SEARCH_TEXT_LIMIT = 30;
+  // 记住未完成输入的防抖保存函数，间隔放宽到 1200ms
+  const saveUnfinishedInput = useDebouncedCallback((value: string) => {
+    const key = UNFINISHED_INPUT(session.id);
+    localStorage.setItem(key, value);
+  }, 1200);
+  // ... existing code ...
+  // 记住 unfinished input 的 useEffect 只负责加载
+  useEffect(() => {
+    // try to load from local storage
+    const key = UNFINISHED_INPUT(session.id);
+    const mayBeUnfinishedInput = localStorage.getItem(key);
+    if (mayBeUnfinishedInput && userInput.length === 0) {
+      setUserInput(mayBeUnfinishedInput);
+      localStorage.removeItem(key);
+      // 初始化 textarea 内容
+      if (inputRef.current) inputRef.current.value = mayBeUnfinishedInput;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  // ... existing code ...
+  // onInput 只做本地保存和提示词联想，不 setUserInput
   const onInput = (text: string) => {
-    setUserInput(text);
+    saveUnfinishedInput(text); // 防抖保存
     const n = text.trim().length;
-
     // clear search results
     if (n === 0) {
       setPromptHints([]);
@@ -1462,24 +1482,27 @@ function _Chat() {
       setIsTranscription(false);
   };
 
-  const doSubmit = (userInput: string) => {
-    if (userInput.trim() === "" && isEmpty(attachImages)) return;
-    const matchCommand = chatCommands.match(userInput);
+  const doSubmit = (input: string) => {
+    const value = inputRef.current?.value ?? input;
+    if (value.trim() === "" && isEmpty(attachImages)) return;
+    const matchCommand = chatCommands.match(value);
     if (matchCommand.matched) {
       setUserInput("");
       setPromptHints([]);
       matchCommand.invoke();
+      if (inputRef.current) inputRef.current.value = "";
       return;
     }
     setIsLoading(true);
     chatStore
-      .onUserInput(userInput, attachImages, attachFiles)
+      .onUserInput(value, attachImages, attachFiles)
       .then(() => setIsLoading(false));
     setAttachImages([]);
     setAttachFiles([]);
-    chatStore.setLastInput(userInput);
+    chatStore.setLastInput(value);
     setUserInput("");
     setPromptHints([]);
+    if (inputRef.current) inputRef.current.value = "";
     if (!isMobileScreen) inputRef.current?.focus();
     setAutoScroll(true);
   };
@@ -1905,23 +1928,6 @@ function _Chat() {
 
   // edit / insert message modal
   const [isEditingMessage, setIsEditingMessage] = useState(false);
-
-  // remember unfinished input
-  useEffect(() => {
-    // try to load from local storage
-    const key = UNFINISHED_INPUT(session.id);
-    const mayBeUnfinishedInput = localStorage.getItem(key);
-    if (mayBeUnfinishedInput && userInput.length === 0) {
-      setUserInput(mayBeUnfinishedInput);
-      localStorage.removeItem(key);
-    }
-
-    const dom = inputRef.current;
-    return () => {
-      localStorage.setItem(key, dom?.value ?? "");
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const handlePaste = useCallback(
     async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
@@ -2863,18 +2869,20 @@ function _Chat() {
                   id="chat-input"
                   ref={inputRef}
                   className={styles["chat-input"]}
+                  defaultValue={userInput}
                   // placeholder="Enter 或 Ctrl + Enter 发送，Shift + Enter 换行，/ 搜索提示词，: 使用命令"
                   onInput={(e) => onInput(e.currentTarget.value)}
-                  value={userInput}
                   onKeyDown={onInputKeyDown}
-                  // onFocus={scrollToBottom}
-                  // onClick={scrollToBottom}
                   onPaste={handlePaste}
                   rows={inputRows}
                   autoFocus={autoFocus}
                   style={{
                     fontSize: config.fontSize,
                     fontFamily: config.fontFamily,
+                  }}
+                  onBlur={() => {
+                    setUserInput(inputRef.current?.value ?? "");
+                    saveUnfinishedInput.flush && saveUnfinishedInput.flush();
                   }}
                 />
                 {attachImages.length != 0 && (
