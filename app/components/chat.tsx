@@ -1330,6 +1330,7 @@ function _Chat() {
   const messageItemRef = useRef<HTMLDivElement>(null);
   const messageEditRef = useRef<HTMLTextAreaElement>(null);
   const [userInput, setUserInput] = useState("");
+  const [isLargeInput, setIsLargeInput] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { shouldSubmit } = useSubmitHandler();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -1436,8 +1437,18 @@ function _Chat() {
   }, []);
   // ... existing code ...
   // onInput 只做本地保存和提示词联想，不 setUserInput
-  const onInput = (text: string) => {
+  const onInput = (
+    text: string,
+    event?: React.FormEvent<HTMLTextAreaElement>,
+  ) => {
     saveUnfinishedInput(text); // 防抖保存
+    // 只要内容有换行或长度变化较大（如粘贴/多行输入），就 setUserInput
+    if (
+      text.includes("\n") ||
+      (userInput && Math.abs(text.length - userInput.length) > 1)
+    ) {
+      setUserInput(text);
+    }
     const n = text.trim().length;
     // clear search results
     if (n === 0) {
@@ -1964,6 +1975,12 @@ function _Chat() {
           }
         }
       }
+      // 粘贴文本后，确保高度及时变化
+      setTimeout(() => {
+        if (event.currentTarget) {
+          setUserInput(event.currentTarget.value);
+        }
+      }, 0);
     },
     [attachImages, chatStore],
   );
@@ -2871,7 +2888,7 @@ function _Chat() {
                   className={styles["chat-input"]}
                   defaultValue={userInput}
                   // placeholder="Enter 或 Ctrl + Enter 发送，Shift + Enter 换行，/ 搜索提示词，: 使用命令"
-                  onInput={(e) => onInput(e.currentTarget.value)}
+                  onInput={(e) => onInput(e.currentTarget.value, e)}
                   onKeyDown={onInputKeyDown}
                   onPaste={handlePaste}
                   rows={inputRows}
