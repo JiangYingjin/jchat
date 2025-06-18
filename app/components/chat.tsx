@@ -1289,7 +1289,7 @@ function _Chat() {
     localStorage.setItem(key, value);
     console.log("[UserInput][Save] 保存未完成输入:", value);
   }, 500);
-  function loadUnfinishedInput(): string {
+  function loadUnfinishedInputText(): string {
     try {
       const key = UNFINISHED_INPUT_TEXT(session.id);
       const value = localStorage.getItem(key);
@@ -1488,7 +1488,7 @@ function _Chat() {
     // try to load from local storage
 
     // 加载会话文字输入
-    const userInputText = loadUnfinishedInput();
+    const userInputText = loadUnfinishedInputText();
     if (inputRef.current) inputRef.current.value = userInputText;
     setUserInput(userInputText);
 

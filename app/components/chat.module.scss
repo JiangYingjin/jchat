@@ -69,6 +69,10 @@
   left: 30px;
   bottom: 32px;
   display: flex;
+  max-width: calc(100% - 110px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
 }
 
 .attach-image {
@@ -83,7 +87,7 @@
   background-color: var(--white);
 
   .attach-image-mask {
-    width: 100%;
+    width: 64px;
     height: 100%;
     opacity: 0;
     transition: all ease 0.2s;
