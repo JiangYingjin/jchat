@@ -53,6 +53,22 @@
         border-bottom: var(--border-in-light);
       }
 
+      &[data-role="system"] {
+        background-color: rgba(0, 0, 0, 0.03);
+        border-left: 2px solid var(--primary);
+        opacity: 0.8;
+
+        &:hover {
+          opacity: 1;
+          background-color: rgba(0, 0, 0, 0.05);
+        }
+
+        .body .date {
+          color: var(--primary);
+          font-weight: 500;
+        }
+      }
+
       .avatar {
         margin-right: 10px;
       }

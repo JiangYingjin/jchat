@@ -88,7 +88,9 @@ export function MessageSelector(props: {
         (m, i) =>
           m.id && // message must have id
           isValid(m) &&
-          (i >= allMessages.length - 1 || isValid(allMessages[i + 1])),
+          (m.role === "system" ||
+            i >= allMessages.length - 1 ||
+            isValid(allMessages[i + 1])),
       ),
     [allMessages],
   );
@@ -117,7 +119,11 @@ export function MessageSelector(props: {
 
   const selectAll = () => {
     props.updateSelection((selection) =>
-      messages.forEach((m) => selection.add(m.id!)),
+      messages.forEach((m) => {
+        if (m.role !== "system") {
+          selection.add(m.id!);
+        }
+      }),
     );
   };
 
@@ -200,6 +206,7 @@ export function MessageSelector(props: {
                 props.selection.has(m.id!) && styles["message-selected"]
               }`}
               key={i}
+              data-role={m.role}
               onClick={() => {
                 props.updateSelection((selection) => {
                   selection.has(id) ? selection.delete(id) : selection.add(id);
@@ -210,6 +217,8 @@ export function MessageSelector(props: {
               <div className={styles["avatar"]}>
                 {m.role === "user" ? (
                   <Avatar avatar={config.avatar}></Avatar>
+                ) : m.role === "system" ? (
+                  <Avatar avatar="2699-fe0f"></Avatar>
                 ) : (
                   <MaskAvatar
                     avatar={session.mask.avatar}
@@ -219,7 +228,9 @@ export function MessageSelector(props: {
               </div>
               <div className={styles["body"]}>
                 <div className={styles["date"]}>
-                  {new Date(m.date).toLocaleString()}
+                  {m.role === "system"
+                    ? "系统提示词"
+                    : new Date(m.date).toLocaleString()}
                 </div>
                 <div className={`${styles["content"]} one-line`}>
                   {getMessageTextContent(m)}

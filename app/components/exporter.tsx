@@ -154,7 +154,7 @@ export function MessageExporter() {
   type ExportFormat = (typeof formats)[number];
 
   const [exportConfig, setExportConfig] = useState({
-    format: "text" as ExportFormat,
+    format: "image" as ExportFormat,
     includeContext: true,
   });
 
@@ -172,6 +172,7 @@ export function MessageExporter() {
     if (exportConfig.includeContext) {
       ret.push(...session.mask.context);
     }
+
     ret.push(...session.messages.filter((m) => selection.has(m.id)));
     return ret;
   }, [

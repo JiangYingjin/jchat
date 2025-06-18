@@ -2235,27 +2235,6 @@ function _Chat() {
           <div className="window-actions">
             <div className="window-action-button">
               <IconButton
-                icon={<ReloadIcon />}
-                bordered
-                title={Locale.Chat.Actions.RefreshTitle}
-                onClick={() => {
-                  showToast(Locale.Chat.Actions.RefreshToast);
-                  chatStore.summarizeSession(true, session);
-                }}
-              />
-            </div>
-            {/* <div className="window-action-button">
-              <IconButton
-                icon={<RenameIcon />}
-                bordered
-                title={Locale.Chat.EditMessage.Title}
-                aria={Locale.Chat.EditMessage.Title}
-                onClick={() => setIsEditingMessage(true)}
-              />
-            </div> */}
-            {/* 移除编辑系统提示词功能 */}
-            {/* <div className="window-action-button">
-              <IconButton
                 icon={<EditIcon />}
                 bordered
                 title="编辑上下文"
@@ -2324,7 +2303,7 @@ function _Chat() {
                   });
                 }}
               />
-            </div> */}
+            </div>
             <div className="window-action-button">
               <IconButton
                 icon={<ExportIcon />}
@@ -2395,10 +2374,10 @@ function _Chat() {
                 const shouldShowClearContextDivider =
                   i === clearContextIndex - 1;
 
-                // 移除系统消息隐藏逻辑，让系统消息正常显示
-                // if (isSystem) {
-                //   return null;
-                // }
+                // 系统级提示词在会话界面中隐藏
+                if (isSystem) {
+                  return null;
+                }
 
                 return (
                   <Fragment key={message.id}>
