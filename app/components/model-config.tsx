@@ -70,26 +70,6 @@ export function ModelConfigList(props: {
         ></InputRange>
       </ListItem>
       <ListItem
-        title={Locale.Settings.TopP.Title}
-        subTitle={Locale.Settings.TopP.SubTitle}
-      >
-        <InputRange
-          aria={Locale.Settings.TopP.Title}
-          value={(props.modelConfig.top_p ?? 1).toFixed(1)}
-          min="0"
-          max="1"
-          step="0.1"
-          onChange={(e) => {
-            props.updateConfig(
-              (config) =>
-                (config.top_p = ModalConfigValidator.top_p(
-                  e.currentTarget.valueAsNumber,
-                )),
-            );
-          }}
-        ></InputRange>
-      </ListItem>
-      <ListItem
         title={Locale.Settings.MaxTokens.Title}
         subTitle={Locale.Settings.MaxTokens.SubTitle}
       >
@@ -135,50 +115,6 @@ export function ModelConfigList(props: {
 
       {props.modelConfig?.providerName == ServiceProvider.Google ? null : (
         <>
-          <ListItem
-            title={Locale.Settings.PresencePenalty.Title}
-            subTitle={Locale.Settings.PresencePenalty.SubTitle}
-          >
-            <InputRange
-              aria={Locale.Settings.PresencePenalty.Title}
-              value={props.modelConfig.presence_penalty?.toFixed(1)}
-              min="-2"
-              max="2"
-              step="0.1"
-              onChange={(e) => {
-                props.updateConfig(
-                  (config) =>
-                    (config.presence_penalty =
-                      ModalConfigValidator.presence_penalty(
-                        e.currentTarget.valueAsNumber,
-                      )),
-                );
-              }}
-            ></InputRange>
-          </ListItem>
-
-          <ListItem
-            title={Locale.Settings.FrequencyPenalty.Title}
-            subTitle={Locale.Settings.FrequencyPenalty.SubTitle}
-          >
-            <InputRange
-              aria={Locale.Settings.FrequencyPenalty.Title}
-              value={props.modelConfig.frequency_penalty?.toFixed(1)}
-              min="-2"
-              max="2"
-              step="0.1"
-              onChange={(e) => {
-                props.updateConfig(
-                  (config) =>
-                    (config.frequency_penalty =
-                      ModalConfigValidator.frequency_penalty(
-                        e.currentTarget.valueAsNumber,
-                      )),
-                );
-              }}
-            ></InputRange>
-          </ListItem>
-
           <ListItem
             title={Locale.Settings.InputTemplate.Title}
             subTitle={Locale.Settings.InputTemplate.SubTitle}

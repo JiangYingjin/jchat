@@ -70,11 +70,8 @@ export const DEFAULT_CONFIG = {
     model: "gpt-4o-mini" as ModelType,
     providerName: "OpenAI" as ServiceProvider,
     temperature: 0.5,
-    top_p: 1,
     max_tokens: 1000000,
     budget_tokens: 4000,
-    presence_penalty: 0,
-    frequency_penalty: 0,
     sendMemory: false,
     compressModel: "",
     compressProviderName: "",
@@ -171,17 +168,8 @@ export const ModalConfigValidator = {
   budget_tokens(x: number) {
     return limitNumber(x, 0, 32000, 1024);
   },
-  presence_penalty(x: number) {
-    return limitNumber(x, -2, 2, 0);
-  },
-  frequency_penalty(x: number) {
-    return limitNumber(x, -2, 2, 0);
-  },
   temperature(x: number) {
     return limitNumber(x, 0, 2, 1);
-  },
-  top_p(x: number) {
-    return limitNumber(x, 0, 1, 1);
   },
 };
 

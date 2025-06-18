@@ -154,12 +154,12 @@ export const usePromptStore = createPersistStore(
       fetch(PROMPT_URL)
         .then((res) => res.json())
         .then((res) => {
-          let fetchPrompts = [res.en, res.tw, res.cn];
+          let fetchPrompts = [res.en || [], res.tw || [], res.cn || []];
           if (getLang() === "cn") {
             fetchPrompts = fetchPrompts.reverse();
           }
           const builtinPrompts = fetchPrompts.map((promptList: PromptList) => {
-            return promptList.map(
+            return (promptList || []).map(
               ([title, content]) =>
                 ({
                   id: nanoid(),
@@ -176,8 +176,17 @@ export const usePromptStore = createPersistStore(
             .reduce((pre, cur) => pre.concat(cur), [])
             .filter((v) => !!v.title && !!v.content);
           SearchService.count.builtin =
-            res.en.length + res.cn.length + res.tw.length;
+            (res.en?.length || 0) +
+            (res.cn?.length || 0) +
+            (res.tw?.length || 0);
           SearchService.init(allPromptsForSearch, userPrompts);
+        })
+        .catch((error) => {
+          console.error("[Prompt] Failed to fetch prompts:", error);
+          // 如果获取失败，使用空的提示词列表
+          const userPrompts = usePromptStore.getState().getUserPrompts() ?? [];
+          SearchService.count.builtin = 0;
+          SearchService.init([], userPrompts);
         });
     },
   },

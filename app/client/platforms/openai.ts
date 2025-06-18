@@ -78,11 +78,7 @@ export interface RequestPayload {
   stream?: boolean;
   model: string;
   temperature: number;
-  presence_penalty: number;
-  frequency_penalty: number;
-  top_p: number;
   max_tokens?: number;
-  max_completion_tokens?: number;
 }
 
 export interface DalleRequestPayload {
@@ -288,15 +284,12 @@ export class ChatGPTApi implements LLMApi {
           messages.push({ role: v.role, content });
       }
 
-      // O1 support image, tools (except o4-mini for now) and system, stream, *NOT* logprobs, temperature, top_p, n, presence_penalty, frequency_penalty yet.
+      // O1 support image, tools (except o4-mini for now) and system, stream, *NOT* logprobs, temperature, top_p, n yet.
       requestPayload = {
         messages,
         stream: options.config.stream,
         model: modelConfig.model,
         temperature: !isOseries ? modelConfig.temperature : 1,
-        presence_penalty: !isOseries ? modelConfig.presence_penalty : 0,
-        frequency_penalty: !isOseries ? modelConfig.frequency_penalty : 0,
-        top_p: !isOseries ? modelConfig.top_p : 1,
         // max_tokens: Math.max(modelConfig.max_tokens, 1024),
         // Please do not ask me why not send max_tokens, no reason, this param is just shit, I dont want to explain anymore.
       };
@@ -305,7 +298,7 @@ export class ChatGPTApi implements LLMApi {
       // O系列 使用 max_completion_tokens 控制token数 (https://platform.openai.com/docs/guides/reasoning#controlling-costs)
       if (visionModel) {
         if (isOseries) {
-          requestPayload["max_completion_tokens"] = 23456;
+          // requestPayload["max_completion_tokens"] = 23456;
         } else {
           requestPayload["max_tokens"] = Math.max(modelConfig.max_tokens, 4000);
         }
@@ -540,9 +533,6 @@ export class ChatGPTApi implements LLMApi {
       stream: options.config.stream,
       model: modelConfig.model,
       temperature: modelConfig.temperature,
-      presence_penalty: modelConfig.presence_penalty,
-      frequency_penalty: modelConfig.frequency_penalty,
-      top_p: modelConfig.top_p,
       baseUrl: baseUrl,
       maxIterations: options.agentConfig.maxIterations,
       returnIntermediateSteps: options.agentConfig.returnIntermediateSteps,

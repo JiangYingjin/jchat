@@ -17,18 +17,6 @@ import {
   GPTImageRequestPayload,
 } from "./platforms/openai";
 import { FileApi, FileInfo } from "./platforms/utils";
-import { GeminiProApi } from "./platforms/google";
-import { ClaudeApi } from "./platforms/anthropic";
-import { ErnieApi } from "./platforms/baidu";
-import { DoubaoApi } from "./platforms/bytedance";
-import { QwenApi } from "./platforms/alibaba";
-import { HunyuanApi } from "./platforms/tencent";
-import { MoonshotApi } from "./platforms/moonshot";
-import { SparkApi } from "./platforms/iflytek";
-import { DeepSeekApi } from "./platforms/deepseek";
-import { XAIApi } from "./platforms/xai";
-import { ChatGLMApi } from "./platforms/glm";
-import { SiliconflowApi } from "./platforms/siliconflow";
 import { TavilySearchResponse } from "@tavily/core";
 
 export const ROLES = ["system", "user", "assistant"] as const;
@@ -68,10 +56,7 @@ export interface LLMConfig {
   model: string;
   providerName?: string;
   temperature?: number;
-  top_p?: number;
   stream?: boolean;
-  presence_penalty?: number;
-  frequency_penalty?: number;
   size?: DalleRequestPayload["size"] | GPTImageRequestPayload["size"];
   quality?: DalleRequestPayload["quality"] | GPTImageRequestPayload["quality"];
   style?: DalleRequestPayload["style"] | undefined;
@@ -203,46 +188,7 @@ export class ClientApi {
   public file: FileApi;
 
   constructor(provider: ModelProvider = ModelProvider.GPT) {
-    switch (provider) {
-      case ModelProvider.GeminiPro:
-        this.llm = new GeminiProApi();
-        break;
-      case ModelProvider.Claude:
-        this.llm = new ClaudeApi();
-        break;
-      case ModelProvider.Ernie:
-        this.llm = new ErnieApi();
-        break;
-      case ModelProvider.Doubao:
-        this.llm = new DoubaoApi();
-        break;
-      case ModelProvider.Qwen:
-        this.llm = new QwenApi();
-        break;
-      case ModelProvider.Hunyuan:
-        this.llm = new HunyuanApi();
-        break;
-      case ModelProvider.Moonshot:
-        this.llm = new MoonshotApi();
-        break;
-      case ModelProvider.Iflytek:
-        this.llm = new SparkApi();
-        break;
-      case ModelProvider.DeepSeek:
-        this.llm = new DeepSeekApi();
-        break;
-      case ModelProvider.XAI:
-        this.llm = new XAIApi();
-        break;
-      case ModelProvider.ChatGLM:
-        this.llm = new ChatGLMApi();
-        break;
-      case ModelProvider.SiliconFlow:
-        this.llm = new SiliconflowApi();
-        break;
-      default:
-        this.llm = new ChatGPTApi();
-    }
+    this.llm = new ChatGPTApi();
     this.file = new FileApi();
   }
 
@@ -438,36 +384,5 @@ export function getHeaders(ignoreHeaders: boolean = false) {
 }
 
 export function getClientApi(provider: ServiceProvider): ClientApi {
-  const accessStore = useAccessStore.getState();
-  if (accessStore.isUseOpenAIEndpointForAllModels) {
-    return new ClientApi(ModelProvider.GPT);
-  }
-  switch (provider) {
-    case ServiceProvider.Google:
-      return new ClientApi(ModelProvider.GeminiPro);
-    case ServiceProvider.Anthropic:
-      return new ClientApi(ModelProvider.Claude);
-    case ServiceProvider.Baidu:
-      return new ClientApi(ModelProvider.Ernie);
-    case ServiceProvider.ByteDance:
-      return new ClientApi(ModelProvider.Doubao);
-    case ServiceProvider.Alibaba:
-      return new ClientApi(ModelProvider.Qwen);
-    case ServiceProvider.Tencent:
-      return new ClientApi(ModelProvider.Hunyuan);
-    case ServiceProvider.Moonshot:
-      return new ClientApi(ModelProvider.Moonshot);
-    case ServiceProvider.Iflytek:
-      return new ClientApi(ModelProvider.Iflytek);
-    case ServiceProvider.DeepSeek:
-      return new ClientApi(ModelProvider.DeepSeek);
-    case ServiceProvider.XAI:
-      return new ClientApi(ModelProvider.XAI);
-    case ServiceProvider.ChatGLM:
-      return new ClientApi(ModelProvider.ChatGLM);
-    case ServiceProvider.SiliconFlow:
-      return new ClientApi(ModelProvider.SiliconFlow);
-    default:
-      return new ClientApi(ModelProvider.GPT);
-  }
+  return new ClientApi(ModelProvider.GPT);
 }
