@@ -19,7 +19,6 @@ import { showToast } from "../components/ui-lib";
 import {
   DEFAULT_INPUT_TEMPLATE,
   DEFAULT_MODELS,
-  DEFAULT_SYSTEM_TEMPLATE,
   KnowledgeCutOffDate,
   StoreKey,
   SUMMARIZE_MODEL,
@@ -380,7 +379,6 @@ export const useChatStore = createPersistStore(
           session.lastUpdate = Date.now();
         });
         get().updateStat(message, targetSession);
-        get().summarizeSession(false, targetSession);
       },
 
       async onUserInput(
@@ -664,17 +662,8 @@ export const useChatStore = createPersistStore(
       },
 
       getMemoryPrompt() {
-        const session = get().currentSession();
-
-        if (session.memoryPrompt.length) {
-          return {
-            role: "system",
-            content: Locale.Store.Prompt.History(
-              getTextContent(session.memoryPrompt),
-            ),
-            date: "",
-          } as ChatMessage;
-        }
+        // 移除历史摘要功能，始终返回 undefined
+        return undefined;
       },
 
       getMessagesWithMemory() {
@@ -682,71 +671,53 @@ export const useChatStore = createPersistStore(
         const modelConfig = session.mask.modelConfig;
         const clearContextIndex = session.clearContextIndex ?? 0;
         const messages = session.messages.slice();
-        const totalMessageCount = session.messages.length;
 
         // in-context prompts
         const contextPrompts = session.mask.context.slice();
 
-        // system prompts, to get close to OpenAI Web ChatGPT
-        const shouldInjectSystemPrompts =
-          modelConfig.enableInjectSystemPrompts &&
-          (session.mask.modelConfig.model.startsWith("gpt-") ||
-            session.mask.modelConfig.model.startsWith("chatgpt-"));
+        // 完全禁用系统提示注入功能
+        // const shouldInjectSystemPrompts =
+        //   modelConfig.enableInjectSystemPrompts &&
+        //   (session.mask.modelConfig.model.startsWith("gpt-") ||
+        //     session.mask.modelConfig.model.startsWith("chatgpt-"));
 
-        var systemPrompts: ChatMessage[] = [];
-        var template = DEFAULT_SYSTEM_TEMPLATE;
-        if (session.attachFiles && session.attachFiles.length > 0) {
-          template += MYFILES_BROWSER_TOOLS_SYSTEM_PROMPT;
-          session.attachFiles.forEach((file) => {
-            template += `filename: \`${file.originalFilename}\`
-partialDocument: \`\`\`
-${file.partial}
-\`\`\``;
-          });
-        }
-        systemPrompts = shouldInjectSystemPrompts
-          ? [
-              createMessage({
-                role: "system",
-                content: fillTemplateWith("", {
-                  ...modelConfig,
-                  template: template,
-                }),
-              }),
-            ]
-          : [];
-        if (shouldInjectSystemPrompts) {
-          console.log(
-            "[Global System Prompt] ",
-            systemPrompts.at(0)?.content ?? "empty",
-          );
-        }
-        const memoryPrompt = get().getMemoryPrompt();
-        // long term memory
-        const shouldSendLongTermMemory =
-          modelConfig.sendMemory &&
-          session.memoryPrompt &&
-          session.memoryPrompt.length > 0 &&
-          session.lastSummarizeIndex > clearContextIndex;
-        const longTermMemoryPrompts =
-          shouldSendLongTermMemory && memoryPrompt ? [memoryPrompt] : [];
-        const longTermMemoryStartIndex = session.lastSummarizeIndex;
+        // var systemPrompts: ChatMessage[] = [];
+        // var template = DEFAULT_SYSTEM_TEMPLATE;
+        // if (session.attachFiles && session.attachFiles.length > 0) {
+        //   template += MYFILES_BROWSER_TOOLS_SYSTEM_PROMPT;
+        //   session.attachFiles.forEach((file) => {
+        //     template += `filename: \`${file.originalFilename}\`
+        // partialDocument: \`\`\`
+        // ${file.partial}
+        // \`\`\``;
+        //   });
+        // }
+        // systemPrompts = shouldInjectSystemPrompts
+        //   ? [
+        //     createMessage({
+        //       role: "system",
+        //       content: fillTemplateWith("", {
+        //         ...modelConfig,
+        //         template: template,
+        //       }),
+        //     }),
+        //   ]
+        //   : [];
+        // if (shouldInjectSystemPrompts) {
+        //   console.log(
+        //     "[Global System Prompt] ",
+        //     systemPrompts.at(0)?.content ?? "empty",
+        //   );
+        // }
 
-        // 直接使用 clearContextIndex 作为起始索引
-        const memoryStartIndex = shouldSendLongTermMemory
-          ? Math.min(longTermMemoryStartIndex, clearContextIndex)
-          : clearContextIndex;
-        const contextStartIndex = Math.max(clearContextIndex, memoryStartIndex);
-
-        // 获取所有消息，不再限制数量
+        // 移除历史摘要相关逻辑，直接使用 clearContextIndex 作为起始索引
         const recentMessages = messages
-          .slice(contextStartIndex)
+          .slice(clearContextIndex)
           .filter((msg) => !msg.isError);
 
-        // 合并所有消息
+        // 合并所有消息，不包含系统提示和历史摘要
         return [
-          ...systemPrompts,
-          ...longTermMemoryPrompts,
+          // ...systemPrompts,  // 移除系统提示
           ...contextPrompts,
           ...recentMessages,
         ];
@@ -767,7 +738,8 @@ ${file.partial}
       resetSession(session: ChatSession) {
         get().updateTargetSession(session, (session) => {
           session.messages = [];
-          session.memoryPrompt = "";
+          // 移除对 memoryPrompt 的清除，因为已禁用总结功能
+          // session.memoryPrompt = "";
         });
       },
 
@@ -775,132 +747,8 @@ ${file.partial}
         refreshTitle: boolean = false,
         targetSession: ChatSession,
       ) {
-        const config = useAppConfig.getState();
-        const session = targetSession;
-        const modelConfig = session.mask.modelConfig;
-        // skip summarize when using dalle3?
-        if (isOpenAIImageGenerationModel(modelConfig.model)) {
-          return;
-        }
-
-        // if not config compressModel, then using getSummarizeModel
-        const [model, providerName] = modelConfig.compressModel
-          ? [modelConfig.compressModel, modelConfig.compressProviderName]
-          : getSummarizeModel(
-              session.mask.modelConfig.model,
-              session.mask.modelConfig.providerName,
-            );
-
-        const api: ClientApi = getClientApi(providerName as ServiceProvider);
-
-        // remove error messages if any
-        const messages = session.messages;
-
-        // should summarize topic after chating more than 50 words
-        const SUMMARIZE_MIN_LEN = 50;
-        if (
-          (!process.env.NEXT_PUBLIC_DISABLE_AUTOGENERATETITLE &&
-            config.enableAutoGenerateTitle &&
-            session.topic === DEFAULT_TOPIC &&
-            countMessages(messages) >= SUMMARIZE_MIN_LEN) ||
-          refreshTitle
-        ) {
-          const topicMessages = messages.concat(
-            createMessage({
-              role: "user",
-              content: Locale.Store.Prompt.Topic,
-            }),
-          );
-          let topicContent: string | MultimodalContent[] = "";
-          api.llm.chat({
-            messages: topicMessages,
-            config: {
-              model,
-              stream: true,
-              providerName,
-            },
-            onUpdate(message) {
-              if (message) {
-                topicContent = message;
-              }
-            },
-            onFinish(message, responseRes) {
-              const finalMessage = message || topicContent;
-              if (responseRes?.status === 200 && finalMessage) {
-                get().updateTargetSession(
-                  session,
-                  (session) =>
-                    (session.topic =
-                      finalMessage.length > 0
-                        ? trimTopic(getTextContent(finalMessage))
-                        : DEFAULT_TOPIC),
-                );
-              }
-            },
-          });
-        }
-
-        const summarizeIndex = Math.max(
-          session.lastSummarizeIndex,
-          session.clearContextIndex ?? 0,
-        );
-        let toBeSummarizedMsgs = messages
-          .filter((msg) => !msg.isError)
-          .slice(summarizeIndex);
-
-        const memoryPrompt = get().getMemoryPrompt();
-        if (memoryPrompt) {
-          // add memory prompt
-          toBeSummarizedMsgs.unshift(memoryPrompt);
-        }
-
-        const lastSummarizeIndex = session.messages.length;
-
-        console.log(
-          "[Chat History] ",
-          toBeSummarizedMsgs,
-          countMessages(toBeSummarizedMsgs),
-        );
-
-        if (
-          !process.env.NEXT_PUBLIC_DISABLE_SENDMEMORY &&
-          modelConfig.sendMemory
-        ) {
-          /** Destruct max_tokens while summarizing
-           * this param is just shit
-           **/
-          const { max_tokens, ...modelcfg } = modelConfig;
-          api.llm.chat({
-            messages: toBeSummarizedMsgs.concat(
-              createMessage({
-                role: "system",
-                content: Locale.Store.Prompt.Summarize,
-                date: "",
-              }),
-            ),
-            config: {
-              ...modelcfg,
-              stream: true,
-              model,
-              providerName,
-            },
-            onUpdate(message) {
-              session.memoryPrompt = message;
-            },
-            onFinish(message, responseRes) {
-              if (responseRes?.status === 200) {
-                console.log("[Memory] ", message);
-                get().updateTargetSession(session, (session) => {
-                  session.lastSummarizeIndex = lastSummarizeIndex;
-                  session.memoryPrompt = message; // Update the memory prompt for stored it in local storage
-                });
-              }
-            },
-            onError(err) {
-              console.error("[Summarize] ", err);
-            },
-          });
-        }
+        // 总结功能已被禁用，此方法不再执行任何操作
+        return;
       },
 
       updateStat(message: ChatMessage, session: ChatSession) {
@@ -963,22 +811,16 @@ ${file.partial}
         });
       }
 
-      // Enable `enableInjectSystemPrompts` attribute for old sessions.
-      // Resolve issue of old sessions not automatically enabling.
-      if (version < 3.1) {
-        newState.sessions.forEach((s) => {
-          if (
-            // Exclude those already set by user
-            !s.mask.modelConfig.hasOwnProperty("enableInjectSystemPrompts")
-          ) {
-            // Because users may have changed this configuration,
-            // the user's current configuration is used instead of the default
-            const config = useAppConfig.getState();
-            s.mask.modelConfig.enableInjectSystemPrompts =
-              config.modelConfig.enableInjectSystemPrompts;
-          }
-        });
-      }
+      // 移除系统提示注入相关的迁移逻辑
+      // s.mask.modelConfig = {
+      //   ...s.mask.modelConfig,
+      //   ...(!s.mask.modelConfig.hasOwnProperty("enableInjectSystemPrompts")
+      //     ? {
+      //         enableInjectSystemPrompts:
+      //           config.modelConfig.enableInjectSystemPrompts,
+      //       }
+      //     : {}),
+      // };
 
       // add default summarize model for every session
       if (version < 3.2) {

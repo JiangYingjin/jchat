@@ -179,20 +179,6 @@ export function SessionConfigModel(props: { onClose: () => void }) {
         onClose={() => props.onClose()}
         actions={[
           <IconButton
-            key="reset"
-            icon={<ResetIcon />}
-            bordered
-            text={Locale.Chat.Config.Reset}
-            onClick={async () => {
-              if (await showConfirm(Locale.Memory.ResetConfirm)) {
-                chatStore.updateTargetSession(
-                  session,
-                  (session) => (session.memoryPrompt = ""),
-                );
-              }
-            }}
-          />,
-          <IconButton
             key="copy"
             icon={<CopyIcon />}
             bordered
@@ -218,19 +204,8 @@ export function SessionConfigModel(props: { onClose: () => void }) {
           }}
           shouldSyncFromGlobal
           extraListItems={
-            session.mask.modelConfig.sendMemory ? (
-              <ListItem
-                className="copyable"
-                title={`${Locale.Memory.Title} (${session.lastSummarizeIndex} of ${session.messages.length})`}
-                subTitle={
-                  typeof session.memoryPrompt === "string"
-                    ? session.memoryPrompt || Locale.Memory.EmptyContent
-                    : Locale.Memory.EmptyContent
-                }
-              ></ListItem>
-            ) : (
-              <></>
-            )
+            // 移除历史摘要显示，因为已禁用总结功能
+            <></>
           }
         ></MaskConfig>
       </Modal>
@@ -1129,7 +1104,8 @@ export function EditMessageModal(props: { onClose: () => void }) {
               title={Locale.Chat.Actions.RefreshTitle}
               onClick={() => {
                 showToast(Locale.Chat.Actions.RefreshToast);
-                chatStore.summarizeSession(true, session);
+                // 移除刷新标题功能
+                // chatStore.summarizeSession(true, session);
               }}
             />
           </ListItem>
@@ -1852,17 +1828,15 @@ function _Chat() {
   }
 
   // clear context index = context length + index in messages
-  // 需要考虑隐藏的 system 消息对索引的影响
-  const systemMessagesCount = renderMessages.filter(
-    (m) => m.role === "system",
-  ).length;
+  // 移除系统消息计数逻辑，因为不再有系统提示注入
+  // const systemMessagesCount = renderMessages.filter(
+  //   (m) => m.role === "system",
+  // ).length;
   const clearContextIndex =
     (session.clearContextIndex ?? -1) >= 0
-      ? session.clearContextIndex! +
-        context.length -
-        msgRenderIndex -
-        systemMessagesCount
-      : -1;
+      ? session.clearContextIndex! + context.length - msgRenderIndex
+      : // - systemMessagesCount  // 移除系统消息计数
+        -1;
 
   const [showPromptModal, setShowPromptModal] = useState(false);
 
@@ -2267,7 +2241,8 @@ function _Chat() {
                 title={Locale.Chat.Actions.RefreshTitle}
                 onClick={() => {
                   showToast(Locale.Chat.Actions.RefreshToast);
-                  chatStore.summarizeSession(true, session);
+                  // 移除刷新标题功能
+                  // chatStore.summarizeSession(true, session);
                 }}
               />
             </div> */}
@@ -2282,7 +2257,8 @@ function _Chat() {
                 />
               </div>
             )} */}
-            <div className="window-action-button">
+            {/* 移除编辑系统提示词功能 */}
+            {/* <div className="window-action-button">
               <IconButton
                 icon={<EditIcon />}
                 bordered
@@ -2352,7 +2328,7 @@ function _Chat() {
                   });
                 }}
               />
-            </div>
+            </div> */}
             <div className="window-action-button">
               <IconButton
                 icon={<ExportIcon />}
@@ -2423,10 +2399,10 @@ function _Chat() {
                 const shouldShowClearContextDivider =
                   i === clearContextIndex - 1;
 
-                // 在对话界面隐藏 system 消息
-                if (isSystem) {
-                  return null;
-                }
+                // 移除系统消息隐藏逻辑，让系统消息正常显示
+                // if (isSystem) {
+                //   return null;
+                // }
 
                 return (
                   <Fragment key={message.id}>

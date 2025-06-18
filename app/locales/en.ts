@@ -191,18 +191,13 @@ const en: LocaleType = {
       SubTitle: "Adjust font size of chat content",
     },
     FontFamily: {
-      Title: "Chat Font Family",
-      SubTitle:
-        "Font Family of the chat content, leave empty to apply global default font",
-      Placeholder: "Font Family Name",
-    },
-    InjectSystemPrompts: {
-      Title: "Inject System Prompts",
-      SubTitle: "Inject a global system prompt for every request",
+      Title: "Chat Font",
+      SubTitle: "Font for chat content, leave empty to use global default font",
+      Placeholder: "Font name",
     },
     InputTemplate: {
-      Title: "Input Template",
-      SubTitle: "Newest message will be filled to this template",
+      Title: "User Input Template",
+      SubTitle: "User's latest message will be filled into this template",
     },
 
     Update: {
@@ -696,7 +691,8 @@ const en: LocaleType = {
     RuntimeWarning: "Only available when deployed in a non-Vercel environment.",
   },
   FineTuned: {
-    Sysmessage: "You are an assistant that",
+    // 移除系统消息相关文本
+    // Sysmessage: "You are an assistant",
   },
   Mask: {
     Name: "Mask",

@@ -697,20 +697,10 @@ export function JsonPreviewer(props: {
   messages: ChatMessage[];
   topic: string;
 }) {
-  // 检查是否已有 system 消息
-  const hasSystemMessage = props.messages.some((m) => m.role === "system");
-
+  // 移除系统消息的特殊处理，直接导出所有消息
   const msgs = {
     messages: [
-      // 只有在没有 system 消息时才添加默认的 system 消息
-      ...(hasSystemMessage
-        ? []
-        : [
-            {
-              role: "system",
-              content: `${Locale.FineTuned.Sysmessage} ${props.topic}`,
-            },
-          ]),
+      // 不再添加默认的系统消息
       ...props.messages.map((m) => ({
         role: m.role,
         content: m.content,

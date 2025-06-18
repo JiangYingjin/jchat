@@ -180,24 +180,6 @@ export function ModelConfigList(props: {
           </ListItem>
 
           <ListItem
-            title={Locale.Settings.InjectSystemPrompts.Title}
-            subTitle={Locale.Settings.InjectSystemPrompts.SubTitle}
-          >
-            <input
-              aria-label={Locale.Settings.InjectSystemPrompts.Title}
-              type="checkbox"
-              checked={props.modelConfig.enableInjectSystemPrompts}
-              onChange={(e) =>
-                props.updateConfig(
-                  (config) =>
-                    (config.enableInjectSystemPrompts =
-                      e.currentTarget.checked),
-                )
-              }
-            ></input>
-          </ListItem>
-
-          <ListItem
             title={Locale.Settings.InputTemplate.Title}
             subTitle={Locale.Settings.InputTemplate.SubTitle}
           >
@@ -214,57 +196,6 @@ export function ModelConfigList(props: {
           </ListItem>
         </>
       )}
-      <ListItem title={Locale.Memory.Title} subTitle={Locale.Memory.Send}>
-        <input
-          aria-label={Locale.Memory.Title}
-          type="checkbox"
-          disabled={!!process.env.NEXT_PUBLIC_DISABLE_SENDMEMORY}
-          checked={
-            !process.env.NEXT_PUBLIC_DISABLE_SENDMEMORY &&
-            props.modelConfig.sendMemory
-          }
-          onChange={(e) =>
-            props.updateConfig(
-              (config) => (config.sendMemory = e.currentTarget.checked),
-            )
-          }
-        ></input>
-      </ListItem>
-      <ListItem
-        title={Locale.Settings.CompressModel.Title}
-        subTitle={Locale.Settings.CompressModel.SubTitle}
-      >
-        <Select
-          className={styles["select-compress-model"]}
-          aria-label={Locale.Settings.CompressModel.Title}
-          value={compressModelValue}
-          onChange={(e) => {
-            const [model, providerName] = getModelProvider(
-              e.currentTarget.value,
-            );
-            props.updateConfig((config) => {
-              config.compressModel = ModalConfigValidator.model(model);
-              config.compressProviderName = providerName as ServiceProvider;
-              console.log(
-                "[updateConfig] config.compressModel",
-                config.compressModel,
-              );
-              console.log(
-                "[updateConfig] config.compressProviderName",
-                config.compressProviderName,
-              );
-            });
-          }}
-        >
-          {allModels
-            .filter((v) => v.available)
-            .map((v, i) => (
-              <option value={`${v.name}@${v.provider?.providerName}`} key={i}>
-                {v.displayName}({v.provider?.providerName})
-              </option>
-            ))}
-        </Select>
-      </ListItem>
     </>
   );
 }

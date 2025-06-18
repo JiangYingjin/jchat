@@ -228,7 +228,8 @@ export const useAppConfig = createPersistStore(
       }
 
       if (version < 3.6) {
-        state.modelConfig.enableInjectSystemPrompts = true;
+        // 移除强制设置系统提示注入为 true 的逻辑
+        // state.modelConfig.enableInjectSystemPrompts = true;
       }
 
       if (version < 3.7) {
