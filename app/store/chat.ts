@@ -379,6 +379,7 @@ export const useChatStore = createPersistStore(
           session.lastUpdate = Date.now();
         });
         get().updateStat(message, targetSession);
+        get().summarizeSession(false, targetSession);
       },
 
       async onUserInput(
@@ -747,7 +748,72 @@ export const useChatStore = createPersistStore(
         refreshTitle: boolean = false,
         targetSession: ChatSession,
       ) {
-        // 总结功能已被禁用，此方法不再执行任何操作
+        const config = useAppConfig.getState();
+        const session = targetSession;
+        const modelConfig = session.mask.modelConfig;
+        // skip summarize when using dalle3?
+        if (isOpenAIImageGenerationModel(modelConfig.model)) {
+          return;
+        }
+
+        // if not config compressModel, then using getSummarizeModel
+        const [model, providerName] = modelConfig.compressModel
+          ? [modelConfig.compressModel, modelConfig.compressProviderName]
+          : getSummarizeModel(
+              session.mask.modelConfig.model,
+              session.mask.modelConfig.providerName,
+            );
+
+        const api: ClientApi = getClientApi(providerName as ServiceProvider);
+
+        // remove error messages if any
+        const messages = session.messages;
+
+        // should summarize topic after chating more than 50 words
+        const SUMMARIZE_MIN_LEN = 50;
+        if (
+          (!process.env.NEXT_PUBLIC_DISABLE_AUTOGENERATETITLE &&
+            config.enableAutoGenerateTitle &&
+            session.topic === DEFAULT_TOPIC &&
+            countMessages(messages) >= SUMMARIZE_MIN_LEN) ||
+          refreshTitle
+        ) {
+          const topicMessages = messages.concat(
+            createMessage({
+              role: "user",
+              content: Locale.Store.Prompt.Topic,
+            }),
+          );
+          let topicContent: string | MultimodalContent[] = "";
+          api.llm.chat({
+            messages: topicMessages,
+            config: {
+              model,
+              stream: true,
+              providerName,
+            },
+            onUpdate(message) {
+              if (message) {
+                topicContent = message;
+              }
+            },
+            onFinish(message, responseRes) {
+              const finalMessage = message || topicContent;
+              if (responseRes?.status === 200 && finalMessage) {
+                get().updateTargetSession(
+                  session,
+                  (session) =>
+                    (session.topic =
+                      finalMessage.length > 0
+                        ? trimTopic(getTextContent(finalMessage))
+                        : DEFAULT_TOPIC),
+                );
+              }
+            },
+          });
+        }
+
+        // 历史消息总结功能已被禁用，不再执行相关逻辑
         return;
       },
 

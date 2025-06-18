@@ -1104,8 +1104,7 @@ export function EditMessageModal(props: { onClose: () => void }) {
               title={Locale.Chat.Actions.RefreshTitle}
               onClick={() => {
                 showToast(Locale.Chat.Actions.RefreshToast);
-                // 移除刷新标题功能
-                // chatStore.summarizeSession(true, session);
+                chatStore.summarizeSession(true, session);
               }}
             />
           </ListItem>
@@ -2234,29 +2233,26 @@ function _Chat() {
             )}
           </div>
           <div className="window-actions">
-            {/* <div className="window-action-button">
+            <div className="window-action-button">
               <IconButton
                 icon={<ReloadIcon />}
                 bordered
                 title={Locale.Chat.Actions.RefreshTitle}
                 onClick={() => {
                   showToast(Locale.Chat.Actions.RefreshToast);
-                  // 移除刷新标题功能
-                  // chatStore.summarizeSession(true, session);
+                  chatStore.summarizeSession(true, session);
                 }}
               />
+            </div>
+            {/* <div className="window-action-button">
+              <IconButton
+                icon={<RenameIcon />}
+                bordered
+                title={Locale.Chat.EditMessage.Title}
+                aria={Locale.Chat.EditMessage.Title}
+                onClick={() => setIsEditingMessage(true)}
+              />
             </div> */}
-            {/* {!isMobileScreen && (
-              <div className="window-action-button">
-                <IconButton
-                  icon={<RenameIcon />}
-                  bordered
-                  title={Locale.Chat.EditMessage.Title}
-                  aria={Locale.Chat.EditMessage.Title}
-                  onClick={() => setIsEditingMessage(true)}
-                />
-              </div>
-            )} */}
             {/* 移除编辑系统提示词功能 */}
             {/* <div className="window-action-button">
               <IconButton
