@@ -126,12 +126,12 @@ import {
   DEFAULT_STT_ENGINE,
   DEFAULT_TTS_ENGINE,
   FIREFOX_DEFAULT_STT_ENGINE,
-  LAST_INPUT_KEY,
   ModelProvider,
   Path,
   REQUEST_TIMEOUT_MS,
-  UNFINISHED_INPUT,
+  UNFINISHED_INPUT_TEXT,
   ServiceProvider,
+  UNFINISHED_INPUT_IMAGES,
 } from "../constant";
 import { Avatar } from "./emoji";
 import { ContextPrompts, MaskAvatar, MaskConfig } from "./mask";
@@ -1282,6 +1282,51 @@ function _Chat() {
   const config = useAppConfig();
   const accessStore = useAccessStore();
   const allModels = useAllModels();
+
+  // 记住未完成输入的防抖保存函数，间隔放宽到 1200ms
+  const saveUnfinishedInput = useDebouncedCallback((value: string) => {
+    const key = UNFINISHED_INPUT_TEXT(session.id);
+    localStorage.setItem(key, value);
+    console.log("[UserInput][Save] 保存未完成输入:", value);
+  }, 500);
+  function loadUnfinishedInput(): string {
+    try {
+      const key = UNFINISHED_INPUT_TEXT(session.id);
+      const value = localStorage.getItem(key);
+      console.log("[UserInput][Load] 加载未完成输入:", value);
+      return value ?? "";
+    } catch (e) {
+      console.error("[UserInput][Load] 加载未完成输入失败:", e);
+      return "";
+    }
+  }
+  // 新增：保存和加载未完成图片的方法
+  function saveUnfinishedInputImages(images: string[]) {
+    try {
+      const key = UNFINISHED_INPUT_IMAGES(session.id);
+      localStorage.setItem(key, JSON.stringify(images));
+      console.log("[UserInput][Save] 保存未完成图片:", images);
+    } catch (e) {
+      console.error("[UserInput][Save] 保存未完成图片失败:", e);
+    }
+  }
+  function loadUnfinishedInputImages(): string[] {
+    try {
+      const key = UNFINISHED_INPUT_IMAGES(session.id);
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        const images = JSON.parse(raw);
+        if (Array.isArray(images)) {
+          console.log("[UserInput][Load] 加载未完成图片:", images);
+          return images;
+        }
+      }
+    } catch (e) {
+      console.error("[UserInput][Load] 加载未完成图片失败:", e);
+    }
+    return [];
+  }
+
   // 自动修正模型配置
   useEffect(() => {
     // 获取当前模型和 provider
@@ -1301,8 +1346,8 @@ function _Chat() {
         m.provider?.providerName === compressProviderName &&
         m.available,
     );
-    console.log("[updateConfig] isModelValid", isModelValid);
-    console.log("[updateConfig] isCompressModelValid", isCompressModelValid);
+    // console.log("[updateConfig] isModelValid", isModelValid);
+    // console.log("[updateConfig] isCompressModelValid", isCompressModelValid);
     // 如果主模型或压缩模型无效，自动 fetch 并更新为 defaultModel
     if (!isModelValid || !isCompressModelValid) {
       // 拉取服务器配置，获取 defaultModel
@@ -1438,26 +1483,20 @@ function _Chat() {
 
   // only search prompts when user input is short
   const SEARCH_TEXT_LIMIT = 30;
-  // 记住未完成输入的防抖保存函数，间隔放宽到 1200ms
-  const saveUnfinishedInput = useDebouncedCallback((value: string) => {
-    const key = UNFINISHED_INPUT(session.id);
-    localStorage.setItem(key, value);
-  }, 1200);
-  // ... existing code ...
-  // 记住 unfinished input 的 useEffect 只负责加载
+
   useEffect(() => {
     // try to load from local storage
-    const key = UNFINISHED_INPUT(session.id);
-    const mayBeUnfinishedInput = localStorage.getItem(key);
-    if (mayBeUnfinishedInput && userInput.length === 0) {
-      setUserInput(mayBeUnfinishedInput);
-      localStorage.removeItem(key);
-      // 初始化 textarea 内容
-      if (inputRef.current) inputRef.current.value = mayBeUnfinishedInput;
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // 加载会话文字输入
+    const userInputText = loadUnfinishedInput();
+    if (inputRef.current) inputRef.current.value = userInputText;
+    setUserInput(userInputText);
+
+    // 加载会话图像输入
+    const images = loadUnfinishedInputImages();
+    setAttachImages(images);
   }, []);
-  // ... existing code ...
+
   // onInput 只做本地保存和提示词联想，不 setUserInput
   const onInput = (
     text: string,
@@ -2003,6 +2042,7 @@ function _Chat() {
             );
 
             setAttachImages(images);
+            saveUnfinishedInputImages(images); // 新增：保存图片
           }
         }
       }
@@ -2010,6 +2050,11 @@ function _Chat() {
       setTimeout(() => {
         if (event.currentTarget) {
           setUserInput(event.currentTarget.value);
+          saveUnfinishedInput(event.currentTarget.value);
+          console.log(
+            "[UserInput][Save][Paste] 粘贴后保存未完成输入:",
+            event.currentTarget.value,
+          );
         }
       }, 0);
     },
@@ -2051,11 +2096,8 @@ function _Chat() {
       })),
     );
 
-    const imagesLength = images.length;
-    if (imagesLength > 3) {
-      images.splice(3, imagesLength - 3);
-    }
     setAttachImages(images);
+    saveUnfinishedInputImages(images); // 新增：保存图片
   }
 
   async function uploadFile() {

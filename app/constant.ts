@@ -99,8 +99,8 @@ export const NARROW_SIDEBAR_WIDTH = 80;
 
 export const ACCESS_CODE_PREFIX = "nk-";
 
-export const LAST_INPUT_KEY = "last-input";
-export const UNFINISHED_INPUT = (id: string) => "unfinished-input-" + id;
+export const UNFINISHED_INPUT_TEXT = (id: string) => "userinput-text-" + id;
+export const UNFINISHED_INPUT_IMAGES = (id: string) => "userinput-images-" + id;
 
 export const STORAGE_KEY = "chatgpt-next-web";
 
