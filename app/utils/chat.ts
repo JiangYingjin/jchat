@@ -449,6 +449,7 @@ export function streamWithThink(
   let responseRes: Response;
   let isInThinkingMode = false;
   let lastIsThinking = false;
+  let thinkingModeEnded = false;
 
   // animate response to make it looks smooth
   function animateResponseText() {
@@ -469,14 +470,20 @@ export function streamWithThink(
       options.onUpdate?.(responseText, fetchText);
     }
 
-    if (reasoningRemainText.length > 0) {
+    if (thinkingModeEnded && reasoningRemainText.length > 0) {
+      reasoningResponseText += reasoningRemainText;
+      reasoningResponseText = reasoningResponseText.replace(/^\s*\n/gm, "");
+      const remainingReasoning = reasoningRemainText;
+      reasoningRemainText = "";
+      options.onReasoningUpdate?.(reasoningResponseText, remainingReasoning);
+      thinkingModeEnded = false;
+    } else if (reasoningRemainText.length > 0) {
       const fetchCount = Math.max(
         1,
         Math.round(reasoningRemainText.length / 60),
       );
       const fetchText = reasoningRemainText.slice(0, fetchCount);
       reasoningResponseText += fetchText;
-      // 删除空行
       reasoningResponseText = reasoningResponseText.replace(/^\s*\n/gm, "");
       reasoningRemainText = reasoningRemainText.slice(fetchCount);
       options.onReasoningUpdate?.(reasoningResponseText, fetchText);
@@ -511,7 +518,6 @@ export function streamWithThink(
             )
               .then((res) => {
                 let content = res.data || res?.statusText;
-                // hotfix #5614
                 content =
                   typeof content === "string"
                     ? content
@@ -631,47 +637,33 @@ export function streamWithThink(
           return finish();
         }
         const text = msg.data;
-        // Skip empty messages
         if (!text || text.trim().length === 0) {
           return;
         }
         try {
           const chunk = parseSSE(text, runTools);
-          // Skip if content is empty
           if (!chunk?.content || chunk.content.length === 0) {
             return;
           }
-          // Check if thinking mode changed
           const isThinkingChanged = lastIsThinking !== chunk.isThinking;
           lastIsThinking = chunk.isThinking;
 
           if (chunk.isThinking) {
-            // If in thinking mode
             if (!isInThinkingMode || isThinkingChanged) {
-              // If this is a new thinking block or mode changed, add prefix
               isInThinkingMode = true;
-              // if (remainText.length > 0) {
-              //   remainText += "\n";
-              // }
-              // Add thinking prefix with timestamp
-              // const timestamp = new Date().toISOString().substr(11, 8); // HH:MM:SS format
-              // remainText += `> [${timestamp}] ` + chunk.content;
               reasoningRemainText += chunk.content;
             } else {
-              // Handle newlines in thinking content
               reasoningRemainText += chunk.content;
             }
           } else {
-            // If in normal mode
             if (isInThinkingMode || isThinkingChanged) {
-              // If switching from thinking mode to normal mode
               isInThinkingMode = false;
+              thinkingModeEnded = true;
             }
             remainText += chunk.content;
           }
         } catch (e) {
           console.error("[Request] parse error", text, msg, e);
-          // Don't throw error for parse failures, just log them
         }
       },
       onclose() {
