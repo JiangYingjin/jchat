@@ -54,18 +54,6 @@ export function ExportMessageModal(props: { onClose: () => void }) {
         title={Locale.Export.Title}
         defaultMax={true}
         onClose={props.onClose}
-        // footer={
-        //   <div
-        //     style={{
-        //       width: "100%",
-        //       textAlign: "center",
-        //       fontSize: 14,
-        //       opacity: 0.5,
-        //     }}
-        //   >
-        //     {Locale.Exporter.Description.Title}
-        //   </div>
-        // }
       >
         <div style={{ minHeight: "40vh" }}>
           <MessageExporter />
@@ -170,6 +158,9 @@ export function MessageExporter() {
     };
   });
 
+  // 新增：追踪用户是否手动调整过选择
+  const [userSelectionTouched, setUserSelectionTouched] = useState(false);
+
   // 更新导出配置，并在切换格式时写入 localStorage
   function updateExportConfig(updater: (config: typeof exportConfig) => void) {
     const config = { ...exportConfig };
@@ -184,6 +175,35 @@ export function MessageExporter() {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
   const { selection, updateSelection } = useMessageSelector();
+
+  // 自动选择函数
+  function autoSelectByFormat(format: ExportFormat) {
+    updateSelection((selection) => {
+      selection.clear();
+      if (format === "image") {
+        session.messages.forEach((m) => {
+          if (m.role !== "system") selection.add(m.id);
+        });
+      } else {
+        // text/json
+        session.mask.context.forEach((m) => selection.add(m.id));
+        session.messages.forEach((m) => selection.add(m.id));
+      }
+    });
+  }
+
+  // 初始化时根据格式自动选择
+  useEffect(() => {
+    autoSelectByFormat(exportConfig.format);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 只要用户手动调整选择，就设置 userSelectionTouched
+  function onUserSelectChange(updater: (selection: Set<string>) => void) {
+    setUserSelectionTouched(true);
+    updateSelection(updater);
+  }
+
   const selectedMessages = useMemo(() => {
     const ret: ChatMessage[] = [];
     if (exportConfig.includeContext) {
@@ -224,47 +244,10 @@ export function MessageExporter() {
         className={styles["message-exporter-body"]}
         style={currentStep.value !== "select" ? { display: "none" } : {}}
       >
-        {/* 导出格式选择（记忆上次选择） */}
-        {/* Export format select (remember last choice) */}
-        {/* <List>
-          <ListItem
-            title={Locale.Export.Format.Title}
-            subTitle={Locale.Export.Format.SubTitle}
-          >
-            <Select
-              value={exportConfig.format}
-              onChange={(e) => {
-                const newFormat = e.currentTarget.value as ExportFormat;
-                localStorage.setItem(EXPORT_FORMAT_KEY, newFormat); // 立即写入
-                updateExportConfig((config) => (config.format = newFormat));
-              }}
-            >
-              {formats.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </Select>
-          </ListItem>
-          <ListItem
-            title={Locale.Export.IncludeContext.Title}
-            subTitle={Locale.Export.IncludeContext.SubTitle}
-          >
-            <input
-              type="checkbox"
-              checked={exportConfig.includeContext}
-              onChange={(e) => {
-                updateExportConfig(
-                  (config) => (config.includeContext = e.currentTarget.checked),
-                );
-              }}
-            ></input>
-          </ListItem>
-        </List> */}
         <MessageSelector
           selection={selection}
-          updateSelection={updateSelection}
-          defaultSelectAll
+          updateSelection={onUserSelectChange}
+          defaultSelectAll={false}
         />
       </div>
       {currentStep.value === "preview" && (
@@ -281,6 +264,9 @@ export function MessageExporter() {
                     const newFormat = e.currentTarget.value as ExportFormat;
                     localStorage.setItem(EXPORT_FORMAT_KEY, newFormat); // 立即写入
                     updateExportConfig((config) => (config.format = newFormat));
+                    if (!userSelectionTouched) {
+                      autoSelectByFormat(newFormat);
+                    }
                   }}
                 >
                   {formats.map((f) => (
