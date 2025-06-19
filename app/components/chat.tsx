@@ -150,7 +150,6 @@ import { MsEdgeTTS, OUTPUT_FORMAT } from "../utils/ms_edge_tts";
 
 import { isEmpty } from "lodash-es";
 import { getModelProvider } from "../utils/model";
-import { RealtimeChat } from "@/app/components/realtime-chat";
 import clsx from "clsx";
 
 import {
@@ -3080,7 +3079,7 @@ function _Chat() {
               </label>
             </div>
           </div>
-          <div
+          {/* <div
             className={clsx(styles["chat-side-panel"], {
               [styles["mobile"]]: isMobileScreen,
               [styles["chat-side-panel-show"]]: showChatSidePanel,
@@ -3096,7 +3095,7 @@ function _Chat() {
                 }}
               />
             )}
-          </div>
+          </div> */}
         </div>
       </div>
       {showExport && (

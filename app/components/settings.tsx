@@ -85,7 +85,6 @@ import { PluginConfigList } from "./plugin-config";
 import { useMaskStore } from "../store/mask";
 import { ProviderType } from "../utils/cloud";
 import { TTSConfigList } from "./tts-config";
-import { RealtimeConfigList } from "./realtime-chat/realtime-config";
 import { STTConfigList } from "./stt-config";
 
 function EditPromptModal(props: { id: string; onClose: () => void }) {
