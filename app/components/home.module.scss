@@ -317,25 +317,21 @@
 }
 
 .chat-item {
-  padding: 8px 8px;
-  background-color: var(--white);
-  border-radius: 10px;
+  padding: 6px 6px;
+  border-radius: 6px;
   margin-bottom: 10px;
-  box-shadow: var(--card-shadow);
-  transition: background-color 0.3s ease;
+  box-shadow: 2px 2px 2px 2px rgb(0, 0, 0, 0.1);
+  background-color: var(--dynamic-bg, var(--chat-item-bg-start));
+  color: var(--text-primary);
   cursor: pointer;
   user-select: none;
   border: 2px solid transparent;
   position: relative;
-  content-visibility: auto;
-}
-
-.chat-item:hover {
-  background-color: var(--hover-color);
+  user-select: none;
 }
 
 .chat-item-selected {
-  border-color: var(--primary);
+  border: 2px solid var(--primary);
 }
 
 .chat-item-title {
@@ -424,6 +420,8 @@
     align-items: center;
     transition: all ease 0.3s;
     overflow: hidden;
+    background-color: var(--dynamic-bg, var(--white));
+    color: var(--dynamic-text, var(--black));
 
     &:hover {
       .chat-item-narrow {

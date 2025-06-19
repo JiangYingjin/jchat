@@ -71,6 +71,9 @@
   --message-max-width-user: 80%;
   --message-max-width-assistant: 100%;
   --full-height: 100%;
+  --highlight-bg: rgb(209, 218, 235);
+  --text-primary: rgb(55, 65, 81);
+  --chat-item-bg-start: #ffffff;
 }
 
 @media only screen and (max-width: 600px) {
