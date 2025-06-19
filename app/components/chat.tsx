@@ -1603,6 +1603,9 @@ function _Chat() {
     setUserInput("");
     setPromptHints([]);
     if (inputRef.current) inputRef.current.value = "";
+    saveChatInputText(inputRef.current?.value ?? "");
+    saveChatInputScrollTop(inputRef.current?.scrollTop ?? 0);
+    saveChatInputImages(attachImages);
     if (!isMobileScreen) inputRef.current?.focus();
     setAutoScroll(true);
   };
