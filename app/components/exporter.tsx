@@ -45,6 +45,8 @@ const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
 });
 
+const EXPORT_FORMAT_KEY = "export-format"; // 记住导出格式的 localStorage key
+
 export function ExportMessageModal(props: { onClose: () => void }) {
   return (
     <div className="modal-mask">
@@ -153,15 +155,30 @@ export function MessageExporter() {
   const formats = ["text", "image", "json"] as const;
   type ExportFormat = (typeof formats)[number];
 
-  const [exportConfig, setExportConfig] = useState({
-    format: "image" as ExportFormat,
-    includeContext: true,
+  // 初始化时从 localStorage 读取上次选择的导出格式
+  const [exportConfig, setExportConfig] = useState(() => {
+    const savedFormat = localStorage.getItem(
+      EXPORT_FORMAT_KEY,
+    ) as ExportFormat | null;
+    return {
+      // 如果有保存且合法则用保存的，否则用 image
+      format: (savedFormat &&
+      (formats as readonly string[]).includes(savedFormat)
+        ? savedFormat
+        : "image") as ExportFormat,
+      includeContext: true,
+    };
   });
 
+  // 更新导出配置，并在切换格式时写入 localStorage
   function updateExportConfig(updater: (config: typeof exportConfig) => void) {
     const config = { ...exportConfig };
     updater(config);
     setExportConfig(config);
+    // 如果格式有变化则写入 localStorage
+    if (config.format !== exportConfig.format) {
+      localStorage.setItem(EXPORT_FORMAT_KEY, config.format);
+    }
   }
 
   const chatStore = useChatStore();
@@ -207,6 +224,8 @@ export function MessageExporter() {
         className={styles["message-exporter-body"]}
         style={currentStep.value !== "select" ? { display: "none" } : {}}
       >
+        {/* 导出格式选择（记忆上次选择） */}
+        {/* Export format select (remember last choice) */}
         {/* <List>
           <ListItem
             title={Locale.Export.Format.Title}
@@ -214,12 +233,11 @@ export function MessageExporter() {
           >
             <Select
               value={exportConfig.format}
-              onChange={(e) =>
-                updateExportConfig(
-                  (config) =>
-                    (config.format = e.currentTarget.value as ExportFormat),
-                )
-              }
+              onChange={(e) => {
+                const newFormat = e.currentTarget.value as ExportFormat;
+                localStorage.setItem(EXPORT_FORMAT_KEY, newFormat); // 立即写入
+                updateExportConfig((config) => (config.format = newFormat));
+              }}
             >
               {formats.map((f) => (
                 <option key={f} value={f}>
@@ -259,12 +277,11 @@ export function MessageExporter() {
               >
                 <Select
                   value={exportConfig.format}
-                  onChange={(e) =>
-                    updateExportConfig(
-                      (config) =>
-                        (config.format = e.currentTarget.value as ExportFormat),
-                    )
-                  }
+                  onChange={(e) => {
+                    const newFormat = e.currentTarget.value as ExportFormat;
+                    localStorage.setItem(EXPORT_FORMAT_KEY, newFormat); // 立即写入
+                    updateExportConfig((config) => (config.format = newFormat));
+                  }}
                 >
                   {formats.map((f) => (
                     <option key={f} value={f}>
