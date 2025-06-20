@@ -1920,6 +1920,15 @@ function _Chat() {
   const [msgRenderIndex, _setMsgRenderIndex] = useState(
     Math.max(0, renderMessages.length - CHAT_PAGE_SIZE),
   );
+
+  // 监听 renderMessages 长度变化，确保 msgRenderIndex 始终正确
+  useEffect(() => {
+    const newIndex = Math.max(0, renderMessages.length - CHAT_PAGE_SIZE);
+    if (newIndex !== msgRenderIndex) {
+      _setMsgRenderIndex(newIndex);
+    }
+  }, [renderMessages.length, msgRenderIndex]);
+
   function setMsgRenderIndex(newIndex: number) {
     newIndex = Math.min(renderMessages.length - CHAT_PAGE_SIZE, newIndex);
     newIndex = Math.max(0, newIndex);
