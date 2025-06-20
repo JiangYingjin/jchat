@@ -1411,6 +1411,7 @@ function _Chat() {
       }
     }
   }, [accessStore]);
+
   const fontSize = config.fontSize;
   const fontFamily = config.fontFamily;
 
@@ -1455,6 +1456,15 @@ function _Chat() {
   const [attachImages, setAttachImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [attachFiles, setAttachFiles] = useState<FileInfo[]>([]);
+
+  // 移动端默认开启长输入模式
+  useEffect(() => {
+    if (isMobileScreen && session.longInputMode === false) {
+      chatStore.updateTargetSession(session, (session) => {
+        session.longInputMode = true;
+      });
+    }
+  }, [isMobileScreen, session.longInputMode, chatStore]);
 
   // prompt hints
   const promptStore = usePromptStore();
