@@ -1872,58 +1872,40 @@ function _Chat() {
     }
   }
 
+  // 优化点1：渲染相关 useMemo/useState/useEffect 彻底排除 system message
+  // context 只保留 mask.context，不包含 system message
   const context: RenderMessage[] = useMemo(() => {
     return session.mask.hideContext ? [] : session.mask.context.slice();
   }, [session.mask.context, session.mask.hideContext]);
 
-  if (
-    context.length === 0 &&
-    session.messages.at(0)?.content !== BOT_HELLO.content
-  ) {
-    const copiedHello = Object.assign({}, BOT_HELLO);
-    if (!accessStore.isAuthorized()) {
-      copiedHello.content = Locale.Error.Unauthorized;
-      context.push(copiedHello);
-    }
-  }
+  // 优化点2：渲染消息时彻底过滤 system message
+  // 只在渲染时过滤，不影响原始 session.messages
+  const filteredSessionMessages = useMemo(() => {
+    return (session.messages as RenderMessage[]).filter(
+      (m) => m.role !== "system",
+    );
+  }, [session.messages]);
 
   // preview messages
   const renderMessages = useMemo(() => {
-    return (
-      context
-        .concat(session.messages as RenderMessage[])
-        // .concat(
-        //   isLoading
-        //     ? [
-        //       {
-        //         ...createMessage({
-        //           role: "assistant",
-        //           content: "……",
-        //         }),
-        //         preview: true,
-        //       },
-        //     ]
-        //     : [],
-        // )
-        .concat(
-          userInput.length > 0 && config.sendPreviewBubble
-            ? [
-                {
-                  ...createMessage({
-                    role: "user",
-                    content: userInput,
-                  }),
-                  preview: true,
-                },
-              ]
-            : [],
-        )
+    return context.concat(filteredSessionMessages).concat(
+      (userInput.length > 0 && config.sendPreviewBubble
+        ? [
+            {
+              ...createMessage({
+                role: "user",
+                content: userInput,
+              }),
+              preview: true,
+            },
+          ]
+        : []) as RenderMessage[],
     );
   }, [
     config.sendPreviewBubble,
     context,
     isLoading,
-    session.messages,
+    filteredSessionMessages,
     userInput,
   ]);
 
@@ -2342,6 +2324,46 @@ function _Chat() {
     return cleanup;
   }, [session.messages.length]); // 只在消息列表长度变化时重新设置观察者
 
+  // ========== system message content 存储工具 ==========
+  // @ts-ignore
+  interface SystemMetaMessage extends ChatMessage {
+    contentKey?: string;
+  }
+  function getSystemMessageContentKey(sessionId: string) {
+    return `system_message_content_${sessionId}`;
+  }
+  function saveSystemMessageContentToStorage(
+    sessionId: string,
+    content: string,
+  ) {
+    localStorage.setItem(getSystemMessageContentKey(sessionId), content);
+  }
+  function loadSystemMessageContentFromStorage(sessionId: string): string {
+    return localStorage.getItem(getSystemMessageContentKey(sessionId)) || "";
+  }
+  // 自动迁移旧 system message 到新存储
+  function migrateSystemMessageIfNeeded(session: any) {
+    const sysMsgIdx = session.messages.findIndex(
+      (m: any) => m.role === "system",
+    );
+    if (sysMsgIdx >= 0) {
+      const sysMsg = session.messages[sysMsgIdx];
+      // 旧格式：content 有内容但没有 contentKey
+      if (sysMsg.content && !sysMsg.contentKey) {
+        saveSystemMessageContentToStorage(session.id, sysMsg.content);
+        // 替换为 meta
+        const newSysMsg = {
+          ...sysMsg,
+          content: "",
+          contentKey: getSystemMessageContentKey(session.id),
+        };
+        session.messages[sysMsgIdx] = newSysMsg;
+      }
+    }
+  }
+  // ... existing code ...
+  // 编辑系统提示词逻辑，保存到 localStorage，只存 meta
+  // ... window-actions 编辑上下文按钮 ...
   return (
     <>
       <div className={styles.chat} key={session.id}>
@@ -2384,41 +2406,47 @@ function _Chat() {
                 bordered
                 title="编辑上下文"
                 onClick={async () => {
+                  // 兼容迁移旧 system message
+                  migrateSystemMessageIfNeeded(session);
                   // 获取当前 session 的 system 消息
                   let systemMessage = session.messages.find(
                     (m) => m.role === "system",
-                  );
-
-                  // 如果没有 system 消息，创建一个空的
-                  if (!systemMessage) {
-                    systemMessage = createMessage({
-                      role: "system",
-                      content: "",
-                    });
+                  ) as SystemMetaMessage | undefined;
+                  let systemContent = systemMessage?.content || "";
+                  // 如果只存 meta，则从 storage 取
+                  if (
+                    systemMessage &&
+                    !systemContent &&
+                    systemMessage.contentKey
+                  ) {
+                    systemContent = loadSystemMessageContentFromStorage(
+                      session.id,
+                    );
                   }
-
                   // 复用双击消息编辑的逻辑
                   const result = await showPrompt(
                     "编辑系统提示词",
-                    getMessageTextContent(systemMessage),
+                    typeof systemContent === "string" ? systemContent : "",
                     15,
                   );
-
                   // 直接保存编辑内容为 system 消息内容
                   const newContent = result.value.trim();
-
                   chatStore.updateTargetSession(session, (session) => {
                     // 移除现有的 system 消息
                     session.messages = session.messages.filter(
                       (m) => m.role !== "system",
                     );
-
-                    // 如果新内容不为空，添加新的 system 消息到开头
+                    // 如果新内容不为空，保存到 storage，并添加 meta
                     if (newContent) {
+                      saveSystemMessageContentToStorage(session.id, newContent);
                       const newSystemMessage = createMessage({
                         role: "system",
-                        content: newContent,
-                      });
+                        content: "", // 不存内容
+                      }) as SystemMetaMessage;
+                      // @ts-ignore
+                      newSystemMessage.contentKey = getSystemMessageContentKey(
+                        session.id,
+                      );
                       session.messages.unshift(newSystemMessage);
                     }
                   });

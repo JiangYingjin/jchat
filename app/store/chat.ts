@@ -674,56 +674,35 @@ export const useChatStore = createPersistStore(
         const modelConfig = session.mask.modelConfig;
         const clearContextIndex = session.clearContextIndex ?? 0;
         const messages = session.messages.slice();
-
         // in-context prompts
         const contextPrompts = session.mask.context.slice();
-
-        // 完全禁用系统提示注入功能
-        // const shouldInjectSystemPrompts =
-        //   modelConfig.enableInjectSystemPrompts &&
-        //   (session.mask.modelConfig.model.startsWith("gpt-") ||
-        //     session.mask.modelConfig.model.startsWith("chatgpt-"));
-
-        // var systemPrompts: ChatMessage[] = [];
-        // var template = DEFAULT_SYSTEM_TEMPLATE;
-        // if (session.attachFiles && session.attachFiles.length > 0) {
-        //   template += MYFILES_BROWSER_TOOLS_SYSTEM_PROMPT;
-        //   session.attachFiles.forEach((file) => {
-        //     template += `filename: \`${file.originalFilename}\`
-        // partialDocument: \`\`\`
-        // ${file.partial}
-        // \`\`\``;
-        //   });
-        // }
-        // systemPrompts = shouldInjectSystemPrompts
-        //   ? [
-        //     createMessage({
-        //       role: "system",
-        //       content: fillTemplateWith("", {
-        //         ...modelConfig,
-        //         template: template,
-        //       }),
-        //     }),
-        //   ]
-        //   : [];
-        // if (shouldInjectSystemPrompts) {
-        //   console.log(
-        //     "[Global System Prompt] ",
-        //     systemPrompts.at(0)?.content ?? "empty",
-        //   );
-        // }
-
+        // ========== system message 动态加载 ==========
+        let systemMessage: ChatMessage | undefined = messages.find(
+          (m) => m.role === "system",
+        );
+        let systemPrompt: ChatMessage[] = [];
+        if (systemMessage) {
+          let content = systemMessage.content;
+          if (!content && (systemMessage as any).contentKey) {
+            // 动态从 localStorage 取
+            content =
+              localStorage.getItem((systemMessage as any).contentKey) || "";
+          }
+          if (content) {
+            systemPrompt = [
+              {
+                ...systemMessage,
+                content,
+              },
+            ];
+          }
+        }
         // 移除历史摘要相关逻辑，直接使用 clearContextIndex 作为起始索引
         const recentMessages = messages
           .slice(clearContextIndex)
-          .filter((msg) => !msg.isError);
-
-        // 合并所有消息，不包含系统提示和历史摘要
-        return [
-          // ...systemPrompts,  // 移除系统提示
-          ...contextPrompts,
-          ...recentMessages,
-        ];
+          .filter((msg) => !msg.isError && msg.role !== "system");
+        // 合并所有消息，包含动态加载的 system message
+        return [...systemPrompt, ...contextPrompts, ...recentMessages];
       },
 
       updateMessage(
