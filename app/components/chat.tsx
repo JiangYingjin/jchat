@@ -69,6 +69,7 @@ import {
   DEFAULT_TOPIC,
   ModelType,
   usePluginStore,
+  systemMessageStorage,
 } from "../store";
 
 import {
@@ -1651,7 +1652,12 @@ function _Chat() {
             m.streaming = false;
           }
 
-          if (m.content.length === 0) {
+          // 排除系统消息和已迁移的系统消息（有contentKey的消息）
+          if (
+            m.content.length === 0 &&
+            m.role !== "system" &&
+            !(m as any).contentKey
+          ) {
             m.isError = true;
             m.content = prettyObject({
               error: true,
@@ -2332,14 +2338,34 @@ function _Chat() {
   function getSystemMessageContentKey(sessionId: string) {
     return `system_message_content_${sessionId}`;
   }
-  function saveSystemMessageContentToStorage(
+  async function saveSystemMessageContentToStorage(
     sessionId: string,
     content: string,
   ) {
-    localStorage.setItem(getSystemMessageContentKey(sessionId), content);
+    try {
+      // 使用 IndexedDB 存储
+      const success = await systemMessageStorage.saveSystemMessage(
+        sessionId,
+        content,
+      );
+      if (!success) {
+        throw new Error("保存到 IndexedDB 失败");
+      }
+    } catch (error) {
+      console.error("保存系统消息失败:", error);
+      alert("系统提示词保存失败，请重试。");
+    }
   }
-  function loadSystemMessageContentFromStorage(sessionId: string): string {
-    return localStorage.getItem(getSystemMessageContentKey(sessionId)) || "";
+  async function loadSystemMessageContentFromStorage(
+    sessionId: string,
+  ): Promise<string> {
+    try {
+      const content = await systemMessageStorage.getSystemMessage(sessionId);
+      return content || "";
+    } catch (error) {
+      console.error("读取系统消息失败:", error);
+      return "";
+    }
   }
   // 自动迁移旧 system message 到新存储
   function migrateSystemMessageIfNeeded(session: any) {
@@ -2419,7 +2445,7 @@ function _Chat() {
                     !systemContent &&
                     systemMessage.contentKey
                   ) {
-                    systemContent = loadSystemMessageContentFromStorage(
+                    systemContent = await loadSystemMessageContentFromStorage(
                       session.id,
                     );
                   }

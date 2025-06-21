@@ -433,7 +433,7 @@ export const useChatStore = createPersistStore(
         const isEnableRAG =
           session.attachFiles && session.attachFiles.length > 0;
         // get recent messages
-        let recentMessages = get().getMessagesWithMemory();
+        let recentMessages = await get().getMessagesWithMemory();
         let sendMessages: ChatMessage[];
         if (typeof messageIdx === "number" && messageIdx >= 0) {
           // 只取到 messageIdx（含）为止的消息
@@ -669,7 +669,7 @@ export const useChatStore = createPersistStore(
         return undefined;
       },
 
-      getMessagesWithMemory() {
+      async getMessagesWithMemory() {
         const session = get().currentSession();
         const modelConfig = session.mask.modelConfig;
         const clearContextIndex = session.clearContextIndex ?? 0;
@@ -684,11 +684,16 @@ export const useChatStore = createPersistStore(
         if (systemMessage) {
           let content = systemMessage.content;
           if (!content && (systemMessage as any).contentKey) {
-            // 动态从 localStorage 取
-            content =
-              localStorage.getItem((systemMessage as any).contentKey) || "";
+            // 动态从 IndexedDB 取
+            const storedContent = await systemMessageStorage.getSystemMessage(
+              session.id,
+            );
+            // 只有当IndexedDB中有内容时才使用，否则跳过该系统消息
+            if (storedContent && storedContent.trim() !== "") {
+              content = storedContent;
+            }
           }
-          if (content) {
+          if (content && typeof content === "string" && content.trim() !== "") {
             systemPrompt = [
               {
                 ...systemMessage,
@@ -831,7 +836,7 @@ export const useChatStore = createPersistStore(
   {
     name: StoreKey.Chat,
     version: 3.3,
-    migrate(persistedState, version) {
+    async migrate(persistedState, version) {
       const state = persistedState as any;
       const newState = JSON.parse(
         JSON.stringify(state),
@@ -878,16 +883,330 @@ export const useChatStore = createPersistStore(
             config.modelConfig.compressProviderName;
         });
       }
-      // revert default summarize model for every session
+
+      // 自动迁移系统消息到新存储格式
       if (version < 3.3) {
-        newState.sessions.forEach((s) => {
-          const config = useAppConfig.getState();
-          s.mask.modelConfig.compressModel = "";
-          s.mask.modelConfig.compressProviderName = "";
-        });
+        try {
+          // 先迁移localStorage中的数据到IndexedDB
+          await systemMessageStorage.migrateFromLocalStorage();
+
+          // 收集所有需要处理的会话ID
+          const sessionIds: string[] = [];
+
+          for (const s of newState.sessions) {
+            const sysMsgIdx = s.messages.findIndex(
+              (m: any) => m.role === "system",
+            );
+            if (sysMsgIdx >= 0) {
+              const sysMsg = s.messages[sysMsgIdx];
+
+              // 情况1: 旧格式 - content 有内容但没有 contentKey
+              if (sysMsg.content && !(sysMsg as any).contentKey) {
+                sessionIds.push(s.id);
+
+                // 保存到 IndexedDB
+                if (
+                  typeof window !== "undefined" &&
+                  typeof sysMsg.content === "string"
+                ) {
+                  const success = await systemMessageStorage.saveSystemMessage(
+                    s.id,
+                    sysMsg.content,
+                  );
+                  if (success) {
+                    console.log(`成功保存会话 ${s.id} 的系统消息到 IndexedDB`);
+                  } else {
+                    console.error(
+                      `保存会话 ${s.id} 的系统消息到 IndexedDB 失败`,
+                    );
+                  }
+                }
+
+                // 替换为 meta 格式
+                const newSysMsg = {
+                  ...sysMsg,
+                  content: "",
+                };
+                (newSysMsg as any).contentKey =
+                  `system_message_content_${s.id}`;
+                s.messages[sysMsgIdx] = newSysMsg;
+              }
+              // 情况2: 新格式 - 有 contentKey 但没有内容
+              else if (!sysMsg.content && (sysMsg as any).contentKey) {
+                sessionIds.push(s.id);
+                // 验证 IndexedDB 中是否有对应的内容
+                const isValid =
+                  await systemMessageStorage.validateSystemMessage(s.id);
+                if (!isValid) {
+                  console.warn(
+                    `会话 ${s.id} 的系统消息在 IndexedDB 中不存在或为空`,
+                  );
+                }
+              }
+              // 情况3: 错误格式 - 显示为错误信息
+              else if (
+                sysMsg.isError &&
+                sysMsg.content &&
+                typeof sysMsg.content === "string"
+              ) {
+                try {
+                  const errorContent = JSON.parse(sysMsg.content);
+                  if (
+                    errorContent.error &&
+                    errorContent.message === "empty response"
+                  ) {
+                    console.log(`发现错误格式的系统消息，会话 ${s.id}`);
+
+                    // 尝试从 IndexedDB 恢复
+                    const recoveredContent =
+                      await systemMessageStorage.getSystemMessage(s.id);
+                    if (recoveredContent && recoveredContent.trim() !== "") {
+                      // 恢复成功
+                      sysMsg.content = recoveredContent;
+                      sysMsg.isError = false;
+                      console.log(`成功恢复会话 ${s.id} 的系统消息`);
+                    } else {
+                      // 恢复失败，删除该系统消息
+                      s.messages.splice(sysMsgIdx, 1);
+                      console.log(`无法恢复会话 ${s.id} 的系统消息，已删除`);
+                    }
+                  }
+                } catch (e) {
+                  // 不是错误格式，跳过
+                }
+              }
+            }
+          }
+
+          // 验证迁移结果
+          if (sessionIds.length > 0) {
+            const validationResult =
+              await systemMessageStorage.validateAllSystemMessages(sessionIds);
+            console.log(
+              `迁移验证结果: 有效 ${validationResult.valid.length} 个，无效 ${validationResult.invalid.length} 个`,
+            );
+
+            if (validationResult.invalid.length > 0) {
+              console.warn(
+                "以下会话的系统消息迁移可能有问题:",
+                validationResult.invalid,
+              );
+            }
+          }
+        } catch (error) {
+          console.error("系统消息迁移过程中出现错误:", error);
+          // 不抛出错误，让应用继续运行
+        }
       }
 
       return newState as any;
     },
   },
 );
+
+// 使用 IndexedDB 存储系统消息
+class SystemMessageStorage {
+  private dbName = "SystemMessages";
+  private version = 1;
+  private storeName = "systemMessages";
+
+  async initDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.version);
+
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          const store = db.createObjectStore(this.storeName, {
+            keyPath: "key",
+          });
+          store.createIndex("sessionId", "sessionId", { unique: false });
+          store.createIndex("timestamp", "timestamp", { unique: false });
+        }
+      };
+    });
+  }
+
+  async saveSystemMessage(
+    sessionId: string,
+    content: string,
+  ): Promise<boolean> {
+    try {
+      const db = await this.initDB();
+      const transaction = db.transaction([this.storeName], "readwrite");
+      const store = transaction.objectStore(this.storeName);
+
+      const key = `system_message_content_${sessionId}`;
+      const data = {
+        key,
+        sessionId,
+        content,
+        timestamp: Date.now(),
+      };
+
+      await new Promise((resolve, reject) => {
+        const request = store.put(data);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      return true;
+    } catch (error) {
+      console.error("保存系统消息到 IndexedDB 失败:", error);
+      return false;
+    }
+  }
+
+  async getSystemMessage(sessionId: string): Promise<string | null> {
+    try {
+      const db = await this.initDB();
+      const transaction = db.transaction([this.storeName], "readonly");
+      const store = transaction.objectStore(this.storeName);
+
+      const key = `system_message_content_${sessionId}`;
+
+      return new Promise((resolve, reject) => {
+        const request = store.get(key);
+        request.onsuccess = () => {
+          const result = request.result;
+          resolve(result ? result.content : null);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.error("从 IndexedDB 读取系统消息失败:", error);
+      return null;
+    }
+  }
+
+  async deleteSystemMessage(sessionId: string): Promise<boolean> {
+    try {
+      const db = await this.initDB();
+      const transaction = db.transaction([this.storeName], "readwrite");
+      const store = transaction.objectStore(this.storeName);
+
+      const key = `system_message_content_${sessionId}`;
+
+      await new Promise((resolve, reject) => {
+        const request = store.delete(key);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      return true;
+    } catch (error) {
+      console.error("从 IndexedDB 删除系统消息失败:", error);
+      return false;
+    }
+  }
+
+  async migrateFromLocalStorage(): Promise<void> {
+    try {
+      const systemKeys = [];
+      for (let key in localStorage) {
+        if (
+          localStorage.hasOwnProperty(key) &&
+          key.startsWith("system_message_content_")
+        ) {
+          systemKeys.push(key);
+        }
+      }
+
+      if (systemKeys.length === 0) {
+        console.log("没有找到需要迁移的系统消息");
+        return;
+      }
+
+      console.log(`开始迁移 ${systemKeys.length} 个系统消息到 IndexedDB...`);
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const key of systemKeys) {
+        try {
+          const content = localStorage.getItem(key);
+          if (content && content.trim() !== "") {
+            const sessionId = key.replace("system_message_content_", "");
+
+            // 检查是否已经存在于 IndexedDB 中
+            const existingContent = await this.getSystemMessage(sessionId);
+            if (existingContent) {
+              console.log(
+                `会话 ${sessionId} 的系统消息已存在于 IndexedDB，跳过迁移`,
+              );
+              // 删除 localStorage 中的数据，避免重复
+              localStorage.removeItem(key);
+              localStorage.removeItem(key + "_time");
+              successCount++;
+              continue;
+            }
+
+            // 保存到 IndexedDB
+            const success = await this.saveSystemMessage(sessionId, content);
+            if (success) {
+              // 迁移成功后删除 localStorage 中的数据
+              localStorage.removeItem(key);
+              localStorage.removeItem(key + "_time");
+              successCount++;
+              console.log(`成功迁移会话 ${sessionId} 的系统消息`);
+            } else {
+              errorCount++;
+              console.error(`迁移会话 ${sessionId} 的系统消息失败`);
+            }
+          } else {
+            // 内容为空，直接删除
+            localStorage.removeItem(key);
+            localStorage.removeItem(key + "_time");
+            console.log(`删除空的系统消息: ${key}`);
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`迁移系统消息 ${key} 时出错:`, error);
+        }
+      }
+
+      console.log(
+        `系统消息迁移完成: 成功 ${successCount} 个，失败 ${errorCount} 个`,
+      );
+    } catch (error) {
+      console.error("迁移系统消息失败:", error);
+      throw error; // 重新抛出错误，让上层处理
+    }
+  }
+
+  // 添加数据验证方法
+  async validateSystemMessage(sessionId: string): Promise<boolean> {
+    try {
+      const content = await this.getSystemMessage(sessionId);
+      return content !== null && content.trim() !== "";
+    } catch (error) {
+      console.error(`验证系统消息失败 (${sessionId}):`, error);
+      return false;
+    }
+  }
+
+  // 添加批量验证方法
+  async validateAllSystemMessages(
+    sessionIds: string[],
+  ): Promise<{ valid: string[]; invalid: string[] }> {
+    const valid: string[] = [];
+    const invalid: string[] = [];
+
+    for (const sessionId of sessionIds) {
+      const isValid = await this.validateSystemMessage(sessionId);
+      if (isValid) {
+        valid.push(sessionId);
+      } else {
+        invalid.push(sessionId);
+      }
+    }
+
+    return { valid, invalid };
+  }
+}
+
+// 创建全局实例
+export const systemMessageStorage = new SystemMessageStorage();
