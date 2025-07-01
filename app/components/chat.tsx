@@ -771,28 +771,30 @@ export function ChatActions(props: {
           icon={<RobotIcon />}
           alwaysFullWidth={true}
         />
-        <ChatAction
-          onClick={() => {
-            chatStore.updateTargetSession(session, (s) => {
-              s.longInputMode = !s.longInputMode;
-            });
-          }}
-          text={"长输入模式"}
-          icon={<EditIcon />}
-          alwaysFullWidth={false}
-          style={{
-            backgroundColor: session.longInputMode
-              ? "var(--primary-light, #e6f0fa)"
-              : undefined,
-            color: session.longInputMode
-              ? "var(--primary, #2196f3)"
-              : undefined,
-            opacity: session.longInputMode ? 1 : 0.7,
-            border: session.longInputMode
-              ? "1.5px solid var(--primary)"
-              : undefined,
-          }}
-        />
+        {!isMobileScreen && (
+          <ChatAction
+            onClick={() => {
+              chatStore.updateTargetSession(session, (s) => {
+                s.longInputMode = !s.longInputMode;
+              });
+            }}
+            text={"长输入模式"}
+            icon={<EditIcon />}
+            alwaysFullWidth={false}
+            style={{
+              backgroundColor: session.longInputMode
+                ? "var(--primary-light, #e6f0fa)"
+                : undefined,
+              color: session.longInputMode
+                ? "var(--primary, #2196f3)"
+                : undefined,
+              opacity: session.longInputMode ? 1 : 0.7,
+              border: session.longInputMode
+                ? "1.5px solid var(--primary)"
+                : undefined,
+            }}
+          />
+        )}
 
         {/* {!isFunctionCallModel(currentModel) &&
           isEnableWebSearch &&
