@@ -38,6 +38,7 @@ import EnablePluginIcon from "../icons/plugin_enable.svg";
 import DisablePluginIcon from "../icons/plugin_disable.svg";
 import UploadIcon from "../icons/upload.svg";
 import ImageIcon from "../icons/image.svg";
+import CameraIcon from "../icons/camera.svg";
 
 import LightIcon from "../icons/light.svg";
 import DarkIcon from "../icons/dark.svg";
@@ -496,9 +497,10 @@ function useScrollToBottom(
 }
 
 export function ChatActions(props: {
-  uploadImage: () => void;
+  uploadImage: () => Promise<void>;
+  capturePhoto: () => Promise<void>;
   setAttachImages: (images: string[]) => void;
-  uploadFile: () => void;
+  uploadFile: () => Promise<void>;
   setAttachFiles: (files: FileInfo[]) => void;
   setUploading: (uploading: boolean) => void;
   showPromptModal: () => void;
@@ -691,6 +693,14 @@ export function ChatActions(props: {
   return (
     <div className={styles["chat-input-actions"]}>
       <>
+        {showUploadImage && (
+          <ChatAction
+            onClick={props.capturePhoto}
+            text="拍照上传"
+            icon={props.uploading ? <LoadingButtonIcon /> : <CameraIcon />}
+            alwaysFullWidth={false}
+          />
+        )}
         {showUploadImage && (
           <ChatAction
             onClick={props.uploadImage}
@@ -1969,16 +1979,10 @@ function _Chat() {
     scrollDomToBottom();
   }
 
-  // clear context index = context length + index in messages
-  // 移除系统消息计数逻辑，因为不再有系统提示注入
-  // const systemMessagesCount = renderMessages.filter(
-  //   (m) => m.role === "system",
-  // ).length;
   const clearContextIndex =
     (session.clearContextIndex ?? -1) >= 0
       ? session.clearContextIndex! + context.length - msgRenderIndex
-      : // - systemMessagesCount  // 移除系统消息计数
-        -1;
+      : -1;
 
   const [showPromptModal, setShowPromptModal] = useState(false);
 
@@ -2035,9 +2039,6 @@ function _Chat() {
           accessStore.update((access) => (access.accessCode = payload.code!));
           if (accessStore.isAuthorized()) {
             context.pop();
-            // const copiedHello = Object.assign({}, BOT_HELLO);
-            // context.push(copiedHello);
-            // setUserInput(" ");
           }
         }
       } catch {
@@ -2099,6 +2100,53 @@ function _Chat() {
     },
     [attachImages, chatStore],
   );
+
+  async function capturePhoto() {
+    const images: string[] = [];
+    images.push(...attachImages);
+
+    // 使用原生相机拍照
+    const newImages = await new Promise<string[]>((resolve, reject) => {
+      const fileInput = document.createElement("input");
+      fileInput.type = "file";
+      fileInput.accept = "image/*";
+      fileInput.capture = "environment"; // 调用后置摄像头
+      fileInput.multiple = false;
+
+      fileInput.onchange = async (event: any) => {
+        const file = event.target.files?.[0];
+        if (!file) {
+          resolve([]);
+          return;
+        }
+
+        try {
+          setUploading(true);
+          const dataUrl = await uploadImageRemote(file);
+          setUploading(false);
+          resolve([dataUrl]);
+        } catch (error) {
+          setUploading(false);
+          console.error("上传拍照图片失败:", error);
+          showToast("图片上传失败，请重试");
+          reject(error);
+        }
+      };
+
+      // 如果用户取消拍照，也需要处理
+      fileInput.oncancel = () => {
+        resolve([]);
+      };
+
+      fileInput.click();
+    });
+
+    if (newImages.length > 0) {
+      images.push(...newImages);
+      setAttachImages(images);
+      saveChatInputImages(images);
+    }
+  }
 
   async function uploadImage() {
     const images: string[] = [];
@@ -2615,25 +2663,7 @@ function _Chat() {
                                   );
                                 }}
                               ></IconButton>
-                            </div>
-                            {isUser ? (
-                              <Avatar avatar={config.avatar} />
-                            ) : (
-                              <>
-                                {["system"].includes(message.role) ? (
-                                  <Avatar avatar="2699-fe0f" />
-                                ) : (
-                                  <MaskAvatar
-                                    avatar={session.mask.avatar}
-                                    model={
-                                      message.model ||
-                                      session.mask.modelConfig.model
-                                    }
-                                  />
-                                )}
-                              </>
-                            )}
-                          </div> */}
+                            </div>  */}
                           {!isUser && (
                             <div className={styles["chat-model-name"]}>
                               {message.model}
@@ -2674,11 +2704,6 @@ function _Chat() {
                                       onClick={() => onDelete(message.id ?? i)}
                                       alwaysFullWidth={false}
                                     />
-                                    {/* <ChatAction
-                                      text={Locale.Chat.Actions.Pin}
-                                      icon={<PinIcon />}
-                                      onClick={() => onPinMessage(message)}
-                                    /> */}
                                     {config.ttsConfig.enable && (
                                       <ChatAction
                                         text={
@@ -3006,6 +3031,7 @@ function _Chat() {
 
               <ChatActions
                 uploadImage={uploadImage}
+                capturePhoto={capturePhoto}
                 setAttachImages={setAttachImages}
                 uploadFile={uploadFile}
                 setAttachFiles={setAttachFiles}
