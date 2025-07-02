@@ -108,6 +108,12 @@
     box-shadow: var(--card-shadow) inset;
     background-color: var(--gray);
 
+    // 移动端优化整体布局
+    @media screen and (max-width: 600px) {
+      padding: 12px; // 减少外边距
+      border-radius: 8px; // 减少圆角
+    }
+
     .chat-info {
       background-color: var(--second);
       padding: 20px;
@@ -122,6 +128,9 @@
       @media screen and (max-width: 600px) {
         flex-direction: column;
         align-items: flex-start;
+        padding: 12px; // 减少内边距
+        margin-bottom: 12px; // 减少底部间距
+        border-radius: 8px; // 减少圆角
 
         .icons {
           margin-bottom: 20px;
@@ -169,6 +178,17 @@
         &:not(:last-child) {
           margin-bottom: 5px;
         }
+
+        // 移动端优化信息项
+        @media screen and (max-width: 600px) {
+          font-size: 11px; // 减小字体
+          padding: 1px 10px; // 减少内边距
+          border-radius: 6px; // 减少圆角
+
+          &:not(:last-child) {
+            margin-bottom: 3px; // 减少间距
+          }
+        }
       }
     }
 
@@ -206,7 +226,7 @@
         }
 
         @media screen and (max-width: 600px) {
-          $image-width: calc(calc(100vw/2)/var(--image-count));
+          $image-width: calc(calc(100vw / 2) / var(--image-count));
 
           .message-image-multi {
             width: $image-width;
@@ -214,13 +234,13 @@
           }
 
           .message-image {
-            max-width: calc(100vw/3*2);
+            max-width: calc(100vw / 3 * 2);
           }
         }
 
         @media screen and (min-width: 600px) {
-          $max-image-width: calc(900px/3*2/var(--image-count));
-          $image-width: calc(80vw/3*2/var(--image-count));
+          $max-image-width: calc(900px / 3 * 2 / var(--image-count));
+          $image-width: calc(80vw / 3 * 2 / var(--image-count));
 
           .message-image-multi {
             width: $image-width;
@@ -230,7 +250,7 @@
           }
 
           .message-image {
-            max-width: calc(100vw/3*2);
+            max-width: calc(100vw / 3 * 2);
           }
         }
 
@@ -243,6 +263,22 @@
           box-sizing: border-box;
           border-radius: 10px;
           border: rgba($color: #888, $alpha: 0.2) 1px solid;
+        }
+      }
+
+      // 移动端图片分享时的优化布局
+      @media screen and (max-width: 600px) {
+        margin-bottom: 12px; // 减少消息间距
+
+        .avatar {
+          display: none; // 移动端隐藏头像
+        }
+
+        .body {
+          max-width: 100%; // 消息占据100%宽度
+          padding: 6px 8px; // 减少内边距
+          font-size: 13px; // 稍微减小字体以容纳更多内容
+          line-height: 1.4; // 调整行高
         }
       }
 
@@ -263,9 +299,23 @@
           background-color: var(--second);
           margin-right: 10px;
         }
+
+        // 移动端用户消息优化
+        @media screen and (max-width: 600px) {
+          .avatar {
+            display: none; // 隐藏头像
+          }
+
+          .body {
+            margin-left: auto; // 使用 margin-left: auto 让消息靠右
+            margin-right: 0; // 移除右边距
+            max-width: fit-content; // 让宽度适应内容，而不是100%
+          }
+        }
       }
     }
   }
 
-  .default-theme {}
+  .default-theme {
+  }
 }
