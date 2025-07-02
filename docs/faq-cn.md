@@ -23,7 +23,7 @@ Docker 版本相当于稳定版，latest Docker 总是与 latest release version
 ## 如何修改 Vercel 环境变量
 
 - 进入 vercel 的控制台页面；
-- 选中你的 NextChat 项目；
+- 选中你的 JChat 项目；
 - 点击页面头部的 Settings 选项；
 - 找到侧边栏的 Environment Variables 选项；
 - 修改对应的值即可。
@@ -123,6 +123,7 @@ API KEY 有问题。余额不足。
 注意，关闭此特性后，用户会在第一次访问网站时加载所有资源，如果用户网络状况较差，可能会引起较长时间的白屏，从而影响用户使用体验，所以自行考虑。
 
 ## 使用时遇到 "NotFoundError: Failed to execute 'removeChild' on 'Node': The node...."
+
 请关闭浏览器自身的自动翻译功能，并关闭所有自动翻译插件。
 
 # 网络服务相关问题
