@@ -2153,35 +2153,42 @@ function _Chat() {
         return;
       }
       const items = (event.clipboardData || window.clipboardData).items;
+      const imageFiles: File[] = [];
+
+      // 收集所有图片文件
       for (const item of items) {
         if (item.kind === "file" && item.type.startsWith("image/")) {
-          event.preventDefault();
           const file = item.getAsFile();
           if (file) {
-            const images: string[] = [];
-            images.push(...attachImages);
-            images.push(
-              ...(await new Promise<string[]>((res, rej) => {
-                setUploading(true);
-                const imagesData: string[] = [];
-                uploadImageRemote(file)
-                  .then((dataUrl) => {
-                    imagesData.push(dataUrl);
-                    setUploading(false);
-                    res(imagesData);
-                  })
-                  .catch((e) => {
-                    setUploading(false);
-                    rej(e);
-                  });
-              })),
-            );
-
-            setAttachImages(images);
-            saveChatInputImages(images); // 新增：保存图片
+            imageFiles.push(file);
           }
         }
       }
+
+      // 如果有图片文件，处理上传
+      if (imageFiles.length > 0) {
+        event.preventDefault();
+        const images: string[] = [];
+        images.push(...attachImages);
+
+        try {
+          setUploading(true);
+          const uploadPromises = imageFiles.map((file) =>
+            uploadImageRemote(file),
+          );
+          const uploadedImages = await Promise.all(uploadPromises);
+          images.push(...uploadedImages);
+
+          setAttachImages(images);
+          saveChatInputImages(images);
+        } catch (e) {
+          console.error("上传粘贴图片失败:", e);
+          showToast("图片上传失败，请重试");
+        } finally {
+          setUploading(false);
+        }
+      }
+
       // 粘贴文本后，确保高度及时变化
       setTimeout(() => {
         if (event.currentTarget) {
