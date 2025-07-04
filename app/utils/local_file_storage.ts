@@ -18,7 +18,7 @@ export default class LocalFileStorage {
       if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
       }
-      await fs.promises.writeFile(filePath, data);
+      await fs.promises.writeFile(filePath, new Uint8Array(data));
       console.log("[LocalFileStorage]", filePath);
       return `/api/file/${fileName}`;
     } catch (e) {

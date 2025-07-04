@@ -904,7 +904,7 @@ export const useChatStore = createPersistStore(
       if (version < 3.3) {
         try {
           // 先迁移localStorage中的数据到IndexedDB
-          await systemMessageStorage.migrateFromLocalStorage();
+          await systemMessageStorage.migrateSystemMessagesToJChatDB();
 
           // 收集所有需要处理的会话ID
           const sessionIds: string[] = [];
@@ -1022,25 +1022,19 @@ export const useChatStore = createPersistStore(
 
 // 使用 IndexedDB 存储系统消息
 class SystemMessageStorage {
-  private dbName = "SystemMessages";
+  private dbName = "JChat";
   private version = 1;
   private storeName = "systemMessages";
 
   async initDB(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, this.version);
-
       request.onerror = () => reject(request.error);
       request.onsuccess = () => resolve(request.result);
-
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
         if (!db.objectStoreNames.contains(this.storeName)) {
-          const store = db.createObjectStore(this.storeName, {
-            keyPath: "key",
-          });
-          store.createIndex("sessionId", "sessionId", { unique: false });
-          store.createIndex("timestamp", "timestamp", { unique: false });
+          db.createObjectStore(this.storeName, { keyPath: "sessionId" });
         }
       };
     });
@@ -1054,24 +1048,19 @@ class SystemMessageStorage {
       const db = await this.initDB();
       const transaction = db.transaction([this.storeName], "readwrite");
       const store = transaction.objectStore(this.storeName);
-
-      const key = `system_message_content_${sessionId}`;
       const data = {
-        key,
         sessionId,
         content,
         timestamp: Date.now(),
       };
-
       await new Promise((resolve, reject) => {
         const request = store.put(data);
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });
-
       return true;
     } catch (error) {
-      console.error("保存系统消息到 IndexedDB 失败:", error);
+      console.error("保存系统消息到 JChat.systemMessages 失败:", error);
       return false;
     }
   }
@@ -1081,11 +1070,8 @@ class SystemMessageStorage {
       const db = await this.initDB();
       const transaction = db.transaction([this.storeName], "readonly");
       const store = transaction.objectStore(this.storeName);
-
-      const key = `system_message_content_${sessionId}`;
-
       return new Promise((resolve, reject) => {
-        const request = store.get(key);
+        const request = store.get(sessionId);
         request.onsuccess = () => {
           const result = request.result;
           resolve(result ? result.content : null);
@@ -1093,7 +1079,7 @@ class SystemMessageStorage {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
-      console.error("从 IndexedDB 读取系统消息失败:", error);
+      console.error("从 JChat.systemMessages 读取系统消息失败:", error);
       return null;
     }
   }
@@ -1103,94 +1089,76 @@ class SystemMessageStorage {
       const db = await this.initDB();
       const transaction = db.transaction([this.storeName], "readwrite");
       const store = transaction.objectStore(this.storeName);
-
-      const key = `system_message_content_${sessionId}`;
-
       await new Promise((resolve, reject) => {
-        const request = store.delete(key);
+        const request = store.delete(sessionId);
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });
-
       return true;
     } catch (error) {
-      console.error("从 IndexedDB 删除系统消息失败:", error);
+      console.error("从 JChat.systemMessages 删除系统消息失败:", error);
       return false;
     }
   }
 
-  async migrateFromLocalStorage(): Promise<void> {
-    try {
-      const systemKeys = [];
-      for (let key in localStorage) {
-        if (
-          localStorage.hasOwnProperty(key) &&
-          key.startsWith("system_message_content_")
-        ) {
-          systemKeys.push(key);
-        }
-      }
-
-      if (systemKeys.length === 0) {
-        console.log("没有找到需要迁移的系统消息");
-        return;
-      }
-
-      console.log(`开始迁移 ${systemKeys.length} 个系统消息到 IndexedDB...`);
-
-      let successCount = 0;
-      let errorCount = 0;
-
-      for (const key of systemKeys) {
-        try {
-          const content = localStorage.getItem(key);
-          if (content && content.trim() !== "") {
-            const sessionId = key.replace("system_message_content_", "");
-
-            // 检查是否已经存在于 IndexedDB 中
-            const existingContent = await this.getSystemMessage(sessionId);
-            if (existingContent) {
-              console.log(
-                `会话 ${sessionId} 的系统消息已存在于 IndexedDB，跳过迁移`,
-              );
-              // 删除 localStorage 中的数据，避免重复
-              localStorage.removeItem(key);
-              localStorage.removeItem(key + "_time");
-              successCount++;
-              continue;
-            }
-
-            // 保存到 IndexedDB
-            const success = await this.saveSystemMessage(sessionId, content);
-            if (success) {
-              // 迁移成功后删除 localStorage 中的数据
-              localStorage.removeItem(key);
-              localStorage.removeItem(key + "_time");
-              successCount++;
-              console.log(`成功迁移会话 ${sessionId} 的系统消息`);
-            } else {
-              errorCount++;
-              console.error(`迁移会话 ${sessionId} 的系统消息失败`);
-            }
-          } else {
-            // 内容为空，直接删除
-            localStorage.removeItem(key);
-            localStorage.removeItem(key + "_time");
-            console.log(`删除空的系统消息: ${key}`);
-          }
-        } catch (error) {
-          errorCount++;
-          console.error(`迁移系统消息 ${key} 时出错:`, error);
-        }
-      }
-
-      console.log(
-        `系统消息迁移完成: 成功 ${successCount} 个，失败 ${errorCount} 个`,
-      );
-    } catch (error) {
-      console.error("迁移系统消息失败:", error);
-      throw error; // 重新抛出错误，让上层处理
+  // 迁移旧 SystemMessages.systemMessages 到新 JChat.systemMessages
+  async migrateSystemMessagesToJChatDB(): Promise<void> {
+    if (typeof window === "undefined" || typeof indexedDB === "undefined") {
+      // SSR/Node 环境下不执行迁移
+      return;
     }
+    if (localStorage.getItem("system_message_migrated_to_jchat")) return;
+    const oldDB = await new Promise<IDBDatabase | null>((resolve, reject) => {
+      const request = indexedDB.open("SystemMessages", 1);
+      request.onerror = () => resolve(null); // 没有旧库也算迁移完成
+      request.onsuccess = () => resolve(request.result);
+    });
+    if (!oldDB) {
+      localStorage.setItem("system_message_migrated_to_jchat", "1");
+      return;
+    }
+    if (!oldDB.objectStoreNames.contains("systemMessages")) {
+      oldDB.close();
+      localStorage.setItem("system_message_migrated_to_jchat", "1");
+      return;
+    }
+    const oldTx = oldDB.transaction(["systemMessages"], "readonly");
+    const oldStore = oldTx.objectStore("systemMessages");
+    const allData = await new Promise<any[]>((resolve, reject) => {
+      const req = oldStore.getAll();
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    if (!allData.length) {
+      oldDB.close();
+      localStorage.setItem("system_message_migrated_to_jchat", "YES");
+      return;
+    }
+    const newDB = await this.initDB();
+    const newTx = newDB.transaction([this.storeName], "readwrite");
+    const newStore = newTx.objectStore(this.storeName);
+    for (const item of allData) {
+      let sessionId = item.sessionId;
+      if (!sessionId && item.key) {
+        sessionId = item.key.replace("system_message_content_", "");
+      }
+      if (!sessionId) continue;
+      const newData = {
+        sessionId,
+        content: item.content,
+        timestamp: item.timestamp,
+      };
+      await new Promise((resolve, reject) => {
+        const req = newStore.put(newData);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+      });
+    }
+    oldDB.close();
+    localStorage.setItem("system_message_migrated_to_jchat", "1");
+    console.log(
+      `系统消息已迁移到 JChat.systemMessages，数量：${allData.length}`,
+    );
   }
 
   // 添加数据验证方法
@@ -1224,5 +1192,6 @@ class SystemMessageStorage {
   }
 }
 
-// 创建全局实例
+// 创建全局实例并自动迁移
 export const systemMessageStorage = new SystemMessageStorage();
+systemMessageStorage.migrateSystemMessagesToJChatDB();

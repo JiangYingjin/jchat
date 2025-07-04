@@ -2129,40 +2129,6 @@ function _Chat() {
       return { content: "", images: [] };
     }
   }
-  // 自动迁移旧 system message 到新存储
-  function migrateSystemMessageIfNeeded(session: any) {
-    const sysMsgIdx = session.messages.findIndex(
-      (m: any) => m.role === "system",
-    );
-    if (sysMsgIdx >= 0) {
-      const sysMsg = session.messages[sysMsgIdx];
-      // 旧格式：content 有内容但没有 contentKey
-      if (sysMsg.content && !sysMsg.contentKey) {
-        // 兼容旧格式，保存为新格式
-        if (typeof sysMsg.content === "string") {
-          saveSystemMessageContentToStorage(session.id, sysMsg.content, []);
-        } else if (Array.isArray(sysMsg.content)) {
-          // 如果是多模态内容，分离文本和图片
-          const textContent = sysMsg.content
-            .filter((c: any) => c.type === "text")
-            .map((c: any) => c.text)
-            .join("");
-          const images = sysMsg.content
-            .filter((c: any) => c.type === "image_url")
-            .map((c: any) => c.image_url?.url)
-            .filter(Boolean);
-          saveSystemMessageContentToStorage(session.id, textContent, images);
-        }
-        // 替换为 meta
-        const newSysMsg = {
-          ...sysMsg,
-          content: "",
-          contentKey: getSystemMessageContentKey(session.id),
-        };
-        session.messages[sysMsgIdx] = newSysMsg;
-      }
-    }
-  }
   // ... existing code ...
   // 编辑系统提示词逻辑，保存到 localStorage，只存 meta
   // ... window-actions 编辑上下文按钮 ...
@@ -2195,8 +2161,6 @@ function _Chat() {
                 bordered
                 title="编辑上下文"
                 onClick={async () => {
-                  // 兼容迁移旧 system message
-                  migrateSystemMessageIfNeeded(session);
                   // 获取当前 session 的 system 消息
                   let systemMessage = session.messages.find(
                     (m) => m.role === "system",
