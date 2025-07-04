@@ -76,6 +76,7 @@ export function ChatItem(props: {
   index: number;
   narrow?: boolean;
   mask: Mask;
+  messages?: any[];
 }) {
   const draggableRef = useRef<HTMLDivElement | null>(null);
   const { pathname: currentPath } = useLocation();
@@ -86,6 +87,34 @@ export function ChatItem(props: {
   // 选中状态加粗字体
   const isActive =
     props.selected && (currentPath === Path.Chat || currentPath === Path.Home);
+  // 标记点逻辑
+  let statusDot: JSX.Element | null = null;
+  if (props.messages && props.messages.length > 0) {
+    const lastMsg = props.messages[props.messages.length - 1];
+    if (lastMsg.role === "user") {
+      statusDot = (
+        <span
+          className={
+            styles["chat-item-status-dot"] +
+            " " +
+            styles["chat-item-status-dot-yellow"]
+          }
+          title="用户消息结尾"
+        />
+      );
+    } else if (lastMsg.role === "assistant" && lastMsg.isError) {
+      statusDot = (
+        <span
+          className={
+            styles["chat-item-status-dot"] +
+            " " +
+            styles["chat-item-status-dot-red"]
+          }
+          title="模型消息报错结尾"
+        />
+      );
+    }
+  }
   return (
     <Draggable draggableId={`${props.id}`} index={props.index}>
       {(provided) => (
@@ -118,10 +147,12 @@ export function ChatItem(props: {
               <div className={styles["chat-item-narrow-count"]}>
                 {props.count}
               </div>
+              {statusDot}
             </div>
           ) : (
             <>
               <div className={styles["chat-item-title"]}>{props.title}</div>
+              {statusDot}
             </>
           )}
         </div>
@@ -192,6 +223,7 @@ export function ChatList(props: { narrow?: boolean }) {
                 }}
                 narrow={props.narrow}
                 mask={item.mask}
+                messages={item.messages}
               />
             ))}
             {provided.placeholder}

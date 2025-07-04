@@ -606,11 +606,14 @@ export const useChatStore = createPersistStore(
                 session.messages = session.messages.concat();
               });
             },
-            onFinish(message) {
+            onFinish(message, responseRes) {
               botMessage.streaming = false;
               if (message) {
                 botMessage.content = message;
                 botMessage.date = new Date().toLocaleString();
+                if (responseRes && responseRes.status !== 200) {
+                  botMessage.isError = true;
+                }
                 get().onNewMessage(botMessage, session);
               }
               ChatControllerPool.remove(session.id, botMessage.id);

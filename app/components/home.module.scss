@@ -379,7 +379,32 @@
   white-space: nowrap;
 }
 
+.chat-item-status-dot {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+}
+.chat-item-status-dot-yellow {
+  background: #ffe066;
+  border: 1.5px solid #fff7b2;
+}
+.chat-item-status-dot-red {
+  background: #ff8a8a;
+  border: 1.5px solid #ffd6d6;
+}
+
 .narrow-sidebar {
+  .chat-item-status-dot {
+    right: 3px;
+    width: 7px;
+    height: 7px;
+  }
   .sidebar-title,
   .sidebar-sub-title {
     display: none;
