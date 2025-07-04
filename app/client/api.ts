@@ -11,11 +11,7 @@ import {
   useAccessStore,
   useChatStore,
 } from "../store";
-import {
-  ChatGPTApi,
-  DalleRequestPayload,
-  GPTImageRequestPayload,
-} from "./platforms/openai";
+import { ChatGPTApi } from "./platforms/openai";
 import { FileApi, FileInfo } from "./platforms/utils";
 import { TavilySearchResponse } from "@tavily/core";
 
@@ -57,10 +53,6 @@ export interface LLMConfig {
   providerName?: string;
   temperature?: number;
   stream?: boolean;
-  size?: DalleRequestPayload["size"] | GPTImageRequestPayload["size"];
-  quality?: DalleRequestPayload["quality"] | GPTImageRequestPayload["quality"];
-  style?: DalleRequestPayload["style"] | undefined;
-  background?: GPTImageRequestPayload["background"] | undefined;
 }
 
 export interface LLMAgentConfig {

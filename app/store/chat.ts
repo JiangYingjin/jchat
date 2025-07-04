@@ -2,7 +2,6 @@ import {
   getMessageTextContent,
   getTextContent,
   isFunctionCallModel,
-  isOpenAIImageGenerationModel,
   trimTopic,
 } from "../utils";
 
@@ -759,7 +758,7 @@ export const useChatStore = createPersistStore(
         const session = targetSession;
         const modelConfig = session.mask.modelConfig;
         // skip summarize when using dalle3?
-        if (isOpenAIImageGenerationModel(modelConfig.model)) {
+        if (false) {
           return;
         }
 

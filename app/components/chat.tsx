@@ -77,14 +77,11 @@ import {
   getMessageTextReasoningContent,
   getMessageImages,
   isVisionModel,
-  isOpenAIImageGenerationModel,
   showPlugins,
   safeLocalStorage,
   isSupportRAGModel,
   isFunctionCallModel,
   isClaudeThinkingModel,
-  isGPTImageModel,
-  isDalle3,
 } from "../utils";
 
 import { uploadImage as uploadImageRemote } from "@/app/utils/chat";
@@ -92,14 +89,6 @@ import { uploadImage as uploadImageRemote } from "@/app/utils/chat";
 import dynamic from "next/dynamic";
 
 import { ChatControllerPool } from "../client/controller";
-import {
-  DalleSize,
-  DalleQuality,
-  DalleStyle,
-  GPTImageQuality,
-  GPTImageSize,
-  GPTImageBackground,
-} from "../typing";
 
 import Locale from "../locales";
 
@@ -632,21 +621,6 @@ export function ChatActions(props: {
   const [showQualitySelector, setShowQualitySelector] = useState(false);
   const [showStyleSelector, setShowStyleSelector] = useState(false);
   const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
-  const dalle3Sizes: DalleSize[] = ["1024x1024", "1792x1024", "1024x1792"];
-  const dalle3Qualitys: DalleQuality[] = ["standard", "hd"];
-  const gptImageSizes: GPTImageSize[] = [
-    "auto",
-    "1024x1024",
-    "1536x1024",
-    "1024x1536",
-  ];
-  const gptImageQualitys: GPTImageQuality[] = ["auto", "high", "medium", "low"];
-  const gptImageBackgrounds: GPTImageBackground[] = [
-    "auto",
-    "transparent",
-    "opaque",
-  ];
-  const dalle3Styles: DalleStyle[] = ["vivid", "natural"];
   const currentSize = session.mask.modelConfig?.size ?? "1024x1024";
   const currentQuality = session.mask.modelConfig?.quality ?? "standard";
   const currentStyle = session.mask.modelConfig?.style ?? "vivid";
@@ -806,134 +780,6 @@ export function ChatActions(props: {
           />
         )}
 
-        {isOpenAIImageGenerationModel(currentModel) && (
-          <ChatAction
-            onClick={() => setShowSizeSelector(true)}
-            text={currentSize}
-            icon={<SizeIcon />}
-            alwaysFullWidth={false}
-          />
-        )}
-
-        {showSizeSelector && (
-          <Selector
-            defaultSelectedValue={currentSize}
-            items={
-              isGPTImageModel(currentModel)
-                ? gptImageSizes.map((m) => ({
-                    title: m,
-                    value: m,
-                  }))
-                : dalle3Sizes.map((m) => ({
-                    title: m,
-                    value: m,
-                  }))
-            }
-            onClose={() => setShowSizeSelector(false)}
-            onSelection={(s) => {
-              if (s.length === 0) return;
-              const size = s[0];
-              chatStore.updateTargetSession(session, (session) => {
-                session.mask.modelConfig.size = size;
-              });
-              showToast(size);
-            }}
-          />
-        )}
-
-        {isOpenAIImageGenerationModel(currentModel) && (
-          <ChatAction
-            onClick={() => setShowQualitySelector(true)}
-            text={currentQuality}
-            icon={<QualityIcon />}
-            alwaysFullWidth={false}
-          />
-        )}
-
-        {showQualitySelector && (
-          <Selector
-            defaultSelectedValue={currentQuality}
-            items={
-              isGPTImageModel(currentModel)
-                ? gptImageQualitys.map((m) => ({
-                    title: m,
-                    value: m,
-                  }))
-                : dalle3Qualitys.map((m) => ({
-                    title: m,
-                    value: m,
-                  }))
-            }
-            onClose={() => setShowQualitySelector(false)}
-            onSelection={(q) => {
-              if (q.length === 0) return;
-              const quality = q[0];
-              chatStore.updateTargetSession(session, (session) => {
-                session.mask.modelConfig.quality = quality;
-              });
-              showToast(quality);
-            }}
-          />
-        )}
-
-        {isGPTImageModel(currentModel) && (
-          <ChatAction
-            onClick={() => setShowBackgroundSelector(true)}
-            text={currentBackground}
-            icon={<BackgroundIcon />}
-            alwaysFullWidth={false}
-          />
-        )}
-
-        {showBackgroundSelector && (
-          <Selector
-            defaultSelectedValue={currentBackground}
-            items={gptImageBackgrounds.map((m) => ({
-              title: m,
-              value: m,
-            }))}
-            onClose={() => setShowBackgroundSelector(false)}
-            onSelection={(b) => {
-              if (b.length === 0) return;
-              const background = b[0];
-              chatStore.updateTargetSession(session, (session) => {
-                session.mask.modelConfig.background = background;
-              });
-              showToast(background);
-            }}
-          />
-        )}
-
-        {!isGPTImageModel(currentModel) &&
-          isOpenAIImageGenerationModel(currentModel) && (
-            <ChatAction
-              onClick={() => setShowStyleSelector(true)}
-              text={currentStyle}
-              icon={<StyleIcon />}
-              alwaysFullWidth={false}
-            />
-          )}
-
-        {!isGPTImageModel(currentModel) &&
-          isOpenAIImageGenerationModel(currentModel) &&
-          showStyleSelector && (
-            <Selector
-              defaultSelectedValue={currentStyle}
-              items={dalle3Styles.map((m) => ({
-                title: m,
-                value: m,
-              }))}
-              onClose={() => setShowStyleSelector(false)}
-              onSelection={(s) => {
-                if (s.length === 0) return;
-                const style = s[0];
-                chatStore.updateTargetSession(session, (session) => {
-                  session.mask.modelConfig.style = style;
-                });
-                showToast(style);
-              }}
-            />
-          )}
         {showPluginSelector && (
           <Selector
             multiple

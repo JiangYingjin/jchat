@@ -22,14 +22,6 @@ import {
   streamWithThink,
 } from "@/app/utils/chat";
 import { cloudflareAIGatewayUrl } from "@/app/utils/cloudflare";
-import {
-  DalleSize,
-  DalleQuality,
-  DalleStyle,
-  GPTImageSize,
-  GPTImageQuality,
-  GPTImageBackground,
-} from "@/app/typing";
 
 import {
   AgentChatOptions,
@@ -53,11 +45,8 @@ import { getClientConfig } from "@/app/config/client";
 import {
   getMessageTextContent,
   isVisionModel,
-  isOpenAIImageGenerationModel,
   getWebReferenceMessageTextContent,
   getTimeoutMSByModel,
-  isGPTImageModel,
-  isDalle3,
 } from "@/app/utils";
 
 export interface OpenAIListModelResponse {
@@ -79,26 +68,6 @@ export interface RequestPayload {
   model: string;
   temperature: number;
   max_tokens?: number;
-}
-
-export interface DalleRequestPayload {
-  model: string;
-  prompt: string;
-  response_format: "url" | "b64_json";
-  n: number;
-  size: DalleSize;
-  quality: DalleQuality;
-  style?: DalleStyle;
-}
-
-export interface GPTImageRequestPayload {
-  model: string;
-  prompt: string;
-  response_format: "url" | "b64_json";
-  n: number;
-  size: GPTImageSize;
-  quality: GPTImageQuality;
-  background?: GPTImageBackground;
 }
 
 export class ChatGPTApi implements LLMApi {
@@ -236,78 +205,49 @@ export class ChatGPTApi implements LLMApi {
       },
     };
 
-    let requestPayload:
-      | RequestPayload
-      | DalleRequestPayload
-      | GPTImageRequestPayload;
+    let requestPayload: // | RequestPayload
+    // | DalleRequestPayload
+    // | GPTImageRequestPayload
+    RequestPayload;
 
-    const isImageGenModel = isOpenAIImageGenerationModel(options.config.model);
     const isOseries =
       options.config.model.startsWith("o1") ||
       options.config.model.startsWith("o3") ||
       options.config.model.startsWith("o4");
 
-    if (isImageGenModel) {
-      const prompt = getMessageTextContent(
-        options.messages.slice(-1)?.pop() as any,
-      );
-      if (isGPTImageModel(options.config.model)) {
-        requestPayload = {
-          model: options.config.model,
-          prompt,
-          // URLs are only valid for 60 minutes after the image has been generated.
-          response_format: "b64_json", // using b64_json, and save image in CacheStorage
-          n: 1,
-          size: options.config?.size ?? "auto",
-          quality: options.config?.quality ?? "auto",
-        } as GPTImageRequestPayload;
+    const visionModel = isVisionModel(options.config.model);
+    const messages: ChatOptions["messages"] = [];
+    for (const v of options.messages) {
+      const content = visionModel
+        ? await preProcessImageAndWebReferenceContent(v)
+        : getWebReferenceMessageTextContent(v);
+      if (!(isOseries && v.role === "system"))
+        messages.push({ role: v.role, content });
+    }
+
+    // O1 support image, tools (except o4-mini for now) and system, stream, *NOT* logprobs, temperature, top_p, n yet.
+    requestPayload = {
+      messages,
+      stream: options.config.stream,
+      model: modelConfig.model,
+      temperature: !isOseries ? modelConfig.temperature : 1,
+      // max_tokens: Math.max(modelConfig.max_tokens, 1024),
+      // Please do not ask me why not send max_tokens, no reason, this param is just shit, I dont want to explain anymore.
+    };
+
+    // add max_tokens to vision model
+    // O系列 使用 max_completion_tokens 控制token数 (https://platform.openai.com/docs/guides/reasoning#controlling-costs)
+    if (visionModel) {
+      if (isOseries) {
+        // requestPayload["max_completion_tokens"] = 23456;
       } else {
-        requestPayload = {
-          model: options.config.model,
-          prompt,
-          // URLs are only valid for 60 minutes after the image has been generated.
-          response_format: "b64_json", // using b64_json, and save image in CacheStorage
-          n: 1,
-          size: options.config?.size ?? "1024x1024",
-          quality: options.config?.quality ?? "standard",
-          style: options.config?.style ?? "vivid",
-        } as DalleRequestPayload;
-      }
-    } else {
-      const visionModel = isVisionModel(options.config.model);
-      const messages: ChatOptions["messages"] = [];
-      for (const v of options.messages) {
-        const content = visionModel
-          ? await preProcessImageAndWebReferenceContent(v)
-          : getWebReferenceMessageTextContent(v);
-        if (!(isOseries && v.role === "system"))
-          messages.push({ role: v.role, content });
-      }
-
-      // O1 support image, tools (except o4-mini for now) and system, stream, *NOT* logprobs, temperature, top_p, n yet.
-      requestPayload = {
-        messages,
-        stream: options.config.stream,
-        model: modelConfig.model,
-        temperature: !isOseries ? modelConfig.temperature : 1,
-        // max_tokens: Math.max(modelConfig.max_tokens, 1024),
-        // Please do not ask me why not send max_tokens, no reason, this param is just shit, I dont want to explain anymore.
-      };
-
-      // add max_tokens to vision model
-      // O系列 使用 max_completion_tokens 控制token数 (https://platform.openai.com/docs/guides/reasoning#controlling-costs)
-      if (visionModel) {
-        if (isOseries) {
-          // requestPayload["max_completion_tokens"] = 23456;
-        } else {
-          requestPayload["max_tokens"] = Math.max(modelConfig.max_tokens, 4000);
-        }
+        requestPayload["max_tokens"] = Math.max(modelConfig.max_tokens, 4000);
       }
     }
 
     console.log("[Request] openai payload: ", requestPayload);
 
-    const shouldStream = !isImageGenModel && !!options.config.stream;
+    const shouldStream = !!options.config.stream;
     const controller = new AbortController();
     options.onController?.(controller);
 
@@ -333,15 +273,13 @@ export class ChatGPTApi implements LLMApi {
             model?.provider?.providerName === ServiceProvider.Azure,
         );
         chatPath = this.path(
-          (isImageGenModel ? Azure.ImagePath : Azure.ChatPath)(
+          Azure.ChatPath(
             (model?.displayName ?? model?.name) as string,
             useCustomConfig ? useAccessStore.getState().azureApiVersion : "",
           ),
         );
       } else {
-        chatPath = this.path(
-          isImageGenModel ? OpenaiPath.ImagePath : OpenaiPath.ChatPath,
-        );
+        chatPath = this.path(OpenaiPath.ChatPath);
       }
       if (shouldStream) {
         let index = -1;

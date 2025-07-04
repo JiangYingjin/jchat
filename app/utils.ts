@@ -338,19 +338,6 @@ export function isVisionModel(model: string) {
   );
 }
 
-export function isOpenAIImageGenerationModel(model: string) {
-  const specialModels = ["dall-e-3", "gpt-image-1"];
-  return specialModels.some((keyword) => model === keyword);
-}
-
-export function isGPTImageModel(model: string) {
-  return "gpt-image-1" === model;
-}
-
-export function isDalle3(model: string) {
-  return "dall-e-3" === model;
-}
-
 export function getTimeoutMSByModel(model: string) {
   model = model.toLowerCase();
   if (model.startsWith("gemini-2.0-flash-exp")) {
@@ -407,9 +394,6 @@ export function isSupportRAGModel(modelName: string) {
 
 export function isFunctionCallModel(modelName: string) {
   return false;
-  if (isOpenAIImageGenerationModel(modelName)) {
-    return false;
-  }
   const functionCallModels = ["gemini", "claude", "gpt", "deepseek", "hunyuan"];
   return functionCallModels.some((keyword) => modelName.includes(keyword));
 }
