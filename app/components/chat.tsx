@@ -1264,6 +1264,103 @@ export function DeleteFileButton(props: { deleteFile: () => void }) {
   );
 }
 
+export function SystemPromptEditModal(props: {
+  onClose: () => void;
+  sessionId: string;
+  onSave: (content: string, images: string[]) => void;
+  initialContent: string;
+  initialImages: string[];
+}) {
+  const [content, setContent] = useState(props.initialContent);
+  const [attachImages, setAttachImages] = useState<string[]>(
+    props.initialImages,
+  );
+  const [uploading, setUploading] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const config = useAppConfig();
+
+  // 使用自定义 hook 处理粘贴上传图片
+  const handlePaste = usePasteImageUpload(
+    attachImages,
+    setAttachImages,
+    setUploading,
+    setContent,
+  );
+
+  const handleSave = () => {
+    props.onSave(content.trim(), attachImages);
+    props.onClose();
+  };
+
+  return (
+    <div className="modal-mask">
+      <Modal
+        title="编辑系统提示词"
+        onClose={props.onClose}
+        actions={[
+          <IconButton
+            text={Locale.UI.Cancel}
+            icon={<CancelIcon />}
+            key="cancel"
+            onClick={props.onClose}
+          />,
+          <IconButton
+            type="primary"
+            text={Locale.UI.Confirm}
+            icon={<ConfirmIcon />}
+            key="ok"
+            onClick={handleSave}
+          />,
+        ]}
+      >
+        <div className={styles["system-prompt-edit-container"]}>
+          <label
+            className={clsx(styles["system-prompt-input-panel"], {
+              [styles["system-prompt-input-panel-attach"]]:
+                attachImages.length !== 0,
+            })}
+          >
+            <textarea
+              ref={inputRef}
+              className={styles["system-prompt-input"]}
+              value={content}
+              placeholder="输入系统提示词，支持粘贴图片（Ctrl+V）..."
+              onChange={(e) => setContent(e.target.value)}
+              onPaste={handlePaste}
+              style={{
+                fontSize: config.fontSize,
+                fontFamily: config.fontFamily,
+              }}
+            />
+
+            {attachImages.length !== 0 && (
+              <div className={styles["attach-images"]}>
+                {attachImages.map((image, index) => (
+                  <div
+                    key={index}
+                    className={styles["attach-image"]}
+                    style={{ backgroundImage: `url("${image}")` }}
+                  >
+                    <div className={styles["attach-image-mask"]}>
+                      <DeleteImageButton
+                        deleteImage={() => {
+                          setAttachImages(
+                            attachImages.filter((_, i) => i !== index),
+                          );
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </label>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
 export function ShortcutKeyModal(props: { onClose: () => void }) {
   const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
   const shortcuts = [
@@ -1375,6 +1472,72 @@ function useTripleClick(messageEditRef: React.RefObject<HTMLElement>) {
   };
 
   return handleClick;
+}
+
+// 自定义 hook：处理粘贴上传图片
+function usePasteImageUpload(
+  attachImages: string[],
+  setAttachImages: (images: string[]) => void,
+  setUploading: (uploading: boolean) => void,
+  onContentChange?: (content: string) => void,
+) {
+  const chatStore = useChatStore();
+
+  const handlePaste = useCallback(
+    async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      const currentModel = chatStore.currentSession().mask.modelConfig.model;
+      if (!isVisionModel(currentModel)) {
+        return;
+      }
+      const items = (event.clipboardData || window.clipboardData).items;
+      const imageFiles: File[] = [];
+
+      // 收集所有图片文件
+      for (const item of items) {
+        if (item.kind === "file" && item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) {
+            imageFiles.push(file);
+          }
+        }
+      }
+
+      // 如果有图片文件，处理上传
+      if (imageFiles.length > 0) {
+        event.preventDefault();
+        const images: string[] = [];
+        images.push(...attachImages);
+
+        try {
+          setUploading(true);
+          const uploadPromises = imageFiles.map((file) =>
+            uploadImageRemote(file),
+          );
+          const uploadedImages = await Promise.all(uploadPromises);
+          images.push(...uploadedImages);
+
+          setAttachImages(images);
+        } catch (e) {
+          console.error("上传粘贴图片失败:", e);
+          showToast("图片上传失败，请重试");
+        } finally {
+          setUploading(false);
+        }
+      }
+
+      // 粘贴文本后，确保内容及时更新
+      if (onContentChange) {
+        setTimeout(() => {
+          if (event.currentTarget) {
+            onContentChange(event.currentTarget.value);
+          }
+        }, 0);
+      }
+    },
+    [attachImages, chatStore, setAttachImages, setUploading, onContentChange],
+  );
+
+  return handlePaste;
 }
 
 // 新增：消息操作按钮组件
@@ -2146,62 +2309,19 @@ function _Chat() {
   // edit / insert message modal
   const [isEditingMessage, setIsEditingMessage] = useState(false);
 
-  const handlePaste = useCallback(
-    async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
-      const currentModel = chatStore.currentSession().mask.modelConfig.model;
-      if (!isVisionModel(currentModel)) {
-        return;
-      }
-      const items = (event.clipboardData || window.clipboardData).items;
-      const imageFiles: File[] = [];
-
-      // 收集所有图片文件
-      for (const item of items) {
-        if (item.kind === "file" && item.type.startsWith("image/")) {
-          const file = item.getAsFile();
-          if (file) {
-            imageFiles.push(file);
-          }
-        }
-      }
-
-      // 如果有图片文件，处理上传
-      if (imageFiles.length > 0) {
-        event.preventDefault();
-        const images: string[] = [];
-        images.push(...attachImages);
-
-        try {
-          setUploading(true);
-          const uploadPromises = imageFiles.map((file) =>
-            uploadImageRemote(file),
-          );
-          const uploadedImages = await Promise.all(uploadPromises);
-          images.push(...uploadedImages);
-
-          setAttachImages(images);
-          saveChatInputImages(images);
-        } catch (e) {
-          console.error("上传粘贴图片失败:", e);
-          showToast("图片上传失败，请重试");
-        } finally {
-          setUploading(false);
-        }
-      }
-
-      // 粘贴文本后，确保高度及时变化
-      setTimeout(() => {
-        if (event.currentTarget) {
-          setUserInput(event.currentTarget.value);
-          saveChatInputText(event.currentTarget.value);
-          console.log(
-            "[UserInput][Save][Paste] 粘贴后保存未完成输入:",
-            event.currentTarget.value,
-          );
-        }
-      }, 0);
+  // 使用自定义 hook 处理粘贴上传图片
+  const handlePaste = usePasteImageUpload(
+    attachImages,
+    (images) => {
+      setAttachImages(images);
+      saveChatInputImages(images);
     },
-    [attachImages, chatStore],
+    setUploading,
+    (content) => {
+      setUserInput(content);
+      saveChatInputText(content);
+      console.log("[UserInput][Save][Paste] 粘贴后保存未完成输入:", content);
+    },
   );
 
   async function capturePhoto() {
@@ -2334,8 +2454,32 @@ function _Chat() {
   const [showShortcutKeyModal, setShowShortcutKeyModal] = useState(false);
 
   const [showChatSidePanel, setShowChatSidePanel] = useState(false);
+  const [showSystemPromptEdit, setShowSystemPromptEdit] = useState(false);
+  const [systemPromptData, setSystemPromptData] = useState<SystemMessageData>({
+    content: "",
+    images: [],
+  });
 
   const handleTripleClick = useTripleClick(messageEditRef);
+
+  // 处理系统提示词保存
+  const handleSystemPromptSave = (content: string, images: string[]) => {
+    chatStore.updateTargetSession(session, (session) => {
+      // 移除现有的 system 消息
+      session.messages = session.messages.filter((m) => m.role !== "system");
+      // 如果新内容不为空，保存到 storage，并添加 meta
+      if (content.trim() || images.length > 0) {
+        saveSystemMessageContentToStorage(session.id, content.trim(), images);
+        const newSystemMessage = createMessage({
+          role: "system",
+          content: "", // 不存内容
+        }) as SystemMetaMessage;
+        // @ts-ignore
+        newSystemMessage.contentKey = getSystemMessageContentKey(session.id);
+        session.messages.unshift(newSystemMessage);
+      }
+    });
+  };
 
   // 修改编辑消息处理函数
   const handleEditMessage = async (
@@ -2488,18 +2632,27 @@ function _Chat() {
   interface SystemMetaMessage extends ChatMessage {
     contentKey?: string;
   }
+
+  interface SystemMessageData {
+    content: string;
+    images: string[];
+  }
+
   function getSystemMessageContentKey(sessionId: string) {
     return `system_message_content_${sessionId}`;
   }
+
   async function saveSystemMessageContentToStorage(
     sessionId: string,
     content: string,
+    images: string[] = [],
   ) {
     try {
-      // 使用 IndexedDB 存储
+      // 保存文本和图片数据
+      const data: SystemMessageData = { content, images };
       const success = await systemMessageStorage.saveSystemMessage(
         sessionId,
-        content,
+        JSON.stringify(data),
       );
       if (!success) {
         throw new Error("保存到 IndexedDB 失败");
@@ -2509,15 +2662,35 @@ function _Chat() {
       alert("系统提示词保存失败，请重试。");
     }
   }
+
   async function loadSystemMessageContentFromStorage(
     sessionId: string,
-  ): Promise<string> {
+  ): Promise<SystemMessageData> {
     try {
-      const content = await systemMessageStorage.getSystemMessage(sessionId);
-      return content || "";
+      const rawContent = await systemMessageStorage.getSystemMessage(sessionId);
+      if (!rawContent) {
+        return { content: "", images: [] };
+      }
+
+      // 尝试解析为新格式（包含图片）
+      try {
+        const data = JSON.parse(rawContent) as SystemMessageData;
+        if (typeof data === "object" && data.content !== undefined) {
+          return {
+            content: data.content || "",
+            images: data.images || [],
+          };
+        }
+      } catch (e) {
+        // 如果解析失败，说明是旧格式（纯文本），兼容处理
+        return { content: rawContent, images: [] };
+      }
+
+      // 兜底返回
+      return { content: rawContent, images: [] };
     } catch (error) {
       console.error("读取系统消息失败:", error);
-      return "";
+      return { content: "", images: [] };
     }
   }
   // 自动迁移旧 system message 到新存储
@@ -2529,7 +2702,21 @@ function _Chat() {
       const sysMsg = session.messages[sysMsgIdx];
       // 旧格式：content 有内容但没有 contentKey
       if (sysMsg.content && !sysMsg.contentKey) {
-        saveSystemMessageContentToStorage(session.id, sysMsg.content);
+        // 兼容旧格式，保存为新格式
+        if (typeof sysMsg.content === "string") {
+          saveSystemMessageContentToStorage(session.id, sysMsg.content, []);
+        } else if (Array.isArray(sysMsg.content)) {
+          // 如果是多模态内容，分离文本和图片
+          const textContent = sysMsg.content
+            .filter((c: any) => c.type === "text")
+            .map((c: any) => c.text)
+            .join("");
+          const images = sysMsg.content
+            .filter((c: any) => c.type === "image_url")
+            .map((c: any) => c.image_url?.url)
+            .filter(Boolean);
+          saveSystemMessageContentToStorage(session.id, textContent, images);
+        }
         // 替换为 meta
         const newSysMsg = {
           ...sysMsg,
@@ -2591,44 +2778,39 @@ function _Chat() {
                   let systemMessage = session.messages.find(
                     (m) => m.role === "system",
                   ) as SystemMetaMessage | undefined;
-                  let systemContent = systemMessage?.content || "";
-                  // 如果只存 meta，则从 storage 取
-                  if (
-                    systemMessage &&
-                    !systemContent &&
-                    systemMessage.contentKey
-                  ) {
-                    systemContent = await loadSystemMessageContentFromStorage(
+                  let systemData: SystemMessageData = {
+                    content: "",
+                    images: [],
+                  };
+
+                  // 如果存在 system 消息且有 contentKey，从 storage 加载
+                  if (systemMessage && systemMessage.contentKey) {
+                    systemData = await loadSystemMessageContentFromStorage(
                       session.id,
                     );
-                  }
-                  // 复用双击消息编辑的逻辑
-                  const result = await showPrompt(
-                    "编辑系统提示词",
-                    typeof systemContent === "string" ? systemContent : "",
-                    15,
-                  );
-                  // 直接保存编辑内容为 system 消息内容
-                  const newContent = result.value.trim();
-                  chatStore.updateTargetSession(session, (session) => {
-                    // 移除现有的 system 消息
-                    session.messages = session.messages.filter(
-                      (m) => m.role !== "system",
-                    );
-                    // 如果新内容不为空，保存到 storage，并添加 meta
-                    if (newContent) {
-                      saveSystemMessageContentToStorage(session.id, newContent);
-                      const newSystemMessage = createMessage({
-                        role: "system",
-                        content: "", // 不存内容
-                      }) as SystemMetaMessage;
-                      // @ts-ignore
-                      newSystemMessage.contentKey = getSystemMessageContentKey(
-                        session.id,
-                      );
-                      session.messages.unshift(newSystemMessage);
+                  } else if (systemMessage?.content) {
+                    // 兼容旧格式
+                    if (typeof systemMessage.content === "string") {
+                      systemData = {
+                        content: systemMessage.content,
+                        images: [],
+                      };
+                    } else if (Array.isArray(systemMessage.content)) {
+                      const textContent = systemMessage.content
+                        .filter((c: any) => c.type === "text")
+                        .map((c: any) => c.text)
+                        .join("");
+                      const images = systemMessage.content
+                        .filter((c: any) => c.type === "image_url")
+                        .map((c: any) => c.image_url?.url)
+                        .filter(Boolean);
+                      systemData = { content: textContent, images };
                     }
-                  });
+                  }
+
+                  // 设置数据并显示编辑模态框
+                  setSystemPromptData(systemData);
+                  setShowSystemPromptEdit(true);
                 }}
               />
             </div>
@@ -3102,6 +3284,16 @@ function _Chat() {
 
       {showShortcutKeyModal && (
         <ShortcutKeyModal onClose={() => setShowShortcutKeyModal(false)} />
+      )}
+
+      {showSystemPromptEdit && (
+        <SystemPromptEditModal
+          onClose={() => setShowSystemPromptEdit(false)}
+          sessionId={session.id}
+          onSave={handleSystemPromptSave}
+          initialContent={systemPromptData.content}
+          initialImages={systemPromptData.images}
+        />
       )}
     </>
   );
