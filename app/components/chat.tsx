@@ -767,25 +767,6 @@ export function ChatActions(props: {
   );
 
   useEffect(() => {
-    if (isGPTImageModel(currentModel)) {
-      chatStore.updateTargetSession(session, (session) => {
-        session.mask.modelConfig.size = "auto";
-        session.mask.modelConfig.quality = "auto";
-        session.mask.modelConfig.style = undefined;
-        session.mask.modelConfig.background = "auto";
-      });
-    }
-    if (isDalle3(currentModel)) {
-      chatStore.updateTargetSession(session, (session) => {
-        session.mask.modelConfig.size = "1024x1024";
-        session.mask.modelConfig.quality = "standard";
-        session.mask.modelConfig.style = "vivid";
-        session.mask.modelConfig.background = undefined;
-      });
-    }
-  }, [currentModel]);
-
-  useEffect(() => {
     const show = isVisionModel(currentModel);
     setShowUploadImage(show && isMobileScreen);
     setShowUploadFile(isEnableRAG && isSupportRAGModel(currentModel));
@@ -805,13 +786,6 @@ export function ChatActions(props: {
         session.mask.modelConfig.providerName = nextModel?.provider
           ?.providerName as ServiceProvider;
       });
-      // showToast(
-      //   nextModel?.provider?.providerName == "ByteDance"
-      //     ? nextModel.displayName
-      //     : nextModel.name,
-      //   undefined,
-      //   1000,
-      // );
     }
   }, [chatStore, currentModel, models, session]);
 
