@@ -15,7 +15,7 @@ import dynamic from "next/dynamic";
 import { Path, SlotID } from "../constant";
 import { ErrorBoundary } from "./error";
 
-import { getISOLang, getLang } from "../locales";
+import { getISOLang } from "../locales";
 
 import {
   HashRouter as Router,
@@ -29,6 +29,7 @@ import { AuthPage } from "./auth";
 import { getClientConfig } from "../config/client";
 import { type ClientApi, getClientApi } from "../client/api";
 import { useAccessStore } from "../store";
+import { checkAndEvictLocalStorage } from "../utils";
 
 export function Loading(props: { noLogo?: boolean }) {
   return (
@@ -191,6 +192,8 @@ export function Home() {
   useHtmlLang();
 
   useEffect(() => {
+    // 启动时检查并可选地清理 localStorage（如需自动清理可设置阈值）
+    checkAndEvictLocalStorage(2); // 如需自动清理可传入字节阈值
     console.log("[Config] got config from build time", getClientConfig());
     useAccessStore.getState().fetch();
   }, []);

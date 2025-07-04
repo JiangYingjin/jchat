@@ -39,9 +39,6 @@ import UploadIcon from "../icons/upload.svg";
 import ImageIcon from "../icons/image.svg";
 import CameraIcon from "../icons/camera.svg";
 
-import LightIcon from "../icons/light.svg";
-import DarkIcon from "../icons/dark.svg";
-import AutoIcon from "../icons/auto.svg";
 import BottomIcon from "../icons/bottom.svg";
 import StopIcon from "../icons/pause.svg";
 import RobotIcon from "../icons/robot.svg";
@@ -50,7 +47,7 @@ import SizeIcon from "../icons/size.svg";
 import QualityIcon from "../icons/hd.svg";
 import StyleIcon from "../icons/palette.svg";
 import PluginIcon from "../icons/plugin.svg";
-import ShortcutkeyIcon from "../icons/shortcutkey.svg";
+
 import ReloadIcon from "../icons/reload.svg";
 import HeadphoneIcon from "../icons/headphone.svg";
 import SearchCloseIcon from "../icons/search_close.svg";
@@ -64,7 +61,6 @@ import {
   BOT_HELLO,
   createMessage,
   useAccessStore,
-  Theme,
   useAppConfig,
   DEFAULT_TOPIC,
   ModelType,
@@ -104,7 +100,7 @@ import {
   GPTImageSize,
   GPTImageBackground,
 } from "../typing";
-import { Prompt, usePromptStore } from "../store/prompt";
+
 import Locale from "../locales";
 
 import { IconButton } from "./button";
@@ -275,78 +271,6 @@ function useSubmitHandler() {
   return {
     shouldSubmit,
   };
-}
-
-export type RenderPrompt = Pick<Prompt, "title" | "content">;
-
-export function PromptHints(props: {
-  prompts: RenderPrompt[];
-  onPromptSelect: (prompt: RenderPrompt) => void;
-}) {
-  const noPrompts = props.prompts.length === 0;
-  const [selectIndex, setSelectIndex] = useState(0);
-  const selectedRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    setSelectIndex(0);
-  }, [props.prompts.length]);
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (noPrompts || e.metaKey || e.altKey || e.ctrlKey) {
-        return;
-      }
-      // arrow up / down to select prompt
-      const changeIndex = (delta: number) => {
-        e.stopPropagation();
-        e.preventDefault();
-        const nextIndex = Math.max(
-          0,
-          Math.min(props.prompts.length - 1, selectIndex + delta),
-        );
-        setSelectIndex(nextIndex);
-        selectedRef.current?.scrollIntoView({
-          block: "center",
-        });
-      };
-
-      if (e.key === "ArrowUp") {
-        changeIndex(1);
-      } else if (e.key === "ArrowDown") {
-        changeIndex(-1);
-      } else if (e.key === "Enter") {
-        const selectedPrompt = props.prompts.at(selectIndex);
-        if (selectedPrompt) {
-          props.onPromptSelect(selectedPrompt);
-        }
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-
-    return () => window.removeEventListener("keydown", onKeyDown);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.prompts.length, selectIndex]);
-
-  if (noPrompts) return null;
-  return (
-    <div className={styles["prompt-hints"]}>
-      {props.prompts.map((prompt, i) => (
-        <div
-          ref={i === selectIndex ? selectedRef : null}
-          className={clsx(styles["prompt-hint"], {
-            [styles["prompt-hint-selected"]]: i === selectIndex,
-          })}
-          key={prompt.title + i.toString()}
-          onClick={() => props.onPromptSelect(prompt)}
-          onMouseEnter={() => setSelectIndex(i)}
-        >
-          <div className={styles["hint-title"]}>{prompt.title}</div>
-          <div className={styles["hint-content"]}>{prompt.content}</div>
-        </div>
-      ))}
-    </div>
-  );
 }
 
 function ClearContextDivider() {
@@ -623,10 +547,8 @@ export function ChatActions(props: {
   setUploading: (uploading: boolean) => void;
   showPromptModal: () => void;
   scrollToBottom: () => void;
-  showPromptHints: () => void;
   hitBottom: boolean;
   uploading: boolean;
-  setShowShortcutKeyModal: React.Dispatch<React.SetStateAction<boolean>>;
   setUserInput: (input: string) => void;
   setShowChatSidePanel: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
@@ -661,16 +583,6 @@ export function ChatActions(props: {
     chatStore.updateTargetSession(session, (session) => {
       session.mask.usePlugins = !session.mask.usePlugins;
     });
-  }
-
-  // switch themes
-  const theme = config.theme;
-  function nextTheme() {
-    const themes = [Theme.Auto, Theme.Light, Theme.Dark];
-    const themeIndex = themes.indexOf(theme);
-    const nextIndex = (themeIndex + 1) % themes.length;
-    const nextTheme = themes[nextIndex];
-    config.update((config) => (config.theme = nextTheme));
   }
 
   // stop all responses
@@ -809,50 +721,6 @@ export function ChatActions(props: {
             alwaysFullWidth={false}
           />
         )}
-        {/* <ChatAction
-          onClick={nextTheme}
-          text={Locale.Chat.InputActions.Theme[theme]}
-          icon={
-            <>
-              {theme === Theme.Auto ? (
-                <AutoIcon />
-              ) : theme === Theme.Light ? (
-                <LightIcon />
-              ) : theme === Theme.Dark ? (
-                <DarkIcon />
-              ) : null}
-            </>
-          }
-        />
-
-        <ChatAction
-          onClick={props.showPromptHints}
-          text={Locale.Chat.InputActions.Prompt}
-          icon={<PromptIcon />}
-        />
-
-        <ChatAction
-          onClick={() => {
-            navigate(Path.Masks);
-          }}
-          text={Locale.Chat.InputActions.Masks}
-          icon={<MaskIcon />}
-        />
-
-        <ChatAction
-          text={Locale.Chat.InputActions.Clear}
-          icon={<BreakIcon />}
-          onClick={() => {
-            chatStore.updateTargetSession(session, (session) => {
-              if (session.clearContextIndex === session.messages.length) {
-                session.clearContextIndex = undefined;
-              } else {
-                session.clearContextIndex = session.messages.length;
-                session.memoryPrompt = ""; // will clear memory
-              }
-            });
-          }}
-        /> */}
 
         {config.pluginConfig.enable && isFunctionCallModel(currentModel) && (
           <ChatAction
@@ -898,21 +766,6 @@ export function ChatActions(props: {
           />
         )}
 
-        {/* {!isFunctionCallModel(currentModel) &&
-          isEnableWebSearch &&
-          !isOpenAIImageGenerationModel(currentModel) && (
-            <ChatAction
-              onClick={switchWebSearch}
-              text={
-                webSearch
-                  ? Locale.Chat.InputActions.CloseWebSearch
-                  : Locale.Chat.InputActions.OpenWebSearch
-              }
-              icon={webSearch ? <SearchOpenIcon /> : <SearchCloseIcon />}
-              alwaysFullWidth={false}
-            />
-          )} */}
-
         {isClaudeThinkingModel(currentModel) && (
           <ChatAction
             onClick={switchClaudeThinking}
@@ -949,16 +802,6 @@ export function ChatActions(props: {
                   providerName as ServiceProvider;
                 session.mask.syncGlobalConfig = false;
               });
-              // if (providerName == "ByteDance") {
-              //   const selectedModel = models.find(
-              //     (m) =>
-              //       m.name == model &&
-              //       m?.provider?.providerName == providerName,
-              //   );
-              //   showToast(selectedModel?.displayName ?? "", undefined, 1000);
-              // } else {
-              //   showToast(model, undefined, 1000);
-              // }
             }}
           />
         )}
@@ -1091,20 +934,6 @@ export function ChatActions(props: {
               }}
             />
           )}
-
-        {/* {showPlugins(currentProviderName, currentModel) && (
-          <ChatAction
-            onClick={() => {
-              if (pluginStore.getAll().length == 0) {
-                navigate(Path.Plugins);
-              } else {
-                setShowPluginSelector(true);
-              }
-            }}
-            text={Locale.Plugin.Name}
-            icon={<PluginIcon />}
-          />
-        )} */}
         {showPluginSelector && (
           <Selector
             multiple
@@ -1121,7 +950,6 @@ export function ChatActions(props: {
             }}
           />
         )}
-
         {couldStop && (
           <ChatAction
             onClick={stopAll}
@@ -1130,27 +958,6 @@ export function ChatActions(props: {
             alwaysFullWidth={false}
           />
         )}
-        {/* {!props.hitBottom && (
-          <ChatAction
-            onClick={props.scrollToBottom}
-            text={Locale.Chat.InputActions.ToBottom}
-            icon={<BottomIcon />}
-          />
-        )} */}
-        {/* {props.hitBottom && (
-          <ChatAction
-            onClick={props.showPromptModal}
-            text={Locale.Chat.InputActions.Settings}
-            icon={<SettingsIcon />}
-          />
-        )} */}
-        {/* {!isMobileScreen && (
-          <ChatAction
-            onClick={() => props.setShowShortcutKeyModal(true)}
-            text={Locale.Chat.ShortcutKey.Title}
-            icon={<ShortcutkeyIcon />}
-          />
-        )} */}
       </>
       <div className={styles["chat-input-actions-end"]}>
         {config.realtimeConfig.enable && (
@@ -1343,67 +1150,6 @@ export function SystemPromptEditModal(props: {
             fontFamily={config.fontFamily}
             onConfirm={handleSave}
           />
-        </div>
-      </Modal>
-    </div>
-  );
-}
-
-export function ShortcutKeyModal(props: { onClose: () => void }) {
-  const isMac = navigator.platform.toUpperCase().indexOf("MAC") >= 0;
-  const shortcuts = [
-    {
-      title: Locale.Chat.ShortcutKey.newChat,
-      keys: isMac ? ["⌘", "Shift", "O"] : ["Ctrl", "Shift", "O"],
-    },
-    { title: Locale.Chat.ShortcutKey.focusInput, keys: ["Shift", "Esc"] },
-    {
-      title: Locale.Chat.ShortcutKey.copyLastCode,
-      keys: isMac ? ["⌘", "Shift", ";"] : ["Ctrl", "Shift", ";"],
-    },
-    {
-      title: Locale.Chat.ShortcutKey.copyLastMessage,
-      keys: isMac ? ["⌘", "Shift", "C"] : ["Ctrl", "Shift", "C"],
-    },
-    {
-      title: Locale.Chat.ShortcutKey.showShortcutKey,
-      keys: isMac ? ["⌘", "/"] : ["Ctrl", "/"],
-    },
-  ];
-  return (
-    <div className="modal-mask">
-      <Modal
-        title={Locale.Chat.ShortcutKey.Title}
-        onClose={props.onClose}
-        actions={[
-          <IconButton
-            type="primary"
-            text={Locale.UI.Confirm}
-            icon={<ConfirmIcon />}
-            key="ok"
-            onClick={() => {
-              props.onClose();
-            }}
-          />,
-        ]}
-      >
-        <div className={styles["shortcut-key-container"]}>
-          <div className={styles["shortcut-key-grid"]}>
-            {shortcuts.map((shortcut, index) => (
-              <div key={index} className={styles["shortcut-key-item"]}>
-                <div className={styles["shortcut-key-title"]}>
-                  {shortcut.title}
-                </div>
-                <div className={styles["shortcut-key-keys"]}>
-                  {shortcut.keys.map((key, i) => (
-                    <div key={i} className={styles["shortcut-key"]}>
-                      <span>{key}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
         </div>
       </Modal>
     </div>
@@ -1765,18 +1511,6 @@ function _Chat() {
     }
   }, [isMobileScreen, session.longInputMode, chatStore]);
 
-  // prompt hints
-  const promptStore = usePromptStore();
-  const [promptHints, setPromptHints] = useState<RenderPrompt[]>([]);
-  const onSearch = useDebouncedCallback(
-    (text: string) => {
-      const matchedPrompts = promptStore.search(text);
-      setPromptHints(matchedPrompts);
-    },
-    100,
-    { leading: true, trailing: true },
-  );
-
   // auto grow input
   const [inputRows, setInputRows] = useState(2);
   const measure = useDebouncedCallback(
@@ -1813,9 +1547,6 @@ function _Chat() {
     del: () => chatStore.deleteSession(chatStore.currentSessionIndex),
   });
 
-  // only search prompts when user input is short
-  const SEARCH_TEXT_LIMIT = 30;
-
   useEffect(() => {
     // try to load from local storage
 
@@ -1833,7 +1564,7 @@ function _Chat() {
     setAttachImages(images);
   }, []);
 
-  // onInput 只做本地保存和提示词联想，不 setUserInput
+  // onInput 只做本地保存，不 setUserInput
   const onInput = (
     text: string,
     event?: React.FormEvent<HTMLTextAreaElement>,
@@ -1846,19 +1577,6 @@ function _Chat() {
     ) {
       setUserInput(text);
     }
-    const n = text.trim().length;
-    // clear search results
-    if (n === 0) {
-      setPromptHints([]);
-    } else if (text.match(ChatCommandPrefix)) {
-      // setPromptHints(chatCommands.search(text));
-    } else if (!config.disablePromptHint && n < SEARCH_TEXT_LIMIT) {
-      // check if need to trigger auto completion
-      if (text.startsWith("/")) {
-        let searchText = text.slice(1);
-        onSearch(searchText);
-      }
-    }
   };
 
   const doSubmit = (input: string) => {
@@ -1867,7 +1585,6 @@ function _Chat() {
     const matchCommand = chatCommands.match(value);
     if (matchCommand.matched) {
       setUserInput("");
-      setPromptHints([]);
       matchCommand.invoke();
       if (inputRef.current) inputRef.current.value = "";
       return;
@@ -1880,30 +1597,12 @@ function _Chat() {
     setAttachFiles([]);
     chatStore.setLastInput(value);
     setUserInput("");
-    setPromptHints([]);
     if (inputRef.current) inputRef.current.value = "";
     saveChatInputText(inputRef.current?.value ?? "");
     saveChatInputScrollTop(inputRef.current?.scrollTop ?? 0);
     saveChatInputImages([]);
     if (!isMobileScreen) inputRef.current?.focus();
     setAutoScroll(true);
-  };
-
-  const onPromptSelect = (prompt: RenderPrompt) => {
-    setTimeout(() => {
-      setPromptHints([]);
-
-      const matchedChatCommand = chatCommands.match(prompt.content);
-      if (matchedChatCommand.matched) {
-        // if user is selecting a chat command, just trigger it
-        matchedChatCommand.invoke();
-        setUserInput("");
-      } else {
-        // or fill the prompt
-        setUserInput(prompt.content);
-      }
-      inputRef.current?.focus();
-    }, 30);
   };
 
   // stop response
@@ -1966,7 +1665,7 @@ function _Chat() {
       e.preventDefault();
       return;
     }
-    if (shouldSubmit(e) && promptHints.length === 0) {
+    if (shouldSubmit(e)) {
       doSubmit(userInput);
       e.preventDefault();
     }
@@ -2438,9 +2137,6 @@ function _Chat() {
     setAttachFiles(uploadFiles);
   }
 
-  // 快捷键 shortcut keys
-  const [showShortcutKeyModal, setShowShortcutKeyModal] = useState(false);
-
   const [showChatSidePanel, setShowChatSidePanel] = useState(false);
   const [showSystemPromptEdit, setShowSystemPromptEdit] = useState(false);
   const [systemPromptData, setSystemPromptData] = useState<SystemMessageData>({
@@ -2674,19 +2370,6 @@ function _Chat() {
     <>
       <div className={styles.chat} key={session.id}>
         <div className="window-header" data-tauri-drag-region>
-          {/* {isMobileScreen && (
-            <div className="window-actions">
-              <div className={"window-action-button"}>
-                <IconButton
-                  icon={<ReturnIcon />}
-                  bordered
-                  title={Locale.Chat.Actions.ChatList}
-                  onClick={() => navigate(Path.Home)}
-                />
-              </div>
-            </div>
-          )} */}
-
           <div
             className={clsx("window-header-title", styles["chat-body-title"])}
           >
@@ -3089,11 +2772,6 @@ function _Chat() {
               })}
             </div>
             <div className={styles["chat-input-panel"]}>
-              <PromptHints
-                prompts={promptHints}
-                onPromptSelect={onPromptSelect}
-              />
-
               <ChatActions
                 uploadImage={uploadImage}
                 capturePhoto={capturePhoto}
@@ -3105,18 +2783,6 @@ function _Chat() {
                 scrollToBottom={scrollToBottom}
                 hitBottom={hitBottom}
                 uploading={uploading}
-                showPromptHints={() => {
-                  // Click again to close
-                  if (promptHints.length > 0) {
-                    setPromptHints([]);
-                    return;
-                  }
-
-                  inputRef.current?.focus();
-                  setUserInput("/");
-                  onSearch("");
-                }}
-                setShowShortcutKeyModal={setShowShortcutKeyModal}
                 setUserInput={setUserInput}
                 setShowChatSidePanel={setShowChatSidePanel}
               />
@@ -3132,7 +2798,6 @@ function _Chat() {
                   ref={inputRef}
                   className={styles["chat-input"]}
                   defaultValue={userInput}
-                  // placeholder="Enter 或 Ctrl + Enter 发送，Shift + Enter 换行，/ 搜索提示词，: 使用命令"
                   onInput={(e) => onInput(e.currentTarget.value, e)}
                   onKeyDown={onInputKeyDown}
                   onPaste={handlePaste}
@@ -3173,32 +2838,6 @@ function _Chat() {
                     })}
                   </div>
                 )}
-                {attachFiles.length != 0 && (
-                  <div className={styles["attach-files"]}>
-                    {attachFiles.map((file, index) => {
-                      return (
-                        <div
-                          key={index}
-                          className={styles["attach-file"]}
-                          title={file.originalFilename}
-                        >
-                          <div className={styles["attach-file-info"]}>
-                            {file.originalFilename}
-                          </div>
-                          <div className={styles["attach-file-mask"]}>
-                            <DeleteFileButton
-                              deleteFile={() => {
-                                setAttachFiles(
-                                  attachFiles.filter((_, i) => i !== index),
-                                );
-                              }}
-                            />
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
                 <IconButton
                   icon={<SendWhiteIcon />}
                   className={styles["chat-input-send"]}
@@ -3220,10 +2859,6 @@ function _Chat() {
             setIsEditingMessage(false);
           }}
         />
-      )}
-
-      {showShortcutKeyModal && (
-        <ShortcutKeyModal onClose={() => setShowShortcutKeyModal(false)} />
       )}
 
       {showSystemPromptEdit && (
