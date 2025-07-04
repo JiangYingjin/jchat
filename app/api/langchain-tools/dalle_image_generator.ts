@@ -43,26 +43,10 @@ export class DallEAPIWrapper extends StructuredTool {
       .describe(
         "A text description of the desired image(s). input must be a english prompt.",
       ),
-    size: z
-      .enum(["1024x1024", "1024x1792", "1792x1024"])
-      .default("1024x1024")
-      .describe("images size"),
-    quality: z
-      .enum(["standard", "hd"])
-      .default("standard")
-      .describe(
-        "hd increases image detail and clarity at the cost of doubled consumption, and should not be used unless specified by the user.",
-      ),
-    style: z
-      .enum(["vivid", "natural"])
-      .default("vivid")
-      .describe(
-        "vivid leads to the creation of more intense and dramatic images, while Natural results in images that look more realistic and less exaggerated.",
-      ),
   });
 
   /** @ignore */
-  async _call({ prompt, size, quality, style }: z.infer<typeof this.schema>) {
+  async _call({ prompt }: z.infer<typeof this.schema>) {
     let imageUrl;
     const apiUrl = `${this.baseURL}/images/generations`;
     try {
@@ -76,9 +60,6 @@ export class DallEAPIWrapper extends StructuredTool {
           model: this.model,
           prompt: prompt,
           n: this.n,
-          size: size,
-          quality: quality,
-          style: style,
         }),
       };
       if (this.model != "dall-e-3") {
@@ -92,7 +73,6 @@ export class DallEAPIWrapper extends StructuredTool {
             model: this.model,
             prompt: prompt,
             n: this.n,
-            size: size,
           }),
         };
       }

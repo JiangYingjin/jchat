@@ -65,10 +65,6 @@ export const DEFAULT_CONFIG = {
     compressProviderName: "",
     enableInjectSystemPrompts: false,
     template: config?.template ?? DEFAULT_INPUT_TEMPLATE,
-    size: "1024x1024",
-    quality: "standard",
-    style: "vivid",
-    background: "auto",
   },
 
   pluginConfig: {
@@ -186,31 +182,6 @@ export const useAppConfig = createPersistStore(
     version: 3.9,
     migrate(persistedState, version) {
       const state = persistedState as ChatConfig;
-
-      if (version < 3.5) {
-        state.customModels = "claude,claude-100k";
-      }
-
-      if (version < 3.6) {
-        // 移除强制设置系统提示注入为 true 的逻辑
-        // state.modelConfig.enableInjectSystemPrompts = true;
-      }
-
-      if (version < 3.7) {
-        state.enableAutoGenerateTitle = true;
-      }
-
-      if (version < 3.8) {
-        state.lastUpdate = Date.now();
-      }
-
-      if (version < 3.9) {
-        state.modelConfig.template =
-          state.modelConfig.template !== DEFAULT_INPUT_TEMPLATE
-            ? state.modelConfig.template
-            : (config?.template ?? DEFAULT_INPUT_TEMPLATE);
-      }
-
       return state as any;
     },
   },

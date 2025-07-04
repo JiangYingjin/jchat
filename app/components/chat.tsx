@@ -617,15 +617,6 @@ export function ChatActions(props: {
   const [showUploadImage, setShowUploadImage] = useState(false);
   const [showUploadFile, setShowUploadFile] = useState(false);
 
-  const [showSizeSelector, setShowSizeSelector] = useState(false);
-  const [showQualitySelector, setShowQualitySelector] = useState(false);
-  const [showStyleSelector, setShowStyleSelector] = useState(false);
-  const [showBackgroundSelector, setShowBackgroundSelector] = useState(false);
-  const currentSize = session.mask.modelConfig?.size ?? "1024x1024";
-  const currentQuality = session.mask.modelConfig?.quality ?? "standard";
-  const currentStyle = session.mask.modelConfig?.style ?? "vivid";
-  const currentBackground = session.mask.modelConfig?.background ?? "auto";
-
   const isMobileScreen = useMobileScreen();
 
   const accessStore = useAccessStore();
