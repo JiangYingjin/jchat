@@ -464,6 +464,131 @@ function ChatAction(props: {
   );
 }
 
+// 新增：双击确认的 ChatAction 组件
+function DoubleClickChatAction(props: {
+  text: string;
+  icon?: JSX.Element;
+  loding?: boolean;
+  innerNode?: JSX.Element;
+  onClick: () => void;
+  style?: React.CSSProperties;
+  alwaysFullWidth?: boolean;
+  confirmText?: string; // 确认时的文本
+}) {
+  const iconRef = useRef<HTMLDivElement>(null);
+  const textRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState({
+    full: 16,
+    icon: 16,
+  });
+  const [clickCount, setClickCount] = useState(0);
+  const [isConfirmed, setIsConfirmed] = useState(false);
+
+  function updateWidth() {
+    if (!iconRef.current || !textRef.current) return;
+    const getWidth = (dom: HTMLDivElement) => dom.getBoundingClientRect().width;
+    const textWidth = getWidth(textRef.current);
+    const iconWidth = getWidth(iconRef.current);
+    setWidth({
+      full: textWidth + iconWidth,
+      icon: iconWidth,
+    });
+  }
+
+  // 计算最终宽度
+  const iconWidthValue = width.icon;
+  const fullWidthValue = width.full;
+  const style =
+    props.icon && !props.loding
+      ? ({
+          "--icon-width": `${iconWidthValue}px`,
+          "--full-width": `${fullWidthValue}px`,
+          ...props.style,
+          ...(props.alwaysFullWidth ? { width: `${fullWidthValue}px` } : {}),
+          // 当确认时改变样式
+          ...(isConfirmed
+            ? {
+                backgroundColor: "var(--primary-light, #e6f0fa)",
+                color: "var(--primary, #2196f3)",
+                border: "1.5px solid var(--primary)",
+              }
+            : {}),
+        } as React.CSSProperties)
+      : props.loding
+        ? ({
+            "--icon-width": `30px`,
+            "--full-width": `30px`,
+            ...props.style,
+            ...(props.alwaysFullWidth ? { width: `30px` } : {}),
+          } as React.CSSProperties)
+        : props.style;
+
+  // 保证 alwaysFullWidth 时宽度总是最新
+  useEffect(() => {
+    if (props.alwaysFullWidth) {
+      updateWidth();
+    }
+  }, [props.text, props.icon, props.alwaysFullWidth]);
+
+  const handleClick = () => {
+    if (props.loding) return;
+
+    const newClickCount = clickCount + 1;
+    setClickCount(newClickCount);
+
+    if (newClickCount === 1) {
+      // 第一次点击，显示确认状态
+      setIsConfirmed(true);
+      // 3秒后自动重置
+      setTimeout(() => {
+        setClickCount(0);
+        setIsConfirmed(false);
+      }, 3000);
+    } else if (newClickCount === 2) {
+      // 第二次点击，执行操作
+      props.onClick();
+      setClickCount(0);
+      setIsConfirmed(false);
+    }
+  };
+
+  const handleMouseLeave = () => {
+    // 鼠标移出时重置状态
+    setClickCount(0);
+    setIsConfirmed(false);
+  };
+
+  const displayText = isConfirmed ? props.confirmText || "重试" : props.text;
+
+  return (
+    <div
+      className={clsx(styles["chat-input-action"], "clickable")}
+      onClick={handleClick}
+      onMouseEnter={props.icon ? updateWidth : undefined}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={props.icon ? updateWidth : undefined}
+      style={style}
+    >
+      {props.icon ? (
+        <div ref={iconRef} className={styles["icon"]}>
+          {props.loding ? <LoadingIcon /> : props.icon}
+        </div>
+      ) : null}
+      <div
+        className={
+          props.icon && !props.loding
+            ? `${styles["text"]}${props.alwaysFullWidth ? " " + styles["text-always-show"] : ""}`
+            : undefined
+        }
+        ref={textRef}
+      >
+        {!props.loding && displayText}
+      </div>
+      {props.innerNode}
+    </div>
+  );
+}
+
 function useScrollToBottom(
   scrollRef: RefObject<HTMLDivElement>,
   detach: boolean = false,
@@ -1285,6 +1410,51 @@ function useTripleClick(messageEditRef: React.RefObject<HTMLElement>) {
   };
 
   return handleClick;
+}
+
+// 新增：消息操作按钮组件
+function MessageActions(props: {
+  message: ChatMessage;
+  onResend: (message: ChatMessage) => void;
+  onDelete: (msgId: string) => void;
+  onUserStop: (messageId: string) => void;
+  index: number;
+}) {
+  const { message, onResend, onDelete, onUserStop, index } = props;
+
+  return (
+    <div className={styles["chat-input-actions"]}>
+      {message.streaming ? (
+        <ChatAction
+          text={Locale.Chat.Actions.Stop}
+          icon={<StopIcon />}
+          onClick={() => onUserStop(message.id ?? index)}
+          alwaysFullWidth={false}
+        />
+      ) : (
+        <>
+          <DoubleClickChatAction
+            text={Locale.Chat.Actions.Retry}
+            icon={<ResetIcon />}
+            onClick={() => onResend(message)}
+            alwaysFullWidth={false}
+          />
+          <ChatAction
+            text={Locale.Chat.Actions.Copy}
+            icon={<CopyIcon />}
+            onClick={() => copyToClipboard(getMessageTextContent(message))}
+            alwaysFullWidth={false}
+          />
+          <ChatAction
+            text={Locale.Chat.Actions.Delete}
+            icon={<DeleteIcon />}
+            onClick={() => onDelete(message.id ?? index)}
+            alwaysFullWidth={false}
+          />
+        </>
+      )}
+    </div>
+  );
 }
 
 function _Chat() {
@@ -2546,9 +2716,6 @@ function _Chat() {
                 title={Locale.Chat.Actions.Delete}
                 onClick={async () => {
                   chatStore.deleteSession(chatStore.currentSessionIndex);
-                  // if (await showConfirm(Locale.Home.DeleteChat)) {
-                  //   chatStore.deleteSession(chatStore.currentSessionIndex);
-                  // }
                 }}
               />
             </div>
@@ -2623,47 +2790,6 @@ function _Chat() {
                         }
                       >
                         <div className={styles["chat-message-header"]}>
-                          {/* <div className={styles["chat-message-avatar"]}>
-                            <div className={styles["chat-message-edit"]}>
-                              <IconButton
-                                icon={<EditIcon />}
-                                aria={Locale.Chat.Actions.Edit}
-                                onClick={async () => {
-                                  const newMessage = await showPrompt(
-                                    Locale.Chat.Actions.Edit,
-                                    getMessageTextContent(message),
-                                    10,
-                                  );
-                                  let newContent: string | MultimodalContent[] =
-                                    newMessage;
-                                  const images = getMessageImages(message);
-                                  if (images.length > 0) {
-                                    newContent = [
-                                      { type: "text", text: newMessage },
-                                    ];
-                                    for (let i = 0; i < images.length; i++) {
-                                      newContent.push({
-                                        type: "image_url",
-                                        image_url: {
-                                          url: images[i],
-                                        },
-                                      });
-                                    }
-                                  }
-                                  chatStore.updateTargetSession(
-                                    session,
-                                    (session) => {
-                                      const m = session.mask.context
-                                        .concat(session.messages)
-                                        .find((m) => m.id === message.id);
-                                      if (m) {
-                                        m.content = newContent;
-                                      }
-                                    },
-                                  );
-                                }}
-                              ></IconButton>
-                            </div>  */}
                           {!isUser && (
                             <div className={styles["chat-model-name"]}>
                               {message.model}
@@ -2672,71 +2798,13 @@ function _Chat() {
 
                           {showActions && (
                             <div className={styles["chat-message-actions"]}>
-                              <div className={styles["chat-input-actions"]}>
-                                {message.streaming ? (
-                                  <ChatAction
-                                    text={Locale.Chat.Actions.Stop}
-                                    icon={<StopIcon />}
-                                    onClick={() => onUserStop(message.id ?? i)}
-                                    alwaysFullWidth={false}
-                                  />
-                                ) : (
-                                  <>
-                                    <ChatAction
-                                      text={Locale.Chat.Actions.Retry}
-                                      icon={<ResetIcon />}
-                                      onClick={() => onResend(message)}
-                                      alwaysFullWidth={false}
-                                    />
-                                    <ChatAction
-                                      text={Locale.Chat.Actions.Copy}
-                                      icon={<CopyIcon />}
-                                      onClick={() =>
-                                        copyToClipboard(
-                                          getMessageTextContent(message),
-                                        )
-                                      }
-                                      alwaysFullWidth={false}
-                                    />
-                                    <ChatAction
-                                      text={Locale.Chat.Actions.Delete}
-                                      icon={<DeleteIcon />}
-                                      onClick={() => onDelete(message.id ?? i)}
-                                      alwaysFullWidth={false}
-                                    />
-                                    {config.ttsConfig.enable && (
-                                      <ChatAction
-                                        text={
-                                          speechStatus
-                                            ? Locale.Chat.Actions.StopSpeech
-                                            : Locale.Chat.Actions.Speech
-                                        }
-                                        icon={
-                                          speechStatus ? (
-                                            <SpeakStopIcon />
-                                          ) : (
-                                            <SpeakIcon />
-                                          )
-                                        }
-                                        onClick={() =>
-                                          openaiSpeech(
-                                            getMessageTextContent(message),
-                                          )
-                                        }
-                                        alwaysFullWidth={false}
-                                      />
-                                    )}
-                                    <ChatAction
-                                      text={Locale.Chat.Actions.Edit}
-                                      icon={<EditIcon />}
-                                      onClick={() =>
-                                        handleEditMessage(message, "content")
-                                      }
-                                      alwaysFullWidth={false}
-                                    />
-                                  </>
-                                )}
-                              </div>
+                              <MessageActions
+                                message={message}
+                                onResend={onResend}
+                                onDelete={onDelete}
+                                onUserStop={onUserStop}
+                                index={i}
+                              />
                             </div>
                           )}
                         </div>
@@ -2937,71 +3005,13 @@ function _Chat() {
                             <div
                               className={styles["chat-message-bottom-actions"]}
                             >
-                              <div className={styles["chat-input-actions"]}>
-                                {message.streaming ? (
-                                  <ChatAction
-                                    text={Locale.Chat.Actions.Stop}
-                                    icon={<StopIcon />}
-                                    onClick={() => onUserStop(message.id ?? i)}
-                                    alwaysFullWidth={false}
-                                  />
-                                ) : (
-                                  <>
-                                    <ChatAction
-                                      text={Locale.Chat.Actions.Retry}
-                                      icon={<ResetIcon />}
-                                      onClick={() => onResend(message)}
-                                      alwaysFullWidth={false}
-                                    />
-                                    <ChatAction
-                                      text={Locale.Chat.Actions.Copy}
-                                      icon={<CopyIcon />}
-                                      onClick={() =>
-                                        copyToClipboard(
-                                          getMessageTextContent(message),
-                                        )
-                                      }
-                                      alwaysFullWidth={false}
-                                    />
-                                    <ChatAction
-                                      text={Locale.Chat.Actions.Delete}
-                                      icon={<DeleteIcon />}
-                                      onClick={() => onDelete(message.id ?? i)}
-                                      alwaysFullWidth={false}
-                                    />
-                                    {config.ttsConfig.enable && (
-                                      <ChatAction
-                                        text={
-                                          speechStatus
-                                            ? Locale.Chat.Actions.StopSpeech
-                                            : Locale.Chat.Actions.Speech
-                                        }
-                                        icon={
-                                          speechStatus ? (
-                                            <SpeakStopIcon />
-                                          ) : (
-                                            <SpeakIcon />
-                                          )
-                                        }
-                                        onClick={() =>
-                                          openaiSpeech(
-                                            getMessageTextContent(message),
-                                          )
-                                        }
-                                        alwaysFullWidth={false}
-                                      />
-                                    )}
-                                    <ChatAction
-                                      text={Locale.Chat.Actions.Edit}
-                                      icon={<EditIcon />}
-                                      onClick={() =>
-                                        handleEditMessage(message, "content")
-                                      }
-                                      alwaysFullWidth={false}
-                                    />
-                                  </>
-                                )}
-                              </div>
+                              <MessageActions
+                                message={message}
+                                onResend={onResend}
+                                onDelete={onDelete}
+                                onUserStop={onUserStop}
+                                index={i}
+                              />
                             </div>
                           )}
 
