@@ -12,23 +12,12 @@ import React, {
 import SendWhiteIcon from "../icons/send-white.svg";
 
 import BrainIcon from "../icons/brain.svg";
-import RenameIcon from "../icons/rename.svg";
 import ExportIcon from "../icons/share.svg";
-import ReturnIcon from "../icons/return.svg";
 import CopyIcon from "../icons/copy.svg";
-import SpeakIcon from "../icons/speak.svg";
-import SpeakStopIcon from "../icons/speak-stop.svg";
 import LoadingIcon from "../icons/three-dots.svg";
 import LoadingButtonIcon from "../icons/loading.svg";
-import PromptIcon from "../icons/prompt.svg";
-import MaskIcon from "../icons/mask.svg";
-import MaxIcon from "../icons/max.svg";
-import MinIcon from "../icons/min.svg";
 import ResetIcon from "../icons/reload.svg";
-import BreakIcon from "../icons/break.svg";
-import SettingsIcon from "../icons/chat-settings.svg";
 import DeleteIcon from "../icons/clear.svg";
-import PinIcon from "../icons/pin.svg";
 import EditIcon from "../icons/edit.svg";
 import ConfirmIcon from "../icons/confirm.svg";
 import CloseIcon from "../icons/close.svg";
@@ -39,26 +28,17 @@ import UploadIcon from "../icons/upload.svg";
 import ImageIcon from "../icons/image.svg";
 import CameraIcon from "../icons/camera.svg";
 
-import BottomIcon from "../icons/bottom.svg";
 import StopIcon from "../icons/pause.svg";
 import RobotIcon from "../icons/robot.svg";
 import CheckmarkIcon from "../icons/checkmark.svg";
-import SizeIcon from "../icons/size.svg";
-import QualityIcon from "../icons/hd.svg";
-import StyleIcon from "../icons/palette.svg";
-import PluginIcon from "../icons/plugin.svg";
 
 import ReloadIcon from "../icons/reload.svg";
 import HeadphoneIcon from "../icons/headphone.svg";
-import SearchCloseIcon from "../icons/search_close.svg";
-import SearchOpenIcon from "../icons/search_open.svg";
 import EnableThinkingIcon from "../icons/thinking_enable.svg";
 import DisableThinkingIcon from "../icons/thinking_disable.svg";
-import BackgroundIcon from "../icons/background.svg";
 import {
   ChatMessage,
   useChatStore,
-  BOT_HELLO,
   createMessage,
   useAccessStore,
   useAppConfig,
@@ -70,7 +50,6 @@ import {
 
 import {
   copyToClipboard,
-  selectOrCopy,
   autoGrowTextArea,
   useMobileScreen,
   getMessageTextContent,
@@ -117,10 +96,9 @@ import {
   CHAT_INPUT_SCROLL_TOP,
   ServiceProvider,
 } from "../constant";
-import { Avatar } from "./emoji";
 import { ContextPrompts, MaskAvatar, MaskConfig } from "./mask";
 import { useMaskStore } from "../store/mask";
-import { ChatCommandPrefix, useChatCommand, useCommand } from "../command";
+import { useChatCommand, useCommand } from "../command";
 import { prettyObject } from "../utils/format";
 import { ExportMessageModal } from "./exporter";
 import { getClientConfig } from "../config/client";
@@ -137,7 +115,6 @@ import clsx from "clsx";
 
 import { FileInfo } from "../client/platforms/utils";
 import { ThinkingContent } from "./thinking-content";
-import { buildMultimodalContent } from "../utils/chat";
 import { MessageContentEditPanel } from "./MessageContentEditPanel";
 
 const ttsPlayer = createTTSPlayer();
@@ -1507,16 +1484,6 @@ function _Chat() {
       e.preventDefault();
     }
   };
-  const onRightClick = (e: any, message: ChatMessage) => {
-    // copy to clipboard
-    if (selectOrCopy(e.currentTarget, getMessageTextContent(message))) {
-      if (userInput.length === 0) {
-        setUserInput(getMessageTextContent(message));
-      }
-
-      e.preventDefault();
-    }
-  };
 
   const deleteMessage = (msgId?: string) => {
     chatStore.updateTargetSession(
@@ -1594,10 +1561,6 @@ function _Chat() {
       console.error("[Chat] failed to resend", message);
       return;
     }
-
-    // // delete the original messages
-    // deleteMessage(userMessage.id);
-    // deleteMessage(botMessage?.id);
 
     // resend the message
     setIsLoading(true);
@@ -2294,21 +2257,6 @@ function _Chat() {
                 }}
               />
             </div>
-            {/* {showMaxIcon && (
-              <div className="window-action-button">
-                <IconButton
-                  icon={config.tightBorder ? <MinIcon /> : <MaxIcon />}
-                  bordered
-                  title={Locale.Chat.Actions.FullScreen}
-                  aria={Locale.Chat.Actions.FullScreen}
-                  onClick={() => {
-                    config.update(
-                      (config) => (config.tightBorder = !config.tightBorder),
-                    );
-                  }}
-                />
-              </div>
-            )} */}
           </div>
 
           <PromptToast
