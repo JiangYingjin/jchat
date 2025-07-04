@@ -152,6 +152,7 @@ import clsx from "clsx";
 
 import { FileInfo } from "../client/platforms/utils";
 import { ThinkingContent } from "./thinking-content";
+import { buildMultimodalContent } from "../utils/chat";
 
 const ttsPlayer = createTTSPlayer();
 
@@ -1324,7 +1325,7 @@ export function SystemPromptEditModal(props: {
               ref={inputRef}
               className={styles["system-prompt-input"]}
               value={content}
-              placeholder="输入系统提示词，支持粘贴图片（Ctrl+V）..."
+              // placeholder="输入系统提示词，支持粘贴图片（Ctrl+V）..."
               onChange={(e) => setContent(e.target.value)}
               onPaste={handlePaste}
               style={{
@@ -2467,7 +2468,6 @@ function _Chat() {
     chatStore.updateTargetSession(session, (session) => {
       // 移除现有的 system 消息
       session.messages = session.messages.filter((m) => m.role !== "system");
-      // 如果新内容不为空，保存到 storage，并添加 meta
       if (content.trim() || images.length > 0) {
         saveSystemMessageContentToStorage(session.id, content.trim(), images);
         const newSystemMessage = createMessage({

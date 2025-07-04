@@ -679,3 +679,22 @@ export function streamWithThink(
   console.debug("[ChatAPI] start");
   chatApi(chatPath, headers, requestPayload, tools); // call fetchEventSource
 }
+
+/**
+ * 组装文本和图片为 MultimodalContent[]
+ */
+export function buildMultimodalContent(
+  text: string,
+  images: string[] = [],
+): MultimodalContent[] {
+  const result: MultimodalContent[] = [];
+  if (text && text.trim()) {
+    result.push({ type: "text", text: text.trim() });
+  }
+  for (const url of images) {
+    if (url) {
+      result.push({ type: "image_url", image_url: { url } });
+    }
+  }
+  return result;
+}

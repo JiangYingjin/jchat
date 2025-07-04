@@ -38,6 +38,7 @@ import { FileInfo, WebApi } from "../client/platforms/utils";
 import { usePluginStore } from "./plugin";
 import { TavilySearchResponse } from "@tavily/core";
 import { MYFILES_BROWSER_TOOLS_SYSTEM_PROMPT } from "../prompt";
+import { buildMultimodalContent } from "../utils/chat";
 
 export interface ChatToolMessage {
   toolName: string;
@@ -697,10 +698,27 @@ export const useChatStore = createPersistStore(
             }
           }
           if (content && typeof content === "string" && content.trim() !== "") {
+            let multimodalContent: import("../client/api").MultimodalContent[];
+            try {
+              const data = JSON.parse(content);
+              if (
+                typeof data === "object" &&
+                (data.content !== undefined || data.images !== undefined)
+              ) {
+                multimodalContent = buildMultimodalContent(
+                  data.content,
+                  data.images,
+                );
+              } else {
+                multimodalContent = buildMultimodalContent(content, []);
+              }
+            } catch (e) {
+              multimodalContent = buildMultimodalContent(content, []);
+            }
             systemPrompt = [
               {
                 ...systemMessage,
-                content,
+                content: multimodalContent,
               },
             ];
           }
