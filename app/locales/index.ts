@@ -83,16 +83,3 @@ export function getISOLang() {
   const lang = getLang();
   return isoLangString[lang] ?? lang;
 }
-
-const DEFAULT_STT_LANG = "zh-CN";
-export const STT_LANG_MAP: Record<Lang, string> = {
-  cn: "zh-CN",
-};
-
-export function getSTTLang(): string {
-  try {
-    return STT_LANG_MAP[getLang()];
-  } catch {
-    return DEFAULT_STT_LANG;
-  }
-}

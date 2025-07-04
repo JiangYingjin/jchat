@@ -351,10 +351,6 @@ export const VISION_MODEL_REGEXES = [
 ];
 
 export const EXCLUDE_VISION_MODEL_REGEXES = [/claude-3-5-haiku-20241022/];
-
-export const DEFAULT_STT_ENGINE = "WebAPI";
-export const DEFAULT_STT_ENGINES = ["WebAPI", "OpenAI Whisper"];
-export const FIREFOX_DEFAULT_STT_ENGINE = "OpenAI Whisper";
 const openaiModels = [
   // As of July 2024, gpt-4o-mini should be used in place of gpt-3.5-turbo,
   // as it is cheaper, more capable, multimodal, and just as fast. gpt-3.5-turbo is still available for use in the API.

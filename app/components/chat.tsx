@@ -10,8 +10,7 @@ import React, {
 } from "react";
 
 import SendWhiteIcon from "../icons/send-white.svg";
-import VoiceOpenIcon from "../icons/voice-open.svg";
-import VoiceCloseIcon from "../icons/voice-close.svg";
+
 import BrainIcon from "../icons/brain.svg";
 import RenameIcon from "../icons/rename.svg";
 import ExportIcon from "../icons/share.svg";
@@ -87,7 +86,6 @@ import {
   safeLocalStorage,
   isSupportRAGModel,
   isFunctionCallModel,
-  isFirefox,
   isClaudeThinkingModel,
   isGPTImageModel,
   isDalle3,
@@ -125,9 +123,7 @@ import {
 import { useNavigate } from "react-router-dom";
 import {
   CHAT_PAGE_SIZE,
-  DEFAULT_STT_ENGINE,
   DEFAULT_TTS_ENGINE,
-  FIREFOX_DEFAULT_STT_ENGINE,
   ModelProvider,
   Path,
   REQUEST_TIMEOUT_MS,
@@ -154,11 +150,6 @@ import { isEmpty } from "lodash-es";
 import { getModelProvider } from "../utils/model";
 import clsx from "clsx";
 
-import {
-  OpenAITranscriptionApi,
-  SpeechApi,
-  WebTranscriptionApi,
-} from "../utils/speech";
 import { FileInfo } from "../client/platforms/utils";
 import { ThinkingContent } from "./thinking-content";
 
@@ -1719,35 +1710,6 @@ function _Chat() {
     }
   };
 
-  const [isListening, setIsListening] = useState(false);
-  const [isTranscription, setIsTranscription] = useState(false);
-  const [speechApi, setSpeechApi] = useState<any>(null);
-
-  const startListening = async () => {
-    if (speechApi) {
-      showToast(Locale.Settings.STT.StartListening);
-      await speechApi.start();
-      setIsListening(true);
-    }
-  };
-
-  const stopListening = async () => {
-    if (speechApi) {
-      if (config.sttConfig.engine !== DEFAULT_STT_ENGINE)
-        setIsTranscription(true);
-      showToast(Locale.Settings.STT.StopListening);
-      await speechApi.stop();
-      setIsListening(false);
-    }
-  };
-
-  const onRecognitionEnd = (finalTranscript: string) => {
-    console.log(finalTranscript);
-    if (finalTranscript) setUserInput(finalTranscript);
-    if (config.sttConfig.engine !== DEFAULT_STT_ENGINE)
-      setIsTranscription(false);
-  };
-
   const doSubmit = (input: string) => {
     const value = inputRef.current?.value ?? input;
     if (value.trim() === "" && isEmpty(attachImages)) return;
@@ -1830,16 +1792,6 @@ function _Chat() {
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    if (isFirefox()) config.sttConfig.engine = FIREFOX_DEFAULT_STT_ENGINE;
-    setSpeechApi(
-      config.sttConfig.engine === DEFAULT_STT_ENGINE
-        ? new WebTranscriptionApi((transcription) =>
-            onRecognitionEnd(transcription),
-          )
-        : new OpenAITranscriptionApi((transcription) =>
-            onRecognitionEnd(transcription),
-          ),
-    );
   }, [session]);
 
   // check if should send message
@@ -3118,19 +3070,6 @@ function _Chat() {
                     })}
                   </div>
                 )}
-                {config.sttConfig.enable && (
-                  <IconButton
-                    icon={isListening ? <VoiceCloseIcon /> : <VoiceOpenIcon />}
-                    className={styles["chat-input-stt"]}
-                    type="secondary"
-                    onClick={async () =>
-                      isListening
-                        ? await stopListening()
-                        : await startListening()
-                    }
-                    loding={isTranscription}
-                  />
-                )}
                 <IconButton
                   icon={<SendWhiteIcon />}
                   className={styles["chat-input-send"]}
@@ -3140,23 +3079,6 @@ function _Chat() {
               </label>
             </div>
           </div>
-          {/* <div
-            className={clsx(styles["chat-side-panel"], {
-              [styles["mobile"]]: isMobileScreen,
-              [styles["chat-side-panel-show"]]: showChatSidePanel,
-            })}
-          >
-            {showChatSidePanel && (
-              <RealtimeChat
-                onClose={() => {
-                  setShowChatSidePanel(false);
-                }}
-                onStartVoice={async () => {
-                  console.log("start voice");
-                }}
-              />
-            )}
-          </div> */}
         </div>
       </div>
       {showExport && (

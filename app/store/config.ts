@@ -11,8 +11,6 @@ import { getClientConfig } from "../config/client";
 import {
   DEFAULT_INPUT_TEMPLATE,
   DEFAULT_MODELS,
-  DEFAULT_STT_ENGINE,
-  DEFAULT_STT_ENGINES,
   DEFAULT_TTS_ENGINE,
   DEFAULT_TTS_ENGINES,
   DEFAULT_TTS_MODEL,
@@ -29,8 +27,6 @@ export type ModelType = (typeof DEFAULT_MODELS)[number]["name"];
 export type TTSModelType = (typeof DEFAULT_TTS_MODELS)[number];
 export type TTSVoiceType = (typeof DEFAULT_TTS_VOICES)[number];
 export type TTSEngineType = (typeof DEFAULT_TTS_ENGINES)[number];
-
-export type STTEngineType = (typeof DEFAULT_STT_ENGINES)[number];
 
 export enum Theme {
   Auto = "auto",
@@ -98,11 +94,6 @@ export const DEFAULT_CONFIG = {
     speed: 1.0,
   },
 
-  sttConfig: {
-    enable: false,
-    engine: DEFAULT_STT_ENGINE,
-  },
-
   realtimeConfig: {
     enable: false,
     provider: "OpenAI" as ServiceProvider,
@@ -121,7 +112,6 @@ export type ChatConfig = typeof DEFAULT_CONFIG;
 export type ModelConfig = ChatConfig["modelConfig"];
 export type PluginConfig = ChatConfig["pluginConfig"];
 export type TTSConfig = ChatConfig["ttsConfig"];
-export type STTConfig = ChatConfig["sttConfig"];
 export type RealtimeConfig = ChatConfig["realtimeConfig"];
 
 export function limitNumber(
@@ -149,12 +139,6 @@ export const TTSConfigValidator = {
   },
   speed(x: number) {
     return limitNumber(x, 0.25, 4.0, 1.0);
-  },
-};
-
-export const STTConfigValidator = {
-  engine(x: string) {
-    return x as STTEngineType;
   },
 };
 
