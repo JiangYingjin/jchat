@@ -153,6 +153,7 @@ import clsx from "clsx";
 import { FileInfo } from "../client/platforms/utils";
 import { ThinkingContent } from "./thinking-content";
 import { buildMultimodalContent } from "../utils/chat";
+import { MessageContentEditPanel } from "./MessageContentEditPanel";
 
 const ttsPlayer = createTTSPlayer();
 
@@ -1280,6 +1281,18 @@ export function SystemPromptEditModal(props: {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const config = useAppConfig();
 
+  // 自动聚焦并定位到末尾，滚动条也滚到底
+  useEffect(() => {
+    setTimeout(() => {
+      if (inputRef.current) {
+        inputRef.current.selectionStart = inputRef.current.value.length;
+        inputRef.current.selectionEnd = inputRef.current.value.length;
+        inputRef.current.focus();
+        inputRef.current.scrollTop = inputRef.current.scrollHeight;
+      }
+    }, 100);
+  }, []);
+
   // 使用自定义 hook 处理粘贴上传图片
   const handlePaste = usePasteImageUpload(
     attachImages,
@@ -1315,47 +1328,21 @@ export function SystemPromptEditModal(props: {
         ]}
       >
         <div className={styles["system-prompt-edit-container"]}>
-          <label
-            className={clsx(styles["system-prompt-input-panel"], {
-              [styles["system-prompt-input-panel-attach"]]:
-                attachImages.length !== 0,
-            })}
-          >
-            <textarea
-              ref={inputRef}
-              className={styles["system-prompt-input"]}
-              value={content}
-              // placeholder="输入系统提示词，支持粘贴图片（Ctrl+V）..."
-              onChange={(e) => setContent(e.target.value)}
-              onPaste={handlePaste}
-              style={{
-                fontSize: config.fontSize,
-                fontFamily: config.fontFamily,
-              }}
-            />
-
-            {attachImages.length !== 0 && (
-              <div className={styles["attach-images"]}>
-                {attachImages.map((image, index) => (
-                  <div
-                    key={index}
-                    className={styles["attach-image"]}
-                    style={{ backgroundImage: `url("${image}")` }}
-                  >
-                    <div className={styles["attach-image-mask"]}>
-                      <DeleteImageButton
-                        deleteImage={() => {
-                          setAttachImages(
-                            attachImages.filter((_, i) => i !== index),
-                          );
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </label>
+          <MessageContentEditPanel
+            value={content}
+            images={attachImages}
+            onChange={(newContent, newImages) => {
+              setContent(newContent);
+              setAttachImages(newImages);
+            }}
+            textareaRef={inputRef}
+            uploading={uploading}
+            setUploading={setUploading}
+            handlePaste={handlePaste}
+            fontSize={config.fontSize}
+            fontFamily={config.fontFamily}
+            onConfirm={handleSave}
+          />
         </div>
       </Modal>
     </div>
@@ -2482,6 +2469,13 @@ function _Chat() {
   };
 
   // 修改编辑消息处理函数
+  const [showEditMessageModal, setShowEditMessageModal] = useState(false);
+  const [editMessageData, setEditMessageData] = useState<{
+    message: ChatMessage;
+    type: "content" | "reasoningContent";
+    select: { anchorText: string; extendText: string };
+  } | null>(null);
+
   const handleEditMessage = async (
     message: ChatMessage,
     type: "content" | "reasoningContent" = "content",
@@ -2491,99 +2485,45 @@ function _Chat() {
     },
   ) => {
     if (message.streaming) return;
+    setEditMessageData({ message, type, select });
+    setShowEditMessageModal(true);
 
-    const content =
-      type === "content"
-        ? getMessageTextContent(message)
-        : getMessageTextReasoningContent(message);
-
-    console.log("[handleEditMessage] select:", select);
-
-    // 如果有选中的文本，尝试定位到该位置
+    // 用户消息或系统提示词，光标定位到最后
+    if (message.role === "user" || message.role === "system") {
+      setTimeout(() => {
+        if (messageEditRef.current) {
+          const textarea = messageEditRef.current;
+          textarea.selectionStart = textarea.value.length;
+          textarea.selectionEnd = textarea.value.length;
+          textarea.focus();
+        }
+      }, 100);
+      return;
+    }
+    // 模型消息才执行三击定位
     if (select.anchorText || select.extendText) {
       setTimeout(() => {
         if (messageEditRef.current) {
           const textarea = messageEditRef.current;
           let searchText = select.anchorText || select.extendText;
-          if (!searchText) {
-            return;
-          }
-
-          // 搜索文本在 content 中的位置
-          const searchIndex = content.indexOf(searchText);
-          if (searchIndex === -1) {
-            return;
-          }
-
-          // 计算目标文本所在的行号
-          const contentBeforeSearch = content.substring(0, searchIndex);
+          if (!searchText) return;
+          let textContent =
+            type === "content"
+              ? getMessageTextContent(message)
+              : getMessageTextReasoningContent(message);
+          const searchIndex = textContent.indexOf(searchText);
+          if (searchIndex === -1) return;
+          const contentBeforeSearch = textContent.substring(0, searchIndex);
           const lineNumber = contentBeforeSearch.split("\n").length;
-
-          // 获取 textarea 的样式
           const style = window.getComputedStyle(textarea);
           const lineHeight = parseInt(style.lineHeight);
-
-          // 计算精确的滚动位置
-          const position = (lineNumber - 1) * 21;
-
-          console.log(
-            "[handleEditMessage] search text:",
-            searchText,
-            "line:",
-            lineNumber,
-            "position:",
-            position,
-          );
-
-          // 滚动到对应的 position，使用平滑滚动
+          const position = (lineNumber - 1) * (lineHeight || 21);
           textarea.scrollTo({
-            top: Math.max(0, position), // 稍微往上一点，让目标行更明显
+            top: Math.max(0, position),
             behavior: "smooth",
           });
         }
       }, 100);
-    }
-
-    const result = await showPrompt(
-      Locale.Chat.Actions.Edit,
-      content,
-      15,
-      messageEditRef,
-    );
-
-    // 处理编辑后的内容
-    let newMessage = result.value;
-    let newContent: string | MultimodalContent[] = newMessage;
-    const images = getMessageImages(message);
-    if (type === "content" && images.length > 0) {
-      newContent = [{ type: "text", text: newMessage }];
-      for (let i = 0; i < images.length; i++) {
-        newContent.push({
-          type: "image_url",
-          image_url: {
-            url: images[i],
-          },
-        });
-      }
-    }
-
-    // 更新消息内容
-    chatStore.updateTargetSession(session, (session) => {
-      const m = session.mask.context
-        .concat(session.messages)
-        .find((m) => m.id === message.id);
-      if (m) {
-        if (type === "content") {
-          m.content = newContent;
-        }
-        if (type === "reasoningContent") {
-          m.reasoningContent = newContent as string;
-        }
-      }
-    });
-
-    if (result.byCtrlEnter && message.role === "user") {
-      onResend(message);
     }
   };
 
@@ -3295,6 +3235,52 @@ function _Chat() {
           initialImages={systemPromptData.images}
         />
       )}
+      {showEditMessageModal && editMessageData && (
+        <EditMessageWithImageModal
+          onClose={() => setShowEditMessageModal(false)}
+          initialContent={
+            editMessageData.type === "content"
+              ? getMessageTextContent(editMessageData.message)
+              : getMessageTextReasoningContent(editMessageData.message)
+          }
+          initialImages={getMessageImages(editMessageData.message)}
+          onSave={(
+            newContent: string,
+            newImages: string[],
+            retryOnConfirm?: boolean,
+          ) => {
+            chatStore.updateTargetSession(session, (session) => {
+              const m = session.mask.context
+                .concat(session.messages)
+                .find((m) => m.id === editMessageData.message.id);
+              if (m) {
+                if (editMessageData.type === "content") {
+                  if (newImages.length > 0) {
+                    m.content = [
+                      { type: "text" as const, text: newContent },
+                      ...newImages.map((url: string) => ({
+                        type: "image_url" as const,
+                        image_url: { url },
+                      })),
+                    ] as import("../client/api").MultimodalContent[];
+                  } else {
+                    m.content = newContent;
+                  }
+                }
+                if (editMessageData.type === "reasoningContent") {
+                  m.reasoningContent = newContent;
+                }
+              }
+            });
+            if (retryOnConfirm && editMessageData.message.role === "user") {
+              onResend(editMessageData.message);
+            }
+          }}
+          title={Locale.Chat.Actions.Edit}
+          textareaRef={messageEditRef}
+          message={editMessageData.message}
+        />
+      )}
     </>
   );
 }
@@ -3303,4 +3289,78 @@ export function Chat() {
   const chatStore = useChatStore();
   const sessionIndex = chatStore.currentSessionIndex;
   return <_Chat key={sessionIndex}></_Chat>;
+}
+
+export function EditMessageWithImageModal(props: {
+  onClose: () => void;
+  initialContent: string;
+  initialImages: string[];
+  onSave: (content: string, images: string[], retryOnConfirm?: boolean) => void;
+  title?: string;
+  textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  message?: ChatMessage;
+}) {
+  const [content, setContent] = useState(props.initialContent);
+  const [attachImages, setAttachImages] = useState<string[]>(
+    props.initialImages,
+  );
+  const [uploading, setUploading] = useState(false);
+  const config = useAppConfig();
+  const handlePaste = usePasteImageUpload(
+    attachImages,
+    setAttachImages,
+    setUploading,
+    setContent,
+  );
+  // ctrl+enter 触发 retry
+  const handleConfirm = () => {
+    props.onSave(content.trim(), attachImages, true);
+    props.onClose();
+  };
+  // 鼠标点击按钮不触发 retry
+  const handleSave = () => {
+    props.onSave(content.trim(), attachImages, false);
+    props.onClose();
+  };
+  return (
+    <div className="modal-mask">
+      <Modal
+        title={props.title || "编辑消息"}
+        onClose={props.onClose}
+        actions={[
+          <IconButton
+            text={Locale.UI.Cancel}
+            icon={<CancelIcon />}
+            key="cancel"
+            onClick={props.onClose}
+          />,
+          <IconButton
+            type="primary"
+            text={Locale.UI.Confirm}
+            icon={<ConfirmIcon />}
+            key="ok"
+            onClick={handleSave}
+          />,
+        ]}
+      >
+        <div className={styles["system-prompt-edit-container"]}>
+          <MessageContentEditPanel
+            value={content}
+            images={attachImages}
+            onChange={(newContent, newImages) => {
+              setContent(newContent);
+              setAttachImages(newImages);
+            }}
+            textareaRef={props.textareaRef}
+            uploading={uploading}
+            setUploading={setUploading}
+            handlePaste={handlePaste}
+            fontSize={config.fontSize}
+            fontFamily={config.fontFamily}
+            onConfirm={handleConfirm}
+          />
+        </div>
+      </Modal>
+    </div>
+  );
 }
