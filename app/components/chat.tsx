@@ -1982,7 +1982,7 @@ function _Chat() {
   }
 
   function getSystemMessageContentKey(sessionId: string) {
-    return `system_message_content_${sessionId}`;
+    return sessionId;
   }
 
   async function saveSystemMessageContentToStorage(

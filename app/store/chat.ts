@@ -884,7 +884,7 @@ export const useChatStore = createPersistStore(
   },
   {
     name: StoreKey.Chat,
-    version: 3.3,
+    version: 3.4,
     async migrate(persistedState, version) {
       const state = persistedState as any;
       const newState = JSON.parse(
@@ -912,17 +912,6 @@ export const useChatStore = createPersistStore(
         });
       }
 
-      // 移除系统提示注入相关的迁移逻辑
-      // s.mask.modelConfig = {
-      //   ...s.mask.modelConfig,
-      //   ...(!s.mask.modelConfig.hasOwnProperty("enableInjectSystemPrompts")
-      //     ? {
-      //         enableInjectSystemPrompts:
-      //           config.modelConfig.enableInjectSystemPrompts,
-      //       }
-      //     : {}),
-      // };
-
       // add default summarize model for every session
       if (version < 3.2) {
         newState.sessions.forEach((s) => {
@@ -931,121 +920,6 @@ export const useChatStore = createPersistStore(
           s.mask.modelConfig.compressProviderName =
             config.modelConfig.compressProviderName;
         });
-      }
-
-      // 自动迁移系统消息到新存储格式
-      if (version < 3.3) {
-        try {
-          // 先迁移localStorage中的数据到IndexedDB
-          await systemMessageStorage.migrateSystemMessagesToJChatDB();
-
-          // 收集所有需要处理的会话ID
-          const sessionIds: string[] = [];
-
-          for (const s of newState.sessions) {
-            const sysMsgIdx = s.messages.findIndex(
-              (m: any) => m.role === "system",
-            );
-            if (sysMsgIdx >= 0) {
-              const sysMsg = s.messages[sysMsgIdx];
-
-              // 情况1: 旧格式 - content 有内容但没有 contentKey
-              if (sysMsg.content && !(sysMsg as any).contentKey) {
-                sessionIds.push(s.id);
-
-                // 保存到 IndexedDB
-                if (
-                  typeof window !== "undefined" &&
-                  typeof sysMsg.content === "string"
-                ) {
-                  const success = await systemMessageStorage.saveSystemMessage(
-                    s.id,
-                    sysMsg.content,
-                  );
-                  if (success) {
-                    console.log(`成功保存会话 ${s.id} 的系统消息到 IndexedDB`);
-                  } else {
-                    console.error(
-                      `保存会话 ${s.id} 的系统消息到 IndexedDB 失败`,
-                    );
-                  }
-                }
-
-                // 替换为 meta 格式
-                const newSysMsg = {
-                  ...sysMsg,
-                  content: "",
-                };
-                (newSysMsg as any).contentKey =
-                  `system_message_content_${s.id}`;
-                s.messages[sysMsgIdx] = newSysMsg;
-              }
-              // 情况2: 新格式 - 有 contentKey 但没有内容
-              else if (!sysMsg.content && (sysMsg as any).contentKey) {
-                sessionIds.push(s.id);
-                // 验证 IndexedDB 中是否有对应的内容
-                const isValid =
-                  await systemMessageStorage.validateSystemMessage(s.id);
-                if (!isValid) {
-                  console.warn(
-                    `会话 ${s.id} 的系统消息在 IndexedDB 中不存在或为空`,
-                  );
-                }
-              }
-              // 情况3: 错误格式 - 显示为错误信息
-              else if (
-                sysMsg.isError &&
-                sysMsg.content &&
-                typeof sysMsg.content === "string"
-              ) {
-                try {
-                  const errorContent = JSON.parse(sysMsg.content);
-                  if (
-                    errorContent.error &&
-                    errorContent.message === "empty response"
-                  ) {
-                    console.log(`发现错误格式的系统消息，会话 ${s.id}`);
-
-                    // 尝试从 IndexedDB 恢复
-                    const recoveredContent =
-                      await systemMessageStorage.getSystemMessage(s.id);
-                    if (recoveredContent && recoveredContent.trim() !== "") {
-                      // 恢复成功
-                      sysMsg.content = recoveredContent;
-                      sysMsg.isError = false;
-                      console.log(`成功恢复会话 ${s.id} 的系统消息`);
-                    } else {
-                      // 恢复失败，删除该系统消息
-                      s.messages.splice(sysMsgIdx, 1);
-                      console.log(`无法恢复会话 ${s.id} 的系统消息，已删除`);
-                    }
-                  }
-                } catch (e) {
-                  // 不是错误格式，跳过
-                }
-              }
-            }
-          }
-
-          // 验证迁移结果
-          if (sessionIds.length > 0) {
-            const validationResult =
-              await systemMessageStorage.validateAllSystemMessages(sessionIds);
-            console.log(
-              `迁移验证结果: 有效 ${validationResult.valid.length} 个，无效 ${validationResult.invalid.length} 个`,
-            );
-
-            if (validationResult.invalid.length > 0) {
-              console.warn(
-                "以下会话的系统消息迁移可能有问题:",
-                validationResult.invalid,
-              );
-            }
-          }
-        } catch (error) {
-          console.error("系统消息迁移过程中出现错误:", error);
-          // 不抛出错误，让应用继续运行
-        }
       }
 
       return newState as any;
@@ -1134,67 +1008,7 @@ class SystemMessageStorage {
     }
   }
 
-  // 迁移旧 SystemMessages.systemMessages 到新 JChat.systemMessages
-  async migrateSystemMessagesToJChatDB(): Promise<void> {
-    if (typeof window === "undefined" || typeof indexedDB === "undefined") {
-      // SSR/Node 环境下不执行迁移
-      return;
-    }
-    if (localStorage.getItem("system_message_migrated_to_jchat")) return;
-    const oldDB = await new Promise<IDBDatabase | null>((resolve, reject) => {
-      const request = indexedDB.open("SystemMessages", 1);
-      request.onerror = () => resolve(null); // 没有旧库也算迁移完成
-      request.onsuccess = () => resolve(request.result);
-    });
-    if (!oldDB) {
-      localStorage.setItem("system_message_migrated_to_jchat", "1");
-      return;
-    }
-    if (!oldDB.objectStoreNames.contains("systemMessages")) {
-      oldDB.close();
-      localStorage.setItem("system_message_migrated_to_jchat", "1");
-      return;
-    }
-    const oldTx = oldDB.transaction(["systemMessages"], "readonly");
-    const oldStore = oldTx.objectStore("systemMessages");
-    const allData = await new Promise<any[]>((resolve, reject) => {
-      const req = oldStore.getAll();
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-    if (!allData.length) {
-      oldDB.close();
-      localStorage.setItem("system_message_migrated_to_jchat", "YES");
-      return;
-    }
-    const newDB = await this.initDB();
-    const newTx = newDB.transaction([this.storeName], "readwrite");
-    const newStore = newTx.objectStore(this.storeName);
-    for (const item of allData) {
-      let sessionId = item.sessionId;
-      if (!sessionId && item.key) {
-        sessionId = item.key.replace("system_message_content_", "");
-      }
-      if (!sessionId) continue;
-      const newData = {
-        sessionId,
-        content: item.content,
-        timestamp: item.timestamp,
-      };
-      await new Promise((resolve, reject) => {
-        const req = newStore.put(newData);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      });
-    }
-    oldDB.close();
-    localStorage.setItem("system_message_migrated_to_jchat", "1");
-    console.log(
-      `系统消息已迁移到 JChat.systemMessages，数量：${allData.length}`,
-    );
-  }
-
-  // 添加数据验证方法
+  // 验证系统消息是否存在且有效
   async validateSystemMessage(sessionId: string): Promise<boolean> {
     try {
       const content = await this.getSystemMessage(sessionId);
@@ -1205,7 +1019,7 @@ class SystemMessageStorage {
     }
   }
 
-  // 添加批量验证方法
+  // 批量验证系统消息
   async validateAllSystemMessages(
     sessionIds: string[],
   ): Promise<{ valid: string[]; invalid: string[] }> {
@@ -1225,6 +1039,5 @@ class SystemMessageStorage {
   }
 }
 
-// 创建全局实例并自动迁移
+// 创建全局实例
 export const systemMessageStorage = new SystemMessageStorage();
-systemMessageStorage.migrateSystemMessagesToJChatDB();
