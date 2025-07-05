@@ -4,7 +4,6 @@ import {
   ApiPath,
   OPENAI_BASE_URL,
   ANTHROPIC_BASE_URL,
-  STABILITY_BASE_URL,
 } from "../constant";
 import { getHeaders } from "../client/api";
 import { getClientConfig } from "../config/client";
@@ -18,8 +17,6 @@ const isApp = getClientConfig()?.buildMode === "export";
 const DEFAULT_OPENAI_URL = isApp ? OPENAI_BASE_URL : ApiPath.OpenAI;
 
 const DEFAULT_ANTHROPIC_URL = isApp ? ANTHROPIC_BASE_URL : ApiPath.Anthropic;
-
-const DEFAULT_STABILITY_URL = isApp ? STABILITY_BASE_URL : ApiPath.Stability;
 
 const DEFAULT_ACCESS_STATE = {
   accessCode: "",
@@ -35,10 +32,6 @@ const DEFAULT_ACCESS_STATE = {
   anthropicUrl: DEFAULT_ANTHROPIC_URL,
   anthropicApiKey: "",
   anthropicApiVersion: "2023-06-01",
-
-  //stability
-  stabilityUrl: DEFAULT_STABILITY_URL,
-  stabilityApiKey: "",
 
   // server config
   needCode: true,
@@ -96,9 +89,7 @@ export const useAccessStore = createPersistStore(
     isValidAnthropic() {
       return ensure(get(), ["anthropicApiKey"]);
     },
-    isValidStability() {
-      return ensure(get(), ["stabilityApiKey"]);
-    },
+
     isAuthorized() {
       this.fetch();
 
@@ -106,7 +97,6 @@ export const useAccessStore = createPersistStore(
       return (
         this.isValidOpenAI() ||
         this.isValidAnthropic() ||
-        this.isValidStability() ||
         !this.enabledAccessControl()
       );
     },

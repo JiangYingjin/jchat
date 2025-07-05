@@ -8,8 +8,6 @@ export const RELEASE_URL = `${REPO_URL}/releases`;
 
 export const RUNTIME_CONFIG_DOM = "danger-runtime-config";
 
-export const STABILITY_BASE_URL = "https://api.stability.ai";
-
 export const OPENAI_BASE_URL = "https://api.openai.com";
 export const ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 
@@ -29,7 +27,6 @@ export enum ApiPath {
   Cors = "",
   OpenAI = "/api/openai",
   Anthropic = "/api/anthropic",
-  Stability = "/api/stability",
   Artifacts = "/api/artifacts",
 }
 
@@ -72,19 +69,12 @@ export const EXPORT_MESSAGE_CLASS_NAME = "export-markdown";
 export enum ServiceProvider {
   OpenAI = "OpenAI",
   Anthropic = "Anthropic",
-  Stability = "Stability",
 }
 
 export enum ModelProvider {
-  Stability = "Stability",
   GPT = "GPT",
   Claude = "Claude",
 }
-
-export const Stability = {
-  GeneratePath: "v2beta/stable-image/generate",
-  ExampleEndpoint: "https://api.stability.ai",
-};
 
 export const Anthropic = {
   ChatPath: "v1/messages",

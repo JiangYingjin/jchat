@@ -24,10 +24,6 @@ declare global {
       DEFAULT_MODEL?: string; // to control default model in every new chat window
       VISION_MODELS?: string; // to control vision models
 
-      // stability only
-      STABILITY_URL?: string;
-      STABILITY_API_KEY?: string;
-
       // google tag manager
       GTM_ID?: string;
 
@@ -102,7 +98,6 @@ export const getServerSideConfig = () => {
       defaultModel = "";
   }
 
-  const isStability = !!process.env.STABILITY_API_KEY;
   const isAnthropic = !!process.env.ANTHROPIC_API_KEY;
   // const apiKeyEnvVar = process.env.OPENAI_API_KEY ?? "";
   // const apiKeys = apiKeyEnvVar.split(",").map((v) => v.trim());
@@ -120,10 +115,6 @@ export const getServerSideConfig = () => {
     baseUrl: process.env.BASE_URL,
     apiKey: getApiKey(process.env.OPENAI_API_KEY),
     openaiOrgId: process.env.OPENAI_ORG_ID,
-
-    isStability,
-    stabilityUrl: process.env.STABILITY_URL,
-    stabilityApiKey: getApiKey(process.env.STABILITY_API_KEY),
 
     isAnthropic,
     anthropicApiKey: getApiKey(process.env.ANTHROPIC_API_KEY),
