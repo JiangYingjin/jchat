@@ -1215,7 +1215,7 @@ interface ChatInputData {
 // 使用 IndexedDB 存储聊天输入数据
 class ChatInputStorage {
   private dbName = "JChat";
-  private version = 2; // 升级版本以添加新的存储表
+  private version = 3; // 升级版本以与 SystemMessageStorage 保持一致
   private storeName = "chatInput";
 
   async initDB(): Promise<IDBDatabase> {
@@ -1228,6 +1228,10 @@ class ChatInputStorage {
         // 创建 chatInput 存储表
         if (!db.objectStoreNames.contains(this.storeName)) {
           db.createObjectStore(this.storeName, { keyPath: "sessionId" });
+        }
+        // 确保 systemMessages 表也存在（兼容性）
+        if (!db.objectStoreNames.contains("systemMessages")) {
+          db.createObjectStore("systemMessages", { keyPath: "sessionId" });
         }
       };
     });
