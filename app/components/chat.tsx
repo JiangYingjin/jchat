@@ -33,7 +33,7 @@ import RobotIcon from "../icons/robot.svg";
 import CheckmarkIcon from "../icons/checkmark.svg";
 
 import ReloadIcon from "../icons/reload.svg";
-import HeadphoneIcon from "../icons/headphone.svg";
+
 import EnableThinkingIcon from "../icons/thinking_enable.svg";
 import DisableThinkingIcon from "../icons/thinking_disable.svg";
 import {
@@ -733,16 +733,7 @@ export function ChatActions(props: {
           />
         )}
       </>
-      <div className={styles["chat-input-actions-end"]}>
-        {config.realtimeConfig.enable && (
-          <ChatAction
-            onClick={() => props.setShowChatSidePanel(true)}
-            text={Locale.Settings.Realtime.Enable.Title}
-            icon={<HeadphoneIcon />}
-            alwaysFullWidth={false}
-          />
-        )}
-      </div>
+      <div className={styles["chat-input-actions-end"]}></div>
     </div>
   );
 }
