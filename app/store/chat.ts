@@ -61,8 +61,6 @@ export interface ChatToolMessage {
   toolInput?: string;
 }
 
-const localStorage = safeLocalStorage();
-
 export type ChatMessageTool = {
   id: string;
   index?: number;
@@ -900,7 +898,7 @@ export const useChatStore = createPersistStore(
         set(() => ({ sessions }));
       },
       async clearAllData() {
-        localStorage.clear();
+        safeLocalStorage().clear();
 
         // 清理所有聊天输入数据和系统消息数据
         try {

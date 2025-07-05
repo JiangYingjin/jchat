@@ -58,7 +58,6 @@ import {
   getMessageImages,
   isVisionModel,
   showPlugins,
-  safeLocalStorage,
   isSupportRAGModel,
   isFunctionCallModel,
   isClaudeThinkingModel,

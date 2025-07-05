@@ -51,6 +51,7 @@
     "html-to-text": "^9.0.5",
     "https-proxy-agent": "^7.0.2",
     "langchain": "0.2.15",
+    "localforage": "^1.10.0",
     "mammoth": "^1.7.1",
     "md5": "^2.3.0",
     "mermaid": "^10.6.1",
