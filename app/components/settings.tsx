@@ -701,7 +701,7 @@ export function Settings() {
           />
         </List> */}
 
-        <DangerItems />
+        {/* <DangerItems /> */}
       </div>
     </ErrorBoundary>
   );

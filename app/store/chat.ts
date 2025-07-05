@@ -5,7 +5,6 @@ import {
   trimTopic,
 } from "../utils";
 
-import { indexedDBStorage } from "@/app/utils/indexedDB-storage";
 import { nanoid } from "nanoid";
 import type {
   ClientApi,
@@ -901,7 +900,6 @@ export const useChatStore = createPersistStore(
         set(() => ({ sessions }));
       },
       async clearAllData() {
-        await indexedDBStorage.clear();
         localStorage.clear();
 
         // 清理所有聊天输入数据和系统消息数据
