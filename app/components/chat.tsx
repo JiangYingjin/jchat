@@ -1139,7 +1139,7 @@ function _Chat() {
     }
   }
 
-  // 保存光标位置
+  // 保存光标位置（立即保存，无防抖）
   async function saveChatInputSelection(selection: {
     start: number;
     end: number;
@@ -1157,30 +1157,10 @@ function _Chat() {
         selection,
         updateAt: Date.now(),
       });
-      // console.log("[ChatInput][Save] 保存光标位置到 IndexedDB:", selection);
+      // console.log("[ChatInput][Save] 立即保存光标位置到 IndexedDB:", selection);
     } catch (e) {
       console.error("[ChatInput][Save] 保存光标位置失败:", e);
     }
-  }
-
-  // 加载聊天输入数据
-  async function loadChatInputData() {
-    try {
-      const data = await chatInputStorage.getChatInput(session.id);
-      if (data) {
-        // console.log("[ChatInput][Load] 从 IndexedDB 加载数据:", data);
-        return data;
-      }
-    } catch (e) {
-      console.error("[ChatInput][Load] 加载聊天输入数据失败:", e);
-    }
-    return {
-      text: "",
-      images: [],
-      scrollTop: 0,
-      selection: { start: 0, end: 0 },
-      updateAt: Date.now(),
-    };
   }
 
   // 保存图片数据
@@ -1203,6 +1183,66 @@ function _Chat() {
       console.error("[ChatInput][Save] 保存图片失败:", e);
     }
   }
+
+  // 加载聊天输入数据到组件状态
+  const loadChatInputToState = useCallback(async () => {
+    // 如果正在从存储加载，避免重复执行
+    if (isLoadingFromStorageRef.current) return;
+
+    try {
+      isLoadingFromStorageRef.current = true;
+      // 直接在这里实现 loadChatInputData 的逻辑，避免依赖问题
+      const data = await chatInputStorage.getChatInput(session.id);
+      if (data) {
+        console.log("[ChatInput][Load] 从 IndexedDB 加载数据:", data);
+
+        // 设置文本内容
+        if (data.text && data.text.trim() !== "") {
+          setUserInput(data.text);
+          // 使用 setTimeout 确保 DOM 已经渲染
+          setTimeout(() => {
+            if (inputRef.current) {
+              inputRef.current.value = data.text;
+            }
+          }, 0);
+        }
+
+        // 设置图片
+        if (data.images && data.images.length > 0) {
+          setAttachImages(data.images);
+        }
+
+        // 设置滚动位置和光标位置
+        setTimeout(() => {
+          if (inputRef.current) {
+            // 设置滚动位置
+            if (data.scrollTop > 0) {
+              inputRef.current.scrollTop = data.scrollTop;
+            }
+
+            // 设置光标位置
+            if (data.selection) {
+              inputRef.current.setSelectionRange(
+                data.selection.start,
+                data.selection.end,
+              );
+            }
+          }
+        }, 0);
+
+        console.log("[ChatInput][Load] 成功加载聊天输入数据:", data);
+      }
+    } catch (e) {
+      console.error("[ChatInput][Load] 加载聊天输入数据到状态失败:", e);
+    } finally {
+      isLoadingFromStorageRef.current = false;
+    }
+  }, [session.id]); // 只依赖 session.id，避免无限循环
+
+  // 会话切换时加载数据
+  useEffect(() => {
+    loadChatInputToState();
+  }, [session.id, loadChatInputToState]);
 
   // 自动修正模型配置
   useEffect(() => {
@@ -1310,6 +1350,7 @@ function _Chat() {
   const [attachImages, setAttachImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [attachFiles, setAttachFiles] = useState<FileInfo[]>([]);
+  const isLoadingFromStorageRef = useRef(false);
 
   // 移动端默认开启长输入模式
   useEffect(() => {
@@ -1362,7 +1403,7 @@ function _Chat() {
     event?: React.FormEvent<HTMLTextAreaElement>,
   ) => {
     saveChatInputText(text); // 只防抖保存 text
-    // 保存光标位置
+    // 立即保存光标位置（无防抖）
     if (event?.currentTarget) {
       const selectionStart = event.currentTarget.selectionStart;
       const selectionEnd = event.currentTarget.selectionEnd;
@@ -2559,6 +2600,33 @@ function _Chat() {
                   onScroll={(e) => {
                     const scrollTop = e.currentTarget.scrollTop;
                     saveChatInputScrollTop(scrollTop);
+                  }}
+                  onSelect={(e) => {
+                    // 光标选择变化时立即保存
+                    const selectionStart = e.currentTarget.selectionStart;
+                    const selectionEnd = e.currentTarget.selectionEnd;
+                    saveChatInputSelection({
+                      start: selectionStart,
+                      end: selectionEnd,
+                    });
+                  }}
+                  onMouseUp={(e) => {
+                    // 鼠标释放时保存光标位置（处理拖拽选择）
+                    const selectionStart = e.currentTarget.selectionStart;
+                    const selectionEnd = e.currentTarget.selectionEnd;
+                    saveChatInputSelection({
+                      start: selectionStart,
+                      end: selectionEnd,
+                    });
+                  }}
+                  onKeyUp={(e) => {
+                    // 键盘释放时保存光标位置（处理键盘导航选择）
+                    const selectionStart = e.currentTarget.selectionStart;
+                    const selectionEnd = e.currentTarget.selectionEnd;
+                    saveChatInputSelection({
+                      start: selectionStart,
+                      end: selectionEnd,
+                    });
                   }}
                 />
                 {attachImages.length != 0 && (
