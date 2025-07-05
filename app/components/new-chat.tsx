@@ -9,21 +9,22 @@ import LightningIcon from "../icons/lightning.svg";
 import EyeIcon from "../icons/eye.svg";
 
 import { useLocation, useNavigate } from "react-router-dom";
-import { Mask, useMaskStore } from "../store/mask";
+import { Mask } from "../store/chat";
 import Locale from "../locales";
 import { useAppConfig, useChatStore } from "../store";
-import { MaskAvatar } from "./mask";
+
 import { useCommand } from "../command";
 import { showConfirm } from "./ui-lib";
-import { BUILTIN_MASK_STORE } from "../masks";
+const BUILTIN_MASK_STORE = {
+  get(id?: string) {
+    return undefined;
+  },
+};
 
 function MaskItem(props: { mask: Mask; onClick?: () => void }) {
   return (
     <div className={styles["mask"]} onClick={props.onClick}>
-      <MaskAvatar
-        avatar={props.mask.avatar}
-        model={props.mask.modelConfig.model}
-      />
+      <EmojiAvatar avatar={props.mask.avatar} size={24} />
       <div className={styles["mask-name"] + " one-line"}>{props.mask.name}</div>
     </div>
   );
@@ -73,9 +74,9 @@ function useMaskGroup(masks: Mask[]) {
 
 export function NewChat() {
   const chatStore = useChatStore();
-  const maskStore = useMaskStore();
+  const BUILTIN_MASKS: Mask[] = [];
 
-  const masks = maskStore.getAll();
+  const masks = BUILTIN_MASKS;
   const groups = useMaskGroup(masks);
 
   const navigate = useNavigate();
@@ -95,7 +96,7 @@ export function NewChat() {
   useCommand({
     mask: (id) => {
       try {
-        const mask = maskStore.get(id) ?? BUILTIN_MASK_STORE.get(id);
+        const mask = BUILTIN_MASK_STORE.get(id);
         startChat(mask ?? undefined);
       } catch {
         console.error("[New Chat] failed to create chat from mask id=", id);
@@ -148,14 +149,6 @@ export function NewChat() {
       <div className={styles["sub-title"]}>{Locale.NewChat.SubTitle}</div>
 
       <div className={styles["actions"]}>
-        <IconButton
-          text={Locale.NewChat.More}
-          onClick={() => navigate(Path.Masks)}
-          icon={<EyeIcon />}
-          bordered
-          shadow
-        />
-
         <IconButton
           text={Locale.NewChat.Skip}
           onClick={() => startChat()}

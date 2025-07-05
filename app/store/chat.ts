@@ -24,7 +24,7 @@ import {
   GEMINI_SUMMARIZE_MODEL,
   ServiceProvider,
 } from "../constant";
-import Locale, { getLang } from "../locales";
+import Locale, { getLang, Lang } from "../locales";
 import { safeLocalStorage } from "../utils";
 import { prettyObject } from "../utils/format";
 import { createPersistStore } from "../utils/store";
@@ -32,12 +32,32 @@ import { estimateTokenLength } from "../utils/token";
 import { ModelConfig, ModelType, useAppConfig } from "./config";
 import { useAccessStore } from "./access";
 import { collectModelsWithDefaultModel } from "../utils/model";
-import { createEmptyMask, Mask } from "./mask";
+
 import { FileInfo, WebApi } from "../client/platforms/utils";
 import { usePluginStore } from "./plugin";
 import { TavilySearchResponse } from "@tavily/core";
 
 import { buildMultimodalContent } from "../utils/chat";
+
+export type Mask = {
+  id: string;
+  createdAt: number;
+  avatar: string;
+  name: string;
+  hideContext?: boolean;
+  context: ChatMessage[];
+  syncGlobalConfig?: boolean;
+  modelConfig: ModelConfig;
+  lang: Lang;
+  builtin: boolean;
+  usePlugins?: boolean;
+  webSearch?: boolean;
+  claudeThinking?: boolean;
+  // 上游插件业务参数
+  plugin?: string[];
+  enableArtifacts?: boolean;
+  enableCodeFold?: boolean;
+};
 
 export interface ChatToolMessage {
   toolName: string;
@@ -109,6 +129,20 @@ export interface ChatSession {
 export const DEFAULT_TOPIC = Locale.Store.DefaultTopic;
 
 function createEmptySession(): ChatSession {
+  const config = useAppConfig.getState();
+  const emptyMask: Mask = {
+    id: nanoid(),
+    avatar: "gpt-bot",
+    name: DEFAULT_TOPIC,
+    context: [],
+    syncGlobalConfig: true,
+    modelConfig: { ...config.modelConfig },
+    lang: getLang(),
+    builtin: false,
+    createdAt: Date.now(),
+    usePlugins: /^gpt(?!.*03\d{2}$).*$/.test(config.modelConfig.model),
+  };
+
   return {
     id: nanoid(),
     topic: DEFAULT_TOPIC,
@@ -121,7 +155,7 @@ function createEmptySession(): ChatSession {
     },
     lastUpdate: Date.now(),
     lastSummarizeIndex: 0,
-    mask: createEmptyMask(),
+    mask: emptyMask,
     attachFiles: [],
     longInputMode: false, // 默认不是长输入模式
   };

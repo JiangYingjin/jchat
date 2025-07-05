@@ -82,7 +82,7 @@ import { getClientConfig } from "../config/client";
 import { useSyncStore } from "../store/sync";
 import { nanoid } from "nanoid";
 import { PluginConfigList } from "./plugin-config";
-import { useMaskStore } from "../store/mask";
+
 import { ProviderType } from "../utils/cloud";
 import { TTSConfigList } from "./tts-config";
 
@@ -331,7 +331,7 @@ function SyncConfigModal(props: { onClose?: () => void }) {
 function SyncItems() {
   const syncStore = useSyncStore();
   const chatStore = useChatStore();
-  const maskStore = useMaskStore();
+
   const couldSync = useMemo(() => {
     return syncStore.cloudSync();
   }, [syncStore]);
@@ -345,9 +345,9 @@ function SyncItems() {
     return {
       chat: sessions.length,
       message: messageCount,
-      mask: Object.keys(maskStore.masks).length,
+      mask: 0,
     };
-  }, [chatStore.sessions, maskStore.masks]);
+  }, [chatStore.sessions]);
 
   return (
     <>
@@ -1312,11 +1312,11 @@ export function Settings() {
 
         <List>
           <ListItem
-            title={Locale.Mask.Config.CodeFold.Title}
-            subTitle={Locale.Mask.Config.CodeFold.SubTitle}
+            title="启用代码折叠"
+            subTitle="启用之后可以自动折叠/展开过长的代码块"
           >
             <input
-              aria-label={Locale.Mask.Config.CodeFold.Title}
+              aria-label="启用代码折叠"
               type="checkbox"
               checked={config.enableCodeFold}
               data-testid="enable-code-fold-checkbox"

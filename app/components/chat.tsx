@@ -96,8 +96,7 @@ import {
   CHAT_INPUT_SCROLL_TOP,
   ServiceProvider,
 } from "../constant";
-import { ContextPrompts, MaskAvatar, MaskConfig } from "./mask";
-import { useMaskStore } from "../store/mask";
+
 import { useChatCommand, useCommand } from "../command";
 import { prettyObject } from "../utils/format";
 import { ExportMessageModal } from "./exporter";
@@ -126,45 +125,11 @@ const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
 export function SessionConfigModel(props: { onClose: () => void }) {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
-  const maskStore = useMaskStore();
-  const navigate = useNavigate();
 
   return (
     <div className="modal-mask">
-      <Modal
-        title={Locale.Context.Edit}
-        onClose={() => props.onClose()}
-        actions={[
-          <IconButton
-            key="copy"
-            icon={<CopyIcon />}
-            bordered
-            text={Locale.Chat.Config.SaveAs}
-            onClick={() => {
-              navigate(Path.Masks);
-              setTimeout(() => {
-                maskStore.create(session.mask);
-              }, 500);
-            }}
-          />,
-        ]}
-      >
-        <MaskConfig
-          mask={session.mask}
-          updateMask={(updater) => {
-            const mask = { ...session.mask };
-            updater(mask);
-            chatStore.updateTargetSession(
-              session,
-              (session) => (session.mask = mask),
-            );
-          }}
-          shouldSyncFromGlobal
-          extraListItems={
-            // 移除历史摘要显示，因为已禁用总结功能
-            <></>
-          }
-        ></MaskConfig>
+      <Modal title={Locale.Context.Edit} onClose={() => props.onClose()}>
+        <div>Mask configuration is no longer available.</div>
       </Modal>
     </div>
   );
@@ -857,15 +822,7 @@ export function EditMessageModal(props: { onClose: () => void }) {
             />
           </ListItem>
         </List>
-        <ContextPrompts
-          context={messages}
-          updateContext={(updater) => {
-            const newMessages = messages.slice();
-            updater(newMessages);
-            setMessages(newMessages);
-          }}
-          onModalClose={props.onClose}
-        />
+        <div>Context prompts are no longer available.</div>
       </Modal>
     </div>
   );

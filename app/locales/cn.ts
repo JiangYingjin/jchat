@@ -68,7 +68,7 @@ const cn = {
         dark: "深色模式",
       },
       Prompt: "快捷指令",
-      Masks: "所有面具",
+
       Clear: "清除聊天",
       Settings: "对话设置",
       EnablePlugins: "开启插件",
@@ -259,20 +259,11 @@ const cn = {
 
       LocalState: "本地数据",
       Overview: (overview: any) => {
-        return `${overview.chat} 次对话，${overview.message} 条消息，${overview.prompt} 条提示词，${overview.mask} 个面具`;
+        return `${overview.chat} 次对话，${overview.message} 条消息`;
       },
       ImportFailed: "导入失败",
     },
-    Mask: {
-      Splash: {
-        Title: "面具启动页",
-        SubTitle: "新建聊天时，展示面具启动页",
-      },
-      Builtin: {
-        Title: "隐藏内置面具",
-        SubTitle: "在所有面具列表中隐藏内置面具",
-      },
-    },
+
     Prompt: {
       Disable: {
         Title: "禁用提示词自动补全",
@@ -673,63 +664,15 @@ const cn = {
     // 移除系统消息相关文本
     // Sysmessage: "你是一个助手",
   },
-  Mask: {
-    Name: "面具",
-    Page: {
-      Title: "预设角色面具",
-      SubTitle: (count: number) => `${count} 个预设角色定义`,
-      Search: "搜索角色面具",
-      Create: "新建",
-    },
-    Item: {
-      Info: (count: number) => `包含 ${count} 条预设对话`,
-      Chat: "对话",
-      View: "查看",
-      Edit: "编辑",
-      Delete: "删除",
-      DeleteConfirm: "确认删除？",
-    },
-    EditModal: {
-      Title: (readonly: boolean) =>
-        `编辑预设面具 ${readonly ? "（只读）" : ""}`,
-      Download: "下载预设",
-      Clone: "克隆预设",
-    },
-    Config: {
-      Avatar: "角色头像",
-      Name: "角色名称",
-      Sync: {
-        Title: "使用全局设置",
-        SubTitle: "当前对话是否使用全局模型设置",
-        Confirm: "当前对话的自定义设置将会被自动覆盖，确认启用全局设置？",
-      },
-      HideContext: {
-        Title: "隐藏预设对话",
-        SubTitle: "隐藏后预设对话不会出现在聊天界面",
-      },
-      Artifacts: {
-        Title: "启用Artifacts",
-        SubTitle: "启用之后可以直接渲染HTML页面",
-      },
-      CodeFold: {
-        Title: "启用代码折叠",
-        SubTitle: "启用之后可以自动折叠/展开过长的代码块",
-      },
-      Share: {
-        Title: "分享此面具",
-        SubTitle: "生成此面具的直达链接",
-        Action: "复制链接",
-      },
-    },
-  },
+
   NewChat: {
     Return: "返回",
     Skip: "直接开始",
     NotShow: "不再展示",
     ConfirmNoShow: "确认禁用？禁用后可以随时在设置中重新启用。",
-    Title: "挑选一个面具",
-    SubTitle: "现在开始，与面具背后的灵魂思维碰撞",
-    More: "查看全部",
+    Title: "开始新对话",
+    SubTitle: "开始一个新的对话",
+    More: "显示更多",
   },
 
   URLCommand: {

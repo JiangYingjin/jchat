@@ -1,5 +1,6 @@
 import DeleteIcon from "../icons/delete.svg";
 import BotIcon from "../icons/bot.svg";
+import { EmojiAvatar } from "./emoji";
 
 import styles from "./home.module.scss";
 import {
@@ -14,8 +15,7 @@ import { useChatStore } from "../store";
 import Locale from "../locales";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Path } from "../constant";
-import { MaskAvatar } from "./mask";
-import { Mask } from "../store/mask";
+import { Mask } from "../store/chat";
 import { useRef, useEffect, useMemo } from "react";
 import { showConfirm } from "./ui-lib";
 import { useMobileScreen } from "../utils";
@@ -139,10 +139,7 @@ export function ChatItem(props: {
           {props.narrow ? (
             <div className={styles["chat-item-narrow"]}>
               <div className={styles["chat-item-avatar"] + " no-dark"}>
-                <MaskAvatar
-                  avatar={props.mask.avatar}
-                  model={props.mask.modelConfig.model}
-                />
+                <EmojiAvatar avatar={props.mask.avatar} size={24} />
               </div>
               <div className={styles["chat-item-narrow-count"]}>
                 {props.count}

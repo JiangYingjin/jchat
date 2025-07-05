@@ -49,7 +49,6 @@ export const DEFAULT_CONFIG = {
   disablePromptHint: true,
 
   dontShowMaskSplashScreen: true, // dont show splash screen when create chat
-  hideBuiltinMasks: false, // dont add builtin masks
 
   customModels: "",
   models: DEFAULT_MODELS as any as LLMModel[],

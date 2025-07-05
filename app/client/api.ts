@@ -188,8 +188,6 @@ export class ClientApi {
 
   prompts() {}
 
-  masks() {}
-
   async share(messages: ChatMessage[], avatarUrl: string | null = null) {
     const msgs = messages
       .map((m) => ({
