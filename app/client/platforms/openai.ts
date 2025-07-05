@@ -4,7 +4,6 @@ import {
   ApiPath,
   DEFAULT_MODELS,
   OpenaiPath,
-  Azure,
   REQUEST_TIMEOUT_MS,
   ServiceProvider,
   OPENAI_BASE_URL,
@@ -32,7 +31,6 @@ import {
   LLMModel,
   LLMUsage,
   MultimodalContent,
-  SpeechOptions,
   TranscriptionOptions,
 } from "../api";
 import Locale from "../../locales";
@@ -78,31 +76,19 @@ export class ChatGPTApi implements LLMApi {
 
     let baseUrl = "";
 
-    const isAzure = path.includes("deployments");
     if (accessStore.useCustomConfig) {
-      if (isAzure && !accessStore.isValidAzure()) {
-        throw Error(
-          "incomplete azure config, please check it in your settings page",
-        );
-      }
-
-      baseUrl = isAzure ? accessStore.azureUrl : accessStore.openaiUrl;
+      baseUrl = accessStore.openaiUrl;
     }
 
     if (baseUrl.length === 0) {
       const isApp = !!getClientConfig()?.isApp;
-      const apiPath = isAzure ? ApiPath.Azure : ApiPath.OpenAI;
-      baseUrl = isApp ? OPENAI_BASE_URL : apiPath;
+      baseUrl = isApp ? OPENAI_BASE_URL : ApiPath.OpenAI;
     }
 
     if (baseUrl.endsWith("/")) {
       baseUrl = baseUrl.slice(0, baseUrl.length - 1);
     }
-    if (
-      !baseUrl.startsWith("http") &&
-      !isAzure &&
-      !baseUrl.startsWith(ApiPath.OpenAI)
-    ) {
+    if (!baseUrl.startsWith("http") && !baseUrl.startsWith(ApiPath.OpenAI)) {
       baseUrl = "https://" + baseUrl;
     }
 
@@ -114,44 +100,6 @@ export class ChatGPTApi implements LLMApi {
 
   extractMessage(res: any) {
     return res.choices?.at(0)?.message?.content ?? "";
-  }
-
-  async speech(options: SpeechOptions): Promise<ArrayBuffer> {
-    const requestPayload = {
-      model: options.model,
-      input: options.input,
-      voice: options.voice,
-      response_format: options.response_format,
-      speed: options.speed,
-    };
-
-    console.log("[Request] openai speech payload: ", requestPayload);
-
-    const controller = new AbortController();
-    options.onController?.(controller);
-
-    try {
-      const speechPath = this.path(OpenaiPath.SpeechPath, options.model);
-      const speechPayload = {
-        method: "POST",
-        body: JSON.stringify(requestPayload),
-        signal: controller.signal,
-        headers: getHeaders(),
-      };
-
-      // make a fetch request
-      const requestTimeoutId = setTimeout(
-        () => controller.abort(),
-        REQUEST_TIMEOUT_MS,
-      );
-
-      const res = await fetch(speechPath, speechPayload);
-      clearTimeout(requestTimeoutId);
-      return await res.arrayBuffer();
-    } catch (e) {
-      console.log("[Request] failed to make a speech request", e);
-      throw e;
-    }
   }
 
   async transcription(options: TranscriptionOptions): Promise<string> {
@@ -252,35 +200,7 @@ export class ChatGPTApi implements LLMApi {
     options.onController?.(controller);
 
     try {
-      let chatPath = "";
-      if (modelConfig.providerName === ServiceProvider.Azure) {
-        // find model, and get displayName as deployName
-        const { models: configModels, customModels: configCustomModels } =
-          useAppConfig.getState();
-        const {
-          defaultModel,
-          customModels: accessCustomModels,
-          useCustomConfig,
-        } = useAccessStore.getState();
-        const models = collectModelsWithDefaultModel(
-          configModels,
-          [configCustomModels, accessCustomModels].join(","),
-          defaultModel,
-        );
-        const model = models.find(
-          (model) =>
-            model.name === modelConfig.model &&
-            model?.provider?.providerName === ServiceProvider.Azure,
-        );
-        chatPath = this.path(
-          Azure.ChatPath(
-            (model?.displayName ?? model?.name) as string,
-            useCustomConfig ? useAccessStore.getState().azureApiVersion : "",
-          ),
-        );
-      } else {
-        chatPath = this.path(OpenaiPath.ChatPath);
-      }
+      const chatPath = this.path(OpenaiPath.ChatPath);
       if (shouldStream) {
         let index = -1;
         // const [tools, funcs] = usePluginStore
@@ -415,8 +335,7 @@ export class ChatGPTApi implements LLMApi {
   async createRAGStore(options: CreateRAGStoreOptions): Promise<string> {
     try {
       const accessStore = useAccessStore.getState();
-      const isAzure = accessStore.provider === ServiceProvider.Azure;
-      let baseUrl = isAzure ? accessStore.azureUrl : accessStore.openaiUrl;
+      const baseUrl = accessStore.openaiUrl;
       const requestPayload = {
         sessionId: options.chatSessionId,
         fileInfos: options.fileInfos,
@@ -461,13 +380,12 @@ export class ChatGPTApi implements LLMApi {
       },
     };
     const accessStore = useAccessStore.getState();
-    const isAzure = accessStore.provider === ServiceProvider.Azure;
-    let baseUrl = isAzure ? accessStore.azureUrl : accessStore.openaiUrl;
+    const baseUrl = accessStore.openaiUrl;
     const requestPayload = {
       chatSessionId: options.chatSessionId,
       messages,
-      isAzure,
-      azureApiVersion: accessStore.azureApiVersion,
+      isAzure: false,
+      azureApiVersion: "",
       stream: options.config.stream,
       model: modelConfig.model,
       temperature: modelConfig.temperature,

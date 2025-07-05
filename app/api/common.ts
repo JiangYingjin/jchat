@@ -123,7 +123,6 @@ export async function requestOpenai(req: NextRequest) {
           jsonBody?.model as string,
           [
             ServiceProvider.OpenAI,
-            ServiceProvider.Azure,
             jsonBody?.model as string, // support provider-unspecified model
           ],
         )

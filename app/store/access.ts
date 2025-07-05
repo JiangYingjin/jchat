@@ -1,22 +1,10 @@
 import {
-  GoogleSafetySettingsThreshold,
   ServiceProvider,
   StoreKey,
   ApiPath,
   OPENAI_BASE_URL,
   ANTHROPIC_BASE_URL,
-  GEMINI_BASE_URL,
-  BAIDU_BASE_URL,
-  BYTEDANCE_BASE_URL,
-  ALIBABA_BASE_URL,
-  TENCENT_BASE_URL,
-  MOONSHOT_BASE_URL,
   STABILITY_BASE_URL,
-  IFLYTEK_BASE_URL,
-  XAI_BASE_URL,
-  CHATGLM_BASE_URL,
-  DEEPSEEK_BASE_URL,
-  SILICONFLOW_BASE_URL,
 } from "../constant";
 import { getHeaders } from "../client/api";
 import { getClientConfig } from "../config/client";
@@ -31,33 +19,9 @@ const isApp = getClientConfig()?.buildMode === "export";
 
 const DEFAULT_OPENAI_URL = isApp ? OPENAI_BASE_URL : ApiPath.OpenAI;
 
-const DEFAULT_GOOGLE_URL = isApp ? GEMINI_BASE_URL : ApiPath.Google;
-
 const DEFAULT_ANTHROPIC_URL = isApp ? ANTHROPIC_BASE_URL : ApiPath.Anthropic;
 
-const DEFAULT_BAIDU_URL = isApp ? BAIDU_BASE_URL : ApiPath.Baidu;
-
-const DEFAULT_BYTEDANCE_URL = isApp ? BYTEDANCE_BASE_URL : ApiPath.ByteDance;
-
-const DEFAULT_ALIBABA_URL = isApp ? ALIBABA_BASE_URL : ApiPath.Alibaba;
-
-const DEFAULT_TENCENT_URL = isApp ? TENCENT_BASE_URL : ApiPath.Tencent;
-
-const DEFAULT_MOONSHOT_URL = isApp ? MOONSHOT_BASE_URL : ApiPath.Moonshot;
-
 const DEFAULT_STABILITY_URL = isApp ? STABILITY_BASE_URL : ApiPath.Stability;
-
-const DEFAULT_IFLYTEK_URL = isApp ? IFLYTEK_BASE_URL : ApiPath.Iflytek;
-
-const DEFAULT_DEEPSEEK_URL = isApp ? DEEPSEEK_BASE_URL : ApiPath.DeepSeek;
-
-const DEFAULT_XAI_URL = isApp ? XAI_BASE_URL : ApiPath.XAI;
-
-const DEFAULT_CHATGLM_URL = isApp ? CHATGLM_BASE_URL : ApiPath.ChatGLM;
-
-const DEFAULT_SILICONFLOW_URL = isApp
-  ? SILICONFLOW_BASE_URL
-  : ApiPath.SiliconFlow;
 
 const DEFAULT_ACCESS_STATE = {
   accessCode: "",
@@ -69,68 +33,14 @@ const DEFAULT_ACCESS_STATE = {
   openaiUrl: DEFAULT_OPENAI_URL,
   openaiApiKey: "",
 
-  // azure
-  azureUrl: "",
-  azureApiKey: "",
-  azureApiVersion: "2023-08-01-preview",
-
-  // google ai studio
-  googleUrl: DEFAULT_GOOGLE_URL,
-  googleApiKey: "",
-  googleApiVersion: "v1",
-  googleSafetySettings: GoogleSafetySettingsThreshold.BLOCK_NONE,
-
   // anthropic
   anthropicUrl: DEFAULT_ANTHROPIC_URL,
   anthropicApiKey: "",
   anthropicApiVersion: "2023-06-01",
 
-  // baidu
-  baiduUrl: DEFAULT_BAIDU_URL,
-  baiduApiKey: "",
-  baiduSecretKey: "",
-
-  // bytedance
-  bytedanceUrl: DEFAULT_BYTEDANCE_URL,
-  bytedanceApiKey: "",
-
-  // alibaba
-  alibabaUrl: DEFAULT_ALIBABA_URL,
-  alibabaApiKey: "",
-
-  // moonshot
-  moonshotUrl: DEFAULT_MOONSHOT_URL,
-  moonshotApiKey: "",
-
   //stability
   stabilityUrl: DEFAULT_STABILITY_URL,
   stabilityApiKey: "",
-
-  // tencent
-  tencentUrl: DEFAULT_TENCENT_URL,
-  tencentSecretKey: "",
-  tencentSecretId: "",
-
-  // iflytek
-  iflytekUrl: DEFAULT_IFLYTEK_URL,
-  iflytekApiKey: "",
-  iflytekApiSecret: "",
-
-  // deepseek
-  deepseekUrl: DEFAULT_DEEPSEEK_URL,
-  deepseekApiKey: "",
-
-  // xai
-  xaiUrl: DEFAULT_XAI_URL,
-  xaiApiKey: "",
-
-  // chatglm
-  chatglmUrl: DEFAULT_CHATGLM_URL,
-  chatglmApiKey: "",
-
-  // siliconflow
-  siliconflowUrl: DEFAULT_SILICONFLOW_URL,
-  siliconflowApiKey: "",
 
   // server config
   needCode: true,
@@ -143,9 +53,6 @@ const DEFAULT_ACCESS_STATE = {
   visionModels: "",
   isEnableRAG: false,
   isEnableWebSearch: false,
-
-  // tts config
-  edgeTTSVoiceName: "zh-CN-YunxiNeural",
 
   isUseOpenAIEndpointForAllModels: false,
   disableModelProviderDisplay: false,
@@ -176,10 +83,7 @@ export const useAccessStore = createPersistStore(
       this.fetch();
       return get().isUseRemoteModels;
     },
-    edgeVoiceName() {
-      this.fetch();
-      return get().edgeTTSVoiceName;
-    },
+
     enableRAG() {
       this.fetch();
       return get().isEnableRAG;
@@ -191,70 +95,28 @@ export const useAccessStore = createPersistStore(
     isValidOpenAI() {
       return ensure(get(), ["openaiApiKey"]);
     },
-    isValidAzure() {
-      return ensure(get(), ["azureUrl", "azureApiKey", "azureApiVersion"]);
-    },
-    isValidGoogle() {
-      return ensure(get(), ["googleApiKey"]);
-    },
     isValidAnthropic() {
       return ensure(get(), ["anthropicApiKey"]);
     },
-    isValidBaidu() {
-      return ensure(get(), ["baiduApiKey", "baiduSecretKey"]);
-    },
-    isValidByteDance() {
-      return ensure(get(), ["bytedanceApiKey"]);
-    },
-    isValidAlibaba() {
-      return ensure(get(), ["alibabaApiKey"]);
-    },
-    isValidTencent() {
-      return ensure(get(), ["tencentSecretKey", "tencentSecretId"]);
-    },
-    isValidMoonshot() {
-      return ensure(get(), ["moonshotApiKey"]);
-    },
-    isValidIflytek() {
-      return ensure(get(), ["iflytekApiKey"]);
-    },
-    isValidDeepSeek() {
-      return ensure(get(), ["deepseekApiKey"]);
-    },
-    isValidXAI() {
-      return ensure(get(), ["xaiApiKey"]);
-    },
-    isValidChatGLM() {
-      return ensure(get(), ["chatglmApiKey"]);
-    },
-    isValidSiliconFlow() {
-      return ensure(get(), ["siliconflowApiKey"]);
+    isValidStability() {
+      return ensure(get(), ["stabilityApiKey"]);
     },
     isAuthorized() {
       this.fetch();
+
       // has token or has code or disabled access control
       return (
         this.isValidOpenAI() ||
-        this.isValidAzure() ||
-        this.isValidGoogle() ||
         this.isValidAnthropic() ||
-        this.isValidBaidu() ||
-        this.isValidByteDance() ||
-        this.isValidAlibaba() ||
-        this.isValidTencent() ||
-        this.isValidMoonshot() ||
-        this.isValidIflytek() ||
-        this.isValidDeepSeek() ||
-        this.isValidXAI() ||
-        this.isValidChatGLM() ||
-        this.isValidSiliconFlow() ||
-        !this.enabledAccessControl() ||
-        (this.enabledAccessControl() && ensure(get(), ["accessCode"]))
+        this.isValidStability() ||
+        !this.enabledAccessControl()
       );
     },
+
     fetch() {
-      if (fetchState > 0 || getClientConfig()?.buildMode === "export") return;
+      if (fetchState > 0 || !getClientConfig()) return;
       fetchState = 1;
+
       fetch("/api/config", {
         method: "post",
         body: null,
@@ -263,15 +125,6 @@ export const useAccessStore = createPersistStore(
         },
       })
         .then((res) => res.json())
-        .then((res) => {
-          const defaultModel = res.defaultModel ?? "";
-          if (defaultModel !== "") {
-            const [model, providerName] = getModelProvider(defaultModel);
-            DEFAULT_CONFIG.modelConfig.model = model;
-            DEFAULT_CONFIG.modelConfig.providerName = providerName as any;
-          }
-          return res;
-        })
         .then((res: DangerConfig) => {
           console.log("[Config] got config from server", res);
           set(() => ({ ...res }));
@@ -283,23 +136,62 @@ export const useAccessStore = createPersistStore(
           fetchState = 2;
         });
     },
-  }),
-  {
-    name: StoreKey.Access,
-    version: 2,
-    migrate(persistedState, version) {
-      if (version < 2) {
-        const state = persistedState as {
-          token: string;
-          openaiApiKey: string;
-          azureApiVersion: string;
-          googleApiKey: string;
+
+    migrate(persistedState: any, version: number) {
+      if (version === 2) {
+        const { defaultModel, ...rest } = persistedState;
+        persistedState = {
+          ...rest,
+          defaultModel: defaultModel || "",
         };
-        state.openaiApiKey = state.token;
-        state.azureApiVersion = "2023-08-01-preview";
+      }
+
+      if (version === 3) {
+        const { isEnableRAG, ...rest } = persistedState;
+        persistedState = {
+          ...rest,
+          isEnableRAG: isEnableRAG || false,
+        };
+      }
+
+      if (version === 4) {
+        const { isEnableWebSearch, ...rest } = persistedState;
+        persistedState = {
+          ...rest,
+          isEnableWebSearch: isEnableWebSearch || false,
+        };
+      }
+
+      if (version === 5) {
+        const { isUseOpenAIEndpointForAllModels, ...rest } = persistedState;
+        persistedState = {
+          ...rest,
+          isUseOpenAIEndpointForAllModels:
+            isUseOpenAIEndpointForAllModels || false,
+        };
+      }
+
+      if (version === 6) {
+        const { disableModelProviderDisplay, ...rest } = persistedState;
+        persistedState = {
+          ...rest,
+          disableModelProviderDisplay: disableModelProviderDisplay || false,
+        };
+      }
+
+      if (version === 7) {
+        const { isUseRemoteModels, ...rest } = persistedState;
+        persistedState = {
+          ...rest,
+          isUseRemoteModels: isUseRemoteModels || false,
+        };
       }
 
       return persistedState as any;
     },
+  }),
+  {
+    name: StoreKey.Access,
+    version: 7,
   },
 );

@@ -281,7 +281,7 @@ export const getServerSideConfig = () => {
     ragChunkSize: process.env.RAG_CHUNK_SIZE ?? "2000",
     ragChunkOverlap: process.env.RAG_CHUNK_OVERLAP ?? "200",
     ragReturnCount: process.env.RAG_RETURN_COUNT ?? "4",
-    edgeTTSVoiceName: process.env.EDGE_TTS_VOICE_NAME ?? "zh-CN-YunxiNeural",
+
     isUseOpenAIEndpointForAllModels:
       !!process.env.USE_OPENAI_ENDPOINT_FOR_ALL_MODELS,
 

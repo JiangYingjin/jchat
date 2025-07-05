@@ -19,7 +19,7 @@ export const ROLES = ["system", "user", "assistant"] as const;
 export type MessageRole = (typeof ROLES)[number];
 
 export const Models = ["gpt-3.5-turbo", "gpt-4"] as const;
-export const TTSModels = ["tts-1", "tts-1-hd"] as const;
+
 export type ChatModel = ModelType;
 
 export interface MessageContentItem {
@@ -59,15 +59,6 @@ export interface LLMAgentConfig {
   maxIterations: number;
   returnIntermediateSteps: boolean;
   useTools?: (string | undefined)[];
-}
-
-export interface SpeechOptions {
-  model: string;
-  input: string;
-  voice: string;
-  response_format?: string;
-  speed?: number;
-  onController?: (controller: AbortController) => void;
 }
 
 export interface TranscriptionOptions {
@@ -140,7 +131,6 @@ export interface LLMModelProvider {
 
 export abstract class LLMApi {
   abstract chat(options: ChatOptions): Promise<void>;
-  abstract speech(options: SpeechOptions): Promise<ArrayBuffer>;
   abstract transcription(options: TranscriptionOptions): Promise<string>;
   abstract toolAgentChat(options: AgentChatOptions): Promise<void>;
   abstract createRAGStore(options: CreateRAGStoreOptions): Promise<string>;
@@ -256,111 +246,34 @@ export function getHeaders(ignoreHeaders: boolean = false) {
 
   function getConfig() {
     const modelConfig = chatStore.currentSession().mask.modelConfig;
-    const isGoogle = modelConfig.providerName === ServiceProvider.Google;
-    const isAzure = modelConfig.providerName === ServiceProvider.Azure;
     const isAnthropic = modelConfig.providerName === ServiceProvider.Anthropic;
-    const isBaidu = modelConfig.providerName == ServiceProvider.Baidu;
-    const isByteDance = modelConfig.providerName === ServiceProvider.ByteDance;
-    const isAlibaba = modelConfig.providerName === ServiceProvider.Alibaba;
-    const isMoonshot = modelConfig.providerName === ServiceProvider.Moonshot;
-    const isIflytek = modelConfig.providerName === ServiceProvider.Iflytek;
-    const isDeepSeek = modelConfig.providerName === ServiceProvider.DeepSeek;
-    const isXAI = modelConfig.providerName === ServiceProvider.XAI;
-    const isChatGLM = modelConfig.providerName === ServiceProvider.ChatGLM;
-    const isSiliconFlow =
-      modelConfig.providerName === ServiceProvider.SiliconFlow;
     const isEnabledAccessControl = accessStore.enabledAccessControl();
-    const apiKey = isGoogle
-      ? accessStore.googleApiKey
-      : isAzure
-        ? accessStore.azureApiKey
-        : isAnthropic
-          ? accessStore.anthropicApiKey
-          : isByteDance
-            ? accessStore.bytedanceApiKey
-            : isAlibaba
-              ? accessStore.alibabaApiKey
-              : isMoonshot
-                ? accessStore.moonshotApiKey
-                : isXAI
-                  ? accessStore.xaiApiKey
-                  : isDeepSeek
-                    ? accessStore.deepseekApiKey
-                    : isChatGLM
-                      ? accessStore.chatglmApiKey
-                      : isSiliconFlow
-                        ? accessStore.siliconflowApiKey
-                        : isIflytek
-                          ? accessStore.iflytekApiKey &&
-                            accessStore.iflytekApiSecret
-                            ? accessStore.iflytekApiKey +
-                              ":" +
-                              accessStore.iflytekApiSecret
-                            : ""
-                          : accessStore.openaiApiKey;
+    const apiKey = isAnthropic
+      ? accessStore.anthropicApiKey
+      : accessStore.openaiApiKey;
     if (accessStore.isUseOpenAIEndpointForAllModels || ignoreHeaders) {
       return {
-        isGoogle: false,
-        isAzure: false,
         isAnthropic: false,
-        isBaidu: false,
-        isByteDance: false,
-        isAlibaba: false,
-        isMoonshot: false,
-        isIflytek: false,
-        isDeepSeek: false,
-        isXAI: false,
-        isChatGLM: false,
-        isSiliconFlow: false,
         apiKey: accessStore.openaiApiKey,
         isEnabledAccessControl,
       };
     }
     return {
-      isGoogle,
-      isAzure,
       isAnthropic,
-      isBaidu,
-      isByteDance,
-      isAlibaba,
-      isMoonshot,
-      isIflytek,
-      isDeepSeek,
-      isXAI,
-      isChatGLM,
-      isSiliconFlow,
       apiKey,
       isEnabledAccessControl,
     };
   }
 
   function getAuthHeader(): string {
-    return isAzure
-      ? "api-key"
-      : isAnthropic
-        ? "x-api-key"
-        : isGoogle
-          ? "x-goog-api-key"
-          : "Authorization";
+    return isAnthropic ? "x-api-key" : "Authorization";
   }
 
-  const {
-    isGoogle,
-    isAzure,
-    isAnthropic,
-    isBaidu,
-    apiKey,
-    isEnabledAccessControl,
-  } = getConfig();
-  // when using baidu api in app, not set auth header
-  if (isBaidu && clientConfig?.isApp) return headers;
+  const { isAnthropic, apiKey, isEnabledAccessControl } = getConfig();
 
   const authHeader = getAuthHeader();
 
-  const bearerToken = getBearerToken(
-    apiKey,
-    isAzure || isAnthropic || isGoogle,
-  );
+  const bearerToken = getBearerToken(apiKey, isAnthropic);
 
   if (bearerToken) {
     headers[authHeader] = bearerToken;

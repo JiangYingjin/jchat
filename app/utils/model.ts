@@ -250,11 +250,6 @@ export function isModelNotavailableInServer(
     ? providerNames
     : [providerNames];
   for (const providerName of providerNamesArray) {
-    // if model provider is bytedance, use model config name to check if not avaliable
-    if (providerName === ServiceProvider.ByteDance) {
-      return !Object.values(modelTable).filter((v) => v.name === modelName)?.[0]
-        ?.available;
-    }
     const fullName = `${modelName}@${providerName.toLowerCase()}`;
     if (modelTable?.[fullName]?.available === true) return false;
   }

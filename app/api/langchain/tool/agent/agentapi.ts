@@ -26,7 +26,7 @@ import {
   StructuredToolInterface,
 } from "@langchain/core/tools";
 import { convertToOpenAITool } from "@langchain/core/utils/function_calling";
-import { BaiduSearch } from "@/app/api/langchain-tools/baidu_search";
+
 import { GoogleSearch } from "@/app/api/langchain-tools/google_search";
 import { GoogleCustomSearch } from "@/app/api/langchain-tools/google_custom_search";
 import { formatToOpenAIToolMessages } from "langchain/agents/format_scratchpad/openai_tools";
@@ -383,9 +383,6 @@ export class AgentApi {
         switch (process.env.CHOOSE_SEARCH_ENGINE) {
           case "google":
             searchTool = new GoogleSearch();
-            break;
-          case "baidu":
-            searchTool = new BaiduSearch();
             break;
         }
       }
