@@ -46,6 +46,7 @@ import {
   ModelType,
   usePluginStore,
   systemMessageStorage,
+  chatInputStorage,
 } from "../store";
 
 import {
@@ -90,9 +91,6 @@ import {
   ModelProvider,
   Path,
   REQUEST_TIMEOUT_MS,
-  CHAT_INPUT_TEXT,
-  CHAT_INPUT_IMAGES,
-  CHAT_INPUT_SCROLL_TOP,
   ServiceProvider,
 } from "../constant";
 
@@ -833,29 +831,45 @@ export function DeleteFileButton(props: { deleteFile: () => void }) {
 export function SystemPromptEditModal(props: {
   onClose: () => void;
   sessionId: string;
-  onSave: (content: string, images: string[]) => void;
+  onSave: (
+    content: string,
+    images: string[],
+    scrollTop?: number,
+    selection?: { start: number; end: number },
+  ) => void;
   initialContent: string;
   initialImages: string[];
+  initialScrollTop?: number;
+  initialSelection?: { start: number; end: number };
 }) {
   const [content, setContent] = useState(props.initialContent);
   const [attachImages, setAttachImages] = useState<string[]>(
     props.initialImages,
   );
   const [uploading, setUploading] = useState(false);
+  const [scrollTop, setScrollTop] = useState(props.initialScrollTop || 0);
+  const [selection, setSelection] = useState(
+    props.initialSelection || { start: 0, end: 0 },
+  );
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const config = useAppConfig();
 
-  // 自动聚焦并定位到末尾，滚动条也滚到底
+  // 自动聚焦并定位到保存的位置
   useEffect(() => {
     setTimeout(() => {
       if (inputRef.current) {
-        inputRef.current.selectionStart = inputRef.current.value.length;
-        inputRef.current.selectionEnd = inputRef.current.value.length;
+        // 设置滚动位置
+        inputRef.current.scrollTop = scrollTop;
+        // 设置光标位置
+        if (selection.start !== selection.end) {
+          inputRef.current.setSelectionRange(selection.start, selection.end);
+        } else {
+          inputRef.current.setSelectionRange(selection.start, selection.start);
+        }
         inputRef.current.focus();
-        inputRef.current.scrollTop = inputRef.current.scrollHeight;
       }
     }, 100);
-  }, []);
+  }, [scrollTop, selection]);
 
   // 使用自定义 hook 处理粘贴上传图片
   const handlePaste = usePasteImageUpload(
@@ -866,7 +880,15 @@ export function SystemPromptEditModal(props: {
   );
 
   const handleSave = () => {
-    props.onSave(content.trim(), attachImages);
+    // 获取当前的滚动位置和光标位置
+    const currentScrollTop = inputRef.current?.scrollTop || 0;
+    const currentSelectionStart = inputRef.current?.selectionStart || 0;
+    const currentSelectionEnd = inputRef.current?.selectionEnd || 0;
+
+    props.onSave(content.trim(), attachImages, currentScrollTop, {
+      start: currentSelectionStart,
+      end: currentSelectionEnd,
+    });
     props.onClose();
   };
 
@@ -1085,71 +1107,111 @@ function _Chat() {
   const accessStore = useAccessStore();
   const allModels = useAllModels();
 
-  // 记住未完成输入的防抖保存函数，间隔放宽到 1200ms
-  const saveChatInputText = useDebouncedCallback((value: string) => {
-    const key = CHAT_INPUT_TEXT(session.id);
-    localStorage.setItem(key, value);
-    // console.log("[UserInput][Save] 保存未完成输入:", value);
+  // 记住未完成输入的防抖保存函数，间隔放宽到 500ms
+  const saveChatInputText = useDebouncedCallback(async (value: string) => {
+    try {
+      const currentData = (await chatInputStorage.getChatInput(session.id)) || {
+        text: "",
+        images: [],
+        scrollTop: 0,
+        selection: { start: 0, end: 0 },
+        updateAt: Date.now(),
+      };
+      await chatInputStorage.saveChatInput(session.id, {
+        ...currentData,
+        text: value,
+        updateAt: Date.now(),
+      });
+      // console.log("[ChatInput][Save] 保存未完成输入到 IndexedDB:", value);
+    } catch (e) {
+      console.error("[ChatInput][Save] 保存未完成输入失败:", e);
+    }
   }, 500);
-  // 新增：立即保存 scrollTop
-  function saveChatInputScrollTop(scrollTop: number) {
+
+  // 立即保存 scrollTop
+  async function saveChatInputScrollTop(scrollTop: number) {
     try {
-      const key = CHAT_INPUT_SCROLL_TOP(session.id);
-      localStorage.setItem(key, String(scrollTop));
-      // console.log("[UserInput][Save] 保存 scrollTop:", scrollTop);
+      const currentData = (await chatInputStorage.getChatInput(session.id)) || {
+        text: "",
+        images: [],
+        scrollTop: 0,
+        selection: { start: 0, end: 0 },
+        updateAt: Date.now(),
+      };
+      await chatInputStorage.saveChatInput(session.id, {
+        ...currentData,
+        scrollTop,
+        updateAt: Date.now(),
+      });
+      // console.log("[ChatInput][Save] 保存 scrollTop 到 IndexedDB:", scrollTop);
     } catch (e) {
-      // console.error("[UserInput][Save] 保存 scrollTop 失败:", e);
+      console.error("[ChatInput][Save] 保存 scrollTop 失败:", e);
     }
   }
-  function loadChatInputText(): string {
+
+  // 保存光标位置
+  async function saveChatInputSelection(selection: {
+    start: number;
+    end: number;
+  }) {
     try {
-      const key = CHAT_INPUT_TEXT(session.id);
-      const value = localStorage.getItem(key);
-      // console.log("[UserInput][Load] 加载未完成输入:", value);
-      return value ?? "";
+      const currentData = (await chatInputStorage.getChatInput(session.id)) || {
+        text: "",
+        images: [],
+        scrollTop: 0,
+        selection: { start: 0, end: 0 },
+        updateAt: Date.now(),
+      };
+      await chatInputStorage.saveChatInput(session.id, {
+        ...currentData,
+        selection,
+        updateAt: Date.now(),
+      });
+      // console.log("[ChatInput][Save] 保存光标位置到 IndexedDB:", selection);
     } catch (e) {
-      // console.error("[UserInput][Load] 加载未完成输入失败:", e);
-      return "";
+      console.error("[ChatInput][Save] 保存光标位置失败:", e);
     }
   }
-  // 新增：加载 scrollTop
-  function loadChatInputScrollTop(): number {
+
+  // 加载聊天输入数据
+  async function loadChatInputData() {
     try {
-      const key = CHAT_INPUT_SCROLL_TOP(session.id);
-      const value = localStorage.getItem(key);
-      if (value) {
-        return Number(value);
+      const data = await chatInputStorage.getChatInput(session.id);
+      if (data) {
+        // console.log("[ChatInput][Load] 从 IndexedDB 加载数据:", data);
+        return data;
       }
     } catch (e) {
-      // console.error("[UserInput][Load] 加载未完成 scrollTop 失败:", e);
+      console.error("[ChatInput][Load] 加载聊天输入数据失败:", e);
     }
-    return 0;
+    return {
+      text: "",
+      images: [],
+      scrollTop: 0,
+      selection: { start: 0, end: 0 },
+      updateAt: Date.now(),
+    };
   }
-  // 新增：保存和加载未完成图片的方法
-  function saveChatInputImages(images: string[]) {
+
+  // 保存图片数据
+  async function saveChatInputImages(images: string[]) {
     try {
-      const key = CHAT_INPUT_IMAGES(session.id);
-      localStorage.setItem(key, JSON.stringify(images));
-      // console.log("[UserInput][Save] 保存未完成图片:", images);
+      const currentData = (await chatInputStorage.getChatInput(session.id)) || {
+        text: "",
+        images: [],
+        scrollTop: 0,
+        selection: { start: 0, end: 0 },
+        updateAt: Date.now(),
+      };
+      await chatInputStorage.saveChatInput(session.id, {
+        ...currentData,
+        images,
+        updateAt: Date.now(),
+      });
+      // console.log("[ChatInput][Save] 保存图片到 IndexedDB:", images);
     } catch (e) {
-      // console.error("[UserInput][Save] 保存未完成图片失败:", e);
+      console.error("[ChatInput][Save] 保存图片失败:", e);
     }
-  }
-  function loadChatInputImages(): string[] {
-    try {
-      const key = CHAT_INPUT_IMAGES(session.id);
-      const raw = localStorage.getItem(key);
-      if (raw) {
-        const images = JSON.parse(raw);
-        if (Array.isArray(images)) {
-          // console.log("[UserInput][Load] 加载未完成图片:", images);
-          return images;
-        }
-      }
-    } catch (e) {
-      // console.error("[UserInput][Load] 加载未完成图片失败:", e);
-    }
-    return [];
   }
 
   // 自动修正模型配置
@@ -1305,20 +1367,148 @@ function _Chat() {
   });
 
   useEffect(() => {
-    // try to load from local storage
+    // 启动时数据迁移
+    const migrateData = async () => {
+      try {
+        // 检查是否已经迁移过
+        const migrationKey = "chat-input-system-migration-completed";
+        if (localStorage.getItem(migrationKey)) {
+          console.log("[Migration] 聊天输入和系统消息数据已迁移，跳过");
+          return;
+        }
 
-    // 加载会话文字输入
-    const userInputText = loadChatInputText();
-    const userInputScrollTop = loadChatInputScrollTop();
-    if (inputRef.current) {
-      inputRef.current.value = userInputText;
-      inputRef.current.scrollTop = userInputScrollTop;
-    }
-    setUserInput(userInputText);
+        console.log(
+          "[Migration] 开始迁移聊天输入和系统消息数据到 IndexedDB...",
+        );
 
-    // 加载会话图像输入
-    const images = loadChatInputImages();
-    setAttachImages(images);
+        // 扫描 localStorage 中的聊天输入数据
+        const chatInputKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (
+            key &&
+            (key.startsWith("chat-input-text-") ||
+              key.startsWith("chat-input-images-") ||
+              key.startsWith("chat-input-scroll-top-"))
+          ) {
+            chatInputKeys.push(key);
+          }
+        }
+
+        if (chatInputKeys.length === 0) {
+          console.log("[Migration] 没有找到需要迁移的聊天输入数据");
+        }
+
+        // 迁移聊天输入数据
+        if (chatInputKeys.length > 0) {
+          const sessionData: {
+            [sessionId: string]: {
+              text: string;
+              images: string[];
+              scrollTop: number;
+              selection: { start: number; end: number };
+            };
+          } = {};
+
+          chatInputKeys.forEach((key) => {
+            const sessionId = key
+              .replace("chat-input-text-", "")
+              .replace("chat-input-images-", "")
+              .replace("chat-input-scroll-top-", "");
+
+            if (!sessionData[sessionId]) {
+              sessionData[sessionId] = {
+                text: "",
+                images: [],
+                scrollTop: 0,
+                selection: { start: 0, end: 0 },
+              };
+            }
+
+            if (key.startsWith("chat-input-text-")) {
+              sessionData[sessionId].text = localStorage.getItem(key) || "";
+            } else if (key.startsWith("chat-input-images-")) {
+              try {
+                const images = JSON.parse(localStorage.getItem(key) || "[]");
+                if (Array.isArray(images)) {
+                  sessionData[sessionId].images = images;
+                }
+              } catch (e) {
+                console.error("[Migration] 解析图片数据失败:", e);
+              }
+            } else if (key.startsWith("chat-input-scroll-top-")) {
+              sessionData[sessionId].scrollTop =
+                Number(localStorage.getItem(key)) || 0;
+            }
+          });
+
+          // 迁移到 IndexedDB
+          let migratedCount = 0;
+          for (const [sessionId, data] of Object.entries(sessionData)) {
+            if (data.text || data.images.length > 0 || data.scrollTop > 0) {
+              await chatInputStorage.saveChatInput(sessionId, {
+                text: data.text,
+                images: data.images,
+                scrollTop: data.scrollTop,
+                selection: data.selection,
+                updateAt: Date.now(),
+              });
+              migratedCount++;
+            }
+          }
+
+          // 清理 localStorage 中的旧数据
+          chatInputKeys.forEach((key) => {
+            localStorage.removeItem(key);
+          });
+
+          console.log(
+            `[Migration] 成功迁移 ${migratedCount} 个会话的聊天输入数据`,
+          );
+        }
+
+        // 迁移 IndexedDB 中的旧格式系统消息数据
+        const systemMigratedCount =
+          await systemMessageStorage.migrateOldFormatData();
+        if (systemMigratedCount > 0) {
+          console.log(
+            `[Migration] 成功迁移 ${systemMigratedCount} 个会话的 IndexedDB 系统消息数据`,
+          );
+        }
+
+        localStorage.setItem(migrationKey, "true");
+      } catch (error) {
+        console.error("[Migration] 迁移数据失败:", error);
+      }
+    };
+
+    // 执行迁移
+    migrateData();
+
+    // 从 IndexedDB 加载聊天输入数据
+    const loadData = async () => {
+      const data = await loadChatInputData();
+      if (inputRef.current) {
+        inputRef.current.value = data.text;
+        inputRef.current.scrollTop = data.scrollTop;
+        // 设置光标位置
+        if (data.selection.start !== data.selection.end) {
+          inputRef.current.setSelectionRange(
+            data.selection.start,
+            data.selection.end,
+          );
+        } else {
+          inputRef.current.setSelectionRange(
+            data.selection.start,
+            data.selection.start,
+          );
+        }
+      }
+      setUserInput(data.text);
+      setAttachImages(data.images);
+    };
+
+    loadData();
   }, []);
 
   // onInput 只做本地保存，不 setUserInput
@@ -1327,6 +1517,12 @@ function _Chat() {
     event?: React.FormEvent<HTMLTextAreaElement>,
   ) => {
     saveChatInputText(text); // 只防抖保存 text
+    // 保存光标位置
+    if (event?.currentTarget) {
+      const selectionStart = event.currentTarget.selectionStart;
+      const selectionEnd = event.currentTarget.selectionEnd;
+      saveChatInputSelection({ start: selectionStart, end: selectionEnd });
+    }
     // 只要内容有换行或长度变化较大（如粘贴/多行输入），就 setUserInput
     if (
       text.includes("\n") ||
@@ -1355,9 +1551,23 @@ function _Chat() {
     chatStore.setLastInput(value);
     setUserInput("");
     if (inputRef.current) inputRef.current.value = "";
-    saveChatInputText(inputRef.current?.value ?? "");
-    saveChatInputScrollTop(inputRef.current?.scrollTop ?? 0);
-    saveChatInputImages([]);
+
+    // 清理 IndexedDB 中的聊天输入数据
+    const clearChatInput = async () => {
+      try {
+        await chatInputStorage.saveChatInput(session.id, {
+          text: "",
+          images: [],
+          scrollTop: 0,
+          selection: { start: 0, end: 0 },
+          updateAt: Date.now(),
+        });
+      } catch (e) {
+        console.error("[ChatInput][Clear] 清理聊天输入数据失败:", e);
+      }
+    };
+    clearChatInput();
+
     if (!isMobileScreen) inputRef.current?.focus();
     setAutoScroll(true);
   };
@@ -1697,15 +1907,15 @@ function _Chat() {
   // 使用自定义 hook 处理粘贴上传图片
   const handlePaste = usePasteImageUpload(
     attachImages,
-    (images) => {
+    async (images) => {
       setAttachImages(images);
-      saveChatInputImages(images);
+      await saveChatInputImages(images);
     },
     setUploading,
     (content) => {
       setUserInput(content);
       saveChatInputText(content);
-      console.log("[UserInput][Save][Paste] 粘贴后保存未完成输入:", content);
+      console.log("[ChatInput][Save][Paste] 粘贴后保存未完成输入:", content);
     },
   );
 
@@ -1752,7 +1962,7 @@ function _Chat() {
     if (newImages.length > 0) {
       images.push(...newImages);
       setAttachImages(images);
-      saveChatInputImages(images);
+      await saveChatInputImages(images);
     }
   }
 
@@ -1792,7 +2002,7 @@ function _Chat() {
     );
 
     setAttachImages(images);
-    saveChatInputImages(images); // 新增：保存图片
+    await saveChatInputImages(images); // 新增：保存图片
   }
 
   async function uploadFile() {
@@ -1838,19 +2048,33 @@ function _Chat() {
   const [showChatSidePanel, setShowChatSidePanel] = useState(false);
   const [showSystemPromptEdit, setShowSystemPromptEdit] = useState(false);
   const [systemPromptData, setSystemPromptData] = useState<SystemMessageData>({
-    content: "",
+    text: "",
     images: [],
+    scrollTop: 0,
+    selection: { start: 0, end: 0 },
+    updateAt: Date.now(),
   });
 
   const handleTripleClick = useTripleClick(messageEditRef);
 
   // 处理系统提示词保存
-  const handleSystemPromptSave = (content: string, images: string[]) => {
+  const handleSystemPromptSave = (
+    content: string,
+    images: string[],
+    scrollTop?: number,
+    selection?: { start: number; end: number },
+  ) => {
     chatStore.updateTargetSession(session, (session) => {
       // 移除现有的 system 消息
       session.messages = session.messages.filter((m) => m.role !== "system");
       if (content.trim() || images.length > 0) {
-        saveSystemMessageContentToStorage(session.id, content.trim(), images);
+        saveSystemMessageContentToStorage(
+          session.id,
+          content.trim(),
+          images,
+          scrollTop || 0,
+          selection || { start: 0, end: 0 },
+        );
         const newSystemMessage = createMessage({
           role: "system",
           content: "", // 不存内容
@@ -1968,8 +2192,11 @@ function _Chat() {
   }
 
   interface SystemMessageData {
-    content: string;
+    text: string;
     images: string[];
+    scrollTop: number;
+    selection: { start: number; end: number };
+    updateAt: number;
   }
 
   function getSystemMessageContentKey(sessionId: string) {
@@ -1980,13 +2207,21 @@ function _Chat() {
     sessionId: string,
     content: string,
     images: string[] = [],
+    scrollTop: number = 0,
+    selection: { start: number; end: number } = { start: 0, end: 0 },
   ) {
     try {
       // 保存文本和图片数据
-      const data: SystemMessageData = { content, images };
+      const data: SystemMessageData = {
+        text: content,
+        images,
+        scrollTop,
+        selection,
+        updateAt: Date.now(),
+      };
       const success = await systemMessageStorage.saveSystemMessage(
         sessionId,
-        JSON.stringify(data),
+        data,
       );
       if (!success) {
         throw new Error("保存到 IndexedDB 失败");
@@ -2001,30 +2236,26 @@ function _Chat() {
     sessionId: string,
   ): Promise<SystemMessageData> {
     try {
-      const rawContent = await systemMessageStorage.getSystemMessage(sessionId);
-      if (!rawContent) {
-        return { content: "", images: [] };
+      const data = await systemMessageStorage.getSystemMessage(sessionId);
+      if (!data) {
+        return {
+          text: "",
+          images: [],
+          scrollTop: 0,
+          selection: { start: 0, end: 0 },
+          updateAt: Date.now(),
+        };
       }
-
-      // 尝试解析为新格式（包含图片）
-      try {
-        const data = JSON.parse(rawContent) as SystemMessageData;
-        if (typeof data === "object" && data.content !== undefined) {
-          return {
-            content: data.content || "",
-            images: data.images || [],
-          };
-        }
-      } catch (e) {
-        // 如果解析失败，说明是旧格式（纯文本），兼容处理
-        return { content: rawContent, images: [] };
-      }
-
-      // 兜底返回
-      return { content: rawContent, images: [] };
+      return data;
     } catch (error) {
       console.error("读取系统消息失败:", error);
-      return { content: "", images: [] };
+      return {
+        text: "",
+        images: [],
+        scrollTop: 0,
+        selection: { start: 0, end: 0 },
+        updateAt: Date.now(),
+      };
     }
   }
   // ... existing code ...
@@ -2064,8 +2295,11 @@ function _Chat() {
                     (m) => m.role === "system",
                   ) as SystemMetaMessage | undefined;
                   let systemData: SystemMessageData = {
-                    content: "",
+                    text: "",
                     images: [],
+                    scrollTop: 0,
+                    selection: { start: 0, end: 0 },
+                    updateAt: Date.now(),
                   };
 
                   // 如果存在 system 消息且有 contentKey，从 storage 加载
@@ -2077,8 +2311,11 @@ function _Chat() {
                     // 兼容旧格式
                     if (typeof systemMessage.content === "string") {
                       systemData = {
-                        content: systemMessage.content,
+                        text: systemMessage.content,
                         images: [],
+                        scrollTop: 0,
+                        selection: { start: 0, end: 0 },
+                        updateAt: Date.now(),
                       };
                     } else if (Array.isArray(systemMessage.content)) {
                       const textContent = systemMessage.content
@@ -2089,7 +2326,13 @@ function _Chat() {
                         .filter((c: any) => c.type === "image_url")
                         .map((c: any) => c.image_url?.url)
                         .filter(Boolean);
-                      systemData = { content: textContent, images };
+                      systemData = {
+                        text: textContent,
+                        images,
+                        scrollTop: 0,
+                        selection: { start: 0, end: 0 },
+                        updateAt: Date.now(),
+                      };
                     }
                   }
 
@@ -2455,12 +2698,23 @@ function _Chat() {
                     fontFamily: config.fontFamily,
                   }}
                   onBlur={() => {
-                    setUserInput(inputRef.current?.value ?? "");
+                    const currentValue = inputRef.current?.value ?? "";
+                    setUserInput(currentValue);
                     saveChatInputText.flush && saveChatInputText.flush();
+                    // 保存光标位置
+                    if (inputRef.current) {
+                      const selectionStart = inputRef.current.selectionStart;
+                      const selectionEnd = inputRef.current.selectionEnd;
+                      saveChatInputSelection({
+                        start: selectionStart,
+                        end: selectionEnd,
+                      });
+                    }
                   }}
-                  onScroll={(e) =>
-                    saveChatInputScrollTop(e.currentTarget.scrollTop)
-                  }
+                  onScroll={(e) => {
+                    const scrollTop = e.currentTarget.scrollTop;
+                    saveChatInputScrollTop(scrollTop);
+                  }}
                 />
                 {attachImages.length != 0 && (
                   <div className={styles["attach-images"]}>
@@ -2473,10 +2727,12 @@ function _Chat() {
                         >
                           <div className={styles["attach-image-mask"]}>
                             <DeleteImageButton
-                              deleteImage={() => {
-                                setAttachImages(
-                                  attachImages.filter((_, i) => i !== index),
+                              deleteImage={async () => {
+                                const newImages = attachImages.filter(
+                                  (_, i) => i !== index,
                                 );
+                                setAttachImages(newImages);
+                                await saveChatInputImages(newImages);
                               }}
                             />
                           </div>
@@ -2513,8 +2769,10 @@ function _Chat() {
           onClose={() => setShowSystemPromptEdit(false)}
           sessionId={session.id}
           onSave={handleSystemPromptSave}
-          initialContent={systemPromptData.content}
+          initialContent={systemPromptData.text}
           initialImages={systemPromptData.images}
+          initialScrollTop={systemPromptData.scrollTop}
+          initialSelection={systemPromptData.selection}
         />
       )}
       {showEditMessageModal && editMessageData && (

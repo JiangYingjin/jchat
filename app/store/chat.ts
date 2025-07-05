@@ -376,6 +376,23 @@ export const useChatStore = createPersistStore(
           sessions,
         }));
 
+        // 删除对应的聊天输入数据和系统消息数据
+        const deleteSessionData = async () => {
+          try {
+            await chatInputStorage.deleteChatInput(deletedSession.id);
+            await systemMessageStorage.deleteSystemMessage(deletedSession.id);
+            console.log(
+              `[DeleteSession] 已删除会话 ${deletedSession.id} 的聊天输入数据和系统消息数据`,
+            );
+          } catch (error) {
+            console.error(
+              `[DeleteSession] 删除会话 ${deletedSession.id} 的数据失败:`,
+              error,
+            );
+          }
+        };
+        deleteSessionData();
+
         showToast(
           Locale.Chat.DeleteMessageToast,
           {
@@ -715,31 +732,48 @@ export const useChatStore = createPersistStore(
           let content = systemMessage.content;
           if (!content && (systemMessage as any).contentKey) {
             // 动态从 IndexedDB 取
-            const storedContent = await systemMessageStorage.getSystemMessage(
+            const storedData = await systemMessageStorage.getSystemMessage(
               session.id,
             );
             // 只有当IndexedDB中有内容时才使用，否则跳过该系统消息
-            if (storedContent && storedContent.trim() !== "") {
-              content = storedContent;
+            if (
+              storedData &&
+              (storedData.text.trim() !== "" || storedData.images.length > 0)
+            ) {
+              // 使用新格式的数据构建 multimodalContent
+              const multimodalContent = buildMultimodalContent(
+                storedData.text,
+                storedData.images,
+              );
+              content = multimodalContent;
             }
           }
-          if (content && typeof content === "string" && content.trim() !== "") {
+          if (
+            content &&
+            (typeof content === "string"
+              ? content.trim() !== ""
+              : content.length > 0)
+          ) {
             let multimodalContent: import("../client/api").MultimodalContent[];
-            try {
-              const data = JSON.parse(content);
-              if (
-                typeof data === "object" &&
-                (data.content !== undefined || data.images !== undefined)
-              ) {
-                multimodalContent = buildMultimodalContent(
-                  data.content,
-                  data.images,
-                );
-              } else {
+            if (typeof content === "string") {
+              try {
+                const data = JSON.parse(content);
+                if (
+                  typeof data === "object" &&
+                  (data.content !== undefined || data.images !== undefined)
+                ) {
+                  multimodalContent = buildMultimodalContent(
+                    data.content,
+                    data.images,
+                  );
+                } else {
+                  multimodalContent = buildMultimodalContent(content, []);
+                }
+              } catch (e) {
                 multimodalContent = buildMultimodalContent(content, []);
               }
-            } catch (e) {
-              multimodalContent = buildMultimodalContent(content, []);
+            } else {
+              multimodalContent = content;
             }
             systemPrompt = [
               {
@@ -869,6 +903,21 @@ export const useChatStore = createPersistStore(
       async clearAllData() {
         await indexedDBStorage.clear();
         localStorage.clear();
+
+        // 清理所有聊天输入数据和系统消息数据
+        try {
+          const sessionIds = await chatInputStorage.getAllSessionIds();
+          for (const sessionId of sessionIds) {
+            await chatInputStorage.deleteChatInput(sessionId);
+            await systemMessageStorage.deleteSystemMessage(sessionId);
+          }
+          console.log(
+            `[ClearAllData] 已清理 ${sessionIds.length} 个会话的聊天输入数据和系统消息数据`,
+          );
+        } catch (error) {
+          console.error("[ClearAllData] 清理数据失败:", error);
+        }
+
         location.reload();
       },
       setLastInput(lastInput: string) {
@@ -925,10 +974,19 @@ export const useChatStore = createPersistStore(
   },
 );
 
+// 系统消息数据存储接口
+interface SystemMessageData {
+  text: string;
+  images: string[];
+  scrollTop: number;
+  selection: { start: number; end: number };
+  updateAt: number;
+}
+
 // 使用 IndexedDB 存储系统消息
 class SystemMessageStorage {
   private dbName = "JChat";
-  private version = 1;
+  private version = 3; // 升级版本以支持新的数据格式
   private storeName = "systemMessages";
 
   async initDB(): Promise<IDBDatabase> {
@@ -938,8 +996,13 @@ class SystemMessageStorage {
       request.onsuccess = () => resolve(request.result);
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
+        // 确保 systemMessages 表存在
         if (!db.objectStoreNames.contains(this.storeName)) {
           db.createObjectStore(this.storeName, { keyPath: "sessionId" });
+        }
+        // 确保 chatInput 表存在
+        if (!db.objectStoreNames.contains("chatInput")) {
+          db.createObjectStore("chatInput", { keyPath: "sessionId" });
         }
       };
     });
@@ -947,19 +1010,18 @@ class SystemMessageStorage {
 
   async saveSystemMessage(
     sessionId: string,
-    content: string,
+    data: SystemMessageData,
   ): Promise<boolean> {
     try {
       const db = await this.initDB();
       const transaction = db.transaction([this.storeName], "readwrite");
       const store = transaction.objectStore(this.storeName);
-      const data = {
+      const saveData = {
         sessionId,
-        content,
-        timestamp: Date.now(),
+        ...data,
       };
       await new Promise((resolve, reject) => {
-        const request = store.put(data);
+        const request = store.put(saveData);
         request.onsuccess = () => resolve(request.result);
         request.onerror = () => reject(request.error);
       });
@@ -970,7 +1032,7 @@ class SystemMessageStorage {
     }
   }
 
-  async getSystemMessage(sessionId: string): Promise<string | null> {
+  async getSystemMessage(sessionId: string): Promise<SystemMessageData | null> {
     try {
       const db = await this.initDB();
       const transaction = db.transaction([this.storeName], "readonly");
@@ -979,7 +1041,47 @@ class SystemMessageStorage {
         const request = store.get(sessionId);
         request.onsuccess = () => {
           const result = request.result;
-          resolve(result ? result.content : null);
+          if (result) {
+            resolve({
+              text: result.text || "",
+              images: result.images || [],
+              scrollTop: result.scrollTop || 0,
+              selection: result.selection || { start: 0, end: 0 },
+              updateAt: result.updateAt || Date.now(),
+            });
+          } else {
+            resolve(null);
+          }
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.error("从 JChat.systemMessages 读取系统消息失败:", error);
+      return null;
+    }
+  }
+
+  // 兼容旧格式的方法
+  async getSystemMessageLegacy(sessionId: string): Promise<string | null> {
+    try {
+      const db = await this.initDB();
+      const transaction = db.transaction([this.storeName], "readonly");
+      const store = transaction.objectStore(this.storeName);
+      return new Promise((resolve, reject) => {
+        const request = store.get(sessionId);
+        request.onsuccess = () => {
+          const result = request.result;
+          if (result) {
+            // 如果是新格式，返回 text 字段
+            if (result.text !== undefined) {
+              resolve(result.text);
+            } else {
+              // 如果是旧格式，返回 content 字段
+              resolve(result.content || null);
+            }
+          } else {
+            resolve(null);
+          }
         };
         request.onerror = () => reject(request.error);
       });
@@ -1009,8 +1111,10 @@ class SystemMessageStorage {
   // 验证系统消息是否存在且有效
   async validateSystemMessage(sessionId: string): Promise<boolean> {
     try {
-      const content = await this.getSystemMessage(sessionId);
-      return content !== null && content.trim() !== "";
+      const data = await this.getSystemMessage(sessionId);
+      return (
+        data !== null && (data.text.trim() !== "" || data.images.length > 0)
+      );
     } catch (error) {
       console.error(`验证系统消息失败 (${sessionId}):`, error);
       return false;
@@ -1035,7 +1139,234 @@ class SystemMessageStorage {
 
     return { valid, invalid };
   }
+
+  // 获取所有会话ID
+  async getAllSessionIds(): Promise<string[]> {
+    try {
+      const db = await this.initDB();
+      const transaction = db.transaction([this.storeName], "readonly");
+      const store = transaction.objectStore(this.storeName);
+      return new Promise((resolve, reject) => {
+        const request = store.getAllKeys();
+        request.onsuccess = () => {
+          const keys = request.result as string[];
+          resolve(keys);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.error("从 JChat.systemMessages 获取所有会话ID失败:", error);
+      return [];
+    }
+  }
+
+  // 迁移旧格式数据到新格式
+  async migrateOldFormatData(): Promise<number> {
+    try {
+      const sessionIds = await this.getAllSessionIds();
+      let migratedCount = 0;
+
+      for (const sessionId of sessionIds) {
+        const oldData = await this.getSystemMessageLegacy(sessionId);
+        if (oldData) {
+          // 尝试解析旧格式数据
+          let text = "";
+          let images: string[] = [];
+
+          try {
+            const parsedData = JSON.parse(oldData);
+            if (typeof parsedData === "object") {
+              if (parsedData.content !== undefined) {
+                text = parsedData.content;
+              }
+              if (
+                parsedData.images !== undefined &&
+                Array.isArray(parsedData.images)
+              ) {
+                images = parsedData.images;
+              }
+            }
+          } catch (e) {
+            // 如果解析失败，说明是纯文本
+            text = oldData;
+          }
+
+          // 保存为新格式
+          await this.saveSystemMessage(sessionId, {
+            text,
+            images,
+            scrollTop: 0,
+            selection: { start: 0, end: 0 },
+            updateAt: Date.now(),
+          });
+          migratedCount++;
+        }
+      }
+
+      return migratedCount;
+    } catch (error) {
+      console.error("迁移旧格式系统消息数据失败:", error);
+      return 0;
+    }
+  }
 }
 
 // 创建全局实例
 export const systemMessageStorage = new SystemMessageStorage();
+
+// 聊天输入数据存储接口
+interface ChatInputData {
+  text: string;
+  images: string[];
+  scrollTop: number;
+  selection: { start: number; end: number };
+  updateAt: number;
+}
+
+// 使用 IndexedDB 存储聊天输入数据
+class ChatInputStorage {
+  private dbName = "JChat";
+  private version = 2; // 升级版本以添加新的存储表
+  private storeName = "chatInput";
+
+  async initDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.version);
+      request.onerror = () => reject(request.error);
+      request.onsuccess = () => resolve(request.result);
+      request.onupgradeneeded = (event) => {
+        const db = (event.target as IDBOpenDBRequest).result;
+        // 创建 chatInput 存储表
+        if (!db.objectStoreNames.contains(this.storeName)) {
+          db.createObjectStore(this.storeName, { keyPath: "sessionId" });
+        }
+      };
+    });
+  }
+
+  async saveChatInput(
+    sessionId: string,
+    data: ChatInputData,
+  ): Promise<boolean> {
+    try {
+      const db = await this.initDB();
+      const transaction = db.transaction([this.storeName], "readwrite");
+      const store = transaction.objectStore(this.storeName);
+      const saveData = {
+        sessionId,
+        ...data,
+      };
+      await new Promise((resolve, reject) => {
+        const request = store.put(saveData);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      return true;
+    } catch (error) {
+      console.error("保存聊天输入到 JChat.chatInput 失败:", error);
+      return false;
+    }
+  }
+
+  async getChatInput(sessionId: string): Promise<ChatInputData | null> {
+    try {
+      const db = await this.initDB();
+      const transaction = db.transaction([this.storeName], "readonly");
+      const store = transaction.objectStore(this.storeName);
+      return new Promise((resolve, reject) => {
+        const request = store.get(sessionId);
+        request.onsuccess = () => {
+          const result = request.result;
+          if (result) {
+            resolve({
+              text: result.text || "",
+              images: result.images || [],
+              scrollTop: result.scrollTop || 0,
+              selection: result.selection || { start: 0, end: 0 },
+              updateAt: result.updateAt || Date.now(),
+            });
+          } else {
+            resolve(null);
+          }
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.error("从 JChat.chatInput 读取聊天输入失败:", error);
+      return null;
+    }
+  }
+
+  async deleteChatInput(sessionId: string): Promise<boolean> {
+    try {
+      const db = await this.initDB();
+      const transaction = db.transaction([this.storeName], "readwrite");
+      const store = transaction.objectStore(this.storeName);
+      await new Promise((resolve, reject) => {
+        const request = store.delete(sessionId);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      return true;
+    } catch (error) {
+      console.error("从 JChat.chatInput 删除聊天输入失败:", error);
+      return false;
+    }
+  }
+
+  // 获取所有会话ID
+  async getAllSessionIds(): Promise<string[]> {
+    try {
+      const db = await this.initDB();
+      const transaction = db.transaction([this.storeName], "readonly");
+      const store = transaction.objectStore(this.storeName);
+      return new Promise((resolve, reject) => {
+        const request = store.getAllKeys();
+        request.onsuccess = () => {
+          const keys = request.result as string[];
+          resolve(keys);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.error("获取所有会话ID失败:", error);
+      return [];
+    }
+  }
+
+  // 清理过期的聊天输入数据（可选功能）
+  async cleanupExpiredData(expireDays: number = 7): Promise<number> {
+    try {
+      const db = await this.initDB();
+      const transaction = db.transaction([this.storeName], "readwrite");
+      const store = transaction.objectStore(this.storeName);
+      const expireTime = Date.now() - expireDays * 24 * 60 * 60 * 1000;
+
+      return new Promise((resolve, reject) => {
+        const request = store.getAll();
+        request.onsuccess = () => {
+          const allData = request.result as Array<
+            ChatInputData & { sessionId: string }
+          >;
+          let deletedCount = 0;
+
+          allData.forEach((data) => {
+            if (data.updateAt < expireTime) {
+              store.delete(data.sessionId);
+              deletedCount++;
+            }
+          });
+
+          resolve(deletedCount);
+        };
+        request.onerror = () => reject(request.error);
+      });
+    } catch (error) {
+      console.error("清理过期聊天输入数据失败:", error);
+      return 0;
+    }
+  }
+}
+
+// 创建全局实例
+export const chatInputStorage = new ChatInputStorage();
