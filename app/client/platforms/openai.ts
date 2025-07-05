@@ -13,7 +13,6 @@ import {
   useAccessStore,
   useAppConfig,
   useChatStore,
-  usePluginStore,
 } from "@/app/store";
 import { collectModelsWithDefaultModel } from "@/app/utils/model";
 import {

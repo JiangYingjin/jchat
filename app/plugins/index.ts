@@ -1,9 +1,9 @@
-import { Plugin } from "../store/plugin";
+import { Plugin } from "./typing";
 import { CN_PLUGINS } from "./cn";
 import { EN_PLUGINS } from "./en";
 
 import { type BuiltinPlugin } from "./typing";
-export { type BuiltinPlugin } from "./typing";
+export { type BuiltinPlugin, type Plugin } from "./typing";
 
 export const BUILTIN_PLUGIN_ID = 100000;
 

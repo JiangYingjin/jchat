@@ -21,7 +21,6 @@ export enum Path {
   Chat = "/chat",
   Settings = "/settings",
   NewChat = "/new-chat",
-  Plugins = "/plugins",
   Auth = "/auth",
   Artifacts = "/artifacts",
 }
@@ -40,7 +39,6 @@ export enum SlotID {
 }
 
 export enum FileName {
-  Plugins = "plugins.json",
   Prompts = "prompts.json",
 }
 
@@ -48,7 +46,6 @@ export enum StoreKey {
   Chat = "chat-next-web-store",
   Access = "access-control",
   Config = "app-config",
-  Plugin = "plugin-store",
   Sync = "sync",
 }
 

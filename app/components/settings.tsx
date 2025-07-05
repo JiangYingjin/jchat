@@ -60,7 +60,6 @@ import { useNavigate } from "react-router-dom";
 import { getClientConfig } from "../config/client";
 import { useSyncStore } from "../store/sync";
 import { nanoid } from "nanoid";
-import { PluginConfigList } from "./plugin-config";
 
 import { ProviderType } from "../utils/cloud";
 
@@ -691,14 +690,7 @@ export function Settings() {
         </List>
 
         {/* <List>
-          <PluginConfigList
-            pluginConfig={config.pluginConfig}
-            updateConfig={(updater) => {
-              const pluginConfig = { ...config.pluginConfig };
-              updater(pluginConfig);
-              config.update((config) => (config.pluginConfig = pluginConfig));
-            }}
-          />
+          
         </List> */}
 
         {/* <DangerItems /> */}

@@ -32,7 +32,6 @@ import { useAccessStore } from "./access";
 import { collectModelsWithDefaultModel } from "../utils/model";
 
 import { FileInfo, WebApi } from "../client/platforms/utils";
-import { usePluginStore } from "./plugin";
 import { TavilySearchResponse } from "@tavily/core";
 
 import { buildMultimodalContent } from "../utils/chat";
@@ -487,16 +486,7 @@ export const useChatStore = createPersistStore(
         const messageIndex = session.messages.length + 1;
 
         const config = useAppConfig.getState();
-        const pluginConfig = useAppConfig.getState().pluginConfig;
-        const pluginStore = usePluginStore.getState();
-        const allPlugins = pluginStore
-          .getAll()
-          .filter(
-            (m) =>
-              (!getLang() ||
-                m.lang === (getLang() == "cn" ? getLang() : "en")) &&
-              m.enable,
-          );
+        const allPlugins: any[] = [];
         // save user's and bot's message
         get().updateTargetSession(session, (session) => {
           const savedUserMessage = {
@@ -534,7 +524,6 @@ export const useChatStore = createPersistStore(
 
         const api: ClientApi = getClientApi(modelConfig.providerName);
         if (
-          config.pluginConfig.enable &&
           session.mask.usePlugins &&
           (allPlugins.length > 0 || isEnableRAG) &&
           isFunctionCallModel(modelConfig.model)
@@ -552,7 +541,11 @@ export const useChatStore = createPersistStore(
               chatSessionId: session.id,
               messages: sendMessages,
               config: { ...modelConfig, stream: true },
-              agentConfig: { ...pluginConfig, useTools: pluginToolNames },
+              agentConfig: {
+                maxIterations: 10,
+                returnIntermediateSteps: true,
+                useTools: pluginToolNames,
+              },
               onUpdate(message) {
                 botMessage.streaming = true;
                 if (message) {

@@ -44,7 +44,6 @@ import {
   useAppConfig,
   DEFAULT_TOPIC,
   ModelType,
-  usePluginStore,
   systemMessageStorage,
   chatInputStorage,
 } from "../store";
@@ -478,7 +477,6 @@ export function ChatActions(props: {
   const config = useAppConfig();
   const navigate = useNavigate();
   const chatStore = useChatStore();
-  const pluginStore = usePluginStore();
   const session = chatStore.currentSession();
 
   // switch thinking mode
@@ -621,14 +619,10 @@ export function ChatActions(props: {
           />
         )}
 
-        {config.pluginConfig.enable && isFunctionCallModel(currentModel) && (
+        {isFunctionCallModel(currentModel) && (
           <ChatAction
             onClick={switchUsePlugins}
-            text={
-              usePlugins
-                ? Locale.Chat.InputActions.DisablePlugins
-                : Locale.Chat.InputActions.EnablePlugins
-            }
+            text={usePlugins ? "关闭插件" : "开启插件"}
             icon={usePlugins ? <EnablePluginIcon /> : <DisablePluginIcon />}
             alwaysFullWidth={false}
           />
@@ -709,10 +703,7 @@ export function ChatActions(props: {
           <Selector
             multiple
             defaultSelectedValue={chatStore.currentSession().mask?.plugin}
-            items={pluginStore.getAll().map((item) => ({
-              title: `${item?.title}@${item?.version}`,
-              value: item?.id,
-            }))}
+            items={[]}
             onClose={() => setShowPluginSelector(false)}
             onSelection={(s) => {
               chatStore.updateTargetSession(session, (session) => {
