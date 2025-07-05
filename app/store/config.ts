@@ -22,7 +22,6 @@ const config = getClientConfig();
 export const DEFAULT_CONFIG = {
   lastUpdate: Date.now(), // timestamp, to merge state
 
-  avatar: "1f603",
   fontSize: 14,
   fontFamily: "",
   theme: Theme.Auto as Theme,

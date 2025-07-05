@@ -41,7 +41,6 @@ import { buildMultimodalContent } from "../utils/chat";
 export type Mask = {
   id: string;
   createdAt: number;
-  avatar: string;
   name: string;
   hideContext?: boolean;
   context: ChatMessage[];
@@ -131,7 +130,6 @@ function createEmptySession(): ChatSession {
   const config = useAppConfig.getState();
   const emptyMask: Mask = {
     id: nanoid(),
-    avatar: "gpt-bot",
     name: DEFAULT_TOPIC,
     context: [],
     syncGlobalConfig: true,

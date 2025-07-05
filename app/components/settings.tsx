@@ -57,7 +57,6 @@ import {
 import { ErrorBoundary } from "./error";
 import { InputRange } from "./input-range";
 import { useNavigate } from "react-router-dom";
-import { Avatar, AvatarPicker } from "./emoji";
 import { getClientConfig } from "../config/client";
 import { useSyncStore } from "../store/sync";
 import { nanoid } from "nanoid";

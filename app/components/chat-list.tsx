@@ -1,6 +1,5 @@
 import DeleteIcon from "../icons/delete.svg";
 import BotIcon from "../icons/bot.svg";
-import { EmojiAvatar } from "./emoji";
 
 import styles from "./home.module.scss";
 import {
@@ -138,9 +137,6 @@ export function ChatItem(props: {
         >
           {props.narrow ? (
             <div className={styles["chat-item-narrow"]}>
-              <div className={styles["chat-item-avatar"] + " no-dark"}>
-                <EmojiAvatar avatar={props.mask.avatar} size={24} />
-              </div>
               <div className={styles["chat-item-narrow-count"]}>
                 {props.count}
               </div>

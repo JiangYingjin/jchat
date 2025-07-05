@@ -178,7 +178,7 @@ export class ClientApi {
 
   prompts() {}
 
-  async share(messages: ChatMessage[], avatarUrl: string | null = null) {
+  async share(messages: ChatMessage[]) {
     const msgs = messages
       .map((m) => ({
         from: m.role === "user" ? "human" : "gpt",
@@ -201,7 +201,6 @@ export class ClientApi {
     const shareUrl = clientConfig?.isApp ? rawUrl : proxyUrl;
     const res = await fetch(shareUrl, {
       body: JSON.stringify({
-        avatarUrl,
         items: msgs,
       }),
       headers: {

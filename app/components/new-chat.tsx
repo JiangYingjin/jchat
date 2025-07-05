@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Path, SlotID } from "../constant";
 import { IconButton } from "./button";
-import { EmojiAvatar } from "./emoji";
+
 import styles from "./new-chat.module.scss";
 
 import LeftIcon from "../icons/left.svg";
@@ -24,7 +24,6 @@ const BUILTIN_MASK_STORE = {
 function MaskItem(props: { mask: Mask; onClick?: () => void }) {
   return (
     <div className={styles["mask"]} onClick={props.onClick}>
-      <EmojiAvatar avatar={props.mask.avatar} size={24} />
       <div className={styles["mask-name"] + " one-line"}>{props.mask.name}</div>
     </div>
   );
@@ -134,15 +133,9 @@ export function NewChat() {
         )}
       </div>
       <div className={styles["mask-cards"]}>
-        <div className={styles["mask-card"]}>
-          <EmojiAvatar avatar="1f606" size={24} />
-        </div>
-        <div className={styles["mask-card"]}>
-          <EmojiAvatar avatar="1f916" size={24} />
-        </div>
-        <div className={styles["mask-card"]}>
-          <EmojiAvatar avatar="1f479" size={24} />
-        </div>
+        <div className={styles["mask-card"]}></div>
+        <div className={styles["mask-card"]}></div>
+        <div className={styles["mask-card"]}></div>
       </div>
 
       <div className={styles["title"]}>{Locale.NewChat.Title}</div>

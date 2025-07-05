@@ -180,7 +180,7 @@ const cn = {
       Name: "Language", // ATTENTION: if you wanna add a new translation, please do not translate this value, leave it as `Language`
       All: "所有语言",
     },
-    Avatar: "头像",
+
     FontSize: {
       Title: "字体大小",
       SubTitle: "聊天内容的字体大小",

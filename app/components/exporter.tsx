@@ -28,12 +28,11 @@ import BotIcon from "../icons/bot.png";
 import DownloadIcon from "../icons/download.svg";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageSelector, useMessageSelector } from "./message-selector";
-import { Avatar } from "./emoji";
+
 import dynamic from "next/dynamic";
 import NextImage from "next/image";
 
 import { toBlob, toPng } from "html-to-image";
-const DEFAULT_MASK_AVATAR = "gpt-bot";
 
 import { prettyObject } from "../utils/format";
 import { EXPORT_MESSAGE_CLASS_NAME } from "../constant";
@@ -436,22 +435,6 @@ export function PreviewActions(props: {
   );
 }
 
-function ExportAvatar(props: { avatar: string }) {
-  if (props.avatar === DEFAULT_MASK_AVATAR) {
-    return (
-      <img
-        src={BotIcon.src}
-        width={30}
-        height={30}
-        alt="bot"
-        className="user-avatar"
-      />
-    );
-  }
-
-  return <Avatar avatar={props.avatar} />;
-}
-
 export function ImagePreviewer(props: {
   messages: ChatMessage[];
   topic: string;
@@ -577,11 +560,6 @@ export function ImagePreviewer(props: {
             <div className={styles["sub-title"]}>
               github.com/ChatGPTNextWeb/ChatGPT-Next-Web
             </div>
-            <div className={styles["icons"]}>
-              <ExportAvatar avatar={config.avatar} />
-              <span className={styles["icon-space"]}>&</span>
-              <ExportAvatar avatar={mask.avatar} />
-            </div>
           </div> */}
           <div>
             <div className={styles["chat-info-item"]}>
@@ -608,9 +586,6 @@ export function ImagePreviewer(props: {
               key={i}
             >
               {/* <div className={styles["avatar"]}>
-                <ExportAvatar
-                  avatar={m.role === "user" ? config.avatar : mask.avatar}
-                />
               </div> */}
 
               <div className={styles["body"]}>
