@@ -33,13 +33,7 @@ import {
 import { ModelConfigList } from "./model-config";
 
 import { IconButton } from "./button";
-import {
-  useChatStore,
-  Theme,
-  useUpdateStore,
-  useAccessStore,
-  useAppConfig,
-} from "../store";
+import { useChatStore, Theme, useAccessStore, useAppConfig } from "../store";
 
 import Locale, {
   AllLangs,
@@ -47,7 +41,7 @@ import Locale, {
   changeLang,
   getLang,
 } from "../locales";
-import { copyToClipboard, clientUpdate, semverCompare } from "../utils";
+import { copyToClipboard } from "../utils";
 import Link from "next/link";
 import {
   Anthropic,
@@ -66,7 +60,6 @@ import {
   STORAGE_KEY,
   ServiceProvider,
   SlotID,
-  UPDATE_URL,
   Stability,
   Iflytek,
   ChatGLM,
@@ -427,23 +420,6 @@ export function Settings() {
   const config = useAppConfig();
   const updateConfig = config.update;
 
-  const updateStore = useUpdateStore();
-  const [checkingUpdate, setCheckingUpdate] = useState(false);
-  const currentVersion = updateStore.formatVersion(updateStore.version);
-  const remoteId = updateStore.formatVersion(updateStore.remoteVersion);
-  const hasNewVersion = semverCompare(currentVersion, remoteId) === -1;
-  const updateUrl = getClientConfig()?.isApp ? RELEASE_URL : UPDATE_URL;
-
-  function checkUpdate(force = false) {
-    setCheckingUpdate(true);
-    updateStore.getLatestVersion(force).then(() => {
-      setCheckingUpdate(false);
-    });
-
-    console.log("[Update] local version ", updateStore.version);
-    console.log("[Update] remote version ", updateStore.remoteVersion);
-  }
-
   const accessStore = useAccessStore();
   const shouldHideBalanceQuery = useMemo(() => {
     const isOpenAiUrl = accessStore.openaiUrl.includes(OPENAI_BASE_URL);
@@ -459,35 +435,11 @@ export function Settings() {
     accessStore.provider,
   ]);
 
-  const usage = {
-    used: updateStore.used,
-    subscription: updateStore.subscription,
-  };
-  const [loadingUsage, setLoadingUsage] = useState(false);
-  function checkUsage(force = false) {
-    if (shouldHideBalanceQuery) {
-      return;
-    }
-
-    setLoadingUsage(true);
-    updateStore.updateUsage(force).finally(() => {
-      setLoadingUsage(false);
-    });
-  }
-
   const enabledAccessControl = useMemo(
     () => accessStore.enabledAccessControl(),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
-
-  const showUsage = accessStore.isAuthorized();
-  useEffect(() => {
-    // checks per minutes
-    checkUpdate();
-    showUsage && checkUsage();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     const keydownEvent = (e: KeyboardEvent) => {

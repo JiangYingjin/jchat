@@ -32,11 +32,7 @@ declare interface Window {
       sendNotification(options: string | Options): void;
     };
     updater: {
-      checkUpdate(): Promise<UpdateResult>;
-      installUpdate(): Promise<void>;
-      onUpdaterEvent(
-        handler: (status: UpdateStatusResult) => void,
-      ): Promise<UnlistenFn>;
+      // 移除 checkUpdate、installUpdate、onUpdaterEvent
     };
     http: {
       fetch<T>(
