@@ -12,9 +12,6 @@
 /.next/
 /out/
 
-# production
-/build
-
 # misc
 .DS_Store
 *.pem
@@ -49,3 +46,5 @@ dev
 .vercel
 
 certificates
+
+build/tmp
