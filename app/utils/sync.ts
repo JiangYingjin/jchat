@@ -5,7 +5,7 @@ import {
   useChatStore,
 } from "../store";
 import { useMaskStore } from "../store/mask";
-import { usePromptStore } from "../store/prompt";
+
 import { StoreKey } from "../constant";
 import { merge } from "./merge";
 
@@ -35,7 +35,6 @@ const LocalStateSetters = {
   [StoreKey.Access]: useAccessStore.setState,
   [StoreKey.Config]: useAppConfig.setState,
   [StoreKey.Mask]: useMaskStore.setState,
-  [StoreKey.Prompt]: usePromptStore.setState,
 } as const;
 
 const LocalStateGetters = {
@@ -43,7 +42,6 @@ const LocalStateGetters = {
   [StoreKey.Access]: () => getNonFunctionFileds(useAccessStore.getState()),
   [StoreKey.Config]: () => getNonFunctionFileds(useAppConfig.getState()),
   [StoreKey.Mask]: () => getNonFunctionFileds(useMaskStore.getState()),
-  [StoreKey.Prompt]: () => getNonFunctionFileds(usePromptStore.getState()),
 } as const;
 
 export type AppState = {
@@ -100,13 +98,7 @@ const MergeStates: StateMerger = {
 
     return localState;
   },
-  [StoreKey.Prompt]: (localState, remoteState) => {
-    localState.prompts = {
-      ...remoteState.prompts,
-      ...localState.prompts,
-    };
-    return localState;
-  },
+
   [StoreKey.Mask]: (localState, remoteState) => {
     localState.masks = {
       ...remoteState.masks,

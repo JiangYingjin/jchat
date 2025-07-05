@@ -36,7 +36,7 @@ import { createEmptyMask, Mask } from "./mask";
 import { FileInfo, WebApi } from "../client/platforms/utils";
 import { usePluginStore } from "./plugin";
 import { TavilySearchResponse } from "@tavily/core";
-import { MYFILES_BROWSER_TOOLS_SYSTEM_PROMPT } from "../prompt";
+
 import { buildMultimodalContent } from "../utils/chat";
 
 export interface ChatToolMessage {
