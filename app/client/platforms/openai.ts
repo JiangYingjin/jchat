@@ -20,7 +20,6 @@ import {
   preProcessImageAndWebReferenceContent,
   streamWithThink,
 } from "@/app/utils/chat";
-import { cloudflareAIGatewayUrl } from "@/app/utils/cloudflare";
 
 import {
   AgentChatOptions,
@@ -94,8 +93,7 @@ export class ChatGPTApi implements LLMApi {
 
     console.log("[Proxy Endpoint] ", baseUrl, path);
 
-    // try rebuild url, when using cloudflare ai gateway in client
-    return cloudflareAIGatewayUrl([baseUrl, path].join("/"));
+    return [baseUrl, path].join("/");
   }
 
   extractMessage(res: any) {
