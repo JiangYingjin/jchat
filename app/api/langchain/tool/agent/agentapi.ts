@@ -39,11 +39,7 @@ import {
   ChatPromptTemplate,
   MessagesPlaceholder,
 } from "@langchain/core/prompts";
-import {
-  AzureChatOpenAI,
-  ChatOpenAI,
-  OpenAIEmbeddings,
-} from "@langchain/openai";
+import { ChatOpenAI, OpenAIEmbeddings } from "@langchain/openai";
 import { ChatAnthropic } from "@langchain/anthropic";
 import {
   BaseMessage,
@@ -64,8 +60,6 @@ export interface RequestMessage {
 export interface RequestBody {
   chatSessionId: string;
   messages: RequestMessage[];
-  isAzure: boolean;
-  azureApiVersion?: string;
   model: string;
   stream?: boolean;
   temperature: number;
@@ -290,25 +284,6 @@ export class AgentApi {
   }
 
   getLLM(reqBody: RequestBody, apiKey: string, baseUrl: string) {
-    const serverConfig = getServerSideConfig();
-    if (reqBody.isAzure || serverConfig.isAzure) {
-      console.log("[use Azure ChatOpenAI]");
-      return new AzureChatOpenAI({
-        temperature: reqBody.temperature,
-        streaming: reqBody.stream,
-        topP: reqBody.top_p,
-        presencePenalty: reqBody.presence_penalty,
-        frequencyPenalty: reqBody.frequency_penalty,
-        azureOpenAIApiKey: apiKey,
-        azureOpenAIApiVersion: reqBody.isAzure
-          ? reqBody.azureApiVersion
-          : serverConfig.azureApiVersion,
-        azureOpenAIApiDeploymentName: reqBody.model,
-        azureOpenAIBasePath: baseUrl,
-        maxTokens: reqBody.max_tokens,
-        maxCompletionTokens: reqBody.max_completion_tokens,
-      });
-    }
     if (reqBody.provider === ServiceProvider.OpenAI) {
       console.log("[use ChatOpenAI]");
       return new ChatOpenAI({
@@ -343,12 +318,9 @@ export class AgentApi {
   }
 
   getAuthHeader(reqBody: RequestBody): string {
-    const serverConfig = getServerSideConfig();
-    return reqBody.isAzure || serverConfig.isAzure
-      ? "api-key"
-      : reqBody.provider === ServiceProvider.Anthropic
-        ? "x-api-key"
-        : "Authorization";
+    return reqBody.provider === ServiceProvider.Anthropic
+      ? "x-api-key"
+      : "Authorization";
   }
 
   async getApiHandler(
@@ -361,19 +333,12 @@ export class AgentApi {
       let useTools = reqBody.useTools ?? [];
       const serverConfig = getServerSideConfig();
 
-      // const reqBody: RequestBody = await req.json();
-      // ui set azure model provider
-      const isAzure = reqBody.isAzure;
       const authHeaderName = this.getAuthHeader(reqBody);
       const authToken = req.headers.get(authHeaderName) ?? "";
       const token = authToken.trim().replaceAll("Bearer ", "").trim();
 
       let apiKey = this.getApiKey(token, reqBody.provider);
-      if (isAzure) apiKey = token;
       let baseUrl = this.getBaseUrl(reqBody.baseUrl, reqBody.provider);
-      if (!reqBody.isAzure && serverConfig.isAzure) {
-        baseUrl = serverConfig.azureUrl || baseUrl;
-      }
       console.log("[baseUrl]", baseUrl);
 
       var handler = await this.getHandler(reqBody);
