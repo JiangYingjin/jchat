@@ -1564,28 +1564,9 @@ function _Chat() {
     );
   }, [session.messages]);
 
-  // preview messages
   const renderMessages = useMemo(() => {
-    return context.concat(filteredSessionMessages).concat(
-      (userInput.length > 0 && config.sendPreviewBubble
-        ? [
-            {
-              ...createMessage({
-                role: "user",
-                content: userInput,
-              }),
-              preview: true,
-            },
-          ]
-        : []) as RenderMessage[],
-    );
-  }, [
-    config.sendPreviewBubble,
-    context,
-    isLoading,
-    filteredSessionMessages,
-    userInput,
-  ]);
+    return context.concat(filteredSessionMessages);
+  }, [context, filteredSessionMessages]);
 
   const [msgRenderIndex, _setMsgRenderIndex] = useState(
     Math.max(0, renderMessages.length - CHAT_PAGE_SIZE),
