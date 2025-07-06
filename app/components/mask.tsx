@@ -3,7 +3,6 @@ import { IconButton } from "./button";
 import { ChatMessage, createMessage } from "../store";
 import { MultimodalContent, ROLES } from "../client/api";
 import { Input, Select } from "./ui-lib";
-import { Avatar } from "./emoji";
 import Locale from "../locales";
 import chatStyle from "./chat.module.scss";
 import { getMessageTextContent, getMessageImages } from "../utils";

@@ -38,7 +38,6 @@
     "canvas": "^3.0.1",
     "clsx": "^2.1.1",
     "d3-dsv": "2",
-    "emoji-picker-react": "^4.9.2",
     "encoding": "^0.1.13",
     "epub2": "^3.0.2",
     "fuse.js": "^7.0.0",

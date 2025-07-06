@@ -396,7 +396,6 @@ function SyncItems() {
 
 export function Settings() {
   const navigate = useNavigate();
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const config = useAppConfig();
   const updateConfig = config.update;
 
