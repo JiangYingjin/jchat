@@ -34,17 +34,6 @@ export class FileApi {
       filePath: resJson.filePath,
     };
   }
-
-  async uploadForRag(file: any, session: ChatSession): Promise<FileInfo> {
-    var fileInfo = await this.upload(file);
-    var api: ClientApi = getClientApi(session.mask.modelConfig.providerName);
-    let partial = await api.llm.createRAGStore({
-      chatSessionId: session.id,
-      fileInfos: [fileInfo],
-    });
-    fileInfo.partial = partial;
-    return fileInfo;
-  }
 }
 
 export class WebApi {
