@@ -31,10 +31,8 @@ export const DEFAULT_CONFIG = {
     temperature: 0.5,
     max_tokens: 1000000,
     budget_tokens: 4000,
-    sendMemory: false,
     compressModel: "",
     compressProviderName: "",
-    enableInjectSystemPrompts: false,
     template: config?.template ?? DEFAULT_INPUT_TEMPLATE,
   },
 };
