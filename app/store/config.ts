@@ -19,10 +19,6 @@ export const DEFAULT_CONFIG = {
   fontSize: 14,
   fontFamily: "",
   theme: Theme.Auto as Theme,
-  tightBorder: true,
-  // tightBorder: !!config?.isApp,
-  enableAutoGenerateTitle: true,
-  // sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
   sidebarWidth: 180,
 
   enableCodeFold: true, // code fold config

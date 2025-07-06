@@ -192,7 +192,6 @@ const cn = {
 
     SendKey: "发送键",
     Theme: "主题",
-    TightBorder: "无边框模式",
     AutoGenerateTitle: {
       Title: "自动生成标题",
       SubTitle: "根据对话内容生成合适的标题",

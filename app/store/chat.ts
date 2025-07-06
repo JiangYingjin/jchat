@@ -681,7 +681,6 @@ export const useChatStore = createPersistStore(
         const SUMMARIZE_MIN_LEN = 50;
         if (
           (!process.env.NEXT_PUBLIC_DISABLE_AUTOGENERATETITLE &&
-            config.enableAutoGenerateTitle &&
             session.topic === DEFAULT_TOPIC &&
             countMessages(messages) >= SUMMARIZE_MIN_LEN) ||
           refreshTitle
