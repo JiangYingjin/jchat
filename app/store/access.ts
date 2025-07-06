@@ -28,7 +28,6 @@ const DEFAULT_ACCESS_STATE = {
   defaultModel: "",
 
   isUseOpenAIEndpointForAllModels: false,
-  disableModelProviderDisplay: false,
   isUseRemoteModels: false,
 };
 
@@ -39,10 +38,6 @@ export const useAccessStore = createPersistStore(
     enabledAccessControl() {
       this.fetch();
       return get().needCode;
-    },
-    isDisableModelProviderDisplay() {
-      this.fetch();
-      return get().disableModelProviderDisplay;
     },
     useOpenAIEndpointForAllModels() {
       this.fetch();
@@ -110,14 +105,6 @@ export const useAccessStore = createPersistStore(
           ...rest,
           isUseOpenAIEndpointForAllModels:
             isUseOpenAIEndpointForAllModels || false,
-        };
-      }
-
-      if (version === 6) {
-        const { disableModelProviderDisplay, ...rest } = persistedState;
-        persistedState = {
-          ...rest,
-          disableModelProviderDisplay: disableModelProviderDisplay || false,
         };
       }
 

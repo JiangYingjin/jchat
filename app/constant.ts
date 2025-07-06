@@ -19,13 +19,11 @@ export enum Path {
   Settings = "/settings",
   NewChat = "/new-chat",
   Auth = "/auth",
-  Artifacts = "/artifacts",
 }
 
 export enum ApiPath {
   Cors = "",
   OpenAI = "/api/openai",
-  Artifacts = "/api/artifacts",
 }
 
 export enum SlotID {

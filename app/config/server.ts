@@ -16,7 +16,6 @@ declare global {
       BUILD_MODE?: "standalone" | "export";
       BUILD_APP?: string; // is building desktop app
 
-      HIDE_USER_API_KEY?: string; // disable user's api key input
       ENABLE_BALANCE_QUERY?: string; // allow user to query balance or not
       CUSTOM_MODELS?: string; // to control custom models
       DEFAULT_MODEL?: string; // to control default model in every new chat window
@@ -80,11 +79,6 @@ export const getServerSideConfig = () => {
     apiKey: getApiKey(process.env.OPENAI_API_KEY),
     openaiOrgId: process.env.OPENAI_ORG_ID,
 
-    cloudflareAccountId: process.env.CLOUDFLARE_ACCOUNT_ID,
-    cloudflareKVNamespaceId: process.env.CLOUDFLARE_KV_NAMESPACE_ID,
-    cloudflareKVApiKey: getApiKey(process.env.CLOUDFLARE_KV_API_KEY),
-    cloudflareKVTTL: process.env.CLOUDFLARE_KV_TTL,
-
     gtmId: process.env.GTM_ID,
     gaId: process.env.GA_ID || DEFAULT_GA_ID,
 
@@ -95,18 +89,14 @@ export const getServerSideConfig = () => {
     proxyUrl: process.env.PROXY_URL,
     isVercel: !!process.env.VERCEL,
 
-    hideUserApiKey: !!process.env.HIDE_USER_API_KEY,
     hideBalanceQuery: !process.env.ENABLE_BALANCE_QUERY,
     customModels,
     defaultModel,
     allowedWebDavEndpoints,
 
-    isStoreFileToLocal: !process.env.R2_ACCOUNT_ID && !process.env.S3_ENDPOINT,
-
     isUseOpenAIEndpointForAllModels:
       !!process.env.USE_OPENAI_ENDPOINT_FOR_ALL_MODELS,
 
-    disableModelProviderDisplay: !!process.env.DISABLE_MODEL_PROVIDER_DISPLAY,
     isUseRemoteModels: !!process.env.USE_REMOTE_MODELS,
   };
 };

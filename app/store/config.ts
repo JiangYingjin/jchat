@@ -26,8 +26,6 @@ export const DEFAULT_CONFIG = {
   // sidebarWidth: DEFAULT_SIDEBAR_WIDTH,
   sidebarWidth: 180,
 
-  enableArtifacts: true, // show artifacts config
-
   enableCodeFold: true, // code fold config
 
   disablePromptHint: true,

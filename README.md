@@ -62,7 +62,7 @@
 
 - 非 Vercel 运行环境下支持本地存储
 
-  - 如果你的程序运行在非 Vercel 环境，不配置 `S3_ENDPOINT` 和 `R2_ACCOUNT_ID` 参数，默认上传的文件将存储在 `/app/uploads` 文件夹中
+  - 如果你的程序运行在非 Vercel 环境，不配置 `S3_ENDPOINT` 参数，默认上传的文件将存储在 `/app/uploads` 文件夹中
 
 ## 开发计划
 

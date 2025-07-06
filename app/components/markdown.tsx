@@ -94,10 +94,6 @@ export function PreCode(props: React.ComponentPropsWithoutRef<"pre">) {
     }
   }, 600);
 
-  const config = useAppConfig();
-  const enableArtifacts =
-    session.mask?.enableArtifacts !== false && config.enableArtifacts;
-
   //Wrap the paragraph for plain-text
   useEffect(() => {
     if (ref.current) {
@@ -161,7 +157,7 @@ export function PreCode(props: React.ComponentPropsWithoutRef<"pre">) {
       {mermaidCode.length > 0 && (
         <Mermaid code={mermaidCode} key={mermaidCode} />
       )}
-      {htmlCode.length > 0 && enableArtifacts && (
+      {htmlCode.length > 0 && (
         <FullScreen className="no-dark html" right={70}>
           <ArtifactsShareButton
             style={{ position: "absolute", right: 20, top: 10 }}

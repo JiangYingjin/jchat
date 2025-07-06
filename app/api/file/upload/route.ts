@@ -3,7 +3,6 @@ import { ModelProvider } from "@/app/constant";
 import { auth } from "@/app/api/auth";
 import LocalFileStorage from "@/app/utils/local_file_storage";
 import { getServerSideConfig } from "@/app/config/server";
-import S3FileStorage from "@/app/utils/s3_file_storage";
 import path from "path";
 
 async function handle(req: NextRequest) {
@@ -29,12 +28,7 @@ async function handle(req: NextRequest) {
     const fileType = path.extname(originalFileName).slice(1);
     var fileName = `${Date.now()}.${fileType}`;
     var filePath = "";
-    const serverConfig = getServerSideConfig();
-    if (serverConfig.isStoreFileToLocal) {
-      filePath = await LocalFileStorage.put(fileName, buffer);
-    } else {
-      filePath = await S3FileStorage.put(fileName, buffer);
-    }
+    filePath = await LocalFileStorage.put(fileName, buffer);
     return NextResponse.json(
       {
         fileName: fileName,

@@ -9,16 +9,12 @@ import {
 import { useParams } from "react-router";
 import { IconButton } from "./button";
 import { nanoid } from "nanoid";
-import ExportIcon from "../icons/share.svg";
-import CopyIcon from "../icons/copy.svg";
 import DownloadIcon from "../icons/download.svg";
 import GithubIcon from "../icons/github.svg";
-import LoadingButtonIcon from "../icons/loading.svg";
 import ReloadButtonIcon from "../icons/reload.svg";
 import Locale from "../locales";
-import { Modal, showToast } from "./ui-lib";
-import { copyToClipboard, downloadAs } from "../utils";
-import { Path, ApiPath, REPO_URL } from "@/app/constant";
+import { downloadAs } from "../utils";
+import { REPO_URL } from "@/app/constant";
 import { Loading } from "./home";
 import styles from "./artifacts.module.scss";
 
@@ -117,149 +113,48 @@ export function ArtifactsShareButton({
   style?: any;
   fileName?: string;
 }) {
-  const [loading, setLoading] = useState(false);
-  const [name, setName] = useState(id);
-  const [show, setShow] = useState(false);
-  const shareUrl = useMemo(
-    () => [location.origin, "#", Path.Artifacts, "/", name].join(""),
-    [name],
-  );
-  const upload = (code: string) =>
-    id
-      ? Promise.resolve({ id })
-      : fetch(ApiPath.Artifacts, {
-          method: "POST",
-          body: code,
-        })
-          .then((res) => res.json())
-          .then(({ id }) => {
-            if (id) {
-              return { id };
-            }
-            throw Error();
-          })
-          .catch((e) => {
-            showToast(Locale.Export.Artifacts.Error);
-          });
   return (
-    <>
-      <div className="window-action-button" style={style}>
-        <IconButton
-          icon={loading ? <LoadingButtonIcon /> : <ExportIcon />}
-          bordered
-          title={Locale.Export.Artifacts.Title}
-          onClick={() => {
-            if (loading) return;
-            setLoading(true);
-            upload(getCode())
-              .then((res) => {
-                if (res?.id) {
-                  setShow(true);
-                  setName(res?.id);
-                }
-              })
-              .finally(() => setLoading(false));
-          }}
-        />
-      </div>
-      {show && (
-        <div className="modal-mask">
-          <Modal
-            title={Locale.Export.Artifacts.Title}
-            onClose={() => setShow(false)}
-            actions={[
-              <IconButton
-                key="download"
-                icon={<DownloadIcon />}
-                bordered
-                text={Locale.Export.Download}
-                onClick={() => {
-                  downloadAs(getCode(), `${fileName || name}.html`).then(() =>
-                    setShow(false),
-                  );
-                }}
-              />,
-              <IconButton
-                key="copy"
-                icon={<CopyIcon />}
-                bordered
-                text={Locale.Chat.Actions.Copy}
-                onClick={() => {
-                  copyToClipboard(shareUrl).then(() => setShow(false));
-                }}
-              />,
-            ]}
-          >
-            <div>
-              <a target="_blank" href={shareUrl}>
-                {shareUrl}
-              </a>
-            </div>
-          </Modal>
-        </div>
-      )}
-    </>
+    <div className="window-action-button" style={style}>
+      <IconButton
+        icon={<DownloadIcon />}
+        bordered
+        title={Locale.Export.Download}
+        onClick={() => {
+          downloadAs(getCode(), `${fileName || id || "artifact"}.html`);
+        }}
+      />
+    </div>
   );
 }
 
 export function Artifacts() {
-  const { id } = useParams();
-  const [code, setCode] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [fileName, setFileName] = useState("");
-  const previewRef = useRef<HTMLPreviewHander>(null);
-
-  useEffect(() => {
-    if (id) {
-      fetch(`${ApiPath.Artifacts}?id=${id}`)
-        .then((res) => {
-          if (res.status > 300) {
-            throw Error("can not get content");
-          }
-          return res;
-        })
-        .then((res) => res.text())
-        .then(setCode)
-        .catch((e) => {
-          showToast(Locale.Export.Artifacts.Error);
-        });
-    }
-  }, [id]);
-
   return (
     <div className={styles["artifacts"]}>
       <div className={styles["artifacts-header"]}>
         <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
           <IconButton bordered icon={<GithubIcon />} shadow />
         </a>
-        <IconButton
-          bordered
-          style={{ marginLeft: 20 }}
-          icon={<ReloadButtonIcon />}
-          shadow
-          onClick={() => previewRef.current?.reload()}
-        />
         <div className={styles["artifacts-title"]}>JChat Artifacts</div>
-        <ArtifactsShareButton
-          id={id}
-          getCode={() => code}
-          fileName={fileName}
-        />
       </div>
       <div className={styles["artifacts-content"]}>
-        {loading && <Loading />}
-        {code && (
-          <HTMLPreview
-            code={code}
-            ref={previewRef}
-            autoHeight={false}
-            height={"100%"}
-            onLoad={(title) => {
-              setFileName(title as string);
-              setLoading(false);
-            }}
-          />
-        )}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            height: "100%",
+            textAlign: "center",
+            padding: "20px",
+          }}
+        >
+          <div>
+            <h2>分享功能已禁用</h2>
+            <p>
+              Artifacts 在线分享功能已被禁用。您仍然可以在聊天中预览和下载 HTML
+              代码。
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );

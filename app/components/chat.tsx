@@ -529,11 +529,6 @@ export function ChatActions(props: {
   const isMobileScreen = useMobileScreen();
 
   const accessStore = useAccessStore();
-  const isDisableModelProviderDisplay = useMemo(
-    () => accessStore.isDisableModelProviderDisplay(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
 
   useEffect(() => {
     const show = true; // 所有模型都支持视觉功能
@@ -621,11 +616,7 @@ export function ChatActions(props: {
           <SearchSelector
             defaultSelectedValue={`${currentModel}@${currentProviderName}`}
             items={models.map((m) => ({
-              title: `${m.displayName}${
-                m?.provider?.providerName && !isDisableModelProviderDisplay
-                  ? "(" + m?.provider?.providerName + ")"
-                  : ""
-              }`,
+              title: `${m.displayName}${m?.provider?.providerName}`,
               value: `${m.name}@${m?.provider?.providerName}`,
             }))}
             onClose={() => setShowModelSelector(false)}
