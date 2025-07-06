@@ -23,7 +23,6 @@ const DEFAULT_ACCESS_STATE = {
   // server config
   needCode: true,
   hideUserApiKey: false,
-  hideBalanceQuery: false,
   customModels: "",
   defaultModel: "",
 

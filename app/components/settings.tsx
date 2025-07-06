@@ -359,11 +359,6 @@ export function Settings() {
   const updateConfig = config.update;
 
   const accessStore = useAccessStore();
-  const shouldHideBalanceQuery = useMemo(() => {
-    const isOpenAiUrl = accessStore.openaiUrl.includes(OPENAI_BASE_URL);
-
-    return accessStore.hideBalanceQuery || isOpenAiUrl;
-  }, [accessStore.hideBalanceQuery, accessStore.openaiUrl]);
 
   const enabledAccessControl = useMemo(
     () => accessStore.enabledAccessControl(),

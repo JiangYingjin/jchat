@@ -1,5 +1,4 @@
 import md5 from "spark-md5";
-import { DEFAULT_MODELS } from "../constant";
 
 declare global {
   namespace NodeJS {
@@ -20,8 +19,6 @@ declare global {
 
       // custom template for preprocessing user input
       DEFAULT_INPUT_TEMPLATE?: string;
-
-      ENABLE_MCP?: string; // enable mcp functionality
     }
   }
 }
@@ -75,7 +72,6 @@ export const getServerSideConfig = () => {
 
     proxyUrl: process.env.PROXY_URL,
 
-    hideBalanceQuery: !process.env.ENABLE_BALANCE_QUERY,
     customModels,
     defaultModel,
 
