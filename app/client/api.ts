@@ -1,12 +1,6 @@
 import { getClientConfig } from "../config/client";
 import { ACCESS_CODE_PREFIX, ModelProvider } from "../constant";
-import {
-  ChatMessageTool,
-  ChatMessage,
-  ModelType,
-  useAccessStore,
-  useChatStore,
-} from "../store";
+import { ChatMessage, ModelType, useAccessStore, useChatStore } from "../store";
 import { ChatGPTApi } from "./platforms/openai";
 import { FileApi, FileInfo } from "./platforms/utils";
 
@@ -78,8 +72,6 @@ export interface ChatOptions {
   ) => void;
   onError?: (err: Error) => void;
   onController?: (controller: AbortController) => void;
-  onBeforeTool?: (tool: ChatMessageTool) => void;
-  onAfterTool?: (tool: ChatMessageTool) => void;
 }
 
 export interface AgentChatOptions {
@@ -92,8 +84,6 @@ export interface AgentChatOptions {
   onFinish: (message: string) => void;
   onError?: (err: Error) => void;
   onController?: (controller: AbortController) => void;
-  onBeforeTool?: (tool: ChatMessageTool) => void;
-  onAfterTool?: (tool: ChatMessageTool) => void;
 }
 
 export interface LLMUsage {

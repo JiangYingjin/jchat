@@ -306,19 +306,6 @@ export function getTimeoutMSByModel(model: string) {
   return REQUEST_TIMEOUT_MS;
 }
 
-export function showPlugins(provider: string, model: string) {
-  if (provider === "OpenAI") {
-    return true;
-  }
-  return false;
-}
-
-export function isFunctionCallModel(modelName: string) {
-  return false;
-  const functionCallModels = ["gemini", "gpt", "deepseek", "hunyuan"];
-  return functionCallModels.some((keyword) => modelName.includes(keyword));
-}
-
 export function isImageGenerationModel(modelName: string) {
   const specialModels = ["gemini-2.0-flash-exp"];
   return specialModels.some((keyword) => modelName === keyword);

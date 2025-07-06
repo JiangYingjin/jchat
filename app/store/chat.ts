@@ -1,9 +1,4 @@
-import {
-  getMessageTextContent,
-  getTextContent,
-  isFunctionCallModel,
-  trimTopic,
-} from "../utils";
+import { getMessageTextContent, getTextContent, trimTopic } from "../utils";
 
 import { nanoid } from "nanoid";
 import type {
@@ -44,39 +39,16 @@ export type Mask = {
   modelConfig: ModelConfig;
   lang: Lang;
   builtin: boolean;
-  usePlugins?: boolean;
-  // 上游插件业务参数
-  plugin?: string[];
   enableArtifacts?: boolean;
   enableCodeFold?: boolean;
 };
 
-export interface ChatToolMessage {
-  toolName: string;
-  toolInput?: string;
-}
-
-export type ChatMessageTool = {
-  id: string;
-  index?: number;
-  type?: string;
-  function?: {
-    name: string;
-    arguments?: string;
-  };
-  content?: string;
-  isError?: boolean;
-  errorMsg?: string;
-};
-
 export type ChatMessage = RequestMessage & {
   date: string;
-  toolMessages?: ChatToolMessage[];
   streaming?: boolean;
   isError?: boolean;
   id: string;
   model?: ModelType;
-  tools?: ChatMessageTool[];
   audioUrl?: string;
 };
 
@@ -84,7 +56,6 @@ export function createMessage(override: Partial<ChatMessage>): ChatMessage {
   return {
     id: nanoid(),
     date: new Date().toLocaleString(),
-    toolMessages: new Array<ChatToolMessage>(),
     role: "user",
     content: "",
     ...override,
@@ -129,7 +100,6 @@ function createEmptySession(): ChatSession {
     lang: getLang(),
     builtin: false,
     createdAt: Date.now(),
-    usePlugins: /^gpt(?!.*03\d{2}$).*$/.test(config.modelConfig.model),
   };
 
   return {
@@ -458,11 +428,11 @@ export const useChatStore = createPersistStore(
           fileInfos: attachFiles,
         });
 
-        const botMessage: ChatMessage = createMessage({
+        const botMessage = createMessage({
           role: "assistant",
+          content: "",
           streaming: true,
           model: modelConfig.model,
-          toolMessages: [],
         });
 
         // get recent messages
@@ -479,7 +449,6 @@ export const useChatStore = createPersistStore(
         const messageIndex = session.messages.length + 1;
 
         const config = useAppConfig.getState();
-        const allPlugins: any[] = [];
         // save user's and bot's message
         get().updateTargetSession(session, (session) => {
           const savedUserMessage = {
@@ -516,166 +485,71 @@ export const useChatStore = createPersistStore(
         });
 
         const api: ClientApi = getClientApi("OpenAI");
-        if (
-          session.mask.usePlugins &&
-          allPlugins.length > 0 &&
-          isFunctionCallModel(modelConfig.model)
-        ) {
-          console.log("[ToolAgent] start");
-          let pluginToolNames = allPlugins.map((m) => m.toolName);
-          const agentCall = () => {
-            api.llm.toolAgentChat({
-              chatSessionId: session.id,
-              messages: sendMessages,
-              config: { ...modelConfig, stream: true },
-              agentConfig: {
-                maxIterations: 10,
-                returnIntermediateSteps: true,
-                useTools: pluginToolNames,
-              },
-              onUpdate(message) {
-                botMessage.streaming = true;
-                if (message) {
-                  botMessage.content = message;
-                }
-                get().updateTargetSession(session, (session) => {
-                  session.messages = session.messages.concat();
-                });
-              },
-              onToolUpdate(toolName, toolInput) {
-                botMessage.streaming = true;
-                if (toolName && toolInput) {
-                  botMessage.toolMessages!.push({
-                    toolName,
-                    toolInput,
-                  });
-                }
-                get().updateTargetSession(session, (session) => {
-                  session.messages = session.messages.concat();
-                });
-              },
-              onFinish(message) {
-                botMessage.streaming = false;
-                if (message) {
-                  botMessage.content = message;
-                  get().onNewMessage(botMessage, session);
-                }
-                ChatControllerPool.remove(session.id, botMessage.id);
-              },
-              onError(error) {
-                const isAborted = error.message.includes("aborted");
-                botMessage.content +=
-                  "\n\n" +
-                  prettyObject({
-                    error: true,
-                    message: error.message,
-                  });
-                botMessage.streaming = false;
-                userMessage.isError = !isAborted;
-                botMessage.isError = !isAborted;
-                get().updateTargetSession(session, (session) => {
-                  session.messages = session.messages.concat();
-                });
-                ChatControllerPool.remove(
-                  session.id,
-                  botMessage.id ?? messageIndex,
-                );
-
-                console.error("[Chat] failed ", error);
-              },
-              onController(controller) {
-                // collect controller for stop/retry
-                ChatControllerPool.addController(
-                  session.id,
-                  botMessage.id ?? messageIndex,
-                  controller,
-                );
-              },
+        // make request
+        api.llm.chat({
+          messages: sendMessages,
+          config: { ...modelConfig, stream: true },
+          onUpdate(message) {
+            botMessage.streaming = true;
+            if (message) {
+              botMessage.content = message;
+            }
+            get().updateTargetSession(session, (session) => {
+              session.messages = session.messages.concat();
             });
-          };
-          agentCall();
-        } else {
-          // make request
-          api.llm.chat({
-            messages: sendMessages,
-            config: { ...modelConfig, stream: true },
-            onUpdate(message) {
-              botMessage.streaming = true;
-              if (message) {
-                botMessage.content = message;
+          },
+          onReasoningUpdate(message) {
+            botMessage.streaming = true;
+            if (message) {
+              botMessage.reasoningContent = message;
+            }
+            get().updateTargetSession(session, (session) => {
+              session.messages = session.messages.concat();
+            });
+          },
+          onFinish(message, responseRes) {
+            botMessage.streaming = false;
+            if (message) {
+              botMessage.content = message;
+              botMessage.date = new Date().toLocaleString();
+              if (responseRes && responseRes.status !== 200) {
+                botMessage.isError = true;
               }
-              get().updateTargetSession(session, (session) => {
-                session.messages = session.messages.concat();
-              });
-            },
-            onReasoningUpdate(message) {
-              botMessage.streaming = true;
-              if (message) {
-                botMessage.reasoningContent = message;
-              }
-              get().updateTargetSession(session, (session) => {
-                session.messages = session.messages.concat();
-              });
-            },
-            onFinish(message, responseRes) {
-              botMessage.streaming = false;
-              if (message) {
-                botMessage.content = message;
-                botMessage.date = new Date().toLocaleString();
-                if (responseRes && responseRes.status !== 200) {
-                  botMessage.isError = true;
-                }
-                get().onNewMessage(botMessage, session);
-              }
-              ChatControllerPool.remove(session.id, botMessage.id);
-            },
-            onBeforeTool(tool: ChatMessageTool) {
-              (botMessage.tools = botMessage?.tools || []).push(tool);
-              get().updateTargetSession(session, (session) => {
-                session.messages = session.messages.concat();
-              });
-            },
-            onAfterTool(tool: ChatMessageTool) {
-              botMessage?.tools?.forEach((t, i, tools) => {
-                if (tool.id == t.id) {
-                  tools[i] = { ...tool };
-                }
-              });
-              get().updateTargetSession(session, (session) => {
-                session.messages = session.messages.concat();
-              });
-            },
-            onError(error) {
-              const isAborted = error.message?.includes?.("aborted");
-              botMessage.content +=
-                "\n\n" +
-                prettyObject({
-                  error: true,
-                  message: error.message,
-                });
-              botMessage.streaming = false;
-              userMessage.isError = !isAborted;
-              botMessage.isError = !isAborted;
-              get().updateTargetSession(session, (session) => {
-                session.messages = session.messages.concat();
-              });
-              ChatControllerPool.remove(
-                session.id,
-                botMessage.id ?? messageIndex,
-              );
+              get().onNewMessage(botMessage, session);
+            }
+            ChatControllerPool.remove(session.id, botMessage.id);
+          },
 
-              console.error("[Chat] failed ", error);
-            },
-            onController(controller) {
-              // collect controller for stop/retry
-              ChatControllerPool.addController(
-                session.id,
-                botMessage.id ?? messageIndex,
-                controller,
-              );
-            },
-          });
-        }
+          onError(error) {
+            const isAborted = error.message?.includes?.("aborted");
+            botMessage.content +=
+              "\n\n" +
+              prettyObject({
+                error: true,
+                message: error.message,
+              });
+            botMessage.streaming = false;
+            userMessage.isError = !isAborted;
+            botMessage.isError = !isAborted;
+            get().updateTargetSession(session, (session) => {
+              session.messages = session.messages.concat();
+            });
+            ChatControllerPool.remove(
+              session.id,
+              botMessage.id ?? messageIndex,
+            );
+
+            console.error("[Chat] failed ", error);
+          },
+          onController(controller) {
+            // collect controller for stop/retry
+            ChatControllerPool.addController(
+              session.id,
+              botMessage.id ?? messageIndex,
+              controller,
+            );
+          },
+        });
       },
 
       getMemoryPrompt() {
@@ -857,6 +731,7 @@ export const useChatStore = createPersistStore(
           // TODO: should update chat count and word count
         });
       },
+
       updateTargetSession(
         targetSession: ChatSession,
         updater: (session: ChatSession) => void,
@@ -867,29 +742,55 @@ export const useChatStore = createPersistStore(
         updater(sessions[index]);
         set(() => ({ sessions }));
       },
+
+      setLastInput(input: string) {
+        set(() => ({ lastInput: input }));
+      },
+
       async clearAllData() {
         safeLocalStorage().clear();
 
         // 清理所有聊天输入数据和系统消息数据
         try {
-          const sessionIds = await chatInputStorage.getAllSessionIds();
-          for (const sessionId of sessionIds) {
-            await chatInputStorage.deleteChatInput(sessionId);
-            await systemMessageStorage.deleteSystemMessage(sessionId);
-          }
-          console.log(
-            `[ClearAllData] 已清理 ${sessionIds.length} 个会话的聊天输入数据和系统消息数据`,
-          );
+          await chatInputStorage.cleanupExpiredData(0);
+          await systemMessageStorage.migrateOldFormatData();
+          console.log("[Store] 成功清理所有数据");
         } catch (error) {
-          console.error("[ClearAllData] 清理数据失败:", error);
+          console.error("[Store] 清理数据失败:", error);
+        }
+      },
+
+      async migrate(persistedState: any, version: number) {
+        const state = persistedState as any;
+        const newState = JSON.parse(JSON.stringify(state));
+
+        // migrate chat store
+        const chatStore = newState.sessions;
+        for (const session of chatStore) {
+          if (session.mask) {
+            if (session.mask.modelConfig && session.mask.modelConfig.model) {
+              const modelConfig = session.mask.modelConfig;
+              if (modelConfig.model) {
+                const modelName = modelConfig.model;
+                const modelProvider = modelConfig.providerName;
+                const [model, provider] = getSummarizeModel(
+                  modelName,
+                  modelProvider,
+                );
+                modelConfig.model = model;
+                modelConfig.providerName = provider;
+              }
+            }
+          }
         }
 
-        location.reload();
-      },
-      setLastInput(lastInput: string) {
-        set({
-          lastInput,
-        });
+        if (version < 3.4) {
+          newState.sessions.forEach((s: ChatSession) => {
+            s.lastUpdate = Date.now();
+          });
+        }
+
+        return newState as any;
       },
     };
 
@@ -898,45 +799,6 @@ export const useChatStore = createPersistStore(
   {
     name: StoreKey.Chat,
     version: 3.4,
-    async migrate(persistedState, version) {
-      const state = persistedState as any;
-      const newState = JSON.parse(
-        JSON.stringify(state),
-      ) as typeof DEFAULT_CHAT_STATE;
-
-      if (version < 2) {
-        newState.sessions = [];
-
-        const oldSessions = state.sessions;
-        for (const oldSession of oldSessions) {
-          const newSession = createEmptySession();
-          newSession.topic = oldSession.topic;
-          newSession.messages = [...oldSession.messages];
-          newSession.mask.modelConfig.sendMemory = true;
-          newState.sessions.push(newSession);
-        }
-      }
-
-      if (version < 3) {
-        // migrate id to nanoid
-        newState.sessions.forEach((s) => {
-          s.id = nanoid();
-          s.messages.forEach((m) => (m.id = nanoid()));
-        });
-      }
-
-      // add default summarize model for every session
-      if (version < 3.2) {
-        newState.sessions.forEach((s) => {
-          const config = useAppConfig.getState();
-          s.mask.modelConfig.compressModel = config.modelConfig.compressModel;
-          s.mask.modelConfig.compressProviderName =
-            config.modelConfig.compressProviderName;
-        });
-      }
-
-      return newState as any;
-    },
   },
 );
 

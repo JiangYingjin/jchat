@@ -23,11 +23,6 @@
 
 </div>
 
-> [!WARNING]
-> 本项目插件功能基于 [OpenAI API 函数调用](https://platform.openai.com/docs/guides/function-calling) 功能实现，转发 GitHub Copilot 接口或类似实现的模拟接口并不能正常调用插件功能！
->
-> [实验性] 新增 claude 模型函数调用支持。
-
 ![cover](./docs/images/gemini-image-generation.png)
 
 ![cover](./docs/images/thinking-example.png)
@@ -45,7 +40,7 @@
     - `TAVILY_API_KEY`
   - 申请地址：https://tavily.com
 
-- 除插件工具外，与原项目保持一致 [ChatGPT-Next-Web 主要功能](https://github.com/Yidadaa/ChatGPT-Next-Web#主要功能)
+- 与原项目保持一致 [ChatGPT-Next-Web 主要功能](https://github.com/Yidadaa/ChatGPT-Next-Web#主要功能)
 
 - 支持语音输入，需要使用 HTTPS 访问 https://github.com/Hk-Gosuto/ChatGPT-Next-Web-LangChain/issues/208
 
@@ -54,85 +49,8 @@
   - ~~需要配置对象存储服务，请参考 [对象存储服务配置指南](./docs/s3-oss.md) 配置~~
   - 已同步上游仓库视觉模型调用方式（压缩图片），这里还是会有撑爆 LocalStorage 的风险 https://github.com/Hk-Gosuto/ChatGPT-Next-Web-LangChain/issues/77#issuecomment-1846410078 ，后面如果出现类似问题会再适配对象存储来存储图像。
 
-- 基于 [LangChain](https://github.com/hwchase17/langchainjs) 实现的插件功能，目前支持以下插件，未来会添加更多
-
-  - 搜索（优先级：`GoogleCustomSearch > SerpAPI > BingSerpAPI > ChooseSearchEngine > DuckDuckGo`）
-
-    - [GoogleCustomSearch](https://api.js.langchain.com/classes/langchain_tools.GoogleCustomSearch.html)
-
-      - 环境变量：
-        - `GOOGLE_PLUGIN_API_PROXY_PREFIX` 与 `DDG_API_PROXY_PREFIX` 变量使用方法一致
-        - ~~`GOOGLE_API_KEY`~~ `GOOGLE_SEARCH_API_KEY`
-        - `GOOGLE_CSE_ID`
-      - 申请参考：[说明](https://stackoverflow.com/questions/37083058/programmatically-searching-google-in-python-using-custom-search)
-
-    - [SerpAPI](https://api.js.langchain.com/classes/langchain_tools.SerpAPI.html)
-
-      - 环境变量：`SERPAPI_API_KEY`
-      - 申请地址：[SerpApi: Google Search API](https://serpapi.com/)
-
-    - [BingSerpAPI](https://api.js.langchain.com/classes/langchain_tools.BingSerpAPI.html)
-
-      - 环境变量：`BING_SEARCH_API_KEY`
-      - 申请地址：[Web Search API | Microsoft Bing](https://www.microsoft.com/en-us/bing/apis/bing-web-search-api)
-
-    - ChooseSearchEngine（作者：[hang666](https://github.com/hang666)）
-
-      - 环境变量：
-
-        - `CHOOSE_SEARCH_ENGINE`
-        - `GOOGLE_PLUGIN_API_PROXY_PREFIX` 与 `DDG_API_PROXY_PREFIX` 变量使用方法一致，只会对 google 进行代理
-
-        可选项如下：
-
-        - google
-        - baidu
-
-      - 说明：此项为直连搜索引擎，免去api试用量小的烦恼，但可能因为网络问题导致无法使用
-
-      - ⚠ 注意：已知在 vercel 环境下会出现调用不稳定的情况 https://github.com/Hk-Gosuto/ChatGPT-Next-Web-LangChain/issues/89#issuecomment-1868887904
-
-    - DuckDuckGo
-
-      - 环境变量：`DDG_API_PROXY_PREFIX`
-
-        配置后将在 DuckDuckGo 插件相关接口前拼接配置内容，如：`DDG_API_PROXY_PREFIX=https://example.com/` 则最终请求为：`https://example.com/https://duckduckgo.com`
-
-        可以结合类似 1234567Yang/cf-proxy-ex 这类代理项目来实现 DuckDuckGo 插件相关接口的代理
-
-  - 计算
-    - [Calculator](https://api.js.langchain.com/classes/langchain_tools_calculator.Calculator.html)
-    - [WolframAlpha](https://api.js.langchain.com/classes/langchain_tools.WolframAlphaTool.html)
-      - 环境变量：`WOLFRAM_ALPHA_APP_ID`
-      - 申请地址：[Wolfram LLM API](https://developer.wolframalpha.com/)
-  - 网络请求
-
-    - ⚠ 仅在非 vercel 环境部署时可用 ⚠
-
-  - 其它
-    - [Wiki](https://api.js.langchain.com/classes/langchain_tools.WikipediaQueryRun.html)
-    - DALL-E 3
-      - DALL-E 3 插件需要配置对象存储服务，请参考 [对象存储服务配置指南](./docs/s3-oss.md) 配置
-      - 如无需图像转存则可以配置 `DALLE_NO_IMAGE_STORAGE=1` ，此时将直接将 DALL-E 服务返回的临时 URL 用于图像显示，注意：该链接具有时效性
-      - 默认使用 `dall-e-3` 模型，如果想使用 `dall-e-2` ，可以配置环境变量 `DALLE_MODEL=dall-e-2`
-    - StableDiffusion
-      - 本插件目前为测试版本，后续可能会有较大的变更，请谨慎使用
-      - 使用本插件需要一定的专业知识，Stable Diffusion 本身的相关问题不在本项目的解答范围内，如果您确定要使用本插件请参考 [Stable Diffusion 插件配置指南](./docs/stable-diffusion-plugin-cn.md) 文档进行配置
-      - StableDiffusion 插件需要配置对象存储服务，请参考 [对象存储服务配置指南](./docs/s3-oss.md) 配置
-    - Arxiv
-    - B站相关插件（作者：[fred913](https://github.com/fred913)）
-      - bilibili 视频信息获取（建议使用以下插件时同时启用本插件）
-      - bilibili 视频搜索
-        - 需配置环境变量 `BILIBILI_COOKIES`
-      - bilibili 听歌识曲
-        - 需提前部署 [bilivid-metaprocess-server](https://github.com/fred913/bilivid-metaprocess-server) 并配置环境变量 `BILIVID_METAPROCESS_SERVER_ADDRESS`
-      - bilibili视频总结
-        - 需配置环境变量 `BILIBILI_COOKIES`
-
 - 支持 gemini-pro, gemini-pro-vision 模型
 
-  - 以下功能目前还不支持
-    - **插件功能**
   - 如何启用
     - 配置密钥 `GOOGLE_API_KEY` ，key 可以在这里获取：https://ai.google.dev/tutorials/setup
     - 配置自定义接口地址（可选） `GEMINI_BASE_URL`，可以使用我的这个项目搭建一个基于 vercel 的代理服务：[vercel-ai-proxy](https://github.com/Hk-Gosuto/vercel-ai-proxy)
@@ -148,31 +66,11 @@
 
 ## 开发计划
 
-- [x] 支持使用 DuckDuckGo 作为默认搜索引擎
-
-  不配置时默认使用 `DuckDuckGo` 作为搜索插件。
-
-- [x] 插件列表页面开发
-
-- [x] 支持开关指定插件
-
-- [x] 支持 Agent 参数配置（ ~~agentType~~, maxIterations, returnIntermediateSteps 等）
-
-- [x] 支持 ChatSession 级别插件功能开关
-
-  仅在使用非 `0301` 和 `0314` 版本模型时会出现插件开关，其它模型默认为关闭状态，开关也不会显示。
-
-  最新版本中已经移除上面两个模型。
-
 - [x] 支持语音输入 https://github.com/Hk-Gosuto/ChatGPT-Next-Web-LangChain/issues/208
 
 - [x] 支持其他类型文件上传 https://github.com/Hk-Gosuto/ChatGPT-Next-Web-LangChain/issues/77
 
 - [ ] 支持 Azure Storage https://github.com/Hk-Gosuto/ChatGPT-Next-Web-LangChain/issues/217
-
-- [ ] 支持 Fooocus-API 插件 https://github.com/Hk-Gosuto/ChatGPT-Next-Web-LangChain/issues/58
-
-- [ ] 支持在 UI 配置插件需要的 Key https://github.com/Hk-Gosuto/ChatGPT-Next-Web-LangChain/issues/70
 
 ## 开始使用
 

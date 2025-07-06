@@ -22,8 +22,7 @@ import EditIcon from "../icons/edit.svg";
 import ConfirmIcon from "../icons/confirm.svg";
 import CloseIcon from "../icons/close.svg";
 import CancelIcon from "../icons/cancel.svg";
-import EnablePluginIcon from "../icons/plugin_enable.svg";
-import DisablePluginIcon from "../icons/plugin_disable.svg";
+
 import UploadIcon from "../icons/upload.svg";
 import ImageIcon from "../icons/image.svg";
 import CameraIcon from "../icons/camera.svg";
@@ -56,8 +55,6 @@ import {
   getMessageTextReasoningContent,
   getMessageImages,
   isVisionModel,
-  showPlugins,
-  isFunctionCallModel,
 } from "../utils";
 
 import { uploadImage as uploadImageRemote } from "@/app/utils/chat";
@@ -476,14 +473,6 @@ export function ChatActions(props: {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
 
-  // switch Plugins
-  const usePlugins = chatStore.currentSession().mask.usePlugins;
-  function switchUsePlugins() {
-    chatStore.updateTargetSession(session, (session) => {
-      session.mask.usePlugins = !session.mask.usePlugins;
-    });
-  }
-
   // stop all responses
   const couldStop = ChatControllerPool.hasPending();
   const stopAll = () => ChatControllerPool.stopAll();
@@ -523,7 +512,6 @@ export function ChatActions(props: {
     return model?.displayName ?? "";
   }, [models, currentModel, currentProviderName]);
   const [showModelSelector, setShowModelSelector] = useState(false);
-  const [showPluginSelector, setShowPluginSelector] = useState(false);
   const [showUploadImage, setShowUploadImage] = useState(false);
   const [showUploadFile, setShowUploadFile] = useState(false);
 
@@ -587,15 +575,6 @@ export function ChatActions(props: {
           />
         )}
 
-        {isFunctionCallModel(currentModel) && (
-          <ChatAction
-            onClick={switchUsePlugins}
-            text={usePlugins ? "关闭插件" : "开启插件"}
-            icon={usePlugins ? <EnablePluginIcon /> : <DisablePluginIcon />}
-            alwaysFullWidth={false}
-          />
-        )}
-
         <ChatAction
           onClick={() => setShowModelSelector(true)}
           text={currentModelName}
@@ -652,19 +631,6 @@ export function ChatActions(props: {
           />
         )}
 
-        {showPluginSelector && (
-          <Selector
-            multiple
-            defaultSelectedValue={chatStore.currentSession().mask?.plugin}
-            items={[]}
-            onClose={() => setShowPluginSelector(false)}
-            onSelection={(s) => {
-              chatStore.updateTargetSession(session, (session) => {
-                session.mask.plugin = s as string[];
-              });
-            }}
-          />
-        )}
         {couldStop && (
           <ChatAction
             onClick={stopAll}
@@ -2269,54 +2235,9 @@ function _Chat() {
                             </div>
                           )}
                         </div>
-                        {!isUser &&
-                          message.toolMessages &&
-                          message.toolMessages.map((tool, index) => (
-                            <div
-                              className={styles["chat-message-tools-status"]}
-                              key={index}
-                            >
-                              <div
-                                className={styles["chat-message-tools-name"]}
-                              >
-                                <CheckmarkIcon
-                                  className={styles["chat-message-checkmark"]}
-                                />
-                                {tool.toolName}:
-                                <code
-                                  className={
-                                    styles["chat-message-tools-details"]
-                                  }
-                                >
-                                  {tool.toolInput}
-                                </code>
-                              </div>
-                            </div>
-                          ))}
-                        {message?.tools?.length == 0 && showTyping && (
+                        {showTyping && (
                           <div className={styles["chat-message-status"]}>
                             {Locale.Chat.Typing}
-                          </div>
-                        )}
-                        {/*@ts-ignore*/}
-                        {message?.tools?.length > 0 && (
-                          <div className={styles["chat-message-tools"]}>
-                            {message?.tools?.map((tool) => (
-                              <div
-                                key={tool.id}
-                                title={tool?.errorMsg}
-                                className={styles["chat-message-tool"]}
-                              >
-                                {tool.isError === false ? (
-                                  <ConfirmIcon />
-                                ) : tool.isError === true ? (
-                                  <CloseIcon />
-                                ) : (
-                                  <LoadingButtonIcon />
-                                )}
-                                <span>{tool?.function?.name}</span>
-                              </div>
-                            ))}
                           </div>
                         )}
                         {!isUser && message.reasoningContent && (

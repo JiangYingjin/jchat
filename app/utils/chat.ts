@@ -266,40 +266,11 @@ export async function stream(
         runTools.splice(0, runTools.length); // empty runTools
         return Promise.all(
           toolCallMessage.tool_calls.map((tool) => {
-            options?.onBeforeTool?.(tool);
-            return Promise.resolve(
-              // @ts-ignore
-              funcs[tool.function.name](
-                // @ts-ignore
-                tool?.function?.arguments
-                  ? JSON.parse(tool?.function?.arguments)
-                  : {},
-              ),
-            )
-              .then((res) => {
-                const content = JSON.stringify(res.data);
-                if (res.status >= 300) {
-                  return Promise.reject(content);
-                }
-                return content;
-              })
-              .then((content) => {
-                options?.onAfterTool?.({
-                  ...tool,
-                  content,
-                  isError: false,
-                });
-                return content;
-              })
-              .catch((e) => {
-                options?.onAfterTool?.({ ...tool, isError: true });
-                return e.toString();
-              })
-              .then((content) => ({
-                role: "tool",
-                content,
-                tool_call_id: tool.id,
-              }));
+            return Promise.resolve("").then((content) => ({
+              role: "tool",
+              content,
+              tool_call_id: tool.id,
+            }));
           }),
         ).then((toolCallResult) => {
           processToolMessage(requestPayload, toolCallMessage, toolCallResult);
@@ -506,49 +477,12 @@ export function streamWithThink(
         runTools.splice(0, runTools.length); // empty runTools
         return Promise.all(
           toolCallMessage.tool_calls.map((tool) => {
-            options?.onBeforeTool?.(tool);
-            return Promise.resolve(
-              // @ts-ignore
-              funcs[tool.function.name](
-                // @ts-ignore
-                tool?.function?.arguments
-                  ? JSON.parse(tool?.function?.arguments)
-                  : {},
-              ),
-            )
-              .then((res) => {
-                let content = res.data || res?.statusText;
-                content =
-                  typeof content === "string"
-                    ? content
-                    : JSON.stringify(content);
-                if (res.status >= 300) {
-                  return Promise.reject(content);
-                }
-                return content;
-              })
-              .then((content) => {
-                options?.onAfterTool?.({
-                  ...tool,
-                  content,
-                  isError: false,
-                });
-                return content;
-              })
-              .catch((e) => {
-                options?.onAfterTool?.({
-                  ...tool,
-                  isError: true,
-                  errorMsg: e.toString(),
-                });
-                return e.toString();
-              })
-              .then((content) => ({
-                name: tool.function.name,
-                role: "tool",
-                content,
-                tool_call_id: tool.id,
-              }));
+            return Promise.resolve("").then((content) => ({
+              name: tool.function.name,
+              role: "tool",
+              content,
+              tool_call_id: tool.id,
+            }));
           }),
         ).then((toolCallResult) => {
           processToolMessage(requestPayload, toolCallMessage, toolCallResult);

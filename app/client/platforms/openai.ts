@@ -7,12 +7,7 @@ import {
   REQUEST_TIMEOUT_MS,
   OPENAI_BASE_URL,
 } from "@/app/constant";
-import {
-  ChatMessageTool,
-  useAccessStore,
-  useAppConfig,
-  useChatStore,
-} from "@/app/store";
+import { useAccessStore, useAppConfig, useChatStore } from "@/app/store";
 import { collectModelsWithDefaultModel } from "@/app/utils/model";
 import {
   preProcessImageAndWebReferenceContent,
@@ -196,11 +191,6 @@ export class ChatGPTApi implements LLMApi {
       const chatPath = this.path(OpenaiPath.ChatPath);
       if (shouldStream) {
         let index = -1;
-        // const [tools, funcs] = usePluginStore
-        //   .getState()
-        //   .getAsTools(
-        //     useChatStore.getState().currentSession().mask?.plugin || [],
-        //   );
         const tools = null;
         const funcs: Record<string, Function> = {};
         // console.log("getAsTools", tools, funcs);
@@ -212,13 +202,13 @@ export class ChatGPTApi implements LLMApi {
           funcs,
           controller,
           // parseSSE
-          (text: string, runTools: ChatMessageTool[]) => {
+          (text: string, runTools: any[]) => {
             // console.log("parseSSE", text, runTools);
             const json = JSON.parse(text);
             const choices = json.choices as Array<{
               delta: {
                 content: string;
-                tool_calls: ChatMessageTool[];
+                tool_calls: any[];
                 reasoning_content: string | null;
                 reasoning: string | null;
               };
@@ -365,9 +355,7 @@ export class ChatGPTApi implements LLMApi {
     options.onController?.(controller);
 
     try {
-      let path = "/api/langchain/tool/agent/";
-      const enableNodeJSPlugin = !!process.env.NEXT_PUBLIC_ENABLE_NODEJS_PLUGIN;
-      path = enableNodeJSPlugin ? path + "nodejs" : path + "edge";
+      let path = "/api/langchain/tool/agent/edge";
       const chatPayload = {
         method: "POST",
         body: JSON.stringify(requestPayload),

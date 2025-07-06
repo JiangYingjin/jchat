@@ -126,10 +126,7 @@ export const getServerSideConfig = () => {
     visionModels,
     allowedWebDavEndpoints,
 
-    isStoreFileToLocal:
-      !!process.env.NEXT_PUBLIC_ENABLE_NODEJS_PLUGIN &&
-      !process.env.R2_ACCOUNT_ID &&
-      !process.env.S3_ENDPOINT,
+    isStoreFileToLocal: !process.env.R2_ACCOUNT_ID && !process.env.S3_ENDPOINT,
 
     isUseOpenAIEndpointForAllModels:
       !!process.env.USE_OPENAI_ENDPOINT_FOR_ALL_MODELS,

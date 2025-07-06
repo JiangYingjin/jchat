@@ -1,7 +1,7 @@
 export const OWNER = "Hk-Gosuto";
 export const REPO = "ChatGPT-Next-Web-LangChain";
 export const REPO_URL = `https://github.com/${OWNER}/${REPO}`;
-export const PLUGINS_REPO_URL = `https://github.com/${OWNER}/JChat-Awesome-Plugins`;
+
 export const ISSUE_URL = `https://github.com/${OWNER}/${REPO}/issues`;
 
 export const RELEASE_URL = `${REPO_URL}/releases`;
