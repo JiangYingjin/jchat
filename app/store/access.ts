@@ -30,8 +30,6 @@ const DEFAULT_ACCESS_STATE = {
   defaultModel: "",
   visionModels: "",
 
-  isEnableWebSearch: false,
-
   isUseOpenAIEndpointForAllModels: false,
   disableModelProviderDisplay: false,
   isUseRemoteModels: false,
@@ -62,10 +60,6 @@ export const useAccessStore = createPersistStore(
       return get().isUseRemoteModels;
     },
 
-    enableWebSearch() {
-      this.fetch();
-      return get().isEnableWebSearch;
-    },
     isValidOpenAI() {
       return ensure(get(), ["openaiApiKey"]);
     },
@@ -114,7 +108,6 @@ export const useAccessStore = createPersistStore(
         const { isEnableWebSearch, ...rest } = persistedState;
         persistedState = {
           ...rest,
-          isEnableWebSearch: isEnableWebSearch || false,
         };
       }
 

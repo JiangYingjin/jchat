@@ -476,17 +476,6 @@ export function ChatActions(props: {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
 
-  // switch web search
-  const webSearch = chatStore.currentSession().mask.webSearch;
-  function switchWebSearch() {
-    chatStore.updateTargetSession(session, (session) => {
-      session.mask.webSearch =
-        !session.mask.webSearch &&
-        !isFunctionCallModel(currentModel) &&
-        isEnableWebSearch;
-    });
-  }
-
   // switch Plugins
   const usePlugins = chatStore.currentSession().mask.usePlugins;
   function switchUsePlugins() {
@@ -543,11 +532,6 @@ export function ChatActions(props: {
   const accessStore = useAccessStore();
   const isDisableModelProviderDisplay = useMemo(
     () => accessStore.isDisableModelProviderDisplay(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
-  const isEnableWebSearch = useMemo(
-    () => accessStore.enableWebSearch(),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -1575,13 +1559,7 @@ function _Chat() {
     const textContent = getMessageTextContent(userMessage);
     const images = getMessageImages(userMessage);
     chatStore
-      .onUserInput(
-        textContent,
-        images,
-        userMessage.fileInfos,
-        userMessage.webSearchReferences,
-        requestIndex,
-      )
+      .onUserInput(textContent, images, userMessage.fileInfos, requestIndex)
       .then(() => setIsLoading(false));
     inputRef.current?.focus();
   };
@@ -2389,9 +2367,6 @@ function _Chat() {
                                         : `text-${index}`
                                     }
                                     content={content.text || ""}
-                                    webSearchReferences={
-                                      message.webSearchReferences
-                                    }
                                     loading={
                                       (message.preview || message.streaming) &&
                                       !content.text &&
@@ -2427,9 +2402,6 @@ function _Chat() {
                               <Markdown
                                 key={message.streaming ? "loading" : "done"}
                                 content={getMessageTextContent(message)}
-                                webSearchReferences={
-                                  message.webSearchReferences
-                                }
                                 loading={
                                   (message.preview || message.streaming) &&
                                   message.content.length === 0 &&

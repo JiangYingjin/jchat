@@ -1,4 +1,3 @@
-import { TavilySearchResponse } from "@tavily/core";
 import { ClientApi, getClientApi, getHeaders } from "../api";
 import { ChatSession } from "@/app/store";
 
@@ -33,21 +32,5 @@ export class FileApi {
       fileName: resJson.fileName,
       filePath: resJson.filePath,
     };
-  }
-}
-
-export class WebApi {
-  async search(query: string): Promise<TavilySearchResponse> {
-    var headers = getHeaders(true);
-    const api = "/api/search";
-    var res = await fetch(api, {
-      method: "POST",
-      body: JSON.stringify({ query }),
-      headers: {
-        ...headers,
-      },
-    });
-    const resJson = await res.json();
-    return resJson;
   }
 }

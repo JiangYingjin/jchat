@@ -136,9 +136,5 @@ export const getServerSideConfig = () => {
 
     disableModelProviderDisplay: !!process.env.DISABLE_MODEL_PROVIDER_DISPLAY,
     isUseRemoteModels: !!process.env.USE_REMOTE_MODELS,
-
-    tavilyApiKey: process.env.TAVILY_API_KEY,
-    tavilyMaxReturns: process.env.TAVILY_MAX_RETURNS ?? "10",
-    isEnableWebSearch: !!process.env.TAVILY_API_KEY,
   };
 };

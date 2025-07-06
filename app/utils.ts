@@ -222,19 +222,6 @@ export function isMacOS(): boolean {
   return false;
 }
 
-export function getWebReferenceMessageTextContent(message: RequestMessage) {
-  let prompt = getTextContent(message.content);
-  if (
-    message.webSearchReferences &&
-    message.webSearchReferences.results &&
-    message.webSearchReferences.results.length > 0
-  ) {
-    // 直接返回原始prompt，不做模板替换
-    return prompt;
-  }
-  return prompt;
-}
-
 export function getMessageTextContent(message: RequestMessage) {
   return getTextContent(message.content);
 }

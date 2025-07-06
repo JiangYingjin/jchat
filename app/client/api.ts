@@ -9,7 +9,6 @@ import {
 } from "../store";
 import { ChatGPTApi } from "./platforms/openai";
 import { FileApi, FileInfo } from "./platforms/utils";
-import { TavilySearchResponse } from "@tavily/core";
 
 export const ROLES = ["system", "user", "assistant"] as const;
 export type MessageRole = (typeof ROLES)[number];
@@ -41,7 +40,6 @@ export interface RequestMessage {
   content: string | MultimodalContent[];
   reasoningContent?: string;
   fileInfos?: FileInfo[];
-  webSearchReferences?: TavilySearchResponse;
 }
 
 export interface LLMConfig {

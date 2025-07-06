@@ -2,16 +2,6 @@ import { BuiltinPlugin } from "./typing";
 
 export const EN_PLUGINS: BuiltinPlugin[] = [
   {
-    name: "WebSearch",
-    toolName: "web-search",
-    lang: "en",
-    description: "Web search function tool for search engines.",
-    builtin: true,
-    createdAt: 1693744292000,
-    enable: true,
-    onlyNodeRuntime: false,
-  },
-  {
     name: "Calculator",
     toolName: "calculator",
     lang: "en",

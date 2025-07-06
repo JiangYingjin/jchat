@@ -39,7 +39,6 @@ import { getClientConfig } from "@/app/config/client";
 import {
   getMessageTextContent,
   isVisionModel,
-  getWebReferenceMessageTextContent,
   getTimeoutMSByModel,
 } from "@/app/utils";
 
@@ -162,7 +161,7 @@ export class ChatGPTApi implements LLMApi {
     for (const v of options.messages) {
       const content = visionModel
         ? await preProcessImageAndWebReferenceContent(v)
-        : getWebReferenceMessageTextContent(v);
+        : getMessageTextContent(v);
       if (!(isOseries && v.role === "system"))
         messages.push({ role: v.role, content });
     }

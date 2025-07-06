@@ -30,8 +30,7 @@ import { ModelConfig, ModelType, useAppConfig } from "./config";
 import { useAccessStore } from "./access";
 import { collectModelsWithDefaultModel } from "../utils/model";
 
-import { FileInfo, WebApi } from "../client/platforms/utils";
-import { TavilySearchResponse } from "@tavily/core";
+import { FileInfo } from "../client/platforms/utils";
 
 import { buildMultimodalContent } from "../utils/chat";
 
@@ -46,7 +45,6 @@ export type Mask = {
   lang: Lang;
   builtin: boolean;
   usePlugins?: boolean;
-  webSearch?: boolean;
   // 上游插件业务参数
   plugin?: string[];
   enableArtifacts?: boolean;
@@ -426,7 +424,6 @@ export const useChatStore = createPersistStore(
         content: string,
         attachImages?: string[],
         attachFiles?: FileInfo[],
-        webSearchReference?: TavilySearchResponse,
         messageIdx?: number,
       ) {
         const session = get().currentSession();
@@ -459,7 +456,6 @@ export const useChatStore = createPersistStore(
           role: "user",
           content: mContent,
           fileInfos: attachFiles,
-          webSearchReferences: webSearchReference,
         });
 
         const botMessage: ChatMessage = createMessage({
@@ -599,16 +595,6 @@ export const useChatStore = createPersistStore(
           };
           agentCall();
         } else {
-          if (session.mask.webSearch && accessStore.enableWebSearch()) {
-            botMessage.content = Locale.Chat.Searching;
-            get().updateTargetSession(session, (session) => {
-              session.messages = session.messages.concat();
-            });
-            const webApi = new WebApi();
-            const webSearchReference = await webApi.search(content);
-            userMessage.webSearchReferences = webSearchReference;
-            botMessage.webSearchReferences = webSearchReference;
-          }
           // make request
           api.llm.chat({
             messages: sendMessages,
@@ -966,7 +952,7 @@ interface SystemMessageData {
 // 使用 IndexedDB 存储系统消息
 class SystemMessageStorage {
   private dbName = "JChat";
-  private version = 3; // 升级版本以支持新的数据格式
+  private version = 4.3; // 升级版本以支持新的数据格式
   private storeName = "systemMessages";
 
   async initDB(): Promise<IDBDatabase> {
@@ -1206,7 +1192,7 @@ interface ChatInputData {
 // 使用 IndexedDB 存储聊天输入数据
 class ChatInputStorage {
   private dbName = "JChat";
-  private version = 3; // 升级版本以与 SystemMessageStorage 保持一致
+  private version = 4.3; // 升级版本以与 SystemMessageStorage 保持一致
   private storeName = "chatInput";
 
   async initDB(): Promise<IDBDatabase> {
