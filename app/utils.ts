@@ -4,11 +4,9 @@ import Locale, { getLang } from "./locales";
 import { MultimodalContent, RequestMessage } from "./client/api";
 import {
   DEFAULT_MODELS,
-  EXCLUDE_VISION_MODEL_REGEXES,
   REQUEST_TIMEOUT_MS,
   REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION,
   REQUEST_TIMEOUT_MS_FOR_THINKING,
-  VISION_MODEL_REGEXES,
 } from "./constant";
 // import { fetch as tauriFetch, ResponseType } from "@tauri-apps/api/http";
 import { fetch as tauriStreamFetch } from "./utils/stream";
@@ -276,16 +274,6 @@ export function getMessageImages(message: RequestMessage): string[] {
     }
   }
   return urls;
-}
-
-export function isVisionModel(model: string) {
-  return true;
-  const visionModels = useAccessStore.getState().visionModels;
-  const envVisionModels = visionModels?.split(",").map((m) => m.trim());
-  if (envVisionModels?.includes(model)) {
-    return true;
-  }
-  return VISION_MODEL_REGEXES.some((regex) => regex.test(model));
 }
 
 export function getTimeoutMSByModel(model: string) {

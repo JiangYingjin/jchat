@@ -28,7 +28,6 @@ const DEFAULT_ACCESS_STATE = {
   disableFastLink: false,
   customModels: "",
   defaultModel: "",
-  visionModels: "",
 
   isUseOpenAIEndpointForAllModels: false,
   disableModelProviderDisplay: false,
@@ -42,10 +41,6 @@ export const useAccessStore = createPersistStore(
     enabledAccessControl() {
       this.fetch();
       return get().needCode;
-    },
-    getVisionModels() {
-      this.fetch();
-      return get().visionModels;
     },
     isDisableModelProviderDisplay() {
       this.fetch();
@@ -83,7 +78,7 @@ export const useAccessStore = createPersistStore(
         },
       })
         .then((res) => res.json())
-        .then((res: DangerConfig) => {
+        .then((res: any) => {
           console.log("[Config] got config from server", res);
           set(() => ({ ...res }));
         })

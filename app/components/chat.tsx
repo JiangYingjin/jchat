@@ -54,7 +54,6 @@ import {
   getMessageTextContent,
   getMessageTextReasoningContent,
   getMessageImages,
-  isVisionModel,
 } from "../utils";
 
 import { uploadImage as uploadImageRemote } from "@/app/utils/chat";
@@ -537,7 +536,7 @@ export function ChatActions(props: {
   );
 
   useEffect(() => {
-    const show = isVisionModel(currentModel);
+    const show = true; // 所有模型都支持视觉功能
     setShowUploadImage(show && isMobileScreen);
     setShowUploadFile(false); // 直接设为false
     if (!show) {
@@ -928,9 +927,6 @@ function usePasteImageUpload(
   const handlePaste = useCallback(
     async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
       const currentModel = chatStore.currentSession().mask.modelConfig.model;
-      if (!isVisionModel(currentModel)) {
-        return;
-      }
       const items = (event.clipboardData || window.clipboardData).items;
       const imageFiles: File[] = [];
 

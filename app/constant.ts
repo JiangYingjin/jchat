@@ -86,25 +86,6 @@ export const KnowledgeCutOffDate: Record<string, string> = {
   "gpt-4.1-mini": "2024-6",
 };
 
-export const VISION_MODEL_REGEXES = [
-  /vision/,
-  /gpt-4o/,
-  /gpt-4o-mini/,
-  /gpt-4\.1/,
-  /gpt-4\.1-mini/,
-  /gpt-4\.1-nano/,
-  /gpt-4\.5-preview/,
-  /gpt-4\.5-preview-2025-02-27/,
-  /gpt-4-turbo(?!.*preview)/, // Matches "gpt-4-turbo" but not "gpt-4-turbo-preview"
-  /^dall-e-3$/, // Matches exactly "dall-e-3"
-  /^gpt-image-1$/,
-  /o1/,
-  /o3/,
-  /o4-mini/,
-];
-
-export const EXCLUDE_VISION_MODEL_REGEXES = [];
-
 const openaiModels = ["gpt-4.1-mini"];
 
 let seq = 1000; // 内置的模型序号生成器从1000开始

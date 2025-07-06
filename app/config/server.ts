@@ -22,7 +22,6 @@ declare global {
       DISABLE_FAST_LINK?: string; // disallow parse settings from url or not
       CUSTOM_MODELS?: string; // to control custom models
       DEFAULT_MODEL?: string; // to control default model in every new chat window
-      VISION_MODELS?: string; // to control vision models
 
       // google tag manager
       GTM_ID?: string;
@@ -74,7 +73,6 @@ export const getServerSideConfig = () => {
   const disableGPT4 = !!process.env.DISABLE_GPT4;
   let customModels = process.env.CUSTOM_MODELS ?? "";
   let defaultModel = process.env.DEFAULT_MODEL ?? "";
-  let visionModels = process.env.VISION_MODELS ?? "";
 
   if (disableGPT4) {
     if (customModels) customModels += ",";
@@ -123,7 +121,6 @@ export const getServerSideConfig = () => {
     disableFastLink: !!process.env.DISABLE_FAST_LINK,
     customModels,
     defaultModel,
-    visionModels,
     allowedWebDavEndpoints,
 
     isStoreFileToLocal: !process.env.R2_ACCOUNT_ID && !process.env.S3_ENDPOINT,

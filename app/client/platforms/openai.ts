@@ -31,11 +31,7 @@ import {
 } from "@fortaine/fetch-event-source";
 import { prettyObject } from "@/app/utils/format";
 import { getClientConfig } from "@/app/config/client";
-import {
-  getMessageTextContent,
-  isVisionModel,
-  getTimeoutMSByModel,
-} from "@/app/utils";
+import { getMessageTextContent, getTimeoutMSByModel } from "@/app/utils";
 
 export interface OpenAIListModelResponse {
   object: string;
@@ -151,12 +147,10 @@ export class ChatGPTApi implements LLMApi {
       options.config.model.startsWith("o3") ||
       options.config.model.startsWith("o4");
 
-    const visionModel = isVisionModel(options.config.model);
+    const visionModel = true; // 所有模型都支持视觉功能
     const messages: ChatOptions["messages"] = [];
     for (const v of options.messages) {
-      const content = visionModel
-        ? await preProcessImageAndWebReferenceContent(v)
-        : getMessageTextContent(v);
+      const content = await preProcessImageAndWebReferenceContent(v);
       if (!(isOseries && v.role === "system"))
         messages.push({ role: v.role, content });
     }
@@ -316,12 +310,10 @@ export class ChatGPTApi implements LLMApi {
   }
 
   async toolAgentChat(options: AgentChatOptions) {
-    const visionModel = isVisionModel(options.config.model);
+    const visionModel = true; // 所有模型都支持视觉功能
     const messages: AgentChatOptions["messages"] = [];
     for (const v of options.messages) {
-      const content = visionModel
-        ? await preProcessImageAndWebReferenceContent(v)
-        : getMessageTextContent(v);
+      const content = await preProcessImageAndWebReferenceContent(v);
       messages.push({ role: v.role, content });
     }
 
