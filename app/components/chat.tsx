@@ -918,7 +918,7 @@ function usePasteImageUpload(
   const handlePaste = useCallback(
     async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
       const currentModel = chatStore.currentSession().mask.modelConfig.model;
-      const items = (event.clipboardData || window.clipboardData).items;
+      const items = event.clipboardData?.items;
       const imageFiles: File[] = [];
 
       // 收集所有图片文件

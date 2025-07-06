@@ -22,8 +22,6 @@ export const DEFAULT_CONFIG = {
 
   enableCodeFold: true, // code fold config
 
-  disablePromptHint: true,
-
   customModels: "",
   models: DEFAULT_MODELS as any as LLMModel[],
 

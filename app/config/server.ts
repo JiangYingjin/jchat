@@ -1,5 +1,5 @@
 import md5 from "spark-md5";
-import { DEFAULT_MODELS, DEFAULT_GA_ID } from "../constant";
+import { DEFAULT_MODELS } from "../constant";
 
 declare global {
   namespace NodeJS {
@@ -10,7 +10,6 @@ declare global {
       CODE?: string;
 
       BASE_URL?: string;
-      OPENAI_ORG_ID?: string; // openai only
 
       VERCEL?: string;
       BUILD_MODE?: "standalone" | "export";
@@ -19,9 +18,6 @@ declare global {
       ENABLE_BALANCE_QUERY?: string; // allow user to query balance or not
       CUSTOM_MODELS?: string; // to control custom models
       DEFAULT_MODEL?: string; // to control default model in every new chat window
-
-      // google tag manager
-      GTM_ID?: string;
 
       // custom template for preprocessing user input
       DEFAULT_INPUT_TEMPLATE?: string;
@@ -77,10 +73,6 @@ export const getServerSideConfig = () => {
   return {
     baseUrl: process.env.BASE_URL,
     apiKey: getApiKey(process.env.OPENAI_API_KEY),
-    openaiOrgId: process.env.OPENAI_ORG_ID,
-
-    gtmId: process.env.GTM_ID,
-    gaId: process.env.GA_ID || DEFAULT_GA_ID,
 
     needCode: ACCESS_CODES.size > 0,
     code: process.env.CODE,
