@@ -1351,6 +1351,10 @@ function _Chat() {
       setUserInput("");
       matchCommand.invoke();
       if (inputRef.current) inputRef.current.value = "";
+      // 删除命令执行后的 chatInput 数据
+      chatInputStorage.deleteChatInput(session.id).catch((e) => {
+        console.error("[ChatInput][Command] 删除聊天输入数据失败:", e);
+      });
       return;
     }
     setIsLoading(true);
@@ -1363,18 +1367,12 @@ function _Chat() {
     setUserInput("");
     if (inputRef.current) inputRef.current.value = "";
 
-    // 清理 IndexedDB 中的聊天输入数据
+    // 删除 IndexedDB 中的聊天输入数据
     const clearChatInput = async () => {
       try {
-        await chatInputStorage.saveChatInput(session.id, {
-          text: "",
-          images: [],
-          scrollTop: 0,
-          selection: { start: 0, end: 0 },
-          updateAt: Date.now(),
-        });
+        await chatInputStorage.deleteChatInput(session.id);
       } catch (e) {
-        console.error("[ChatInput][Clear] 清理聊天输入数据失败:", e);
+        console.error("[ChatInput][Clear] 删除聊天输入数据失败:", e);
       }
     };
     clearChatInput();

@@ -56,7 +56,6 @@ export const useSyncStore = createPersistStore(
             .toLocaleTimeString()
             .replace(/:/g, "_")}`
         : new Date().toLocaleString();
-
       const fileName = `Backup-${datePart}.json`;
       downloadAs(JSON.stringify(state), fileName);
     },
