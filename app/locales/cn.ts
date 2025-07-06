@@ -93,7 +93,6 @@ const cn = {
     IsContext: "预设提示词",
     ShortcutKey: {
       Title: "键盘快捷方式",
-      newChat: "打开新聊天",
       focusInput: "聚焦输入框",
       copyLastMessage: "复制最后一个回复",
       copyLastCode: "复制最后一个代码块",
@@ -146,7 +145,6 @@ const cn = {
     ResetConfirm: "确认清空历史摘要？",
   },
   Home: {
-    NewChat: "新的聊天",
     DeleteChat: "确认删除选中的对话？",
     DeleteToast: "已删除会话",
     Revert: "撤销",
@@ -517,16 +515,6 @@ const cn = {
   FineTuned: {
     // 移除系统消息相关文本
     // Sysmessage: "你是一个助手",
-  },
-
-  NewChat: {
-    Return: "返回",
-    Skip: "直接开始",
-    NotShow: "不再展示",
-    ConfirmNoShow: "确认禁用？禁用后可以随时在设置中重新启用。",
-    Title: "开始新对话",
-    SubTitle: "开始一个新的对话",
-    More: "显示更多",
   },
 
   URLCommand: {

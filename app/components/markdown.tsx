@@ -210,7 +210,7 @@ function CustomCode(props: React.ComponentPropsWithoutRef<"code">) {
         <div
           className={`show-hide-button ${collapsed ? "collapsed" : "expanded"}`}
         >
-          <button onClick={toggleCollapsed}>{Locale.NewChat.More}</button>
+          <button onClick={toggleCollapsed}>显示更多</button>
         </div>
       );
     }

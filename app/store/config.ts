@@ -19,13 +19,10 @@ export const DEFAULT_CONFIG = {
   fontSize: 14,
   fontFamily: "",
   theme: Theme.Auto as Theme,
-  sidebarWidth: 180,
 
   enableCodeFold: true, // code fold config
 
   disablePromptHint: true,
-
-  dontShowMaskSplashScreen: true, // dont show splash screen when create chat
 
   customModels: "",
   models: DEFAULT_MODELS as any as LLMModel[],
