@@ -15,14 +15,12 @@ import {
 } from "@/app/utils/chat";
 
 import {
-  AgentChatOptions,
   ChatOptions,
   getHeaders,
   LLMApi,
   LLMModel,
   LLMUsage,
   MultimodalContent,
-  TranscriptionOptions,
 } from "../api";
 import Locale from "../../locales";
 import {
@@ -87,47 +85,6 @@ export class ChatGPTApi implements LLMApi {
     return res.choices?.at(0)?.message?.content ?? "";
   }
 
-  async transcription(options: TranscriptionOptions): Promise<string> {
-    const formData = new FormData();
-    formData.append("file", options.file, "audio.wav");
-    formData.append("model", options.model ?? "whisper-1");
-    if (options.language) formData.append("language", options.language);
-    if (options.prompt) formData.append("prompt", options.prompt);
-    if (options.response_format)
-      formData.append("response_format", options.response_format);
-    if (options.temperature)
-      formData.append("temperature", options.temperature.toString());
-
-    console.log("[Request] openai audio transcriptions payload: ", options);
-
-    const controller = new AbortController();
-    options.onController?.(controller);
-
-    try {
-      const path = this.path(OpenaiPath.TranscriptionPath, options.model);
-      const headers = getHeaders(true);
-      const payload = {
-        method: "POST",
-        body: formData,
-        signal: controller.signal,
-        headers: headers,
-      };
-
-      // make a fetch request
-      const requestTimeoutId = setTimeout(
-        () => controller.abort(),
-        REQUEST_TIMEOUT_MS,
-      );
-      const res = await fetch(path, payload);
-      clearTimeout(requestTimeoutId);
-      const json = await res.json();
-      return json.text;
-    } catch (e) {
-      console.log("[Request] failed to make a audio transcriptions request", e);
-      throw e;
-    }
-  }
-
   async chat(options: ChatOptions) {
     const modelConfig = {
       ...useAppConfig.getState().modelConfig,
@@ -147,7 +104,6 @@ export class ChatGPTApi implements LLMApi {
       options.config.model.startsWith("o3") ||
       options.config.model.startsWith("o4");
 
-    const visionModel = true; // 所有模型都支持视觉功能
     const messages: ChatOptions["messages"] = [];
     for (const v of options.messages) {
       const content = await preProcessImageAndWebReferenceContent(v);
@@ -165,15 +121,7 @@ export class ChatGPTApi implements LLMApi {
       // Please do not ask me why not send max_tokens, no reason, this param is just shit, I dont want to explain anymore.
     };
 
-    // add max_tokens to vision model
-    // O系列 使用 max_completion_tokens 控制token数 (https://platform.openai.com/docs/guides/reasoning#controlling-costs)
-    if (visionModel) {
-      if (isOseries) {
-        // requestPayload["max_completion_tokens"] = 23456;
-      } else {
-        requestPayload["max_tokens"] = Math.max(modelConfig.max_tokens, 4000);
-      }
-    }
+    requestPayload["max_tokens"] = Math.max(modelConfig.max_tokens, 4000);
 
     console.log("[Request] openai payload: ", requestPayload);
 
@@ -305,159 +253,6 @@ export class ChatGPTApi implements LLMApi {
       }
     } catch (e) {
       console.log("[Request] failed to make a chat request", e);
-      options.onError?.(e as Error);
-    }
-  }
-
-  async toolAgentChat(options: AgentChatOptions) {
-    const visionModel = true; // 所有模型都支持视觉功能
-    const messages: AgentChatOptions["messages"] = [];
-    for (const v of options.messages) {
-      const content = await preProcessImageAndWebReferenceContent(v);
-      messages.push({ role: v.role, content });
-    }
-
-    const modelConfig = {
-      ...useAppConfig.getState().modelConfig,
-      ...useChatStore.getState().currentSession().mask.modelConfig,
-      ...{
-        model: options.config.model,
-      },
-    };
-    const accessStore = useAccessStore.getState();
-    const baseUrl = accessStore.openaiUrl;
-    const requestPayload = {
-      chatSessionId: options.chatSessionId,
-      messages,
-      isAzure: false,
-      azureApiVersion: "",
-      stream: options.config.stream,
-      model: modelConfig.model,
-      temperature: modelConfig.temperature,
-      baseUrl: baseUrl,
-      maxIterations: options.agentConfig.maxIterations,
-      returnIntermediateSteps: options.agentConfig.returnIntermediateSteps,
-      useTools: options.agentConfig.useTools,
-    };
-
-    console.log("[Request] openai payload: ", requestPayload);
-
-    const shouldStream = true;
-    const controller = new AbortController();
-    options.onController?.(controller);
-
-    try {
-      let path = "/api/langchain/tool/agent/edge";
-      const chatPayload = {
-        method: "POST",
-        body: JSON.stringify(requestPayload),
-        signal: controller.signal,
-        headers: getHeaders(),
-      };
-
-      // make a fetch request
-      const requestTimeoutId = setTimeout(
-        () => controller.abort(),
-        REQUEST_TIMEOUT_MS,
-      );
-      // console.log("shouldStream", shouldStream);
-
-      if (shouldStream) {
-        let responseText = "";
-        let finished = false;
-
-        const finish = () => {
-          if (!finished) {
-            options.onFinish(responseText);
-            finished = true;
-          }
-        };
-
-        controller.signal.onabort = finish;
-
-        fetchEventSource(path, {
-          ...chatPayload,
-          async onopen(res) {
-            clearTimeout(requestTimeoutId);
-            const contentType = res.headers.get("content-type");
-            console.log(
-              "[OpenAI] request response content type: ",
-              contentType,
-            );
-
-            if (contentType?.startsWith("text/plain")) {
-              responseText = await res.clone().text();
-              return finish();
-            }
-
-            if (
-              !res.ok ||
-              !res.headers
-                .get("content-type")
-                ?.startsWith(EventStreamContentType) ||
-              res.status !== 200
-            ) {
-              const responseTexts = [responseText];
-              let extraInfo = await res.clone().text();
-              console.warn(`extraInfo: ${extraInfo}`);
-              // try {
-              //   const resJson = await res.clone().json();
-              //   extraInfo = prettyObject(resJson);
-              // } catch { }
-
-              if (res.status === 401) {
-                responseTexts.push(Locale.Error.Unauthorized);
-              }
-
-              if (extraInfo) {
-                responseTexts.push(extraInfo);
-              }
-
-              responseText = responseTexts.join("\n\n");
-
-              return finish();
-            }
-          },
-          onmessage(msg) {
-            let response = JSON.parse(msg.data);
-            if (!response.isSuccess) {
-              console.error("[Request]", msg.data);
-              responseText = msg.data;
-              throw Error(response.message);
-            }
-            if (msg.data === "[DONE]" || finished) {
-              return finish();
-            }
-            try {
-              if (response && !response.isToolMessage) {
-                responseText += response.message;
-                options.onUpdate?.(responseText, response.message);
-              } else {
-                options.onToolUpdate?.(response.toolName!, response.message);
-              }
-            } catch (e) {
-              console.error("[Request] parse error", response, msg);
-            }
-          },
-          onclose() {
-            finish();
-          },
-          onerror(e) {
-            options.onError?.(e);
-            throw e;
-          },
-          openWhenHidden: true,
-        });
-      } else {
-        const res = await fetch(path, chatPayload);
-        clearTimeout(requestTimeoutId);
-
-        const resJson = await res.json();
-        const message = this.extractMessage(resJson);
-        options.onFinish(message);
-      }
-    } catch (e) {
-      console.log("[Request] failed to make a chat reqeust", e);
       options.onError?.(e as Error);
     }
   }

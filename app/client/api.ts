@@ -43,22 +43,6 @@ export interface LLMConfig {
   stream?: boolean;
 }
 
-export interface LLMAgentConfig {
-  maxIterations: number;
-  returnIntermediateSteps: boolean;
-  useTools?: (string | undefined)[];
-}
-
-export interface TranscriptionOptions {
-  model?: "whisper-1";
-  file: Blob;
-  language?: string;
-  prompt?: string;
-  response_format?: "json" | "text" | "srt" | "verbose_json" | "vtt";
-  temperature?: number;
-  onController?: (controller: AbortController) => void;
-}
-
 export interface ChatOptions {
   messages: RequestMessage[];
   config: LLMConfig;
@@ -70,18 +54,6 @@ export interface ChatOptions {
     message: string | MultimodalContent[],
     responseRes: Response,
   ) => void;
-  onError?: (err: Error) => void;
-  onController?: (controller: AbortController) => void;
-}
-
-export interface AgentChatOptions {
-  chatSessionId?: string;
-  messages: RequestMessage[];
-  config: LLMConfig;
-  agentConfig: LLMAgentConfig;
-  onToolUpdate?: (toolName: string, toolInput: string) => void;
-  onUpdate?: (message: string, chunk: string) => void;
-  onFinish: (message: string) => void;
   onError?: (err: Error) => void;
   onController?: (controller: AbortController) => void;
 }
@@ -108,32 +80,9 @@ export interface LLMModelProvider {
 
 export abstract class LLMApi {
   abstract chat(options: ChatOptions): Promise<void>;
-  abstract transcription(options: TranscriptionOptions): Promise<string>;
-  abstract toolAgentChat(options: AgentChatOptions): Promise<void>;
 
   abstract usage(): Promise<LLMUsage>;
   abstract models(): Promise<LLMModel[]>;
-}
-
-type ProviderName = "openai" | "azure" | "palm";
-
-interface Model {
-  name: string;
-  provider: ProviderName;
-  ctxlen: number;
-}
-
-interface ChatProvider {
-  name: ProviderName;
-  apiConfig: {
-    baseUrl: string;
-    apiKey: string;
-    summaryModel: Model;
-  };
-  models: Model[];
-
-  chat: () => void;
-  usage: () => void;
 }
 
 export abstract class ToolApi {

@@ -399,7 +399,6 @@ export const useChatStore = createPersistStore(
       ) {
         const session = get().currentSession();
         const modelConfig = session.mask.modelConfig;
-        const accessStore = useAccessStore.getState();
 
         const userContent = fillTemplateWith(content, modelConfig);
         console.log("[User Input] after template: ", userContent);
@@ -449,7 +448,6 @@ export const useChatStore = createPersistStore(
         }
         const messageIndex = session.messages.length + 1;
 
-        const config = useAppConfig.getState();
         // save user's and bot's message
         get().updateTargetSession(session, (session) => {
           const savedUserMessage = {
@@ -553,14 +551,8 @@ export const useChatStore = createPersistStore(
         });
       },
 
-      getMemoryPrompt() {
-        // 移除历史摘要功能，始终返回 undefined
-        return undefined;
-      },
-
       async getMessagesWithMemory() {
         const session = get().currentSession();
-        const modelConfig = session.mask.modelConfig;
         const clearContextIndex = session.clearContextIndex ?? 0;
         const messages = session.messages.slice();
         // in-context prompts
@@ -657,13 +649,8 @@ export const useChatStore = createPersistStore(
         refreshTitle: boolean = false,
         targetSession: ChatSession,
       ) {
-        const config = useAppConfig.getState();
         const session = targetSession;
         const modelConfig = session.mask.modelConfig;
-        // skip summarize when using dalle3?
-        if (false) {
-          return;
-        }
 
         // if not config compressModel, then using getSummarizeModel
         const [model, providerName] = modelConfig.compressModel
@@ -720,8 +707,6 @@ export const useChatStore = createPersistStore(
             },
           });
         }
-
-        // 历史消息总结功能已被禁用，不再执行相关逻辑
         return;
       },
 
@@ -878,36 +863,6 @@ class SystemMessageStorage {
     } catch (error) {
       console.error("获取所有会话ID失败:", error);
       return [];
-    }
-  }
-
-  // 迁移早期字符串格式数据到 SystemMessageData 格式
-  async migrateOldFormatData(): Promise<number> {
-    try {
-      const sessionIds = await this.getAllSessionIds();
-      let migratedCount = 0;
-
-      for (const sessionId of sessionIds) {
-        const oldData = await this.storage.getItem<any>(sessionId);
-
-        // 只处理字符串格式的数据，转换为新格式
-        if (oldData && typeof oldData === "string") {
-          const newData: SystemMessageData = {
-            text: oldData,
-            images: [],
-            scrollTop: 0,
-            selection: { start: 0, end: 0 },
-            updateAt: Date.now(),
-          };
-          await this.saveSystemMessage(sessionId, newData);
-          migratedCount++;
-        }
-      }
-
-      return migratedCount;
-    } catch (error) {
-      console.error("迁移早期字符串格式系统消息数据失败:", error);
-      return 0;
     }
   }
 }

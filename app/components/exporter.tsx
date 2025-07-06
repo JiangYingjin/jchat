@@ -568,28 +568,10 @@ export function ImagePreviewer(props: {
         onClick={copy}
       >
         <div className={styles["chat-info"]}>
-          {/* <div className={styles["logo"] + " no-dark"}>
-            <NextImage
-              src={ChatGptIcon.src}
-              alt="logo"
-              width={50}
-              height={50}
-            />
-          </div> */}
-
-          {/* <div>
-                          <div className={styles["main-title"]}>JChat</div>
-            <div className={styles["sub-title"]}>
-              github.com/ChatGPTNextWeb/ChatGPT-Next-Web
-            </div>
-          </div> */}
           <div>
             <div className={styles["chat-info-item"]}>
               {Locale.Exporter.Model}：{mask.modelConfig.model}
             </div>
-            {/* <div className={styles["chat-info-item"]}>
-              {Locale.Exporter.Messages}：{props.messages.length}
-            </div> */}
             {/* <div className={styles["chat-info-item"]}>
               {Locale.Exporter.Topic}：{session.topic}
             </div> */}
@@ -607,9 +589,6 @@ export function ImagePreviewer(props: {
               className={styles["message"] + " " + styles["message-" + m.role]}
               key={i}
             >
-              {/* <div className={styles["avatar"]}>
-              </div> */}
-
               <div className={styles["body"]}>
                 <Markdown
                   content={getMessageTextContent(m)}
