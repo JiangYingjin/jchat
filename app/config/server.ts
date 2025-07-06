@@ -65,10 +65,6 @@ export const getServerSideConfig = () => {
   let customModels = process.env.CUSTOM_MODELS ?? "";
   let defaultModel = process.env.DEFAULT_MODEL ?? "";
 
-  const allowedWebDavEndpoints = (
-    process.env.WHITE_WEBDAV_ENDPOINTS ?? ""
-  ).split(",");
-
   return {
     baseUrl: process.env.BASE_URL,
     apiKey: getApiKey(process.env.OPENAI_API_KEY),
@@ -82,7 +78,6 @@ export const getServerSideConfig = () => {
     hideBalanceQuery: !process.env.ENABLE_BALANCE_QUERY,
     customModels,
     defaultModel,
-    allowedWebDavEndpoints,
 
     isUseOpenAIEndpointForAllModels:
       !!process.env.USE_OPENAI_ENDPOINT_FOR_ALL_MODELS,
