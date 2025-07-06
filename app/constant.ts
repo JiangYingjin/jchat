@@ -27,9 +27,9 @@ export enum FileName {
 }
 
 export enum StoreKey {
-  Chat = "chat-next-web-store",
-  Access = "access-control",
-  Config = "app-config",
+  Chat = "chats",
+  Access = "access",
+  Config = "config",
   Sync = "sync",
 }
 
@@ -63,7 +63,7 @@ export const OpenaiPath = {
 
 export const DEFAULT_INPUT_TEMPLATE = `{{input}}`; // input / time / model / lang
 
-export const SUMMARIZE_MODEL = "gpt-4o-mini";
+export const SUMMARIZE_MODEL = "gpt-4.1-mini";
 
 export const KnowledgeCutOffDate: Record<string, string> = {
   default: "2021-09",
