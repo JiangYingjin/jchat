@@ -204,7 +204,6 @@ function fillTemplateWith(input: string, modelConfig: ModelConfig) {
 const DEFAULT_CHAT_STATE = {
   sessions: [createEmptySession()],
   currentSessionIndex: 0,
-  lastInput: "",
 };
 
 export const useChatStore = createPersistStore(
@@ -726,10 +725,6 @@ export const useChatStore = createPersistStore(
         if (index < 0) return;
         updater(sessions[index]);
         set(() => ({ sessions }));
-      },
-
-      setLastInput(input: string) {
-        set(() => ({ lastInput: input }));
       },
     };
 

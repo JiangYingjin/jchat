@@ -1119,47 +1119,51 @@ function _Chat() {
       isLoadingFromStorageRef.current = true;
       // 直接在这里实现 loadChatInputData 的逻辑，避免依赖问题
       const data = await chatInputStorage.getChatInput(session.id);
-      if (data) {
-        console.log("[ChatInput][Load] 从 IndexedDB 加载数据:", data);
+      console.log("[ChatInput][Load] 从 IndexedDB 加载数据:", data);
 
-        // 设置文本内容
-        if (data.text && data.text.trim() !== "") {
-          setUserInput(data.text);
-          // 使用 setTimeout 确保 DOM 已经渲染
-          setTimeout(() => {
-            if (inputRef.current) {
-              inputRef.current.value = data.text;
-            }
-          }, 0);
+      // 无论 data 是否存在，都要安全地设置状态
+      // 设置文本内容
+      const textContent =
+        data?.text && data.text.trim() !== "" ? data.text : "";
+      setUserInput(textContent);
+      // 使用 setTimeout 确保 DOM 已经渲染
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.value = textContent;
         }
+      }, 0);
 
-        // 设置图片
-        if (data.images && data.images.length > 0) {
-          setAttachImages(data.images);
+      // 设置图片
+      const imageContent =
+        data?.images && data.images.length > 0 ? data.images : [];
+      setAttachImages(imageContent);
+
+      // 设置滚动位置和光标位置
+      setTimeout(() => {
+        if (inputRef.current) {
+          // 设置滚动位置
+          const scrollTop = data?.scrollTop || 0;
+          inputRef.current.scrollTop = scrollTop;
+
+          // 设置光标位置
+          const selection = data?.selection || { start: 0, end: 0 };
+          inputRef.current.setSelectionRange(selection.start, selection.end);
         }
+      }, 0);
 
-        // 设置滚动位置和光标位置
-        setTimeout(() => {
-          if (inputRef.current) {
-            // 设置滚动位置
-            if (data.scrollTop > 0) {
-              inputRef.current.scrollTop = data.scrollTop;
-            }
-
-            // 设置光标位置
-            if (data.selection) {
-              inputRef.current.setSelectionRange(
-                data.selection.start,
-                data.selection.end,
-              );
-            }
-          }
-        }, 0);
-
-        console.log("[ChatInput][Load] 成功加载聊天输入数据:", data);
-      }
+      console.log("[ChatInput][Load] 成功加载聊天输入数据:", data || "空数据");
     } catch (e) {
       console.error("[ChatInput][Load] 加载聊天输入数据到状态失败:", e);
+      // 发生错误时也要清空状态
+      setUserInput("");
+      setAttachImages([]);
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.value = "";
+          inputRef.current.scrollTop = 0;
+          inputRef.current.setSelectionRange(0, 0);
+        }
+      }, 0);
     } finally {
       isLoadingFromStorageRef.current = false;
     }
@@ -1363,7 +1367,6 @@ function _Chat() {
       .then(() => setIsLoading(false));
     setAttachImages([]);
     setAttachFiles([]);
-    chatStore.setLastInput(value);
     setUserInput("");
     if (inputRef.current) inputRef.current.value = "";
 
@@ -1432,15 +1435,6 @@ function _Chat() {
       return;
     }
     // 普通模式
-    if (
-      e.key === "ArrowUp" &&
-      userInput.length <= 0 &&
-      !(e.metaKey || e.altKey || e.ctrlKey)
-    ) {
-      setUserInput(chatStore.lastInput ?? "");
-      e.preventDefault();
-      return;
-    }
     if (shouldSubmit(e)) {
       doSubmit(userInput);
       e.preventDefault();

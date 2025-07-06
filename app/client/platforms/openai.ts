@@ -121,7 +121,7 @@ export class ChatGPTApi implements LLMApi {
       // Please do not ask me why not send max_tokens, no reason, this param is just shit, I dont want to explain anymore.
     };
 
-    requestPayload["max_tokens"] = Math.max(modelConfig.max_tokens, 4000);
+    requestPayload["max_tokens"] = modelConfig.max_tokens;
 
     console.log("[Request] openai payload: ", requestPayload);
 
