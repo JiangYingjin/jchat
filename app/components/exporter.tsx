@@ -18,6 +18,7 @@ import {
   getMessageImages,
   useMobileScreen,
 } from "../utils";
+import { jchatStorage } from "../utils/store";
 
 import CopyIcon from "../icons/copy.svg";
 import LoadingIcon from "../icons/three-dots.svg";
@@ -44,7 +45,7 @@ const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
 });
 
-const EXPORT_FORMAT_KEY = "export-format"; // 记住导出格式的 localStorage key
+const EXPORT_FORMAT_KEY = "export-format"; // 记住导出格式的 jchatStorage key
 
 export function ExportMessageModal(props: { onClose: () => void }) {
   return (
@@ -142,34 +143,54 @@ export function MessageExporter() {
   const formats = ["text", "image", "json"] as const;
   type ExportFormat = (typeof formats)[number];
 
-  // 初始化时从 localStorage 读取上次选择的导出格式
-  const [exportConfig, setExportConfig] = useState(() => {
-    const savedFormat = localStorage.getItem(
-      EXPORT_FORMAT_KEY,
-    ) as ExportFormat | null;
-    return {
-      // 如果有保存且合法则用保存的，否则用 image
-      format: (savedFormat &&
-      (formats as readonly string[]).includes(savedFormat)
-        ? savedFormat
-        : "image") as ExportFormat,
-      includeContext: true,
-    };
+  // 初始化导出配置，默认为 image 格式
+  const [exportConfig, setExportConfig] = useState({
+    format: "image" as ExportFormat,
+    includeContext: true,
   });
 
   // 新增：追踪用户是否手动调整过选择
   const [userSelectionTouched, setUserSelectionTouched] = useState(false);
 
-  // 更新导出配置，并在切换格式时写入 localStorage
-  function updateExportConfig(updater: (config: typeof exportConfig) => void) {
+  // 异步加载保存的导出格式
+  useEffect(() => {
+    const loadSavedFormat = async () => {
+      try {
+        const savedFormat = (await jchatStorage.getItem(
+          EXPORT_FORMAT_KEY,
+        )) as ExportFormat | null;
+        if (
+          savedFormat &&
+          (formats as readonly string[]).includes(savedFormat)
+        ) {
+          setExportConfig((prev) => ({
+            ...prev,
+            format: savedFormat,
+          }));
+        }
+      } catch (error) {
+        console.error("加载保存的导出格式失败:", error);
+      }
+    };
+    loadSavedFormat();
+  }, []);
+
+  // 更新导出配置，并在切换格式时写入 jchatStorage
+  const updateExportConfig = async (
+    updater: (config: typeof exportConfig) => void,
+  ) => {
     const config = { ...exportConfig };
     updater(config);
     setExportConfig(config);
-    // 如果格式有变化则写入 localStorage
+    // 如果格式有变化则写入 jchatStorage
     if (config.format !== exportConfig.format) {
-      localStorage.setItem(EXPORT_FORMAT_KEY, config.format);
+      try {
+        await jchatStorage.setItem(EXPORT_FORMAT_KEY, config.format);
+      } catch (error) {
+        console.error("保存导出格式失败:", error);
+      }
     }
-  }
+  };
 
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
@@ -195,7 +216,7 @@ export function MessageExporter() {
   useEffect(() => {
     autoSelectByFormat(exportConfig.format);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [exportConfig.format]);
 
   // 只要用户手动调整选择，就设置 userSelectionTouched
   function onUserSelectChange(updater: (selection: Set<string>) => void) {
@@ -259,10 +280,11 @@ export function MessageExporter() {
               >
                 <Select
                   value={exportConfig.format}
-                  onChange={(e) => {
+                  onChange={async (e) => {
                     const newFormat = e.currentTarget.value as ExportFormat;
-                    localStorage.setItem(EXPORT_FORMAT_KEY, newFormat); // 立即写入
-                    updateExportConfig((config) => (config.format = newFormat));
+                    await updateExportConfig(
+                      (config) => (config.format = newFormat),
+                    );
                     if (!userSelectionTouched) {
                       autoSelectByFormat(newFormat);
                     }
