@@ -19,7 +19,7 @@ import {
 import Locale, { getLang, Lang } from "../locales";
 import { safeLocalStorage } from "../utils";
 import { prettyObject } from "../utils/format";
-import { createPersistStore } from "../utils/store";
+import { createPersistStore, jchatStorage } from "../utils/store";
 import { estimateTokenLength } from "../utils/token";
 import { ModelConfig, ModelType, useAppConfig } from "./config";
 import { useAccessStore } from "./access";
@@ -758,46 +758,17 @@ export const useChatStore = createPersistStore(
           console.error("[Store] 清理数据失败:", error);
         }
       },
-
-      async migrate(persistedState: any, version: number) {
-        const state = persistedState as any;
-        const newState = JSON.parse(JSON.stringify(state));
-
-        // migrate chat store
-        const chatStore = newState.sessions;
-        for (const session of chatStore) {
-          if (session.mask) {
-            if (session.mask.modelConfig && session.mask.modelConfig.model) {
-              const modelConfig = session.mask.modelConfig;
-              if (modelConfig.model) {
-                const modelName = modelConfig.model;
-                const modelProvider = modelConfig.providerName;
-                const [model, provider] = getSummarizeModel(
-                  modelName,
-                  modelProvider,
-                );
-                modelConfig.model = model;
-                modelConfig.providerName = provider;
-              }
-            }
-          }
-        }
-
-        if (version < 3.4) {
-          newState.sessions.forEach((s: ChatSession) => {
-            s.lastUpdate = Date.now();
-          });
-        }
-
-        return newState as any;
-      },
     };
 
     return methods;
   },
   {
     name: StoreKey.Chat,
-    version: 3.4,
+    version: 3.5,
+    storage: jchatStorage,
+    async migrate(persistedState: any, version: number) {
+      return persistedState as any;
+    },
   },
 );
 
@@ -813,7 +784,7 @@ interface SystemMessageData {
 // 使用 IndexedDB 存储系统消息
 class SystemMessageStorage {
   private dbName = "JChat";
-  private version = 4.3; // 升级版本以支持新的数据格式
+  private version = 2000.1; // 升级版本以支持新的数据格式
   private storeName = "systemMessages";
 
   async initDB(): Promise<IDBDatabase> {
@@ -1053,7 +1024,7 @@ interface ChatInputData {
 // 使用 IndexedDB 存储聊天输入数据
 class ChatInputStorage {
   private dbName = "JChat";
-  private version = 4.3; // 升级版本以与 SystemMessageStorage 保持一致
+  private version = 2000.1; // 升级版本以与 SystemMessageStorage 保持一致
   private storeName = "chatInput";
 
   async initDB(): Promise<IDBDatabase> {

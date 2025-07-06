@@ -1,7 +1,7 @@
 import { StoreKey, ApiPath, OPENAI_BASE_URL } from "../constant";
 import { getHeaders } from "../client/api";
 import { getClientConfig } from "../config/client";
-import { createPersistStore } from "../utils/store";
+import { createPersistStore, jchatStorage } from "../utils/store";
 import { ensure } from "../utils/clone";
 
 let fetchState = 0; // 0 not fetch, 1 fetching, 2 done
@@ -70,13 +70,13 @@ export const useAccessStore = createPersistStore(
           fetchState = 2;
         });
     },
-
-    migrate(persistedState: any, version: number) {
-      return persistedState as any;
-    },
   }),
   {
     name: StoreKey.Access,
-    version: 7,
+    version: 7.1,
+    storage: jchatStorage,
+    async migrate(persistedState: any, version: number) {
+      return persistedState as any;
+    },
   },
 );

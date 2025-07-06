@@ -1,7 +1,7 @@
 import { LLMModel } from "../client/api";
 import { getClientConfig } from "../config/client";
 import { DEFAULT_INPUT_TEMPLATE, DEFAULT_MODELS, StoreKey } from "../constant";
-import { createPersistStore } from "../utils/store";
+import { createPersistStore, jchatStorage } from "../utils/store";
 
 export type ModelType = (typeof DEFAULT_MODELS)[number]["name"];
 
@@ -102,8 +102,9 @@ export const useAppConfig = createPersistStore(
   }),
   {
     name: StoreKey.Config,
-    version: 3.9,
-    migrate(persistedState, version) {
+    version: 3.1,
+    storage: jchatStorage,
+    async migrate(persistedState, version) {
       const state = persistedState as ChatConfig;
       return state as any;
     },

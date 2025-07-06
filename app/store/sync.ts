@@ -1,6 +1,6 @@
 import { getClientConfig } from "../config/client";
 import { ApiPath, StoreKey } from "../constant";
-import { createPersistStore } from "../utils/store";
+import { createPersistStore, jchatStorage } from "../utils/store";
 import {
   AppState,
   getLocalAppState,
@@ -120,28 +120,10 @@ export const useSyncStore = createPersistStore(
   }),
   {
     name: StoreKey.Sync,
-    version: 1.3,
-
-    migrate(persistedState, version) {
-      const newState = persistedState as typeof DEFAULT_SYNC_STATE;
-
-      if (version < 1.2) {
-        if (
-          (persistedState as typeof DEFAULT_SYNC_STATE).proxyUrl ===
-          "/api/cors/"
-        ) {
-          newState.proxyUrl = "";
-        }
-      }
-
-      if (version < 1.3) {
-        // Remove upstash configuration if it exists
-        if ("upstash" in newState) {
-          delete (newState as any).upstash;
-        }
-      }
-
-      return newState as any;
+    version: 1.4,
+    storage: jchatStorage,
+    async migrate(persistedState, version) {
+      return persistedState as any;
     },
   },
 );

@@ -2,6 +2,30 @@ import { create } from "zustand";
 import { combine, persist } from "zustand/middleware";
 import { Updater } from "../typing";
 import { deepClone } from "./clone";
+import localforage from "localforage";
+
+const jchatLocalForage = localforage.createInstance({
+  name: "JChat",
+  storeName: "default",
+});
+
+export const jchatStorage = {
+  async getItem(key: string) {
+    return (await jchatLocalForage.getItem(key)) as any;
+  },
+  async setItem(key: string, value: any) {
+    // 过滤掉函数字段
+    const filteredValue = JSON.parse(
+      JSON.stringify(value, (key, val) => {
+        return typeof val === "function" ? undefined : val;
+      }),
+    );
+    return await jchatLocalForage.setItem(key, filteredValue);
+  },
+  async removeItem(key: string) {
+    return await jchatLocalForage.removeItem(key);
+  },
+};
 
 type SecondParam<T> = T extends (
   _f: infer _F,
