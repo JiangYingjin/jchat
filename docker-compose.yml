@@ -1,7 +1,7 @@
 version: "3.9"
 services:
   chatgpt-next-web:
-    profiles: [ "no-proxy" ]
+    profiles: ["no-proxy"]
     container_name: chatgpt-next-web
     image: gosuto/chatgpt-next-web-langchain
     volumes:
@@ -15,13 +15,11 @@ services:
       - BASE_URL=$BASE_URL
       - OPENAI_ORG_ID=$OPENAI_ORG_ID
       - HIDE_USER_API_KEY=$HIDE_USER_API_KEY
-      - DISABLE_GPT4=$DISABLE_GPT4
       - ENABLE_BALANCE_QUERY=$ENABLE_BALANCE_QUERY
-      - DISABLE_FAST_LINK=$DISABLE_FAST_LINK
       - OPENAI_SB=$OPENAI_SB
 
   chatgpt-next-web-proxy:
-    profiles: [ "proxy" ]
+    profiles: ["proxy"]
     container_name: chatgpt-next-web-proxy
     image: gosuto/chatgpt-next-web-langchain
     volumes:
@@ -36,10 +34,8 @@ services:
       - BASE_URL=$BASE_URL
       - OPENAI_ORG_ID=$OPENAI_ORG_ID
       - HIDE_USER_API_KEY=$HIDE_USER_API_KEY
-      - DISABLE_GPT4=$DISABLE_GPT4
       - ENABLE_BALANCE_QUERY=$ENABLE_BALANCE_QUERY
-      - DISABLE_FAST_LINK=$DISABLE_FAST_LINK
       - OPENAI_SB=$OPENAI_SB
 
 volumes:
-   next_chat_upload:
+  next_chat_upload:

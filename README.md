@@ -134,10 +134,6 @@ OpenAI 接口代理 URL，如果你手动配置了 openai 接口代理，请填�
 
 如果你不想让用户自行填入 API Key，将此环境变量设置为 1 即可。
 
-### `DISABLE_GPT4` （可选）
-
-如果你不想让用户使用 GPT-4，将此环境变量设置为 1 即可。
-
 ### `ENABLE_BALANCE_QUERY` （可选）
 
 如果你想启用余额查询功能，将此环境变量设置为 1 即可。
@@ -187,10 +183,6 @@ anthropic claude Api version.
 ### `ANTHROPIC_URL` （可选）
 
 anthropic claude Api Url.
-
-### `DISABLE_FAST_LINK` （可选）
-
-如果你想禁用从链接解析预制设置，将此环境变量设置为 1 即可。
 
 For Azure: use `modelName@azure=deploymentName` to customize model name and deployment name.
 
