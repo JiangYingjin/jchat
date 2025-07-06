@@ -101,11 +101,6 @@ export function collectModelTable(
           ) {
             count += 1;
             modelTable[fullName]["available"] = available;
-            // swap name and displayName for bytedance
-            if (providerName === "bytedance") {
-              [name, displayName] = [displayName, modelName];
-              modelTable[fullName]["name"] = name;
-            }
             if (displayName) {
               modelTable[fullName]["displayName"] = displayName;
             }
@@ -117,10 +112,6 @@ export function collectModelTable(
           const provider = customProvider(
             customProviderName || customModelName,
           );
-          // swap name and displayName for bytedance
-          if (displayName && provider.providerName == "ByteDance") {
-            [customModelName, displayName] = [displayName, customModelName];
-          }
           modelTable[`${customModelName}@${provider?.id}`] = {
             name: customModelName,
             displayName: displayName || customModelName,

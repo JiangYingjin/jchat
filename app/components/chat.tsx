@@ -616,7 +616,7 @@ export function ChatActions(props: {
           <SearchSelector
             defaultSelectedValue={`${currentModel}@${currentProviderName}`}
             items={models.map((m) => ({
-              title: `${m.displayName}${m?.provider?.providerName}`,
+              title: `${m.displayName}`,
               value: `${m.name}@${m?.provider?.providerName}`,
             }))}
             onClose={() => setShowModelSelector(false)}
