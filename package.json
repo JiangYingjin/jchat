@@ -24,7 +24,7 @@
     "@qdrant/js-client-rest": "^1.8.2",
     "@supabase/supabase-js": "^2.44.2",
     "@svgr/webpack": "^6.5.1",
-    "axios": "^1.7.5",
+    "axios": "^1.10.0",
     "canvas": "^3.0.1",
     "clsx": "^2.1.1",
     "d3-dsv": "2",
