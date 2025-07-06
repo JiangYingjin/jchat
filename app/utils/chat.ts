@@ -112,17 +112,30 @@ const imageCaches: Record<string, string> = {};
 export function cacheImageToBase64Image(imageUrl: string) {
   if (imageUrl.includes(CACHE_URL_PREFIX)) {
     if (!imageCaches[imageUrl]) {
+      console.log("[Cache] Fetching image for caching:", imageUrl);
       const reader = new FileReader();
       return fetch(imageUrl, {
         method: "GET",
         mode: "cors",
         credentials: "include",
       })
-        .then((res) => res.blob())
-        .then(
-          async (blob) =>
-            (imageCaches[imageUrl] = await compressImage(blob, 256 * 1024)),
-        ); // compressImage
+        .then((res) => {
+          if (!res.ok) {
+            throw new Error(`Failed to fetch image: ${res.status}`);
+          }
+          return res.blob();
+        })
+        .then(async (blob) => {
+          console.log("[Cache] Compressing image, size:", blob.size);
+          const compressed = await compressImage(blob, 256 * 1024);
+          imageCaches[imageUrl] = compressed;
+          return compressed;
+        })
+        .catch((error) => {
+          console.error("[Cache] Error caching image:", error);
+          // 返回原始 URL 作为备用
+          return imageUrl;
+        });
     }
     return Promise.resolve(imageCaches[imageUrl]);
   }
@@ -144,30 +157,53 @@ export function uploadImage(file: Blob): Promise<string> {
     // if serviceWorker register error, using compressImage
     return compressImage(file, 256 * 1024);
   }
+
   const body = new FormData();
   body.append("file", file);
+
   return fetch(UPLOAD_URL, {
     method: "post",
     body,
     mode: "cors",
     credentials: "include",
   })
-    .then((res) => res.json())
     .then((res) => {
-      // console.log("res", res);
-      if (res?.code == 0 && res?.data) {
-        return res?.data;
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
       }
-      throw Error(`upload Error: ${res?.msg}`);
+      return res.json();
+    })
+    .then((res) => {
+      if (res?.code === 0 && res?.data) {
+        return res.data;
+      }
+      throw new Error(`upload Error: ${res?.msg || "Unknown error"}`);
+    })
+    .catch((error) => {
+      console.error("[Upload] failed, falling back to compressImage:", error);
+      // 如果 ServiceWorker 上传失败，回退到压缩图片
+      return compressImage(file, 256 * 1024);
     });
 }
 
 export function removeImage(imageUrl: string) {
+  console.log("[Remove] Removing image:", imageUrl);
   return fetch(imageUrl, {
     method: "DELETE",
     mode: "cors",
     credentials: "include",
-  });
+  })
+    .then((res) => {
+      console.log("[Remove] Response status:", res.status);
+      if (!res.ok && res.status !== 404) {
+        throw new Error(`Failed to remove image: ${res.status}`);
+      }
+      return res;
+    })
+    .catch((error) => {
+      console.error("[Remove] Error removing image:", error);
+      throw error;
+    });
 }
 
 export async function stream(
