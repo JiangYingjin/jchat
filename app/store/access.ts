@@ -75,41 +75,9 @@ export const useAccessStore = createPersistStore(
     name: StoreKey.Access,
     version: 7.2,
     storage: jchatStorage,
-    async migrate(persistedState: any, version: number) {
-      console.log("[AccessStore] 开始数据迁移，版本:", version);
-
-      // 如果没有持久化状态，或者版本已经是最新的，直接返回
-      if (!persistedState || version >= 7.2) {
-        return persistedState as any;
-      }
-
-      // 尝试从旧的存储键中迁移数据
-      try {
-        const oldKey = "access-control";
-        const oldData = await jchatStorage.getItem(oldKey);
-
-        if (oldData && !persistedState) {
-          console.log("[AccessStore] 发现旧数据，正在迁移...");
-
-          // 将旧数据复制到新的存储键下
-          await jchatStorage.setItem(StoreKey.Access, oldData);
-
-          console.log(
-            "[AccessStore] 数据迁移成功，从",
-            oldKey,
-            "迁移到",
-            StoreKey.Access,
-          );
-
-          // 保留原始数据不删除，按用户要求
-          console.log("[AccessStore] 保留原始数据");
-
-          return oldData as any;
-        }
-      } catch (error) {
-        console.error("[AccessStore] 数据迁移失败:", error);
-      }
-
+    migrate(persistedState: any, version: number) {
+      // 简化 migrate 函数，只做版本兼容性处理
+      // 数据迁移改为在应用启动时主动执行，使用 app/utils/migration.ts 并在 app/components/home.tsx 中调用
       return persistedState as any;
     },
   },

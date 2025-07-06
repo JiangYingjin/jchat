@@ -104,44 +104,10 @@ export const useAppConfig = createPersistStore(
     name: StoreKey.Config,
     version: 3.2,
     storage: jchatStorage,
-    async migrate(persistedState: any, version: number) {
-      console.log("[ConfigStore] 开始数据迁移，版本:", version);
-
-      // 如果没有持久化状态，或者版本已经是最新的，直接返回
-      if (!persistedState || version >= 3.2) {
-        const state = persistedState as ChatConfig;
-        return state as any;
-      }
-
-      // 尝试从旧的存储键中迁移数据
-      try {
-        const oldKey = "app-config";
-        const oldData = await jchatStorage.getItem(oldKey);
-
-        if (oldData && !persistedState) {
-          console.log("[ConfigStore] 发现旧数据，正在迁移...");
-
-          // 将旧数据复制到新的存储键下
-          await jchatStorage.setItem(StoreKey.Config, oldData);
-
-          console.log(
-            "[ConfigStore] 数据迁移成功，从",
-            oldKey,
-            "迁移到",
-            StoreKey.Config,
-          );
-
-          // 保留原始数据不删除，按用户要求
-          console.log("[ConfigStore] 保留原始数据");
-
-          return oldData as any;
-        }
-      } catch (error) {
-        console.error("[ConfigStore] 数据迁移失败:", error);
-      }
-
-      const state = persistedState as ChatConfig;
-      return state as any;
+    migrate(persistedState: any, version: number) {
+      // 简化 migrate 函数，只做版本兼容性处理
+      // 数据迁移改为在应用启动时主动执行，使用 app/utils/migration.ts 并在 app/components/home.tsx 中调用
+      return persistedState as any;
     },
   },
 );

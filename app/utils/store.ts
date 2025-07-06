@@ -4,14 +4,17 @@ import { Updater } from "../typing";
 import { deepClone } from "./clone";
 import localforage from "localforage";
 
-const jchatLocalForage = localforage.createInstance({
+const jchatLocalForageInstance = localforage.createInstance({
   name: "JChat",
   storeName: "default",
 });
 
+// 导出底层的 localforage 实例，供 migrate 函数使用以避免循环依赖
+export const jchatLocalForage = jchatLocalForageInstance;
+
 export const jchatStorage = {
   async getItem(key: string) {
-    return (await jchatLocalForage.getItem(key)) as any;
+    return (await jchatLocalForageInstance.getItem(key)) as any;
   },
   async setItem(key: string, value: any) {
     // 过滤掉函数字段
@@ -20,10 +23,10 @@ export const jchatStorage = {
         return typeof val === "function" ? undefined : val;
       }),
     );
-    return await jchatLocalForage.setItem(key, filteredValue);
+    return await jchatLocalForageInstance.setItem(key, filteredValue);
   },
   async removeItem(key: string) {
-    return await jchatLocalForage.removeItem(key);
+    return await jchatLocalForageInstance.removeItem(key);
   },
 };
 

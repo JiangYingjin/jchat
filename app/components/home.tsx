@@ -29,6 +29,7 @@ import { AuthPage } from "./auth";
 import { getClientConfig } from "../config/client";
 import { type ClientApi, getClientApi } from "../client/api";
 import { useAccessStore } from "../store";
+import { DataMigration } from "../utils/migration";
 
 export function Loading(props: { noLogo?: boolean }) {
   return (
@@ -175,7 +176,6 @@ export function Home() {
   useHtmlLang();
 
   useEffect(() => {
-    // 启动时检查并可选地清理 localStorage（如需自动清理可设置阈值）
     console.log("[Config] got config from build time", getClientConfig());
     useAccessStore.getState().fetch();
   }, []);

@@ -752,43 +752,11 @@ export const useChatStore = createPersistStore(
   },
   {
     name: StoreKey.Chat,
-    version: 3.6,
+    version: 3.8,
     storage: jchatStorage,
-    async migrate(persistedState: any, version: number) {
-      console.log("[ChatStore] 开始数据迁移，版本:", version);
-
-      // 如果没有持久化状态，或者版本已经是最新的，直接返回
-      if (!persistedState || version >= 3.6) {
-        return persistedState as any;
-      }
-
-      // 尝试从旧的存储键中迁移数据
-      try {
-        const oldKey = "chat-next-web-store";
-        const oldData = await jchatStorage.getItem(oldKey);
-
-        if (oldData && !persistedState) {
-          console.log("[ChatStore] 发现旧数据，正在迁移...");
-
-          // 将旧数据复制到新的存储键下
-          await jchatStorage.setItem(StoreKey.Chat, oldData);
-
-          console.log(
-            "[ChatStore] 数据迁移成功，从",
-            oldKey,
-            "迁移到",
-            StoreKey.Chat,
-          );
-
-          // 保留原始数据不删除，按用户要求
-          console.log("[ChatStore] 保留原始数据");
-
-          return oldData as any;
-        }
-      } catch (error) {
-        console.error("[ChatStore] 数据迁移失败:", error);
-      }
-
+    migrate(persistedState: any, version: number) {
+      // 简化 migrate 函数，只做版本兼容性处理
+      // 数据迁移改为在应用启动时主动执行，使用 app/utils/migration.ts 并在 app/components/home.tsx 中调用
       return persistedState as any;
     },
   },

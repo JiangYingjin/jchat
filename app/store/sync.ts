@@ -122,7 +122,9 @@ export const useSyncStore = createPersistStore(
     name: StoreKey.Sync,
     version: 1.4,
     storage: jchatStorage,
-    async migrate(persistedState, version) {
+    migrate(persistedState, version) {
+      // 简化 migrate 函数，只做版本兼容性处理
+      // 数据迁移改为在应用启动时主动执行，使用 app/utils/migration.ts 并在 app/components/home.tsx 中调用
       return persistedState as any;
     },
   },
