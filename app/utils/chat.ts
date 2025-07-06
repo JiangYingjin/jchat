@@ -18,6 +18,12 @@ import { prettyObject } from "./format";
 import { fetch as tauriFetch } from "./stream";
 import { getMessageTextContent } from "../utils";
 
+declare global {
+  interface Window {
+    _SW_ENABLED: boolean;
+  }
+}
+
 export function compressImage(file: Blob, maxSize: number): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();

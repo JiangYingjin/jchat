@@ -11,7 +11,6 @@ declare global {
 
       BASE_URL?: string;
 
-      VERCEL?: string;
       BUILD_MODE?: "standalone" | "export";
       BUILD_APP?: string; // is building desktop app
 
@@ -79,7 +78,6 @@ export const getServerSideConfig = () => {
     codes: ACCESS_CODES,
 
     proxyUrl: process.env.PROXY_URL,
-    isVercel: !!process.env.VERCEL,
 
     hideBalanceQuery: !process.env.ENABLE_BALANCE_QUERY,
     customModels,
