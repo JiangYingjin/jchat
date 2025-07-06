@@ -1,11 +1,3 @@
-export const OWNER = "Hk-Gosuto";
-export const REPO = "ChatGPT-Next-Web-LangChain";
-export const REPO_URL = `https://github.com/${OWNER}/${REPO}`;
-
-export const ISSUE_URL = `https://github.com/${OWNER}/${REPO}/issues`;
-
-export const RELEASE_URL = `${REPO_URL}/releases`;
-
 export const RUNTIME_CONFIG_DOM = "danger-runtime-config";
 
 export const OPENAI_BASE_URL = "https://api.openai.com";
@@ -48,12 +40,7 @@ export const NARROW_SIDEBAR_WIDTH = 80;
 
 export const ACCESS_CODE_PREFIX = "nk-";
 
-export const CHAT_INPUT_TEXT = (id: string) => "chat-input-text-" + id;
-export const CHAT_INPUT_IMAGES = (id: string) => "chat-input-images-" + id;
-export const CHAT_INPUT_SCROLL_TOP = (id: string) =>
-  "chat-input-scroll-top-" + id;
-
-export const STORAGE_KEY = "chatgpt-next-web";
+export const STORAGE_KEY = "jchat";
 
 export const REQUEST_TIMEOUT_MS = 60000;
 export const REQUEST_TIMEOUT_MS_FOR_THINKING = REQUEST_TIMEOUT_MS * 5;

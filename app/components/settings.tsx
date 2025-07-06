@@ -42,14 +42,7 @@ import Locale, {
   getLang,
 } from "../locales";
 import { copyToClipboard } from "../utils";
-import Link from "next/link";
-import {
-  OPENAI_BASE_URL,
-  Path,
-  RELEASE_URL,
-  STORAGE_KEY,
-  SlotID,
-} from "../constant";
+import { OPENAI_BASE_URL, Path } from "../constant";
 
 import { ErrorBoundary } from "./error";
 import { InputRange } from "./input-range";

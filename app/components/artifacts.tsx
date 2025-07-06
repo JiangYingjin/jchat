@@ -14,7 +14,6 @@ import GithubIcon from "../icons/github.svg";
 import ReloadButtonIcon from "../icons/reload.svg";
 import Locale from "../locales";
 import { downloadAs } from "../utils";
-import { REPO_URL } from "@/app/constant";
 import { Loading } from "./home";
 import styles from "./artifacts.module.scss";
 
@@ -131,9 +130,6 @@ export function Artifacts() {
   return (
     <div className={styles["artifacts"]}>
       <div className={styles["artifacts-header"]}>
-        <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
-          <IconButton bordered icon={<GithubIcon />} shadow />
-        </a>
         <div className={styles["artifacts-title"]}>JChat Artifacts</div>
       </div>
       <div className={styles["artifacts-content"]}>

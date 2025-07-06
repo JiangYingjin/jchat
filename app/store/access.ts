@@ -72,26 +72,6 @@ export const useAccessStore = createPersistStore(
     },
 
     migrate(persistedState: any, version: number) {
-      if (version === 2) {
-        const { defaultModel, ...rest } = persistedState;
-        persistedState = {
-          ...rest,
-          defaultModel: defaultModel || "",
-        };
-      }
-
-      if (version === 4) {
-        const { isEnableWebSearch, ...rest } = persistedState;
-        persistedState = {
-          ...rest,
-        };
-      }
-
-      if (version === 5) {
-        const { isUseOpenAIEndpointForAllModels, ...rest } = persistedState;
-        persistedState = rest;
-      }
-
       return persistedState as any;
     },
   }),
