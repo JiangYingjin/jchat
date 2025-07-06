@@ -1,5 +1,8 @@
 #!/bin/zsh
 
+# 记录开始时间
+START_TIME=$(date +%s)
+
 PROJ_DIR="/root/proj/ChatGPT-Next-Web-LangChain"
 TMP_BUILD_DIR="$PROJ_DIR/build/tmp"
 SERVE_DIR="/www/nextchat_langchain"
@@ -54,6 +57,18 @@ pm2 del nextchat_langchain || true
 pm2 start "$PM2_CONF_PATH"
 
 echo "🎉 部署完成！"
+
+# 计算并显示总耗时
+END_TIME=$(date +%s)
+TOTAL_TIME=$((END_TIME - START_TIME))
+MINUTES=$((TOTAL_TIME / 60))
+SECONDS=$((TOTAL_TIME % 60))
+
+if [ $MINUTES -gt 0 ]; then
+    echo "⏱️  总耗时: ${MINUTES}分${SECONDS}秒"
+else
+    echo "⏱️  总耗时: ${SECONDS}秒"
+fi
 
 # 清理临时构建目录
 rm -rf "$TMP_BUILD_DIR"

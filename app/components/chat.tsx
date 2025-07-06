@@ -102,6 +102,7 @@ import clsx from "clsx";
 import { FileInfo } from "../client/platforms/utils";
 import { ThinkingContent } from "./thinking-content";
 import { MessageContentEditPanel } from "./message-content-edit-panel";
+import { ContextPrompts } from "./mask";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
@@ -114,7 +115,18 @@ export function SessionConfigModel(props: { onClose: () => void }) {
   return (
     <div className="modal-mask">
       <Modal title={Locale.Context.Edit} onClose={() => props.onClose()}>
-        <div>Mask configuration is no longer available.</div>
+        <ContextPrompts
+          context={session.mask.context}
+          updateContext={(updater) => {
+            const context = session.mask.context.slice();
+            updater(context);
+            chatStore.updateTargetSession(
+              session,
+              (session) => (session.mask.context = context),
+            );
+          }}
+          onModalClose={props.onClose}
+        />
       </Modal>
     </div>
   );
@@ -715,7 +727,15 @@ export function EditMessageModal(props: { onClose: () => void }) {
             />
           </ListItem>
         </List>
-        <div>Context prompts are no longer available.</div>
+        <ContextPrompts
+          context={messages}
+          updateContext={(updater) => {
+            const newMessages = messages.slice();
+            updater(newMessages);
+            setMessages(newMessages);
+          }}
+          onModalClose={props.onClose}
+        />
       </Modal>
     </div>
   );
