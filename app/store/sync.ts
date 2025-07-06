@@ -33,12 +33,6 @@ const DEFAULT_SYNC_STATE = {
     password: "",
   },
 
-  upstash: {
-    endpoint: "",
-    username: STORAGE_KEY,
-    apiKey: "",
-  },
-
   lastSyncTime: 0,
   lastProvider: "",
 };
@@ -126,14 +120,10 @@ export const useSyncStore = createPersistStore(
   }),
   {
     name: StoreKey.Sync,
-    version: 1.2,
+    version: 1.3,
 
     migrate(persistedState, version) {
       const newState = persistedState as typeof DEFAULT_SYNC_STATE;
-
-      if (version < 1.1) {
-        newState.upstash.username = STORAGE_KEY;
-      }
 
       if (version < 1.2) {
         if (
@@ -141,6 +131,13 @@ export const useSyncStore = createPersistStore(
           "/api/cors/"
         ) {
           newState.proxyUrl = "";
+        }
+      }
+
+      if (version < 1.3) {
+        // Remove upstash configuration if it exists
+        if ("upstash" in newState) {
+          delete (newState as any).upstash;
         }
       }
 

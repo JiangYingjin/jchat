@@ -21,10 +21,6 @@ const DANGER_CONFIG = {
   isUseRemoteModels: serverConfig.isUseRemoteModels,
 };
 
-declare global {
-  type DangerConfig = typeof DANGER_CONFIG;
-}
-
 async function handle() {
   return NextResponse.json(DANGER_CONFIG);
 }
