@@ -746,19 +746,6 @@ export const useChatStore = createPersistStore(
       setLastInput(input: string) {
         set(() => ({ lastInput: input }));
       },
-
-      async clearAllData() {
-        safeLocalStorage().clear();
-
-        // 清理所有聊天输入数据和系统消息数据
-        try {
-          await chatInputStorage.clearAll();
-          await systemMessageStorage.clearAll();
-          console.log("[Store] 成功清理所有数据");
-        } catch (error) {
-          console.error("[Store] 清理数据失败:", error);
-        }
-      },
     };
 
     return methods;
@@ -789,54 +776,9 @@ class SystemMessageStorage {
   constructor() {
     this.storage = localforage.createInstance({
       name: "JChat",
-      storeName: "systemMessages_v2", // 使用新的存储名称避免冲突
+      storeName: "systemMessages",
       description: "System messages storage",
     });
-
-    // 自动迁移旧数据
-    this.migrateFromOldStorage();
-  }
-
-  // 从旧存储迁移数据
-  private async migrateFromOldStorage(): Promise<void> {
-    try {
-      const oldStorage = localforage.createInstance({
-        name: "JChat",
-        storeName: "systemMessages",
-      });
-
-      // 检查新存储是否为空
-      const newKeys = await this.storage.keys();
-      if (newKeys.length > 0) {
-        return; // 新存储已有数据，不需要迁移
-      }
-
-      // 获取旧存储的所有数据
-      const oldKeys = await oldStorage.keys();
-      let migratedCount = 0;
-
-      for (const key of oldKeys) {
-        const oldData = await oldStorage.getItem<any>(key);
-        if (oldData) {
-          // 如果是旧格式的对象（包含 sessionId），提取实际数据
-          if (oldData.sessionId) {
-            const { sessionId, ...actualData } = oldData;
-            await this.storage.setItem(sessionId, actualData);
-            migratedCount++;
-          } else {
-            // 如果是新格式数据，直接迁移
-            await this.storage.setItem(key, oldData);
-            migratedCount++;
-          }
-        }
-      }
-
-      if (migratedCount > 0) {
-        console.log(`[SystemMessageStorage] 成功迁移 ${migratedCount} 条数据`);
-      }
-    } catch (error) {
-      console.error("[SystemMessageStorage] 数据迁移失败:", error);
-    }
   }
 
   async saveSystemMessage(
@@ -937,7 +879,7 @@ class SystemMessageStorage {
     }
   }
 
-  // 迁移旧格式数据到新格式（简化版）
+  // 迁移早期字符串格式数据到 SystemMessageData 格式
   async migrateOldFormatData(): Promise<number> {
     try {
       const sessionIds = await this.getAllSessionIds();
@@ -962,18 +904,8 @@ class SystemMessageStorage {
 
       return migratedCount;
     } catch (error) {
-      console.error("迁移旧格式系统消息数据失败:", error);
+      console.error("迁移早期字符串格式系统消息数据失败:", error);
       return 0;
-    }
-  }
-
-  // 清理所有数据
-  async clearAll(): Promise<void> {
-    try {
-      await this.storage.clear();
-      console.log("[SystemMessageStorage] 成功清理所有数据");
-    } catch (error) {
-      console.error("[SystemMessageStorage] 清理数据失败:", error);
     }
   }
 }
@@ -997,54 +929,9 @@ class ChatInputStorage {
   constructor() {
     this.storage = localforage.createInstance({
       name: "JChat",
-      storeName: "chatInput_v2", // 使用新的存储名称避免冲突
+      storeName: "chatInput",
       description: "Chat input storage",
     });
-
-    // 自动迁移旧数据
-    this.migrateFromOldStorage();
-  }
-
-  // 从旧存储迁移数据
-  private async migrateFromOldStorage(): Promise<void> {
-    try {
-      const oldStorage = localforage.createInstance({
-        name: "JChat",
-        storeName: "chatInput",
-      });
-
-      // 检查新存储是否为空
-      const newKeys = await this.storage.keys();
-      if (newKeys.length > 0) {
-        return; // 新存储已有数据，不需要迁移
-      }
-
-      // 获取旧存储的所有数据
-      const oldKeys = await oldStorage.keys();
-      let migratedCount = 0;
-
-      for (const key of oldKeys) {
-        const oldData = await oldStorage.getItem<any>(key);
-        if (oldData) {
-          // 如果是旧格式的对象（包含 sessionId），提取实际数据
-          if (oldData.sessionId) {
-            const { sessionId, ...actualData } = oldData;
-            await this.storage.setItem(sessionId, actualData);
-            migratedCount++;
-          } else {
-            // 如果是新格式数据，直接迁移
-            await this.storage.setItem(key, oldData);
-            migratedCount++;
-          }
-        }
-      }
-
-      if (migratedCount > 0) {
-        console.log(`[ChatInputStorage] 成功迁移 ${migratedCount} 条数据`);
-      }
-    } catch (error) {
-      console.error("[ChatInputStorage] 数据迁移失败:", error);
-    }
   }
 
   async saveChatInput(
@@ -1088,16 +975,6 @@ class ChatInputStorage {
     } catch (error) {
       console.error("获取所有会话ID失败:", error);
       return [];
-    }
-  }
-
-  // 清理所有数据
-  async clearAll(): Promise<void> {
-    try {
-      await this.storage.clear();
-      console.log("[ChatInputStorage] 成功清理所有数据");
-    } catch (error) {
-      console.error("[ChatInputStorage] 清理数据失败:", error);
     }
   }
 }
