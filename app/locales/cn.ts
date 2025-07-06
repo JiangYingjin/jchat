@@ -76,7 +76,6 @@ const cn = {
       DisableThinking: "关闭思考",
     },
     Rename: "重命名对话",
-    Typing: "正在输入…",
     Input: (submitKey: string) => {
       return "";
       // var inputHints = `${submitKey} 发送`;

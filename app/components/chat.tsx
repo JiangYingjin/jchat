@@ -2188,8 +2188,6 @@ function _Chat() {
                 const showActions =
                   !(message.preview || message.content.length === 0) &&
                   !isContext;
-                const showTyping = message.preview || message.streaming;
-
                 const shouldShowClearContextDivider =
                   i === clearContextIndex - 1;
 
@@ -2235,11 +2233,6 @@ function _Chat() {
                             </div>
                           )}
                         </div>
-                        {showTyping && (
-                          <div className={styles["chat-message-status"]}>
-                            {Locale.Chat.Typing}
-                          </div>
-                        )}
                         {!isUser && message.reasoningContent && (
                           <ThinkingContent
                             message={message}
