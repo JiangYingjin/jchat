@@ -57,7 +57,6 @@ import {
   getMessageImages,
   isVisionModel,
   showPlugins,
-  isSupportRAGModel,
   isFunctionCallModel,
   isClaudeThinkingModel,
 } from "../utils";
@@ -552,11 +551,6 @@ export function ChatActions(props: {
   const isMobileScreen = useMobileScreen();
 
   const accessStore = useAccessStore();
-  const isEnableRAG = useMemo(
-    () => accessStore.enableRAG(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
   const isDisableModelProviderDisplay = useMemo(
     () => accessStore.isDisableModelProviderDisplay(),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -571,7 +565,7 @@ export function ChatActions(props: {
   useEffect(() => {
     const show = isVisionModel(currentModel);
     setShowUploadImage(show && isMobileScreen);
-    setShowUploadFile(isEnableRAG && isSupportRAGModel(currentModel));
+    setShowUploadFile(false); // 直接设为false
     if (!show) {
       props.setAttachImages([]);
       props.setUploading(false);
@@ -1907,7 +1901,7 @@ function _Chat() {
           const api = new ClientApi();
           const fileDatas: FileInfo[] = [];
           api.file
-            .uploadForRag(file, session)
+            .upload(file)
             .then((fileInfo) => {
               console.log(fileInfo);
               fileDatas.push(fileInfo);

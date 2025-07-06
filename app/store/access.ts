@@ -42,7 +42,7 @@ const DEFAULT_ACCESS_STATE = {
   customModels: "",
   defaultModel: "",
   visionModels: "",
-  isEnableRAG: false,
+
   isEnableWebSearch: false,
 
   isUseOpenAIEndpointForAllModels: false,
@@ -75,10 +75,6 @@ export const useAccessStore = createPersistStore(
       return get().isUseRemoteModels;
     },
 
-    enableRAG() {
-      this.fetch();
-      return get().isEnableRAG;
-    },
     enableWebSearch() {
       this.fetch();
       return get().isEnableWebSearch;
@@ -131,14 +127,6 @@ export const useAccessStore = createPersistStore(
         persistedState = {
           ...rest,
           defaultModel: defaultModel || "",
-        };
-      }
-
-      if (version === 3) {
-        const { isEnableRAG, ...rest } = persistedState;
-        persistedState = {
-          ...rest,
-          isEnableRAG: isEnableRAG || false,
         };
       }
 

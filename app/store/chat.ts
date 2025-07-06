@@ -470,8 +470,7 @@ export const useChatStore = createPersistStore(
           model: modelConfig.model,
           toolMessages: [],
         });
-        const isEnableRAG =
-          session.attachFiles && session.attachFiles.length > 0;
+
         // get recent messages
         let recentMessages = await get().getMessagesWithMemory();
         let sendMessages: ChatMessage[];
@@ -525,17 +524,11 @@ export const useChatStore = createPersistStore(
         const api: ClientApi = getClientApi(modelConfig.providerName);
         if (
           session.mask.usePlugins &&
-          (allPlugins.length > 0 || isEnableRAG) &&
+          allPlugins.length > 0 &&
           isFunctionCallModel(modelConfig.model)
         ) {
           console.log("[ToolAgent] start");
           let pluginToolNames = allPlugins.map((m) => m.toolName);
-          if (isEnableRAG) {
-            // other plugins will affect rag
-            // clear existing plugins here
-            pluginToolNames = [];
-            pluginToolNames.push("myfiles_browser");
-          }
           const agentCall = () => {
             api.llm.toolAgentChat({
               chatSessionId: session.id,

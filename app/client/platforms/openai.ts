@@ -23,7 +23,6 @@ import {
 import {
   AgentChatOptions,
   ChatOptions,
-  CreateRAGStoreOptions,
   getHeaders,
   LLMApi,
   LLMModel,
@@ -326,36 +325,6 @@ export class ChatGPTApi implements LLMApi {
     } catch (e) {
       console.log("[Request] failed to make a chat request", e);
       options.onError?.(e as Error);
-    }
-  }
-
-  async createRAGStore(options: CreateRAGStoreOptions): Promise<string> {
-    try {
-      const accessStore = useAccessStore.getState();
-      const baseUrl = accessStore.openaiUrl;
-      const requestPayload = {
-        sessionId: options.chatSessionId,
-        fileInfos: options.fileInfos,
-        baseUrl: baseUrl,
-      };
-      console.log("[Request] rag store payload: ", requestPayload);
-      const controller = new AbortController();
-      options.onController?.(controller);
-      let path = "/api/langchain/rag/store";
-      const chatPayload = {
-        method: "POST",
-        body: JSON.stringify(requestPayload),
-        signal: controller.signal,
-        headers: getHeaders(),
-      };
-      const res = await fetch(path, chatPayload);
-      if (res.status !== 200) throw new Error(await res.text());
-      const resJson = await res.json();
-      return resJson.partial;
-    } catch (e) {
-      console.log("[Request] failed to make a chat reqeust", e);
-      options.onError?.(e as Error);
-      return "";
     }
   }
 

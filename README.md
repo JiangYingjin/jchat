@@ -27,20 +27,10 @@
 > 本项目插件功能基于 [OpenAI API 函数调用](https://platform.openai.com/docs/guides/function-calling) 功能实现，转发 GitHub Copilot 接口或类似实现的模拟接口并不能正常调用插件功能！
 >
 > [实验性] 新增 claude 模型函数调用支持。
->
-> 由于 Anthropic 不提供嵌入模型，请添加 RAG 功能的 ollama 嵌入模型配置，如不配置，**WebBrowser** 和 **PDFBrowser** 插件将无法使用。
 
 ![cover](./docs/images/gemini-image-generation.png)
 
 ![cover](./docs/images/thinking-example.png)
-
-![cover](./docs/images/rag-example-2.jpg)
-
-![plugin-example](./docs/images/plugin-example.png)
-
-![wiki-plugin](./docs/images/wiki-plugin-example.png)
-
-![dall-e-plugin](./docs/images/dalle-plugin-example.png)
 
 ## 主要功能
 
@@ -49,29 +39,23 @@
 - 支持**gemini** (gemini-2.0-flash-exp) 文生图多模态模型
 
 - 支持**深度思考**
-  
 - 支持**通用搜索**（非插件模型支持联网搜索）
-  
+
   - 环境变量：
     - `TAVILY_API_KEY`
-  
   - 申请地址：https://tavily.com
-  
-- RAG 功能
-
-  - 配置请参考文档 [RAG 功能配置说明](./docs/rag-cn.md)
 
 - 除插件工具外，与原项目保持一致 [ChatGPT-Next-Web 主要功能](https://github.com/Yidadaa/ChatGPT-Next-Web#主要功能)
-
-
 
 - 支持语音输入，需要使用 HTTPS 访问 https://github.com/Hk-Gosuto/ChatGPT-Next-Web-LangChain/issues/208
 
 - 支持 GPT-4V(视觉) 模型
+
   - ~~需要配置对象存储服务，请参考 [对象存储服务配置指南](./docs/s3-oss.md) 配置~~
   - 已同步上游仓库视觉模型调用方式（压缩图片），这里还是会有撑爆 LocalStorage 的风险 https://github.com/Hk-Gosuto/ChatGPT-Next-Web-LangChain/issues/77#issuecomment-1846410078 ，后面如果出现类似问题会再适配对象存储来存储图像。
 
 - 基于 [LangChain](https://github.com/hwchase17/langchainjs) 实现的插件功能，目前支持以下插件，未来会添加更多
+
   - 搜索（优先级：`GoogleCustomSearch > SerpAPI > BingSerpAPI > ChooseSearchEngine > DuckDuckGo`）
 
     - [GoogleCustomSearch](https://api.js.langchain.com/classes/langchain_tools.GoogleCustomSearch.html)
@@ -95,6 +79,7 @@
     - ChooseSearchEngine（作者：[hang666](https://github.com/hang666)）
 
       - 环境变量：
+
         - `CHOOSE_SEARCH_ENGINE`
         - `GOOGLE_PLUGIN_API_PROXY_PREFIX` 与 `DDG_API_PROXY_PREFIX` 变量使用方法一致，只会对 google 进行代理
 
@@ -120,19 +105,15 @@
     - [WolframAlpha](https://api.js.langchain.com/classes/langchain_tools.WolframAlphaTool.html)
       - 环境变量：`WOLFRAM_ALPHA_APP_ID`
       - 申请地址：[Wolfram LLM API](https://developer.wolframalpha.com/)
-    
   - 网络请求
-    - [WebBrowser](https://api.js.langchain.com/classes/langchain_tools_webbrowser.WebBrowser.html)
-      - 需要使用 `text-embedding-ada-002` 嵌入模型
-    - PDFBrowser
-      - 需要使用 `text-embedding-ada-002` 嵌入模型
-      - ⚠ 仅在非 vercel 环境部署时可用 ⚠
+
+    - ⚠ 仅在非 vercel 环境部署时可用 ⚠
 
   - 其它
     - [Wiki](https://api.js.langchain.com/classes/langchain_tools.WikipediaQueryRun.html)
     - DALL-E 3
       - DALL-E 3 插件需要配置对象存储服务，请参考 [对象存储服务配置指南](./docs/s3-oss.md) 配置
-      - 如无需图像转存则可以配置  `DALLE_NO_IMAGE_STORAGE=1` ，此时将直接将 DALL-E 服务返回的临时 URL 用于图像显示，注意：该链接具有时效性
+      - 如无需图像转存则可以配置 `DALLE_NO_IMAGE_STORAGE=1` ，此时将直接将 DALL-E 服务返回的临时 URL 用于图像显示，注意：该链接具有时效性
       - 默认使用 `dall-e-3` 模型，如果想使用 `dall-e-2` ，可以配置环境变量 `DALLE_MODEL=dall-e-2`
     - StableDiffusion
       - 本插件目前为测试版本，后续可能会有较大的变更，请谨慎使用
@@ -149,6 +130,7 @@
         - 需配置环境变量 `BILIBILI_COOKIES`
 
 - 支持 gemini-pro, gemini-pro-vision 模型
+
   - 以下功能目前还不支持
     - **插件功能**
   - 如何启用
@@ -163,7 +145,6 @@
 - 非 Vercel 运行环境下支持本地存储
 
   - 如果你的程序运行在非 Vercel 环境，不配置 `S3_ENDPOINT` 和 `R2_ACCOUNT_ID` 参数，默认上传的文件将存储在 `/app/uploads` 文件夹中
-
 
 ## 开发计划
 
@@ -217,8 +198,8 @@
 
 本项目提供有限的权限控制功能，请在 Vercel 项目控制面板的环境变量页增加名为 `CODE` 的环境变量，值为用英文逗号分隔的自定义密码：
 
-```
-code1,code2,code3
+```code1,code2,code3
+
 ```
 
 增加或修改该环境变量后，请**重新部署**项目使改动生效。
@@ -314,10 +295,12 @@ anthropic claude Api Url.
 如果你想禁用从链接解析预制设置，将此环境变量设置为 1 即可。
 
 For Azure: use `modelName@azure=deploymentName` to customize model name and deployment name.
+
 > Example: `+gpt-3.5-turbo@azure=gpt35` will show option `gpt35(Azure)` in model list.
 > If you only can use Azure model, `-all,+gpt-3.5-turbo@azure=gpt35` will `gpt35(Azure)` the only option in model list.
 
 For ByteDance: use `modelName@bytedance=deploymentName` to customize model name and deployment name.
+
 > Example: `+Doubao-lite-4k@bytedance=ep-xxxxx-xxx` will show option `Doubao-lite-4k(ByteDance)` in model list.
 
 ### `CUSTOM_MODELS` （可选）
@@ -328,10 +311,12 @@ For ByteDance: use `modelName@bytedance=deploymentName` to customize model name 
 用来控制模型列表，使用 `+` 增加一个模型，使用 `-` 来隐藏一个模型，使用 `模型名=展示名` 来自定义模型的展示名，用英文逗号隔开。
 
 在Azure的模式下，支持使用`modelName@azure=deploymentName`的方式配置模型名称和部署名称(deploy-name)
+
 > 示例：`+gpt-3.5-turbo@azure=gpt35`这个配置会在模型列表显示一个`gpt35(Azure)`的选项。
 > 如果你只能使用Azure模式，那么设置 `-all,+gpt-3.5-turbo@azure=gpt35` 则可以让对话的默认使用 `gpt35(Azure)`
 
 在ByteDance的模式下，支持使用`modelName@bytedance=deploymentName`的方式配置模型名称和部署名称(deploy-name)
+
 > 示例: `+Doubao-lite-4k@bytedance=ep-xxxxx-xxx`这个配置会在模型列表显示一个`Doubao-lite-4k(ByteDance)`的选项
 
 ### `DEFAULT_MODEL` （可选）
@@ -349,15 +334,14 @@ For ByteDance: use `modelName@bytedance=deploymentName` to customize model name 
 ### `WHITE_WEBDAV_ENDPOINTS` （可选）
 
 如果你想增加允许访问的webdav服务地址，可以使用该选项，格式要求：
+
 - 每一个地址必须是一个完整的 endpoint
-> `https://xxxx/xxx`
+  > `https://xxxx/xxx`
 - 多个地址以`,`相连
 
 ### `DEFAULT_INPUT_TEMPLATE` （可选）
 
 自定义默认的 template，用于初始化『设置』中的『用户输入预处理』配置项
-
-
 
 ### `USE_OPENAI_ENDPOINT_FOR_ALL_MODELS` （可选）
 
@@ -395,7 +379,7 @@ Tavily API Key 用于通用搜索功能
 
 > Docker 版本需要在 20 及其以上，否则会提示找不到镜像。
 
-> ⚠️ 注意：docker 版本在大多数时间都会落后最新的版本 1 到 2 天，所以部署后会持续出现“存在更新”的提示，属于正常现象。
+> ⚠️ 注意：docker 版本在大多数时间都会落后最新的版本 1 到 2 天，所以部署后会持续出现"存在更新"的提示，属于正常现象。
 >
 > 也可以使用镜像 `gosuto/chatgpt-next-web-langchain:nightly`，该镜像为每日更新。
 
@@ -428,7 +412,6 @@ docker run -d -p 3000:3000 \
 ## 同步聊天记录（UpStash）
 
 | [简体中文](./docs/synchronise-chat-logs-cn.md) | [English](./docs/synchronise-chat-logs-en.md) | [Italiano](./docs/synchronise-chat-logs-es.md) | [日本語](./docs/synchronise-chat-logs-ja.md) | [한국어](./docs/synchronise-chat-logs-ko.md)
-
 
 ## Star History
 

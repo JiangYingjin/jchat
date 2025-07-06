@@ -102,13 +102,6 @@ export interface AgentChatOptions {
   onAfterTool?: (tool: ChatMessageTool) => void;
 }
 
-export interface CreateRAGStoreOptions {
-  chatSessionId: string;
-  fileInfos: FileInfo[];
-  onError?: (err: Error) => void;
-  onController?: (controller: AbortController) => void;
-}
-
 export interface LLMUsage {
   used: number;
   total: number;
@@ -133,7 +126,7 @@ export abstract class LLMApi {
   abstract chat(options: ChatOptions): Promise<void>;
   abstract transcription(options: TranscriptionOptions): Promise<string>;
   abstract toolAgentChat(options: AgentChatOptions): Promise<void>;
-  abstract createRAGStore(options: CreateRAGStoreOptions): Promise<string>;
+
   abstract usage(): Promise<LLMUsage>;
   abstract models(): Promise<LLMModel[]>;
 }

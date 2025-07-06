@@ -13,10 +13,6 @@ import {
 import { ServiceProvider } from "./constant";
 // import { fetch as tauriFetch, ResponseType } from "@tauri-apps/api/http";
 import { fetch as tauriStreamFetch } from "./utils/stream";
-import {
-  WEB_SEARCH_ANSWER_EN_PROMPT,
-  WEB_SEARCH_ANSWER_ZH_PROMPT,
-} from "./prompt";
 import { useAccessStore } from "./store";
 
 export function trimTopic(topic: string) {
@@ -228,31 +224,14 @@ export function isMacOS(): boolean {
 }
 
 export function getWebReferenceMessageTextContent(message: RequestMessage) {
-  let prompt = getMessageTextContent(message);
+  let prompt = getTextContent(message.content);
   if (
     message.webSearchReferences &&
+    message.webSearchReferences.results &&
     message.webSearchReferences.results.length > 0
   ) {
-    const searchResults = message.webSearchReferences.results
-      .map((result, index) => {
-        return `[webpage ${index + 1} begin]
-[webpage title]${result.title}
-[webpage url]${result.url}
-[webpage content begin]
-${result.content}
-[webpage content end]
-[webpage ${index + 1} end]
-`;
-      })
-      .join("\n");
-    const isZh = getLang() == "cn";
-    const promptTemplate = isZh
-      ? WEB_SEARCH_ANSWER_ZH_PROMPT
-      : WEB_SEARCH_ANSWER_EN_PROMPT;
-    prompt = promptTemplate
-      .replace("{cur_date}", new Date().toLocaleString())
-      .replace("{search_results}", searchResults)
-      .replace("{question}", prompt);
+    // 直接返回原始prompt，不做模板替换
+    return prompt;
   }
   return prompt;
 }
@@ -352,24 +331,6 @@ export function showPlugins(provider: ServiceProvider, model: string) {
     return true;
   }
   return false;
-}
-
-export function isSupportRAGModel(modelName: string) {
-  const specialModels = [
-    "gpt-4-turbo",
-    "gpt-4-turbo-2024-04-09",
-    "gpt-4o",
-    "gpt-4o-2024-05-13",
-    "gpt-4o-mini",
-    "gpt-4o-mini-2024-07-18",
-    "gpt-4.5-preview",
-    "gpt-4.5-preview-2025-02-27",
-  ];
-  if (specialModels.some((keyword) => modelName === keyword)) return true;
-  if (isVisionModel(modelName)) return false;
-  return DEFAULT_MODELS.filter((model) => model.provider.id === "openai").some(
-    (model) => model.name === modelName,
-  );
 }
 
 export function isFunctionCallModel(modelName: string) {
