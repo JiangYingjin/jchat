@@ -1,10 +1,4 @@
-import {
-  ServiceProvider,
-  StoreKey,
-  ApiPath,
-  OPENAI_BASE_URL,
-  ANTHROPIC_BASE_URL,
-} from "../constant";
+import { StoreKey, ApiPath, OPENAI_BASE_URL } from "../constant";
 import { getHeaders } from "../client/api";
 import { getClientConfig } from "../config/client";
 import { createPersistStore } from "../utils/store";
@@ -16,22 +10,15 @@ const isApp = getClientConfig()?.buildMode === "export";
 
 const DEFAULT_OPENAI_URL = isApp ? OPENAI_BASE_URL : ApiPath.OpenAI;
 
-const DEFAULT_ANTHROPIC_URL = isApp ? ANTHROPIC_BASE_URL : ApiPath.Anthropic;
-
 const DEFAULT_ACCESS_STATE = {
   accessCode: "",
   useCustomConfig: false,
 
-  provider: ServiceProvider.OpenAI,
+  provider: "OpenAI",
 
   // openai
   openaiUrl: DEFAULT_OPENAI_URL,
   openaiApiKey: "",
-
-  // anthropic
-  anthropicUrl: DEFAULT_ANTHROPIC_URL,
-  anthropicApiKey: "",
-  anthropicApiVersion: "2023-06-01",
 
   // server config
   needCode: true,
@@ -82,19 +69,12 @@ export const useAccessStore = createPersistStore(
     isValidOpenAI() {
       return ensure(get(), ["openaiApiKey"]);
     },
-    isValidAnthropic() {
-      return ensure(get(), ["anthropicApiKey"]);
-    },
 
     isAuthorized() {
       this.fetch();
 
       // has token or has code or disabled access control
-      return (
-        this.isValidOpenAI() ||
-        this.isValidAnthropic() ||
-        !this.enabledAccessControl()
-      );
+      return this.isValidOpenAI() || !this.enabledAccessControl();
     },
 
     fetch() {

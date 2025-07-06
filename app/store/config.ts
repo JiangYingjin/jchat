@@ -1,11 +1,6 @@
 import { LLMModel } from "../client/api";
 import { getClientConfig } from "../config/client";
-import {
-  DEFAULT_INPUT_TEMPLATE,
-  DEFAULT_MODELS,
-  StoreKey,
-  ServiceProvider,
-} from "../constant";
+import { DEFAULT_INPUT_TEMPLATE, DEFAULT_MODELS, StoreKey } from "../constant";
 import { createPersistStore } from "../utils/store";
 
 export type ModelType = (typeof DEFAULT_MODELS)[number]["name"];
@@ -44,7 +39,7 @@ export const DEFAULT_CONFIG = {
 
   modelConfig: {
     model: "gpt-4o-mini" as ModelType,
-    providerName: "OpenAI" as ServiceProvider,
+    providerName: "OpenAI",
     temperature: 0.5,
     max_tokens: 1000000,
     budget_tokens: 4000,

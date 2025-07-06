@@ -10,7 +10,6 @@ import {
   REQUEST_TIMEOUT_MS_FOR_THINKING,
   VISION_MODEL_REGEXES,
 } from "./constant";
-import { ServiceProvider } from "./constant";
 // import { fetch as tauriFetch, ResponseType } from "@tauri-apps/api/http";
 import { fetch as tauriStreamFetch } from "./utils/stream";
 import { useAccessStore } from "./store";
@@ -299,10 +298,7 @@ export function isVisionModel(model: string) {
   if (envVisionModels?.includes(model)) {
     return true;
   }
-  return (
-    !EXCLUDE_VISION_MODEL_REGEXES.some((regex) => regex.test(model)) &&
-    VISION_MODEL_REGEXES.some((regex) => regex.test(model))
-  );
+  return VISION_MODEL_REGEXES.some((regex) => regex.test(model));
 }
 
 export function getTimeoutMSByModel(model: string) {
@@ -323,11 +319,8 @@ export function getTimeoutMSByModel(model: string) {
   return REQUEST_TIMEOUT_MS;
 }
 
-export function showPlugins(provider: ServiceProvider, model: string) {
-  if (provider == ServiceProvider.OpenAI) {
-    return true;
-  }
-  if (provider == ServiceProvider.Anthropic && !model.includes("claude-2")) {
+export function showPlugins(provider: string, model: string) {
+  if (provider === "OpenAI") {
     return true;
   }
   return false;
@@ -335,16 +328,8 @@ export function showPlugins(provider: ServiceProvider, model: string) {
 
 export function isFunctionCallModel(modelName: string) {
   return false;
-  const functionCallModels = ["gemini", "claude", "gpt", "deepseek", "hunyuan"];
+  const functionCallModels = ["gemini", "gpt", "deepseek", "hunyuan"];
   return functionCallModels.some((keyword) => modelName.includes(keyword));
-}
-
-export function isClaudeThinkingModel(modelName: string) {
-  const specialModels = [
-    "claude-3-7-sonnet-20250219",
-    "claude-3-7-sonnet-latest",
-  ];
-  return specialModels.some((keyword) => modelName === keyword);
 }
 
 export function isImageGenerationModel(modelName: string) {

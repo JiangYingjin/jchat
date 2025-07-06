@@ -1,9 +1,5 @@
 import { getClientConfig } from "../config/client";
-import {
-  ACCESS_CODE_PREFIX,
-  ModelProvider,
-  ServiceProvider,
-} from "../constant";
+import { ACCESS_CODE_PREFIX, ModelProvider } from "../constant";
 import {
   ChatMessageTool,
   ChatMessage,
@@ -131,7 +127,7 @@ export abstract class LLMApi {
   abstract models(): Promise<LLMModel[]>;
 }
 
-type ProviderName = "openai" | "azure" | "claude" | "palm";
+type ProviderName = "openai" | "azure" | "palm";
 
 interface Model {
   name: string;
@@ -238,38 +234,24 @@ export function getHeaders(ignoreHeaders: boolean = false) {
 
   function getConfig() {
     const modelConfig = chatStore.currentSession().mask.modelConfig;
-    const isAnthropic = modelConfig.providerName === ServiceProvider.Anthropic;
-    const isEnabledAccessControl = accessStore.enabledAccessControl();
-    const apiKey = isAnthropic
-      ? accessStore.anthropicApiKey
-      : accessStore.openaiApiKey;
+    const apiKey = accessStore.openaiApiKey;
     if (accessStore.isUseOpenAIEndpointForAllModels || ignoreHeaders) {
       return {
-        isAnthropic: false,
         apiKey: accessStore.openaiApiKey,
-        isEnabledAccessControl,
       };
     }
     return {
-      isAnthropic,
       apiKey,
-      isEnabledAccessControl,
     };
   }
 
-  function getAuthHeader(): string {
-    return isAnthropic ? "x-api-key" : "Authorization";
-  }
+  const { apiKey } = getConfig();
 
-  const { isAnthropic, apiKey, isEnabledAccessControl } = getConfig();
-
-  const authHeader = getAuthHeader();
-
-  const bearerToken = getBearerToken(apiKey, isAnthropic);
+  const bearerToken = getBearerToken(apiKey);
 
   if (bearerToken) {
-    headers[authHeader] = bearerToken;
-  } else if (isEnabledAccessControl && validString(accessStore.accessCode)) {
+    headers["Authorization"] = bearerToken;
+  } else if (validString(accessStore.accessCode)) {
     headers["Authorization"] = getBearerToken(
       ACCESS_CODE_PREFIX + accessStore.accessCode,
     );
@@ -278,6 +260,6 @@ export function getHeaders(ignoreHeaders: boolean = false) {
   return headers;
 }
 
-export function getClientApi(provider: ServiceProvider): ClientApi {
+export function getClientApi(provider: string): ClientApi {
   return new ClientApi(ModelProvider.GPT);
 }

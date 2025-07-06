@@ -67,12 +67,10 @@ export function auth(req: NextRequest, modelProvider: ModelProvider) {
     let systemApiKey: string | undefined;
 
     switch (modelProvider) {
-      case ModelProvider.Claude:
-        systemApiKey = serverConfig.anthropicApiKey;
-        break;
       case ModelProvider.GPT:
       default:
         systemApiKey = serverConfig.apiKey;
+        break;
     }
 
     if (systemApiKey) {

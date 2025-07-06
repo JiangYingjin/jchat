@@ -5,7 +5,6 @@ import {
   DEFAULT_MODELS,
   OpenaiPath,
   REQUEST_TIMEOUT_MS,
-  ServiceProvider,
   OPENAI_BASE_URL,
 } from "@/app/constant";
 import {
@@ -145,7 +144,6 @@ export class ChatGPTApi implements LLMApi {
       ...useChatStore.getState().currentSession().mask.modelConfig,
       ...{
         model: options.config.model,
-        providerName: options.config.providerName,
       },
     };
 
@@ -359,7 +357,6 @@ export class ChatGPTApi implements LLMApi {
       maxIterations: options.agentConfig.maxIterations,
       returnIntermediateSteps: options.agentConfig.returnIntermediateSteps,
       useTools: options.agentConfig.useTools,
-      provider: ServiceProvider.OpenAI,
     };
 
     console.log("[Request] openai payload: ", requestPayload);

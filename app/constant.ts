@@ -9,7 +9,6 @@ export const RELEASE_URL = `${REPO_URL}/releases`;
 export const RUNTIME_CONFIG_DOM = "danger-runtime-config";
 
 export const OPENAI_BASE_URL = "https://api.openai.com";
-export const ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 
 export const CACHE_URL_PREFIX = "/api/cache";
 export const UPLOAD_URL = `${CACHE_URL_PREFIX}/upload`;
@@ -26,7 +25,6 @@ export enum Path {
 export enum ApiPath {
   Cors = "",
   OpenAI = "/api/openai",
-  Anthropic = "/api/anthropic",
   Artifacts = "/api/artifacts",
 }
 
@@ -66,22 +64,9 @@ export const REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION = REQUEST_TIMEOUT_MS * 5;
 
 export const EXPORT_MESSAGE_CLASS_NAME = "export-markdown";
 
-export enum ServiceProvider {
-  OpenAI = "OpenAI",
-  Anthropic = "Anthropic",
-}
-
 export enum ModelProvider {
   GPT = "GPT",
-  Claude = "Claude",
 }
-
-export const Anthropic = {
-  ChatPath: "v1/messages",
-  ChatPath1: "v1/complete",
-  ExampleEndpoint: "https://api.anthropic.com",
-  Vision: "2023-06-01",
-};
 
 export const OpenaiPath = {
   ChatPath: "v1/chat/completions",
@@ -110,7 +95,6 @@ export const VISION_MODEL_REGEXES = [
   /gpt-4\.1-nano/,
   /gpt-4\.5-preview/,
   /gpt-4\.5-preview-2025-02-27/,
-  /claude-3/,
   /gpt-4-turbo(?!.*preview)/, // Matches "gpt-4-turbo" but not "gpt-4-turbo-preview"
   /^dall-e-3$/, // Matches exactly "dall-e-3"
   /^gpt-image-1$/,
@@ -119,7 +103,7 @@ export const VISION_MODEL_REGEXES = [
   /o4-mini/,
 ];
 
-export const EXCLUDE_VISION_MODEL_REGEXES = [/claude-3-5-haiku-20241022/];
+export const EXCLUDE_VISION_MODEL_REGEXES = [];
 
 const openaiModels = ["gpt-4.1-mini"];
 

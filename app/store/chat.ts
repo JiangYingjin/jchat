@@ -20,7 +20,6 @@ import {
   KnowledgeCutOffDate,
   StoreKey,
   SUMMARIZE_MODEL,
-  ServiceProvider,
 } from "../constant";
 import Locale, { getLang, Lang } from "../locales";
 import { safeLocalStorage } from "../utils";
@@ -48,7 +47,6 @@ export type Mask = {
   builtin: boolean;
   usePlugins?: boolean;
   webSearch?: boolean;
-  claudeThinking?: boolean;
   // 上游插件业务参数
   plugin?: string[];
   enableArtifacts?: boolean;
@@ -178,7 +176,7 @@ function getSummarizeModel(
     }
   }
   if (currentModel.startsWith("gemini")) {
-    return [SUMMARIZE_MODEL, ServiceProvider.OpenAI];
+    return [SUMMARIZE_MODEL, "OpenAI"];
   }
   return [currentModel, providerName];
 }
@@ -521,7 +519,7 @@ export const useChatStore = createPersistStore(
           }
         });
 
-        const api: ClientApi = getClientApi(modelConfig.providerName);
+        const api: ClientApi = getClientApi("OpenAI");
         if (
           session.mask.usePlugins &&
           allPlugins.length > 0 &&
@@ -814,7 +812,7 @@ export const useChatStore = createPersistStore(
               session.mask.modelConfig.providerName,
             );
 
-        const api: ClientApi = getClientApi(providerName as ServiceProvider);
+        const api: ClientApi = getClientApi(providerName);
 
         // remove error messages if any
         const messages = session.messages;

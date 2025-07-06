@@ -1,4 +1,4 @@
-import { DEFAULT_MODELS, ServiceProvider } from "../constant";
+import { DEFAULT_MODELS } from "../constant";
 import { LLMModel } from "../client/api";
 
 const CustomSeq = {
@@ -39,7 +39,7 @@ const sortModelTable = (models: ReturnType<typeof collectModels>) =>
 
 /**
  * get model name and provider from a formatted string,
- * e.g. `gpt-4@OpenAi` or `claude-3-5-sonnet@20240620@Google`
+ * e.g. `gpt-4@OpenAi` or `gpt-4@20240620@Google`
  * @param modelWithProvider model name with provider separated by last `@` char,
  * @returns [model, provider] tuple, if no `@` char found, provider is undefined
  */
@@ -255,3 +255,8 @@ export function isModelNotavailableInServer(
   }
   return true;
 }
+
+/**
+ * Parse model name with provider and version
+ * e.g. `gpt-4@OpenAi` or `gpt-4@20240620@Google`
+ */

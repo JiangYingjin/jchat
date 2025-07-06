@@ -58,7 +58,6 @@ import {
   isVisionModel,
   showPlugins,
   isFunctionCallModel,
-  isClaudeThinkingModel,
 } from "../utils";
 
 import { uploadImage as uploadImageRemote } from "@/app/utils/chat";
@@ -88,7 +87,6 @@ import {
   ModelProvider,
   Path,
   REQUEST_TIMEOUT_MS,
-  ServiceProvider,
 } from "../constant";
 
 import { useChatCommand, useCommand } from "../command";
@@ -478,14 +476,6 @@ export function ChatActions(props: {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
 
-  // switch thinking mode
-  const claudeThinking = chatStore.currentSession().mask.claudeThinking;
-  function switchClaudeThinking() {
-    chatStore.updateTargetSession(session, (session) => {
-      session.mask.claudeThinking = !session.mask.claudeThinking;
-    });
-  }
-
   // switch web search
   const webSearch = chatStore.currentSession().mask.webSearch;
   function switchWebSearch() {
@@ -512,7 +502,7 @@ export function ChatActions(props: {
   // switch model
   const currentModel = session.mask.modelConfig.model;
   const currentProviderName =
-    session.mask.modelConfig?.providerName || ServiceProvider.OpenAI;
+    session.mask.modelConfig?.providerName || "OpenAI";
   const allModels = useAllModels();
   const models = useMemo(() => {
     const filteredModels = allModels.filter((m) => m.available);
@@ -580,7 +570,7 @@ export function ChatActions(props: {
       chatStore.updateTargetSession(session, (session) => {
         session.mask.modelConfig.model = nextModel.name;
         session.mask.modelConfig.providerName = nextModel?.provider
-          ?.providerName as ServiceProvider;
+          ?.providerName as "OpenAI";
       });
     }
   }, [chatStore, currentModel, models, session]);
@@ -653,21 +643,6 @@ export function ChatActions(props: {
           />
         )}
 
-        {isClaudeThinkingModel(currentModel) && (
-          <ChatAction
-            onClick={switchClaudeThinking}
-            text={
-              claudeThinking
-                ? Locale.Chat.InputActions.DisableThinking
-                : Locale.Chat.InputActions.EnableThinking
-            }
-            icon={
-              claudeThinking ? <EnableThinkingIcon /> : <DisableThinkingIcon />
-            }
-            alwaysFullWidth={false}
-          />
-        )}
-
         {showModelSelector && (
           <SearchSelector
             defaultSelectedValue={`${currentModel}@${currentProviderName}`}
@@ -686,7 +661,7 @@ export function ChatActions(props: {
               chatStore.updateTargetSession(session, (session) => {
                 session.mask.modelConfig.model = model as ModelType;
                 session.mask.modelConfig.providerName =
-                  providerName as ServiceProvider;
+                  providerName as "OpenAI";
                 session.mask.syncGlobalConfig = false;
               });
             }}

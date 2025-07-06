@@ -44,12 +44,10 @@ import Locale, {
 import { copyToClipboard } from "../utils";
 import Link from "next/link";
 import {
-  Anthropic,
   OPENAI_BASE_URL,
   Path,
   RELEASE_URL,
   STORAGE_KEY,
-  ServiceProvider,
   SlotID,
 } from "../constant";
 
@@ -59,7 +57,6 @@ import { useNavigate } from "react-router-dom";
 import { getClientConfig } from "../config/client";
 import { useSyncStore } from "../store/sync";
 import { nanoid } from "nanoid";
-
 import { ProviderType } from "../utils/cloud";
 
 function DangerItems() {
@@ -475,8 +472,7 @@ export function Settings() {
       </ListItem>
     );
 
-  const openAIConfigComponent = accessStore.provider ===
-    ServiceProvider.OpenAI && (
+  const openAIConfigComponent = "OpenAI" === accessStore.provider && (
     <>
       <ListItem
         title={Locale.Settings.Access.OpenAI.Endpoint.Title}
@@ -510,63 +506,6 @@ export function Settings() {
             );
           }}
         />
-      </ListItem>
-    </>
-  );
-
-  const anthropicConfigComponent = accessStore.provider ===
-    ServiceProvider.Anthropic && (
-    <>
-      <ListItem
-        title={Locale.Settings.Access.Anthropic.Endpoint.Title}
-        subTitle={
-          Locale.Settings.Access.Anthropic.Endpoint.SubTitle +
-          Anthropic.ExampleEndpoint
-        }
-      >
-        <input
-          aria-label={Locale.Settings.Access.Anthropic.Endpoint.Title}
-          type="text"
-          value={accessStore.anthropicUrl}
-          placeholder={Anthropic.ExampleEndpoint}
-          onChange={(e) =>
-            accessStore.update(
-              (access) => (access.anthropicUrl = e.currentTarget.value),
-            )
-          }
-        ></input>
-      </ListItem>
-      <ListItem
-        title={Locale.Settings.Access.Anthropic.ApiKey.Title}
-        subTitle={Locale.Settings.Access.Anthropic.ApiKey.SubTitle}
-      >
-        <PasswordInput
-          aria-label={Locale.Settings.Access.Anthropic.ApiKey.Title}
-          value={accessStore.anthropicApiKey}
-          type="text"
-          placeholder={Locale.Settings.Access.Anthropic.ApiKey.Placeholder}
-          onChange={(e) => {
-            accessStore.update(
-              (access) => (access.anthropicApiKey = e.currentTarget.value),
-            );
-          }}
-        />
-      </ListItem>
-      <ListItem
-        title={Locale.Settings.Access.Anthropic.ApiVerion.Title}
-        subTitle={Locale.Settings.Access.Anthropic.ApiVerion.SubTitle}
-      >
-        <input
-          aria-label={Locale.Settings.Access.Anthropic.ApiVerion.Title}
-          type="text"
-          value={accessStore.anthropicApiVersion}
-          placeholder={Anthropic.Vision}
-          onChange={(e) =>
-            accessStore.update(
-              (access) => (access.anthropicApiVersion = e.currentTarget.value),
-            )
-          }
-        ></input>
       </ListItem>
     </>
   );

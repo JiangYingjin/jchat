@@ -1,4 +1,3 @@
-import { ServiceProvider } from "@/app/constant";
 import { ModalConfigValidator, ModelConfig } from "../store";
 
 import Locale from "../locales";
@@ -34,7 +33,7 @@ export function ModelConfigList(props: {
             );
             props.updateConfig((config) => {
               config.model = ModalConfigValidator.model(model);
-              config.providerName = providerName as ServiceProvider;
+              config.providerName = providerName as "OpenAI";
             });
           }}
         >
@@ -90,7 +89,7 @@ export function ModelConfigList(props: {
         ></input>
       </ListItem>
 
-      {props.modelConfig?.providerName === ServiceProvider.Anthropic && (
+      {props.modelConfig?.providerName === "OpenAI" && (
         <ListItem
           title={Locale.Settings.BudgetTokens.Title}
           subTitle={Locale.Settings.BudgetTokens.SubTitle}
