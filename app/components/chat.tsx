@@ -101,7 +101,7 @@ import clsx from "clsx";
 
 import { FileInfo } from "../client/platforms/utils";
 import { ThinkingContent } from "./thinking-content";
-import { MessageContentEditPanel } from "./MessageContentEditPanel";
+import { MessageContentEditPanel } from "./message-content-edit-panel";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
