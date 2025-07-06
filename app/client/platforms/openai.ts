@@ -529,43 +529,7 @@ export class ChatGPTApi implements LLMApi {
   }
 
   async models(): Promise<LLMModel[]> {
-    const accessStore = useAccessStore.getState();
-    if (!accessStore.isUseRemoteModels) {
-      return DEFAULT_MODELS.slice();
-    }
-
-    const res = await fetch(this.path(OpenaiPath.ListModelPath), {
-      method: "GET",
-      headers: {
-        ...getHeaders(),
-      },
-    });
-
-    const resJson = (await res.json()) as OpenAIListModelResponse;
-    // const chatModels = resJson.data?.filter(
-    //   (m) => m.id.startsWith("gpt-") || m.id.startsWith("chatgpt-"),
-    // );
-    const chatModels = resJson.data.sort((a, b) => {
-      return b.created - a.created;
-    });
-    console.log("[Models]", chatModels);
-
-    if (!chatModels) {
-      return [];
-    }
-
-    let seq = 1000; //同 Constant.ts 中的排序保持一致
-    return chatModels.map((m) => ({
-      name: m.id,
-      available: true,
-      sorted: seq++,
-      provider: {
-        id: m.owned_by.toLowerCase(),
-        providerName: m.owned_by,
-        providerType: m.owned_by.toLowerCase(),
-        sorted: 1,
-      },
-    }));
+    return DEFAULT_MODELS.slice();
   }
 }
 export { OpenaiPath };

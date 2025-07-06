@@ -10,9 +10,6 @@ const DANGER_CONFIG = {
   needCode: serverConfig.needCode,
   customModels: serverConfig.customModels,
   defaultModel: serverConfig.defaultModel,
-
-  isUseOpenAIEndpointForAllModels: serverConfig.isUseOpenAIEndpointForAllModels,
-  isUseRemoteModels: serverConfig.isUseRemoteModels,
 };
 
 async function handle() {

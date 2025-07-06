@@ -74,10 +74,5 @@ export const getServerSideConfig = () => {
 
     customModels,
     defaultModel,
-
-    isUseOpenAIEndpointForAllModels:
-      !!process.env.USE_OPENAI_ENDPOINT_FOR_ALL_MODELS,
-
-    isUseRemoteModels: !!process.env.USE_REMOTE_MODELS,
   };
 };

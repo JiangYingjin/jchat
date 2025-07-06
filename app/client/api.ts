@@ -223,7 +223,7 @@ export function getHeaders(ignoreHeaders: boolean = false) {
   function getConfig() {
     const modelConfig = chatStore.currentSession().mask.modelConfig;
     const apiKey = accessStore.openaiApiKey;
-    if (accessStore.isUseOpenAIEndpointForAllModels || ignoreHeaders) {
+    if (ignoreHeaders) {
       return {
         apiKey: accessStore.openaiApiKey,
       };

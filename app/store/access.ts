@@ -25,9 +25,6 @@ const DEFAULT_ACCESS_STATE = {
   hideUserApiKey: false,
   customModels: "",
   defaultModel: "",
-
-  isUseOpenAIEndpointForAllModels: false,
-  isUseRemoteModels: false,
 };
 
 export const useAccessStore = createPersistStore(
@@ -37,14 +34,6 @@ export const useAccessStore = createPersistStore(
     enabledAccessControl() {
       this.fetch();
       return get().needCode;
-    },
-    useOpenAIEndpointForAllModels() {
-      this.fetch();
-      return get().isUseOpenAIEndpointForAllModels;
-    },
-    useRemoteModels() {
-      this.fetch();
-      return get().isUseRemoteModels;
     },
 
     isValidOpenAI() {
@@ -100,19 +89,7 @@ export const useAccessStore = createPersistStore(
 
       if (version === 5) {
         const { isUseOpenAIEndpointForAllModels, ...rest } = persistedState;
-        persistedState = {
-          ...rest,
-          isUseOpenAIEndpointForAllModels:
-            isUseOpenAIEndpointForAllModels || false,
-        };
-      }
-
-      if (version === 7) {
-        const { isUseRemoteModels, ...rest } = persistedState;
-        persistedState = {
-          ...rest,
-          isUseRemoteModels: isUseRemoteModels || false,
-        };
+        persistedState = rest;
       }
 
       return persistedState as any;

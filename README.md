@@ -213,14 +213,6 @@ For ByteDance: use `modelName@bytedance=deploymentName` to customize model name 
 
 更改默认模型
 
-### `USE_REMOTE_MODELS` （可选）
-
-如果你想使用远程模型列表，可以设置为 1 即可
-
-可以与 `CUSTOM_MODELS` 参数一起使用
-
-建议配合 `one-api` 类似的中转项目使用
-
 ### `WHITE_WEBDAV_ENDPOINTS` （可选）
 
 如果你想增加允许访问的webdav服务地址，可以使用该选项，格式要求：
@@ -232,11 +224,6 @@ For ByteDance: use `modelName@bytedance=deploymentName` to customize model name 
 ### `DEFAULT_INPUT_TEMPLATE` （可选）
 
 自定义默认的 template，用于初始化『设置』中的『用户输入预处理』配置项
-
-### `USE_OPENAI_ENDPOINT_FOR_ALL_MODELS` （可选）
-
-配置所有模型都使用 OpenAI 路由，在使用类似 `one-api` 的中转项目时会很有用
-将此环境变量设置为 1 即可
 
 ### `DEEPSEEK_API_KEY` (可选)
 
