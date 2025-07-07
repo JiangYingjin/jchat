@@ -1614,11 +1614,27 @@ function _Chat() {
         session.id,
       );
 
-      // 复制消息历史（包含该消息及之前的所有消息，但排除系统消息）
-      const contextEndIndex = messageIndex + context.length;
-      const messagesToCopy = renderMessages
-        .slice(0, contextEndIndex + 1)
-        .filter((m) => m.role !== "system");
+      // 获取完整的消息历史（不受分页限制）
+      const fullMessages = context.concat(
+        session.messages.filter((m) => m.role !== "system"),
+      );
+
+      // 通过message.id在完整历史中找到真实位置（不依赖分页后的索引）
+      const realIndex = fullMessages.findIndex((m) => m.id === message.id);
+      if (realIndex === -1) {
+        console.error("分支失败：无法在完整历史中找到目标消息", message.id);
+        showToast(Locale.Chat.Actions.BranchFailed);
+        return;
+      }
+
+      // 复制消息历史（包含该消息及之前的所有消息）
+      const originalMessages = fullMessages.slice(0, realIndex + 1);
+
+      // 为每条消息重新生成ID，确保唯一性，保持其他属性不变
+      const messagesToCopy = originalMessages.map((message) => ({
+        ...message,
+        id: createMessage({}).id, // 只更新ID，保持其他属性不变
+      }));
 
       // 创建新会话
       chatStore.newSession();
@@ -1692,13 +1708,16 @@ function _Chat() {
     Math.max(0, renderMessages.length - CHAT_PAGE_SIZE),
   );
 
-  // 监听 renderMessages 长度变化，确保 msgRenderIndex 始终正确
+  // 只在消息数量增加时重置到最后一页（新消息到达）
+  const prevMessageLength = useRef(renderMessages.length);
   useEffect(() => {
-    const newIndex = Math.max(0, renderMessages.length - CHAT_PAGE_SIZE);
-    if (newIndex !== msgRenderIndex) {
+    if (renderMessages.length > prevMessageLength.current) {
+      // 只有消息增加时才重置到最后一页
+      const newIndex = Math.max(0, renderMessages.length - CHAT_PAGE_SIZE);
       _setMsgRenderIndex(newIndex);
     }
-  }, [renderMessages.length, msgRenderIndex]);
+    prevMessageLength.current = renderMessages.length;
+  }, [renderMessages.length]);
 
   function setMsgRenderIndex(newIndex: number) {
     newIndex = Math.min(renderMessages.length - CHAT_PAGE_SIZE, newIndex);
