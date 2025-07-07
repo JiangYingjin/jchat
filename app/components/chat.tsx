@@ -1022,7 +1022,7 @@ function MessageActions(props: {
             alwaysFullWidth={false}
           />
           <ChatAction
-            text="分支"
+            text={Locale.Chat.Actions.Branch}
             icon={<BranchIcon />}
             onClick={() => onBranch(message, index)}
             alwaysFullWidth={false}
@@ -1664,11 +1664,9 @@ function _Chat() {
           newSession.messages.unshift(newSystemMessage);
         }
       });
-
-      // showToast(`已分支到新会话：${branchTopic}`);
     } catch (error) {
       console.error("分支会话失败:", error);
-      showToast("分支会话失败，请重试");
+      showToast(Locale.Chat.Actions.BranchFailed);
     }
   };
 
