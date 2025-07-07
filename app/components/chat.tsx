@@ -66,7 +66,7 @@ import dynamic from "next/dynamic";
 
 import { ChatControllerPool } from "../client/controller";
 
-import Locale, { getLang } from "../locales";
+import Locale from "../locales";
 
 import { IconButton } from "./button";
 import styles from "./chat.module.scss";
@@ -2450,12 +2450,6 @@ function _Chat() {
                               />
                             </div>
                           )}
-
-                        {message?.audioUrl && (
-                          <div className={styles["chat-message-audio"]}>
-                            <audio src={message.audioUrl} controls />
-                          </div>
-                        )}
 
                         <div className={styles["chat-message-action-date"]}>
                           {isContext

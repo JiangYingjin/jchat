@@ -35,12 +35,7 @@ import { ModelConfigList } from "./model-config";
 import { IconButton } from "./button";
 import { useChatStore, Theme, useAccessStore, useAppConfig } from "../store";
 
-import Locale, {
-  AllLangs,
-  ALL_LANG_OPTIONS,
-  changeLang,
-  getLang,
-} from "../locales";
+import Locale from "../locales";
 import { copyToClipboard } from "../utils";
 import { OPENAI_BASE_URL, Path } from "../constant";
 
@@ -474,22 +469,7 @@ export function Settings() {
             ></input>
           </ListItem>
 
-          {/* <ListItem
-            title={Locale.Mask.Config.Artifacts.Title}
-            subTitle={Locale.Mask.Config.Artifacts.SubTitle}
-          >
-            <input
-              aria-label={Locale.Mask.Config.Artifacts.Title}
-              type="checkbox"
-              checked={config.enableArtifacts}
-              onChange={(e) =>
-                updateConfig(
-                  (config) =>
-                    (config.enableArtifacts = e.currentTarget.checked),
-                )
-              }
-            ></input>
-          </ListItem> */}
+          {/* enableArtifacts feature has been removed, now uses global config only */}
         </List>
       </div>
     </ErrorBoundary>

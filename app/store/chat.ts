@@ -16,7 +16,7 @@ import {
   StoreKey,
   SUMMARIZE_MODEL,
 } from "../constant";
-import Locale, { getLang, Lang } from "../locales";
+import Locale from "../locales";
 import { safeLocalStorage } from "../utils";
 import { prettyObject } from "../utils/format";
 import { createPersistStore, jchatStorage } from "../utils/store";
@@ -36,10 +36,6 @@ export type Mask = {
   context: ChatMessage[];
   syncGlobalConfig?: boolean;
   modelConfig: ModelConfig;
-  lang: Lang;
-  builtin: boolean;
-  enableArtifacts?: boolean;
-  enableCodeFold?: boolean;
 };
 
 export type ChatMessage = RequestMessage & {
@@ -48,7 +44,6 @@ export type ChatMessage = RequestMessage & {
   isError?: boolean;
   id: string;
   model?: ModelType;
-  audioUrl?: string;
 };
 
 export function createMessage(override: Partial<ChatMessage>): ChatMessage {
@@ -93,8 +88,6 @@ function createEmptySession(): ChatSession {
     context: [],
     syncGlobalConfig: true,
     modelConfig: { ...config.modelConfig },
-    lang: getLang(),
-    builtin: false,
     createdAt: Date.now(),
   };
 
@@ -168,7 +161,7 @@ function fillTemplateWith(input: string, modelConfig: ModelConfig) {
     cutoff,
     model: modelConfig.model,
     time: new Date().toString(),
-    lang: getLang(),
+    lang: "cn", // 固定使用中文
     input: input,
   };
 

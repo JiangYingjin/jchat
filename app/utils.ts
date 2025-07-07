@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { showToast } from "./components/ui-lib";
-import Locale, { getLang } from "./locales";
+import Locale from "./locales";
 import { MultimodalContent, RequestMessage } from "./client/api";
 import {
   DEFAULT_MODELS,

@@ -241,8 +241,6 @@ const cn = {
         SubTitle: "在输入框开头输入 / 即可触发自动补全",
       },
       List: "自定义提示词列表",
-      ListCount: (builtin: number, custom: number) =>
-        `内置 ${builtin} 条，用户定义 ${custom} 条`,
       Edit: "编辑",
       Modal: {
         Title: "提示词列表",

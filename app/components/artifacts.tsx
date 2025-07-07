@@ -14,7 +14,6 @@ import GithubIcon from "../icons/github.svg";
 import ReloadButtonIcon from "../icons/reload.svg";
 import Locale from "../locales";
 import { downloadAs } from "../utils";
-import { Loading } from "./home";
 import styles from "./artifacts.module.scss";
 
 type HTMLPreviewProps = {
@@ -101,7 +100,7 @@ export const HTMLPreview = forwardRef<HTMLPreviewHander, HTMLPreviewProps>(
   },
 );
 
-export function ArtifactsShareButton({
+export function ArtifactsDownloadButton({
   getCode,
   id,
   style,
@@ -122,36 +121,6 @@ export function ArtifactsShareButton({
           downloadAs(getCode(), `${fileName || id || "artifact"}.html`);
         }}
       />
-    </div>
-  );
-}
-
-export function Artifacts() {
-  return (
-    <div className={styles["artifacts"]}>
-      <div className={styles["artifacts-header"]}>
-        <div className={styles["artifacts-title"]}>JChat Artifacts</div>
-      </div>
-      <div className={styles["artifacts-content"]}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            height: "100%",
-            textAlign: "center",
-            padding: "20px",
-          }}
-        >
-          <div>
-            <h2>分享功能已禁用</h2>
-            <p>
-              Artifacts 在线分享功能已被禁用。您仍然可以在聊天中预览和下载 HTML
-              代码。
-            </p>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }

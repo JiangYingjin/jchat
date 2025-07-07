@@ -15,7 +15,7 @@ import React from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { showImageModal, FullScreen } from "./ui-lib";
 import {
-  ArtifactsShareButton,
+  ArtifactsDownloadButton,
   HTMLPreview,
   HTMLPreviewHander,
 } from "./artifacts";
@@ -159,7 +159,7 @@ export function PreCode(props: React.ComponentPropsWithoutRef<"pre">) {
       )}
       {htmlCode.length > 0 && (
         <FullScreen className="no-dark html" right={70}>
-          <ArtifactsShareButton
+          <ArtifactsDownloadButton
             style={{ position: "absolute", right: 20, top: 10 }}
             getCode={() => htmlCode}
           />
@@ -186,8 +186,7 @@ function CustomCode(props: React.ComponentPropsWithoutRef<"code">) {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
   const config = useAppConfig();
-  const enableCodeFold =
-    session.mask?.enableCodeFold !== false && config.enableCodeFold;
+  const enableCodeFold = config.enableCodeFold;
 
   const ref = useRef<HTMLPreElement>(null);
   const [collapsed, setCollapsed] = useState(true);

@@ -15,7 +15,7 @@ import dynamic from "next/dynamic";
 import { Path, SlotID } from "../constant";
 import { ErrorBoundary } from "./error";
 
-import { getISOLang } from "../locales";
+// 移除多语言支持
 
 import {
   HashRouter as Router,
@@ -50,12 +50,8 @@ const Chat = dynamic(async () => (await import("./chat")).Chat, {
 
 function useHtmlLang() {
   useEffect(() => {
-    const lang = getISOLang();
-    const htmlLang = document.documentElement.lang;
-
-    if (lang !== htmlLang) {
-      document.documentElement.lang = lang;
-    }
+    // 固定设置为简体中文
+    document.documentElement.lang = "zh-Hans";
   }, []);
 }
 
