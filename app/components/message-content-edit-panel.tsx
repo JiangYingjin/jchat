@@ -3,6 +3,7 @@ import clsx from "clsx";
 import styles from "./chat.module.scss";
 import { DeleteImageButton } from "./chat";
 import { copyImageToClipboard } from "../utils/image";
+import { showImageModal } from "./ui-lib";
 
 interface MessageContentEditPanelProps {
   value: string;
@@ -77,6 +78,11 @@ export const MessageContentEditPanel: React.FC<
               key={index}
               className={styles["attach-image"]}
               style={{ backgroundImage: `url("${image}")` }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                showImageModal(image, false); // 使用灯箱展示图片
+              }}
               onContextMenu={(e) => {
                 e.preventDefault(); // 阻止默认右键菜单
                 e.stopPropagation();

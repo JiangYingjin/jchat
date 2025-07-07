@@ -76,6 +76,7 @@ import {
   showConfirm,
   showPrompt,
   showToast,
+  showImageModal,
 } from "./ui-lib";
 import { copyImageToClipboard } from "../utils/image";
 import { useNavigate } from "react-router-dom";
@@ -2581,10 +2582,15 @@ function _Chat() {
                           key={index}
                           className={styles["attach-image"]}
                           style={{ backgroundImage: `url("${image}")` }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            showImageModal(image, false); // 使用灯箱展示图片
+                          }}
                           onContextMenu={(e) => {
                             e.preventDefault(); // 阻止默认右键菜单
-                            e.stopPropagation();
                             copyImageToClipboard(image);
+                            e.stopPropagation();
                           }}
                         >
                           <div className={styles["attach-image-mask"]}>
