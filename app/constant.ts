@@ -22,10 +22,6 @@ export enum SlotID {
   CustomModel = "custom-model",
 }
 
-export enum FileName {
-  Prompts = "prompts.json",
-}
-
 export enum StoreKey {
   Chat = "chats",
   Access = "access",

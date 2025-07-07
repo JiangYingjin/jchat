@@ -309,6 +309,40 @@ export const useChatStore = createPersistStore(
         }));
       },
 
+      // 分支会话：创建一个包含指定消息历史的新会话
+      branchSession(
+        originalSession: ChatSession,
+        messagesToCopy: ChatMessage[],
+        systemMessageData: any,
+        branchTopic: string,
+      ) {
+        // 使用底层方法创建完整的新会话对象
+        const newSession = createEmptySession();
+
+        // 设置会话属性
+        newSession.topic = branchTopic;
+        newSession.messages = [...messagesToCopy];
+        newSession.longInputMode = originalSession.longInputMode;
+        newSession.isModelManuallySelected =
+          originalSession.isModelManuallySelected;
+
+        // 复制模型配置
+        newSession.mask.modelConfig = { ...originalSession.mask.modelConfig };
+        newSession.mask.syncGlobalConfig =
+          originalSession.mask.syncGlobalConfig;
+        newSession.mask.context = [...originalSession.mask.context];
+
+        const currentIndex = get().currentSessionIndex;
+
+        // 一次性插入完整的新会话到sessions开头
+        set((state) => ({
+          sessions: [newSession, ...state.sessions],
+          currentSessionIndex: currentIndex + 1,
+        }));
+
+        return newSession;
+      },
+
       nextSession(delta: number) {
         const n = get().sessions.length;
         const limit = (x: number) => (x + n) % n;

@@ -1,4 +1,5 @@
 import { useDebouncedCallback } from "use-debounce";
+import { nanoid } from "nanoid";
 import React, {
   useState,
   useRef,
@@ -46,6 +47,8 @@ import {
   ModelType,
   systemMessageStorage,
   chatInputStorage,
+  ChatSession,
+  Mask,
 } from "../store";
 
 import {
@@ -63,7 +66,7 @@ import dynamic from "next/dynamic";
 
 import { ChatControllerPool } from "../client/controller";
 
-import Locale from "../locales";
+import Locale, { getLang } from "../locales";
 
 import { IconButton } from "./button";
 import styles from "./chat.module.scss";
@@ -1362,7 +1365,10 @@ function _Chat() {
         (session) => (session.clearContextIndex = session.messages.length),
       ),
     fork: () => chatStore.forkSession(),
-    del: () => chatStore.deleteSession(chatStore.currentSessionIndex),
+    del: () => {
+      chatStore.deleteSession(chatStore.currentSessionIndex);
+      scrollToBottom();
+    },
   });
 
   // onInput 只做本地保存，不 setUserInput
@@ -1633,53 +1639,46 @@ function _Chat() {
       // 为每条消息重新生成ID，确保唯一性，保持其他属性不变
       const messagesToCopy = originalMessages.map((message) => ({
         ...message,
-        id: createMessage({}).id, // 只更新ID，保持其他属性不变
+        id: nanoid(), // 只更新ID，保持其他属性不变
       }));
 
-      // 创建新会话
-      chatStore.newSession();
+      // 使用新的branchSession方法，完全避免使用newSession()
+      const newSession = chatStore.branchSession(
+        session,
+        messagesToCopy,
+        systemMessageData,
+        branchTopic,
+      );
 
-      // 切换到新会话（索引 0）
+      // 如果有系统提示词，在新会话中添加系统消息
+      if (
+        systemMessageData.text.trim() ||
+        systemMessageData.images.length > 0
+      ) {
+        // 保存系统消息到新会话的存储
+        await saveSystemMessageContentToStorage(
+          newSession.id,
+          systemMessageData.text,
+          systemMessageData.images,
+          systemMessageData.scrollTop,
+          systemMessageData.selection,
+        );
+
+        // 添加系统消息到新会话
+        const newSystemMessage = createMessage({
+          role: "system",
+          content: "",
+        }) as SystemMetaMessage;
+        // @ts-ignore
+        newSystemMessage.contentKey = getSystemMessageContentKey(newSession.id);
+
+        // 直接更新新会话，添加系统消息到开头
+        chatStore.updateTargetSession(newSession, (session) => {
+          session.messages.unshift(newSystemMessage);
+        });
+      }
+
       chatStore.selectSession(0);
-
-      // 获取新创建的会话（现在 currentSession 应该是新会话了）
-      const newSession = chatStore.currentSession();
-
-      // 更新新会话
-      chatStore.updateTargetSession(newSession, (newSession) => {
-        newSession.topic = branchTopic;
-        newSession.messages = [...messagesToCopy];
-
-        // 复制模型配置
-        newSession.mask.modelConfig = { ...session.mask.modelConfig };
-        newSession.mask.syncGlobalConfig = session.mask.syncGlobalConfig;
-        newSession.isModelManuallySelected = session.isModelManuallySelected;
-
-        // 如果有系统提示词，创建新的系统消息
-        if (
-          systemMessageData.text.trim() ||
-          systemMessageData.images.length > 0
-        ) {
-          // 保存系统消息到新会话的存储
-          saveSystemMessageContentToStorage(
-            newSession.id,
-            systemMessageData.text,
-            systemMessageData.images,
-            systemMessageData.scrollTop,
-            systemMessageData.selection,
-          );
-
-          const newSystemMessage = createMessage({
-            role: "system",
-            content: "",
-          }) as SystemMetaMessage;
-          // @ts-ignore
-          newSystemMessage.contentKey = getSystemMessageContentKey(
-            newSession.id,
-          );
-          newSession.messages.unshift(newSystemMessage);
-        }
-      });
     } catch (error) {
       console.error("分支会话失败:", error);
       showToast(Locale.Chat.Actions.BranchFailed);
@@ -2350,6 +2349,7 @@ function _Chat() {
                 title={Locale.Chat.Actions.Delete}
                 onClick={async () => {
                   chatStore.deleteSession(chatStore.currentSessionIndex);
+                  scrollToBottom();
                 }}
               />
             </div>
