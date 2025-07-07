@@ -1,6 +1,6 @@
 import { LLMModel } from "../client/api";
 import { getClientConfig } from "../config/client";
-import { DEFAULT_INPUT_TEMPLATE, DEFAULT_MODELS, StoreKey } from "../constant";
+import { DEFAULT_MODELS, StoreKey } from "../constant";
 import { createPersistStore, jchatStorage } from "../utils/store";
 
 export type ModelType = (typeof DEFAULT_MODELS)[number]["name"];
@@ -33,7 +33,6 @@ export const DEFAULT_CONFIG = {
     budget_tokens: 4000,
     compressModel: "",
     compressProviderName: "",
-    template: config?.template ?? DEFAULT_INPUT_TEMPLATE,
   },
 };
 

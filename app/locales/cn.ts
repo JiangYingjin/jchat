@@ -186,10 +186,6 @@ const cn = {
       SubTitle: "聊天内容的字体，若置空则应用全局默认字体",
       Placeholder: "字体名称",
     },
-    InputTemplate: {
-      Title: "用户输入预处理",
-      SubTitle: "用户最新的一条消息会填充到此模板",
-    },
 
     SendKey: "发送键",
     Theme: "主题",

@@ -10,7 +10,6 @@ import { getClientApi } from "../client/api";
 import { ChatControllerPool } from "../client/controller";
 import { showToast } from "../components/ui-lib";
 import {
-  DEFAULT_INPUT_TEMPLATE,
   DEFAULT_MODELS,
   KnowledgeCutOffDate,
   StoreKey,
@@ -140,50 +139,6 @@ function countMessages(msgs: ChatMessage[]) {
     (pre, cur) => pre + estimateTokenLength(getMessageTextContent(cur)),
     0,
   );
-}
-
-function fillTemplateWith(input: string, modelConfig: ModelConfig) {
-  const cutoff =
-    KnowledgeCutOffDate[modelConfig.model] ?? KnowledgeCutOffDate.default;
-  // Find the model in the DEFAULT_MODELS array that matches the modelConfig.model
-  const modelInfo = DEFAULT_MODELS.find((m) => m.name === modelConfig.model);
-
-  var serviceProvider = "OpenAI";
-  if (modelInfo) {
-    // TODO: auto detect the providerName from the modelConfig.model
-
-    // Directly use the providerName from the modelInfo
-    serviceProvider = modelInfo.provider.providerName;
-  }
-
-  const vars = {
-    ServiceProvider: serviceProvider,
-    cutoff,
-    model: modelConfig.model,
-    time: new Date().toString(),
-    lang: "cn", // 固定使用中文
-    input: input,
-  };
-
-  let output = modelConfig.template ?? DEFAULT_INPUT_TEMPLATE;
-
-  // remove duplicate
-  if (input.startsWith(output)) {
-    output = "";
-  }
-
-  // must contains {{input}}
-  const inputVar = "{{input}}";
-  if (!output.includes(inputVar)) {
-    output += "\n" + inputVar;
-  }
-
-  Object.entries(vars).forEach(([name, value]) => {
-    const regex = new RegExp(`{{${name}}}`, "g");
-    output = output.replace(regex, value.toString()); // Ensure value is a string
-  });
-
-  return output;
 }
 
 const DEFAULT_CHAT_STATE = {
@@ -422,16 +377,11 @@ export const useChatStore = createPersistStore(
         const session = get().currentSession();
         const modelConfig = session.mask.modelConfig;
 
-        const userContent = fillTemplateWith(content, modelConfig);
-        console.log("[User Input] after template: ", userContent);
-
-        let mContent: string | MultimodalContent[] = userContent;
+        let mContent: string | MultimodalContent[] = content;
 
         if (attachImages && attachImages.length > 0) {
           mContent = [
-            ...(userContent
-              ? [{ type: "text" as const, text: userContent }]
-              : []),
+            ...(content ? [{ type: "text" as const, text: content }] : []),
             ...attachImages.map((url) => ({
               type: "image_url" as const,
               image_url: { url },

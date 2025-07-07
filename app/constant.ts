@@ -56,8 +56,6 @@ export const OpenaiPath = {
   ListModelPath: "v1/models",
 };
 
-export const DEFAULT_INPUT_TEMPLATE = `{{input}}`; // input / time / model / lang
-
 export const SUMMARIZE_MODEL = "gpt-4.1-mini";
 
 export const KnowledgeCutOffDate: Record<string, string> = {
