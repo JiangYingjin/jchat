@@ -628,6 +628,8 @@ export function ChatActions(props: {
                 session.mask.modelConfig.providerName =
                   providerName as "OpenAI";
                 session.mask.syncGlobalConfig = false;
+                // 标记用户手动选择了模型
+                session.isModelManuallySelected = true;
               });
             }}
           />
@@ -985,7 +987,7 @@ function MessageActions(props: {
         <ChatAction
           text={Locale.Chat.Actions.Stop}
           icon={<StopIcon />}
-          onClick={() => onUserStop(message.id ?? index)}
+          onClick={() => onUserStop(message.id ?? index.toString())}
           alwaysFullWidth={false}
         />
       ) : (
@@ -1005,7 +1007,7 @@ function MessageActions(props: {
           <ChatAction
             text={Locale.Chat.Actions.Delete}
             icon={<DeleteIcon />}
-            onClick={() => onDelete(message.id ?? index)}
+            onClick={() => onDelete(message.id ?? index.toString())}
             alwaysFullWidth={false}
           />
         </>
@@ -1232,9 +1234,26 @@ function _Chat() {
             );
           }
         });
+
+        // 如果当前会话的模型无效且用户没有手动选择模型，则更新会话的模型配置
+        if (!isModelValid && !session.isModelManuallySelected) {
+          chatStore.updateTargetSession(session, (session) => {
+            session.mask.modelConfig.model = defaultModel;
+            session.mask.modelConfig.providerName = defaultProvider as any;
+            session.mask.syncGlobalConfig = true;
+            console.log(
+              "[updateConfig] session.mask.modelConfig.model",
+              session.mask.modelConfig.model,
+            );
+            console.log(
+              "[updateConfig] session.mask.modelConfig.providerName",
+              session.mask.modelConfig.providerName,
+            );
+          });
+        }
       }
     }
-  }, [accessStore]);
+  }, [accessStore, allModels, session.isModelManuallySelected ?? false]);
 
   const fontSize = config.fontSize;
   const fontFamily = config.fontFamily;
@@ -1832,6 +1851,39 @@ function _Chat() {
 
   const handleTripleClick = useTripleClick(messageEditRef);
 
+  // 检查是否应该自动切换模型的工具函数
+  const shouldAutoSwitchModel = (
+    systemPromptLength: number,
+    isManuallySelected: boolean,
+  ) => {
+    // 如果用户手动选择了模型，不自动切换
+    if (isManuallySelected) {
+      console.log("[AutoSwitch] 用户已手动选择模型，跳过自动切换");
+      return false;
+    }
+
+    // 如果系统提示词长度不超过512字符，不自动切换
+    if (systemPromptLength < 512) {
+      console.log(
+        `[AutoSwitch] 系统提示词长度 ${systemPromptLength} 字符，不需要自动切换`,
+      );
+      return false;
+    }
+
+    // 检查是否存在目标模型
+    const targetModel = allModels.find(
+      (m) => m.name === "jyj.cx/pro" && m.available,
+    );
+    if (!targetModel) {
+      console.log(
+        "[AutoSwitch] 目标模型 jyj.cx/pro 不存在或不可用，跳过自动切换",
+      );
+      return false;
+    }
+
+    return true;
+  };
+
   // 处理系统提示词保存
   const handleSystemPromptSave = (
     content: string,
@@ -1857,6 +1909,41 @@ function _Chat() {
         // @ts-ignore
         newSystemMessage.contentKey = getSystemMessageContentKey(session.id);
         session.messages.unshift(newSystemMessage);
+      }
+
+      // 自动切换模型逻辑
+      if (!session.isModelManuallySelected) {
+        const systemPromptLength = content.trim().length;
+        const proModelName = "jyj.cx/pro";
+        if (
+          shouldAutoSwitchModel(
+            systemPromptLength,
+            session.isModelManuallySelected ?? false,
+          )
+        ) {
+          // 检查是否存在 jyj.cx/pro 模型
+          const targetModel = allModels.find(
+            (m) => m.name === proModelName && m.available,
+          );
+          if (targetModel) {
+            const currentModel = session.mask.modelConfig.model;
+            const currentProvider = session.mask.modelConfig.providerName;
+
+            // 只有当前模型不是目标模型时才切换
+            if (
+              currentModel !== proModelName ||
+              currentProvider !== targetModel.provider?.providerName
+            ) {
+              session.mask.modelConfig.model = proModelName as ModelType;
+              session.mask.modelConfig.providerName = targetModel.provider
+                ?.providerName as "OpenAI";
+              session.mask.syncGlobalConfig = false;
+              console.log(
+                `[AutoSwitch] 系统提示词长度 ${systemPromptLength} 字符，自动切换到 jyj.cx/pro 模型`,
+              );
+            }
+          }
+        }
       }
     });
   };

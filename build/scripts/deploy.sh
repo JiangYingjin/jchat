@@ -3,10 +3,10 @@
 # 记录开始时间
 START_TIME=$(date +%s)
 
-PROJ_DIR="/root/proj/ChatGPT-Next-Web-LangChain"
+PROJ_DIR="/root/proj/jchat"
 TMP_BUILD_DIR="$PROJ_DIR/build/tmp"
-SERVE_DIR="/www/nextchat_langchain"
-PM2_CONF_PATH="$SERVE_DIR/nextchat_langchain.json"
+SERVE_DIR="/www/jchat"
+PM2_CONF_PATH="$SERVE_DIR/jchat.json"
 
 # 保存原始的 PM2 配置
 PM2_CONF=$(cat "$PM2_CONF_PATH")
@@ -53,7 +53,7 @@ rsync -az --delete --force .next/server .next/static "$SERVE_DIR/.next"
 echo "$PM2_CONF" >"$PM2_CONF_PATH"
 
 # 重启服务
-pm2 del nextchat_langchain || true
+pm2 del jchat || true
 pm2 start "$PM2_CONF_PATH"
 
 echo "🎉 部署完成！"

@@ -86,6 +86,9 @@ export interface ChatSession {
 
   // 是否为长输入模式（Enter 换行，Ctrl+Enter 发送）
   longInputMode?: boolean;
+
+  // 用户是否手动选择了模型（用于自动切换逻辑）
+  isModelManuallySelected?: boolean;
 }
 
 export const DEFAULT_TOPIC = Locale.Store.DefaultTopic;
@@ -118,6 +121,7 @@ function createEmptySession(): ChatSession {
     mask: emptyMask,
     attachFiles: [],
     longInputMode: false, // 默认不是长输入模式
+    isModelManuallySelected: false, // 默认用户没有手动选择模型
   };
 }
 
@@ -232,6 +236,8 @@ export const useChatStore = createPersistStore(
             ...currentSession.mask.modelConfig,
           },
         };
+        newSession.isModelManuallySelected =
+          currentSession.isModelManuallySelected;
 
         set((state) => ({
           currentSessionIndex: 0,
@@ -292,6 +298,9 @@ export const useChatStore = createPersistStore(
             },
           };
           session.topic = mask.name;
+          // 使用 mask 创建会话时，如果 mask 有特定的模型配置，则认为是手动选择的
+          session.isModelManuallySelected =
+            mask.modelConfig.model !== globalModelConfig.model;
         }
 
         set((state) => ({
