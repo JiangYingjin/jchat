@@ -213,7 +213,6 @@ export function MessageSelector(props: {
                 onClickIndex(i);
               }}
             >
-              <div className={styles["avatar"]}></div>
               <div className={styles["body"]}>
                 <div className={styles["date"]}>
                   {m.role === "system"

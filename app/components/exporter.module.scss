@@ -196,10 +196,6 @@
       margin-bottom: 20px;
       display: flex;
 
-      .avatar {
-        margin-right: 10px;
-      }
-
       .body {
         border-radius: 10px;
         padding: 8px 10px;
@@ -270,10 +266,6 @@
       @media screen and (max-width: 600px) {
         margin-bottom: 12px; // 减少消息间距
 
-        .avatar {
-          display: none; // 移动端隐藏头像
-        }
-
         .body {
           max-width: 100%; // 消息占据100%宽度
           padding: 6px 8px; // 减少内边距
@@ -291,10 +283,6 @@
       &-user {
         flex-direction: row-reverse;
 
-        .avatar {
-          margin-right: 0;
-        }
-
         .body {
           background-color: var(--second);
           margin-right: 10px;
@@ -302,10 +290,6 @@
 
         // 移动端用户消息优化
         @media screen and (max-width: 600px) {
-          .avatar {
-            display: none; // 隐藏头像
-          }
-
           .body {
             margin-left: auto; // 使用 margin-left: auto 让消息靠右
             margin-right: 0; // 移除右边距
