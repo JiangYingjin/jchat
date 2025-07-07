@@ -91,7 +91,7 @@ import {
   REQUEST_TIMEOUT_MS,
 } from "../constant";
 
-import { useChatCommand, useCommand } from "../command";
+import { useCommand } from "../command";
 import { prettyObject } from "../utils/format";
 import { ExportMessageModal } from "./exporter";
 import { getClientConfig } from "../config/client";
@@ -1354,23 +1354,6 @@ function _Chat() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(measure, [userInput]);
 
-  // chat commands shortcuts
-  const chatCommands = useChatCommand({
-    new: () => chatStore.newSession(),
-    prev: () => chatStore.nextSession(-1),
-    next: () => chatStore.nextSession(1),
-    clear: () =>
-      chatStore.updateTargetSession(
-        session,
-        (session) => (session.clearContextIndex = session.messages.length),
-      ),
-    fork: () => chatStore.forkSession(),
-    del: () => {
-      chatStore.deleteSession(chatStore.currentSessionIndex);
-      scrollToBottom();
-    },
-  });
-
   // onInput 只做本地保存，不 setUserInput
   const onInput = (
     text: string,
@@ -1395,28 +1378,6 @@ function _Chat() {
   const doSubmit = (input: string) => {
     const value = inputRef.current?.value ?? input;
     if (value.trim() === "" && isEmpty(attachImages)) return;
-    const matchCommand = chatCommands.match(value);
-    if (matchCommand.matched) {
-      // 取消防抖的文本保存，避免延迟保存旧内容
-      saveChatInputText.cancel && saveChatInputText.cancel();
-
-      setUserInput("");
-      matchCommand.invoke();
-      if (inputRef.current) inputRef.current.value = "";
-      // 保存空数据，避免命令执行后的竞态条件
-      chatInputStorage
-        .saveChatInput(session.id, {
-          text: "",
-          images: [],
-          scrollTop: 0,
-          selection: { start: 0, end: 0 },
-          updateAt: Date.now(),
-        })
-        .catch((e) => {
-          console.error("[ChatInput][Command] 保存空聊天输入数据失败:", e);
-        });
-      return;
-    }
 
     // 取消防抖的文本保存，避免延迟保存旧内容
     saveChatInputText.cancel && saveChatInputText.cancel();
