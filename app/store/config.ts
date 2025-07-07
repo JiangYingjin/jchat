@@ -16,7 +16,7 @@ const config = getClientConfig();
 export const DEFAULT_CONFIG = {
   lastUpdate: Date.now(), // timestamp, to merge state
 
-  fontSize: 14,
+  fontSize: 14.5,
   fontFamily: "",
   theme: Theme.Auto as Theme,
 
@@ -26,7 +26,7 @@ export const DEFAULT_CONFIG = {
   models: DEFAULT_MODELS as any as LLMModel[],
 
   modelConfig: {
-    model: "gpt-4o-mini" as ModelType,
+    model: "gpt-4.1-mini" as ModelType,
     providerName: "OpenAI",
     temperature: 0.5,
     max_tokens: 8000,

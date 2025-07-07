@@ -1028,6 +1028,12 @@ function _Chat() {
   // 记住未完成输入的防抖保存函数，间隔放宽到 500ms
   const saveChatInputText = useDebouncedCallback(async (value: string) => {
     try {
+      // 双重检查：如果当前输入框已经为空，说明已经发送或清理，不应该保存旧值
+      const currentInputValue = inputRef.current?.value ?? "";
+      if (value.trim() !== "" && currentInputValue.trim() === "") {
+        return;
+      }
+
       const currentData = (await chatInputStorage.getChatInput(session.id)) || {
         text: "",
         images: [],
@@ -1035,12 +1041,12 @@ function _Chat() {
         selection: { start: 0, end: 0 },
         updateAt: Date.now(),
       };
-      await chatInputStorage.saveChatInput(session.id, {
+      const newData = {
         ...currentData,
         text: value,
         updateAt: Date.now(),
-      });
-      // console.log("[ChatInput][Save] 保存未完成输入到 IndexedDB:", value);
+      };
+      await chatInputStorage.saveChatInput(session.id, newData);
     } catch (e) {
       console.error("[ChatInput][Save] 保存未完成输入失败:", e);
     }
@@ -1080,12 +1086,12 @@ function _Chat() {
         selection: { start: 0, end: 0 },
         updateAt: Date.now(),
       };
-      await chatInputStorage.saveChatInput(session.id, {
+      const newData = {
         ...currentData,
         selection,
         updateAt: Date.now(),
-      });
-      // console.log("[ChatInput][Save] 立即保存光标位置到 IndexedDB:", selection);
+      };
+      await chatInputStorage.saveChatInput(session.id, newData);
     } catch (e) {
       console.error("[ChatInput][Save] 保存光标位置失败:", e);
     }
@@ -1121,7 +1127,6 @@ function _Chat() {
       isLoadingFromStorageRef.current = true;
       // 直接在这里实现 loadChatInputData 的逻辑，避免依赖问题
       const data = await chatInputStorage.getChatInput(session.id);
-      console.log("[ChatInput][Load] 从 IndexedDB 加载数据:", data);
 
       // 无论 data 是否存在，都要安全地设置状态
       // 设置文本内容
@@ -1152,8 +1157,6 @@ function _Chat() {
           inputRef.current.setSelectionRange(selection.start, selection.end);
         }
       }, 0);
-
-      console.log("[ChatInput][Load] 成功加载聊天输入数据:", data || "空数据");
     } catch (e) {
       console.error("[ChatInput][Load] 加载聊天输入数据到状态失败:", e);
       // 发生错误时也要清空状态
@@ -1371,15 +1374,30 @@ function _Chat() {
     if (value.trim() === "" && isEmpty(attachImages)) return;
     const matchCommand = chatCommands.match(value);
     if (matchCommand.matched) {
+      // 取消防抖的文本保存，避免延迟保存旧内容
+      saveChatInputText.cancel && saveChatInputText.cancel();
+
       setUserInput("");
       matchCommand.invoke();
       if (inputRef.current) inputRef.current.value = "";
-      // 删除命令执行后的 chatInput 数据
-      chatInputStorage.deleteChatInput(session.id).catch((e) => {
-        console.error("[ChatInput][Command] 删除聊天输入数据失败:", e);
-      });
+      // 保存空数据，避免命令执行后的竞态条件
+      chatInputStorage
+        .saveChatInput(session.id, {
+          text: "",
+          images: [],
+          scrollTop: 0,
+          selection: { start: 0, end: 0 },
+          updateAt: Date.now(),
+        })
+        .catch((e) => {
+          console.error("[ChatInput][Command] 保存空聊天输入数据失败:", e);
+        });
       return;
     }
+
+    // 取消防抖的文本保存，避免延迟保存旧内容
+    saveChatInputText.cancel && saveChatInputText.cancel();
+
     setIsLoading(true);
     chatStore
       .onUserInput(value, attachImages, attachFiles)
@@ -1389,12 +1407,19 @@ function _Chat() {
     setUserInput("");
     if (inputRef.current) inputRef.current.value = "";
 
-    // 删除 IndexedDB 中的聊天输入数据
+    // 立即保存空数据到 IndexedDB，避免竞态条件
     const clearChatInput = async () => {
       try {
-        await chatInputStorage.deleteChatInput(session.id);
+        const emptyData = {
+          text: "",
+          images: [],
+          scrollTop: 0,
+          selection: { start: 0, end: 0 },
+          updateAt: Date.now(),
+        };
+        await chatInputStorage.saveChatInput(session.id, emptyData);
       } catch (e) {
-        console.error("[ChatInput][Clear] 删除聊天输入数据失败:", e);
+        console.error("[ChatInput][Clear] 保存空聊天输入数据失败:", e);
       }
     };
     clearChatInput();
