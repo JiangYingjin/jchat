@@ -214,7 +214,9 @@ export function MessageExporter() {
 
   // 初始化时根据格式自动选择
   useEffect(() => {
-    autoSelectByFormat(exportConfig.format);
+    if (!userSelectionTouched) {
+      autoSelectByFormat(exportConfig.format);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [exportConfig.format]);
 
@@ -286,6 +288,10 @@ export function MessageExporter() {
                       (config) => (config.format = newFormat),
                     );
                     if (!userSelectionTouched) {
+                      console.log(
+                        "[Exporter] Format changed, userSelectionTouched is false, autoSelectByFormat",
+                        newFormat,
+                      );
                       autoSelectByFormat(newFormat);
                     }
                   }}
