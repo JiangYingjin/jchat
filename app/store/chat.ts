@@ -25,8 +25,6 @@ import { ModelConfig, ModelType, useAppConfig } from "./config";
 import { useAccessStore } from "./access";
 import { collectModelsWithDefaultModel } from "../utils/model";
 
-import { FileInfo } from "../client/platforms/utils";
-
 import { buildMultimodalContent } from "../utils/chat";
 import localforage from "localforage";
 
@@ -65,7 +63,6 @@ export function createMessage(override: Partial<ChatMessage>): ChatMessage {
 
 export interface ChatStat {
   tokenCount: number;
-  wordCount: number;
   charCount: number;
 }
 
@@ -73,16 +70,11 @@ export interface ChatSession {
   id: string;
   topic: string;
 
-  memoryPrompt: string | MultimodalContent[];
   messages: ChatMessage[];
   stat: ChatStat;
   lastUpdate: number;
-  lastSummarizeIndex: number;
-  clearContextIndex?: number;
 
   mask: Mask;
-
-  attachFiles: FileInfo[];
 
   // 是否为长输入模式（Enter 换行，Ctrl+Enter 发送）
   longInputMode?: boolean;
@@ -109,17 +101,13 @@ function createEmptySession(): ChatSession {
   return {
     id: nanoid(),
     topic: DEFAULT_TOPIC,
-    memoryPrompt: "",
     messages: [],
     stat: {
       tokenCount: 0,
-      wordCount: 0,
       charCount: 0,
     },
     lastUpdate: Date.now(),
-    lastSummarizeIndex: 0,
     mask: emptyMask,
-    attachFiles: [],
     longInputMode: false, // 默认不是长输入模式
     isModelManuallySelected: false, // 默认用户没有手动选择模型
   };
@@ -436,7 +424,6 @@ export const useChatStore = createPersistStore(
       async onUserInput(
         content: string,
         attachImages?: string[],
-        attachFiles?: FileInfo[],
         messageIdx?: number,
       ) {
         const session = get().currentSession();
@@ -459,15 +446,9 @@ export const useChatStore = createPersistStore(
           ];
         }
 
-        // add file link
-        if (attachFiles && attachFiles.length > 0) {
-          mContent += ` [${attachFiles[0].originalFilename}](${attachFiles[0].filePath})`;
-        }
-
         let userMessage: ChatMessage = createMessage({
           role: "user",
           content: mContent,
-          fileInfos: attachFiles,
         });
 
         const botMessage = createMessage({
@@ -548,7 +529,7 @@ export const useChatStore = createPersistStore(
               session.messages = session.messages.concat();
             });
           },
-          onFinish(message, responseRes) {
+          onFinish(message, responseRes, usage) {
             botMessage.streaming = false;
             if (message) {
               botMessage.content = message;
@@ -556,6 +537,18 @@ export const useChatStore = createPersistStore(
               if (responseRes && responseRes.status !== 200) {
                 botMessage.isError = true;
               }
+
+              // 更新 tokenCount
+              if (usage?.completion_tokens) {
+                get().updateTargetSession(session, (session) => {
+                  session.stat.tokenCount = usage.completion_tokens!;
+                });
+                console.log(
+                  "[Token Count] Updated with completion_tokens:",
+                  usage.completion_tokens,
+                );
+              }
+
               get().onNewMessage(botMessage, session);
             }
             ChatControllerPool.remove(session.id, botMessage.id);
@@ -595,7 +588,6 @@ export const useChatStore = createPersistStore(
 
       async getMessagesWithMemory() {
         const session = get().currentSession();
-        const clearContextIndex = session.clearContextIndex ?? 0;
         const messages = session.messages.slice();
         // in-context prompts
         const contextPrompts = session.mask.context.slice();
@@ -659,10 +651,10 @@ export const useChatStore = createPersistStore(
             ];
           }
         }
-        // 移除历史摘要相关逻辑，直接使用 clearContextIndex 作为起始索引
-        const recentMessages = messages
-          .slice(clearContextIndex)
-          .filter((msg) => !msg.isError && msg.role !== "system");
+        // 获取所有消息（除了错误消息和系统消息）
+        const recentMessages = messages.filter(
+          (msg) => !msg.isError && msg.role !== "system",
+        );
         // 合并所有消息，包含动态加载的 system message
         return [...systemPrompt, ...contextPrompts, ...recentMessages];
       },
@@ -682,8 +674,6 @@ export const useChatStore = createPersistStore(
       resetSession(session: ChatSession) {
         get().updateTargetSession(session, (session) => {
           session.messages = [];
-          // 移除对 memoryPrompt 的清除，因为已禁用总结功能
-          // session.memoryPrompt = "";
         });
       },
 
@@ -734,7 +724,7 @@ export const useChatStore = createPersistStore(
                 topicContent = message;
               }
             },
-            onFinish(message, responseRes) {
+            onFinish(message, responseRes, usage) {
               const finalMessage = message || topicContent;
               if (responseRes?.status === 200 && finalMessage) {
                 get().updateTargetSession(

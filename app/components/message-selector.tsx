@@ -74,12 +74,9 @@ export function MessageSelector(props: {
   const session = chatStore.currentSession();
   const isValid = (m: ChatMessage) => m.content && !m.isError && !m.streaming;
   const allMessages = useMemo(() => {
-    let startIndex = Math.max(0, session.clearContextIndex ?? 0);
-    if (startIndex === session.messages.length - 1) {
-      startIndex = 0;
-    }
-    return session.messages.slice(startIndex);
-  }, [session.messages, session.clearContextIndex]);
+    // Clear context functionality has been removed, use all messages
+    return session.messages;
+  }, [session.messages]);
 
   const messages = useMemo(
     () =>

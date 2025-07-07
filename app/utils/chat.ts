@@ -463,6 +463,13 @@ export function streamWithThink(
   let isInThinkingMode = false;
   let lastIsThinking = false;
   let thinkingModeEnded = false;
+  let usageInfo:
+    | {
+        completion_tokens?: number;
+        prompt_tokens?: number;
+        total_tokens?: number;
+      }
+    | undefined;
 
   // animate response to make it looks smooth
   function animateResponseText() {
@@ -542,7 +549,7 @@ export function streamWithThink(
       }
       console.debug("[ChatAPI] end");
       finished = true;
-      options.onFinish(responseText + remainText, responseRes);
+      options.onFinish(responseText + remainText, responseRes, usageInfo);
     }
   };
 
@@ -617,6 +624,17 @@ export function streamWithThink(
           return;
         }
         try {
+          // 先检查是否有 usage 信息
+          try {
+            const json = JSON.parse(text);
+            if (json.usage) {
+              usageInfo = json.usage;
+              console.log("[Usage Info]", usageInfo);
+            }
+          } catch (usageParseError) {
+            // 忽略 usage 解析错误，继续处理内容
+          }
+
           const chunk = parseSSE(text, runTools);
           if (!chunk?.content || chunk.content.length === 0) {
             return;

@@ -33,7 +33,6 @@ export interface RequestMessage {
   role: MessageRole;
   content: string | MultimodalContent[];
   reasoningContent?: string;
-  fileInfos?: FileInfo[];
 }
 
 export interface LLMConfig {
@@ -53,6 +52,11 @@ export interface ChatOptions {
   onFinish: (
     message: string | MultimodalContent[],
     responseRes: Response,
+    usage?: {
+      completion_tokens?: number;
+      prompt_tokens?: number;
+      total_tokens?: number;
+    },
   ) => void;
   onError?: (err: Error) => void;
   onController?: (controller: AbortController) => void;

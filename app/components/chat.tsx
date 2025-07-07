@@ -104,7 +104,6 @@ import { isEmpty } from "lodash-es";
 import { getModelProvider } from "../utils/model";
 import clsx from "clsx";
 
-import { FileInfo } from "../client/platforms/utils";
 import { ThinkingContent } from "./thinking-content";
 import { MessageContentEditPanel } from "./message-content-edit-panel";
 import { ContextPrompts } from "./mask";
@@ -204,28 +203,6 @@ function useSubmitHandler() {
   return {
     shouldSubmit,
   };
-}
-
-function ClearContextDivider() {
-  const chatStore = useChatStore();
-  const session = chatStore.currentSession();
-
-  return (
-    <div
-      className={styles["clear-context"]}
-      onClick={() =>
-        chatStore.updateTargetSession(
-          session,
-          (session) => (session.clearContextIndex = undefined),
-        )
-      }
-    >
-      <div className={styles["clear-context-tips"]}>{Locale.Context.Clear}</div>
-      <div className={styles["clear-context-revert-btn"]}>
-        {Locale.Context.Revert}
-      </div>
-    </div>
-  );
 }
 
 function ChatAction(props: {
@@ -476,7 +453,6 @@ export function ChatActions(props: {
   capturePhoto: () => Promise<void>;
   setAttachImages: (images: string[]) => void;
   uploadFile: () => Promise<void>;
-  setAttachFiles: (files: FileInfo[]) => void;
   setUploading: (uploading: boolean) => void;
   showPromptModal: () => void;
   scrollToBottom: () => void;
@@ -1321,7 +1297,7 @@ function _Chat() {
   const navigate = useNavigate();
   const [attachImages, setAttachImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [attachFiles, setAttachFiles] = useState<FileInfo[]>([]);
+
   const isLoadingFromStorageRef = useRef(false);
 
   // 移动端默认开启长输入模式
@@ -1383,11 +1359,9 @@ function _Chat() {
     saveChatInputText.cancel && saveChatInputText.cancel();
 
     setIsLoading(true);
-    chatStore
-      .onUserInput(value, attachImages, attachFiles)
-      .then(() => setIsLoading(false));
+    chatStore.onUserInput(value, attachImages).then(() => setIsLoading(false));
     setAttachImages([]);
-    setAttachFiles([]);
+
     setUserInput("");
     if (inputRef.current) inputRef.current.value = "";
 
@@ -1551,7 +1525,7 @@ function _Chat() {
     const textContent = getMessageTextContent(userMessage);
     const images = getMessageImages(userMessage);
     chatStore
-      .onUserInput(textContent, images, userMessage.fileInfos, requestIndex)
+      .onUserInput(textContent, images, requestIndex)
       .then(() => setIsLoading(false));
     inputRef.current?.focus();
   };
@@ -1719,10 +1693,8 @@ function _Chat() {
     scrollDomToBottom();
   }
 
-  const clearContextIndex =
-    (session.clearContextIndex ?? -1) >= 0
-      ? session.clearContextIndex! + context.length - msgRenderIndex
-      : -1;
+  // Clear context functionality has been removed
+  const clearContextIndex = -1;
 
   const [showPromptModal, setShowPromptModal] = useState(false);
 
@@ -1889,43 +1861,8 @@ function _Chat() {
   }
 
   async function uploadFile() {
-    const uploadFiles: FileInfo[] = [];
-    uploadFiles.push(...attachFiles);
-
-    uploadFiles.push(
-      ...(await new Promise<FileInfo[]>((res, rej) => {
-        const fileInput = document.createElement("input");
-        fileInput.type = "file";
-        fileInput.accept = ".pdf,.txt,.md,.json,.csv,.docx,.srt,.mp3";
-        fileInput.multiple = false;
-        fileInput.onchange = (event: any) => {
-          setUploading(true);
-          const file = event.target.files[0];
-          const api = new ClientApi();
-          const fileDatas: FileInfo[] = [];
-          api.file
-            .upload(file)
-            .then((fileInfo) => {
-              console.log(fileInfo);
-              fileDatas.push(fileInfo);
-              session.attachFiles.push(fileInfo);
-              setUploading(false);
-              res(fileDatas);
-            })
-            .catch((e) => {
-              setUploading(false);
-              rej(e);
-            });
-        };
-        fileInput.click();
-      })),
-    );
-
-    const filesLength = uploadFiles.length;
-    if (filesLength > 5) {
-      uploadFiles.splice(5, filesLength - 5);
-    }
-    setAttachFiles(uploadFiles);
+    // File upload functionality has been removed
+    console.log("File upload feature is disabled");
   }
 
   const [showChatSidePanel, setShowChatSidePanel] = useState(false);
@@ -2341,8 +2278,7 @@ function _Chat() {
                 const showActions =
                   !(message.preview || message.content.length === 0) &&
                   !isContext;
-                const shouldShowClearContextDivider =
-                  i === clearContextIndex - 1;
+                // Clear context functionality has been removed
 
                 // 系统级提示词在会话界面中隐藏
                 if (isSystem) {
@@ -2552,7 +2488,6 @@ function _Chat() {
                         </div>
                       </div>
                     </div>
-                    {shouldShowClearContextDivider && <ClearContextDivider />}
                   </Fragment>
                 );
               })}
@@ -2563,7 +2498,6 @@ function _Chat() {
                 capturePhoto={capturePhoto}
                 setAttachImages={setAttachImages}
                 uploadFile={uploadFile}
-                setAttachFiles={setAttachFiles}
                 setUploading={setUploading}
                 showPromptModal={() => setShowPromptModal(true)}
                 scrollToBottom={scrollToBottom}
@@ -2575,7 +2509,7 @@ function _Chat() {
               <label
                 className={clsx(styles["chat-input-panel-inner"], {
                   [styles["chat-input-panel-inner-attach"]]:
-                    attachImages.length !== 0 || attachFiles.length != 0,
+                    attachImages.length !== 0,
                 })}
                 htmlFor="chat-input"
               >
