@@ -2,6 +2,7 @@ import React, { useRef, useEffect } from "react";
 import clsx from "clsx";
 import styles from "./chat.module.scss";
 import { DeleteImageButton } from "./chat";
+import { copyImageToClipboard } from "../utils/image";
 
 interface MessageContentEditPanelProps {
   value: string;
@@ -76,6 +77,11 @@ export const MessageContentEditPanel: React.FC<
               key={index}
               className={styles["attach-image"]}
               style={{ backgroundImage: `url("${image}")` }}
+              onContextMenu={(e) => {
+                e.preventDefault(); // 阻止默认右键菜单
+                e.stopPropagation();
+                copyImageToClipboard(image);
+              }}
             >
               <div className={styles["attach-image-mask"]}>
                 <DeleteImageButton

@@ -77,6 +77,7 @@ import {
   showPrompt,
   showToast,
 } from "./ui-lib";
+import { copyImageToClipboard } from "../utils/image";
 import { useNavigate } from "react-router-dom";
 import {
   CHAT_PAGE_SIZE,
@@ -2580,6 +2581,11 @@ function _Chat() {
                           key={index}
                           className={styles["attach-image"]}
                           style={{ backgroundImage: `url("${image}")` }}
+                          onContextMenu={(e) => {
+                            e.preventDefault(); // 阻止默认右键菜单
+                            e.stopPropagation();
+                            copyImageToClipboard(image);
+                          }}
                         >
                           <div className={styles["attach-image-mask"]}>
                             <DeleteImageButton
