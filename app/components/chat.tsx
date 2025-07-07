@@ -22,6 +22,7 @@ import EditIcon from "../icons/edit.svg";
 import ConfirmIcon from "../icons/confirm.svg";
 import CloseIcon from "../icons/close.svg";
 import CancelIcon from "../icons/cancel.svg";
+import BranchIcon from "../icons/branch.svg";
 
 import UploadIcon from "../icons/upload.svg";
 import ImageIcon from "../icons/image.svg";
@@ -986,9 +987,10 @@ function MessageActions(props: {
   onResend: (message: ChatMessage) => void;
   onDelete: (msgId: string) => void;
   onUserStop: (messageId: string) => void;
+  onBranch: (message: ChatMessage, index: number) => void;
   index: number;
 }) {
-  const { message, onResend, onDelete, onUserStop, index } = props;
+  const { message, onResend, onDelete, onUserStop, onBranch, index } = props;
 
   return (
     <div className={styles["chat-input-actions"]}>
@@ -1017,6 +1019,12 @@ function MessageActions(props: {
             text={Locale.Chat.Actions.Delete}
             icon={<DeleteIcon />}
             onClick={() => onDelete(message.id ?? index.toString())}
+            alwaysFullWidth={false}
+          />
+          <ChatAction
+            text="分支"
+            icon={<BranchIcon />}
+            onClick={() => onBranch(message, index)}
             alwaysFullWidth={false}
           />
         </>
@@ -1592,6 +1600,76 @@ function _Chat() {
         setShowPromptModal(true);
       },
     });
+  };
+
+  // 分支到新会话
+  const handleBranch = async (message: ChatMessage, messageIndex: number) => {
+    try {
+      // 复制会话标题并标注分支
+      const originalTopic = session.topic || DEFAULT_TOPIC;
+      const branchTopic = `${originalTopic} (分支)`;
+
+      // 复制系统提示词
+      const systemMessageData = await loadSystemMessageContentFromStorage(
+        session.id,
+      );
+
+      // 复制消息历史（包含该消息及之前的所有消息，但排除系统消息）
+      const contextEndIndex = messageIndex + context.length;
+      const messagesToCopy = renderMessages
+        .slice(0, contextEndIndex + 1)
+        .filter((m) => m.role !== "system");
+
+      // 创建新会话
+      chatStore.newSession();
+
+      // 切换到新会话（索引 0）
+      chatStore.selectSession(0);
+
+      // 获取新创建的会话（现在 currentSession 应该是新会话了）
+      const newSession = chatStore.currentSession();
+
+      // 更新新会话
+      chatStore.updateTargetSession(newSession, (newSession) => {
+        newSession.topic = branchTopic;
+        newSession.messages = [...messagesToCopy];
+
+        // 复制模型配置
+        newSession.mask.modelConfig = { ...session.mask.modelConfig };
+        newSession.mask.syncGlobalConfig = session.mask.syncGlobalConfig;
+        newSession.isModelManuallySelected = session.isModelManuallySelected;
+
+        // 如果有系统提示词，创建新的系统消息
+        if (
+          systemMessageData.text.trim() ||
+          systemMessageData.images.length > 0
+        ) {
+          // 保存系统消息到新会话的存储
+          saveSystemMessageContentToStorage(
+            newSession.id,
+            systemMessageData.text,
+            systemMessageData.images,
+            systemMessageData.scrollTop,
+            systemMessageData.selection,
+          );
+
+          const newSystemMessage = createMessage({
+            role: "system",
+            content: "",
+          }) as SystemMetaMessage;
+          // @ts-ignore
+          newSystemMessage.contentKey = getSystemMessageContentKey(
+            newSession.id,
+          );
+          newSession.messages.unshift(newSystemMessage);
+        }
+      });
+
+      // showToast(`已分支到新会话：${branchTopic}`);
+    } catch (error) {
+      console.error("分支会话失败:", error);
+      showToast("分支会话失败，请重试");
+    }
   };
 
   // 优化点1：渲染相关 useMemo/useState/useEffect 彻底排除 system message
@@ -2325,6 +2403,7 @@ function _Chat() {
                                 onResend={onResend}
                                 onDelete={onDelete}
                                 onUserStop={onUserStop}
+                                onBranch={handleBranch}
                                 index={i}
                               />
                             </div>
@@ -2476,6 +2555,7 @@ function _Chat() {
                                 onResend={onResend}
                                 onDelete={onDelete}
                                 onUserStop={onUserStop}
+                                onBranch={handleBranch}
                                 index={i}
                               />
                             </div>

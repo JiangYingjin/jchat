@@ -795,28 +795,6 @@ class SystemMessageStorage {
     }
   }
 
-  // 兼容旧格式的方法
-  async getSystemMessageLegacy(sessionId: string): Promise<string | null> {
-    try {
-      const data = await this.getSystemMessage(sessionId);
-      if (data) {
-        return data.text || null;
-      }
-      // 尝试获取旧格式数据
-      const oldData = await this.storage.getItem<any>(sessionId);
-      if (oldData && typeof oldData === "string") {
-        return oldData;
-      }
-      if (oldData && oldData.content) {
-        return oldData.content;
-      }
-      return null;
-    } catch (error) {
-      console.error("获取系统消息(兼容模式)失败:", error);
-      return null;
-    }
-  }
-
   async deleteSystemMessage(sessionId: string): Promise<boolean> {
     try {
       await this.storage.removeItem(sessionId);
