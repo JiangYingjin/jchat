@@ -452,7 +452,6 @@ export function ChatActions(props: {
   uploadImage: () => Promise<void>;
   capturePhoto: () => Promise<void>;
   setAttachImages: (images: string[]) => void;
-  uploadFile: () => Promise<void>;
   setUploading: (uploading: boolean) => void;
   showPromptModal: () => void;
   scrollToBottom: () => void;
@@ -506,7 +505,6 @@ export function ChatActions(props: {
   }, [models, currentModel, currentProviderName]);
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [showUploadImage, setShowUploadImage] = useState(false);
-  const [showUploadFile, setShowUploadFile] = useState(false);
 
   const isMobileScreen = useMobileScreen();
 
@@ -515,7 +513,6 @@ export function ChatActions(props: {
   useEffect(() => {
     const show = true; // 所有模型都支持视觉功能
     setShowUploadImage(show && isMobileScreen);
-    setShowUploadFile(false); // 直接设为false
     if (!show) {
       props.setAttachImages([]);
       props.setUploading(false);
@@ -551,14 +548,6 @@ export function ChatActions(props: {
             onClick={props.uploadImage}
             text={Locale.Chat.InputActions.UploadImage}
             icon={props.uploading ? <LoadingButtonIcon /> : <ImageIcon />}
-            alwaysFullWidth={false}
-          />
-        )}
-        {showUploadFile && (
-          <ChatAction
-            onClick={props.uploadFile}
-            text={Locale.Chat.InputActions.UploadFle}
-            icon={props.uploading ? <LoadingButtonIcon /> : <UploadIcon />}
             alwaysFullWidth={false}
           />
         )}
@@ -725,14 +714,6 @@ export function DeleteImageButton(props: { deleteImage: () => void }) {
         props.deleteImage();
       }}
     >
-      <DeleteIcon />
-    </div>
-  );
-}
-
-export function DeleteFileButton(props: { deleteFile: () => void }) {
-  return (
-    <div className={styles["delete-file"]} onClick={props.deleteFile}>
       <DeleteIcon />
     </div>
   );
@@ -1860,11 +1841,6 @@ function _Chat() {
     await saveChatInputImages(images); // 新增：保存图片
   }
 
-  async function uploadFile() {
-    // File upload functionality has been removed
-    console.log("File upload feature is disabled");
-  }
-
   const [showChatSidePanel, setShowChatSidePanel] = useState(false);
   const [showSystemPromptEdit, setShowSystemPromptEdit] = useState(false);
   const [systemPromptData, setSystemPromptData] = useState<SystemMessageData>({
@@ -2497,7 +2473,6 @@ function _Chat() {
                 uploadImage={uploadImage}
                 capturePhoto={capturePhoto}
                 setAttachImages={setAttachImages}
-                uploadFile={uploadFile}
                 setUploading={setUploading}
                 showPromptModal={() => setShowPromptModal(true)}
                 scrollToBottom={scrollToBottom}
