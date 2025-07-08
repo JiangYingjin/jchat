@@ -3,7 +3,6 @@ import { showToast } from "./components/ui-lib";
 import Locale from "./locales";
 import { MultimodalContent, RequestMessage } from "./client/api";
 import {
-  DEFAULT_MODELS,
   REQUEST_TIMEOUT_MS,
   REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION,
   REQUEST_TIMEOUT_MS_FOR_THINKING,

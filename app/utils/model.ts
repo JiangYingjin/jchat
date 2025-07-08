@@ -1,4 +1,3 @@
-import { DEFAULT_MODELS } from "../constant";
 import { LLMModel } from "../client/api";
 
 const CustomSeq = {
@@ -42,56 +41,35 @@ export function collectModelTable(
     string,
     {
       name: string;
-      displayName: string;
       sorted: number;
       isDefault?: boolean;
     }
   > = {};
 
-  // default models
-  models.forEach((m) => {
-    // using model name as key since we only have one provider
-    modelTable[m.name] = {
-      ...m,
-      displayName: m.name,
-    };
-  });
-
-  // server custom models
-  customModels
+  // 处理服务器端自定义模型
+  const serverModels = customModels
     .split(",")
-    .filter((v) => !!v && v.length > 0)
-    .forEach((m) => {
-      const nameConfig =
-        m.startsWith("+") || m.startsWith("-") ? m.slice(1) : m;
-      let [name, displayName] = nameConfig.split("=");
+    .filter((v) => !!v && v.length > 0);
 
-      // enable or disable all models - now just set display names
-      if (name === "all") {
-        // 移除 available 逻辑，所有模型默认可用
-        return;
-      } else {
-        // 1. find model by name, and set display name if provided
-        const customModelName = name;
-        let count = 0;
-        for (const modelName in modelTable) {
-          if (customModelName === modelName) {
-            count += 1;
-            if (displayName) {
-              modelTable[modelName]["displayName"] = displayName;
-            }
-          }
-        }
-        // 2. if model not exists, create new model
-        if (count === 0) {
-          modelTable[customModelName] = {
-            name: customModelName,
-            displayName: displayName || customModelName,
-            sorted: CustomSeq.next(customModelName),
-          };
-        }
+  if (serverModels.length > 0) {
+    // 如果服务器端提供了模型列表，直接使用这些模型
+    serverModels.forEach((m) => {
+      if (m && m.length > 0) {
+        modelTable[m] = {
+          name: m,
+          sorted: CustomSeq.next(m),
+        };
       }
     });
+  } else {
+    // 只有在没有服务器端模型时，才使用默认模型作为回退
+    models.forEach((m) => {
+      modelTable[m.name] = {
+        name: m.name,
+        sorted: m.sorted,
+      };
+    });
+  }
 
   return modelTable;
 }

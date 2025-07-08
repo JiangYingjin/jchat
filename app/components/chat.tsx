@@ -488,7 +488,7 @@ export function ChatActions(props: {
 
   const currentModelName = useMemo(() => {
     const model = models.find((m) => m.name == currentModel);
-    return model?.displayName ?? "";
+    return model?.name ?? "";
   }, [models, currentModel]);
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [showUploadImage, setShowUploadImage] = useState(false);
@@ -572,7 +572,7 @@ export function ChatActions(props: {
           <SearchSelector
             defaultSelectedValue={currentModel}
             items={models.map((m) => ({
-              title: `${m.displayName}`,
+              title: `${m.name}`,
               value: m.name,
             }))}
             onClose={() => setShowModelSelector(false)}

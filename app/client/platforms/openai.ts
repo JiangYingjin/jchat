@@ -325,7 +325,18 @@ export class ChatGPTApi implements LLMApi {
   }
 
   async models(): Promise<LLMModel[]> {
-    return DEFAULT_MODELS.slice();
+    // 获取服务器端配置的模型列表
+    const accessStore = useAccessStore.getState();
+    const configStore = useAppConfig.getState();
+
+    // 使用 collectModelsWithDefaultModel 来获取完整的模型列表
+    const allModels = collectModelsWithDefaultModel(
+      configStore.models,
+      [configStore.customModels, accessStore.customModels].join(","),
+      accessStore.defaultModel,
+    );
+
+    return allModels;
   }
 }
 export { OpenaiPath };

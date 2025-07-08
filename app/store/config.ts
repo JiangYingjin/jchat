@@ -2,8 +2,9 @@ import { LLMModel } from "../client/api";
 import { getClientConfig } from "../config/client";
 import { DEFAULT_MODELS, StoreKey } from "../constant";
 import { createPersistStore, jchatStorage } from "../utils/store";
+import { useAccessStore } from "./access";
 
-export type ModelType = (typeof DEFAULT_MODELS)[number]["name"];
+export type ModelType = string; // 改为更灵活的类型定义
 
 export enum Theme {
   Auto = "auto",
@@ -26,7 +27,7 @@ export const DEFAULT_CONFIG = {
   models: DEFAULT_MODELS as any as LLMModel[],
 
   modelConfig: {
-    model: "gpt-4.1-mini" as ModelType,
+    model: "" as ModelType, // 默认模型将由服务器端配置决定
     temperature: 0.5,
     max_tokens: 8000,
     budget_tokens: 4000,
@@ -76,20 +77,33 @@ export const useAppConfig = createPersistStore(
         return;
       }
 
-      const oldModels = get().models;
-      const modelMap: Record<string, LLMModel> = {};
+      // 检查是否有服务器端自定义模型
+      const accessStore = useAccessStore.getState();
+      const hasServerModels =
+        accessStore.customModels && accessStore.customModels.trim().length > 0;
 
-      for (const model of oldModels) {
-        modelMap[`${model.name}`] = model;
+      if (hasServerModels) {
+        // 如果服务器端提供了模型列表，直接使用这些模型，不合并默认模型
+        set(() => ({
+          models: newModels,
+        }));
+      } else {
+        // 只有在没有服务器端模型时，才合并默认模型
+        const oldModels = get().models;
+        const modelMap: Record<string, LLMModel> = {};
+
+        for (const model of oldModels) {
+          modelMap[`${model.name}`] = model;
+        }
+
+        for (const model of newModels) {
+          modelMap[`${model.name}`] = model;
+        }
+
+        set(() => ({
+          models: Object.values(modelMap),
+        }));
       }
-
-      for (const model of newModels) {
-        modelMap[`${model.name}`] = model;
-      }
-
-      set(() => ({
-        models: Object.values(modelMap),
-      }));
     },
 
     allModels() {},

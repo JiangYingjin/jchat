@@ -29,7 +29,7 @@ export function ModelConfigList(props: {
         >
           {allModels.map((v, i) => (
             <option value={v.name} key={i}>
-              {v.displayName}
+              {v.name}
             </option>
           ))}
         </Select>

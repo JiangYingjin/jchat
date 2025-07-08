@@ -58,15 +58,8 @@ export const OpenaiPath = {
 
 export const SUMMARIZE_MODEL = "google/gemini-2.5-flash";
 
-const openaiModels = ["google/gemini-2.5-flash"];
-
 let seq = 1000; // 内置的模型序号生成器从1000开始
-export const DEFAULT_MODELS = [
-  ...openaiModels.map((name) => ({
-    name,
-    sorted: seq++, // Global sequence sort(index)
-  })),
-] as const;
+export const DEFAULT_MODELS = [] as const;
 
 export const CHAT_PAGE_SIZE = 15;
 export const MAX_RENDER_MSG_COUNT = 45;
