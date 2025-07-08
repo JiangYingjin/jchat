@@ -44,7 +44,6 @@ import {
   useAccessStore,
   useAppConfig,
   DEFAULT_TOPIC,
-  ModelType,
   systemMessageStorage,
   chatInputStorage,
   ChatSession,
@@ -96,7 +95,6 @@ import {
 import { useCommand } from "../command";
 import { prettyObject } from "../utils/format";
 import { ExportMessageModal } from "./exporter";
-import { getClientConfig } from "../config/client";
 import { useAllModels } from "../utils/hooks";
 import { MultimodalContent } from "../client/api";
 
@@ -408,8 +406,6 @@ export function ChatActions(props: {
   setUserInput: (input: string) => void;
   setShowChatSidePanel: React.Dispatch<React.SetStateAction<boolean>>;
 }) {
-  const config = useAppConfig();
-  const navigate = useNavigate();
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
 
@@ -419,39 +415,16 @@ export function ChatActions(props: {
 
   // switch model
   const currentModel = session.mask.modelConfig.model;
-  const allModels = useAllModels();
-  const models = useMemo(() => {
-    const defaultModel = allModels.find((m) => m.isDefault);
+  const models = useAllModels();
 
-    if (defaultModel) {
-      const arr = [
-        defaultModel,
-        ...allModels.filter((m) => m !== defaultModel),
-      ];
-      return arr;
-    } else {
-      return allModels;
-    }
-  }, [allModels]);
-
-  const currentModelName = useMemo(() => {
-    const model = models.find((m) => m.name == currentModel);
-    return model?.name ?? "";
-  }, [models, currentModel]);
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [showUploadImage, setShowUploadImage] = useState(false);
 
   const isMobileScreen = useMobileScreen();
 
-  const accessStore = useAccessStore();
-
   useEffect(() => {
-    const show = true; // 所有模型都支持视觉功能
-    setShowUploadImage(show && isMobileScreen);
-    if (!show) {
-      props.setAttachImages([]);
-      props.setUploading(false);
-    }
+    // 所有模型都支持视觉功能
+    setShowUploadImage(isMobileScreen);
 
     // if current model is not available
     // switch to first available model
@@ -487,7 +460,7 @@ export function ChatActions(props: {
 
         <ChatAction
           onClick={() => setShowModelSelector(true)}
-          text={currentModelName}
+          text={currentModel}
           icon={<RobotIcon />}
           alwaysFullWidth={true}
         />
@@ -527,7 +500,7 @@ export function ChatActions(props: {
             onSelection={(s) => {
               if (s.length === 0) return;
               chatStore.updateTargetSession(session, (session) => {
-                session.mask.modelConfig.model = s[0] as ModelType;
+                session.mask.modelConfig.model = s[0] as string;
                 // 标记用户手动选择了模型
                 session.isModelManuallySelected = true;
               });
@@ -672,7 +645,6 @@ export function SystemPromptEditModal(props: {
     props.initialSelection || { start: 0, end: 0 },
   );
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const config = useAppConfig();
 
   // 自动聚焦并定位到保存的位置
   useEffect(() => {
@@ -927,7 +899,7 @@ function _Chat() {
   const session = chatStore.currentSession();
   const config = useAppConfig();
   const accessStore = useAccessStore();
-  const allModels = useAllModels();
+  const models = useAllModels();
 
   // 记住未完成输入的防抖保存函数，间隔放宽到 500ms
   const saveChatInputText = useDebouncedCallback(async (value: string) => {
@@ -1088,14 +1060,14 @@ function _Chat() {
     // 获取当前模型
     const { model } = config.modelConfig;
     // 检查主模型是否有效
-    const isModelValid = allModels.some((m) => m.name === model);
+    const isModelValid = models.some((m) => m.name === model);
     // console.log("[updateConfig] isModelValid", isModelValid);
     // 如果主模型无效，自动 fetch 并更新为 defaultModel
     if (!isModelValid) {
       // 拉取服务器配置
       accessStore.fetch();
       // 从 allModels 中获取默认模型
-      const defaultModel = allModels.find((m) => m.isDefault)?.name;
+      const defaultModel = models.find((m) => m.isDefault)?.name;
       if (defaultModel) {
         config.update((cfg) => {
           // 主模型无效时修正
@@ -1122,7 +1094,7 @@ function _Chat() {
         }
       }
     }
-  }, [accessStore, allModels, session.isModelManuallySelected ?? false]);
+  }, [accessStore, models, session.isModelManuallySelected ?? false]);
 
   const [showExport, setShowExport] = useState(false);
 
@@ -1542,8 +1514,6 @@ function _Chat() {
 
   const [showPromptModal, setShowPromptModal] = useState(false);
 
-  const clientConfig = useMemo(() => getClientConfig(), []);
-
   const autoFocus = !isMobileScreen; // wont auto focus on mobile screen
   const showMaxIcon = !isMobileScreen;
 
@@ -1713,7 +1683,7 @@ function _Chat() {
     }
 
     // 检查是否存在目标模型
-    const targetModel = allModels.find((m) => m.name === "jyj.cx/pro");
+    const targetModel = models.find((m) => m.name === "jyj.cx/pro");
     if (!targetModel) {
       console.log(
         "[AutoSwitch] 目标模型 jyj.cx/pro 不存在或不可用，跳过自动切换",
@@ -1762,13 +1732,13 @@ function _Chat() {
           )
         ) {
           // 检查是否存在 jyj.cx/pro 模型
-          const targetModel = allModels.find((m) => m.name === proModelName);
+          const targetModel = models.find((m) => m.name === proModelName);
           if (targetModel) {
             const currentModel = session.mask.modelConfig.model;
 
             // 只有当前模型不是目标模型时才切换
             if (currentModel !== proModelName) {
-              session.mask.modelConfig.model = proModelName as ModelType;
+              session.mask.modelConfig.model = proModelName;
               // 标记用户手动选择了模型
               session.isModelManuallySelected = true;
               console.log(
@@ -2495,7 +2465,6 @@ export function EditMessageWithImageModal(props: {
     props.initialImages,
   );
   const [uploading, setUploading] = useState(false);
-  const config = useAppConfig();
   const handlePaste = usePasteImageUpload(
     attachImages,
     setAttachImages,

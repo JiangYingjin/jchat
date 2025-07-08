@@ -1,11 +1,11 @@
-import { ModelType, useAccessStore, useChatStore } from "../store";
+import { useAccessStore } from "../store";
 import { ChatGPTApi } from "./platforms/openai";
 import { FileApi } from "./platforms/utils";
 
 export const ROLES = ["system", "user", "assistant"] as const;
 export type MessageRole = (typeof ROLES)[number];
 
-export type ChatModel = ModelType;
+export type ChatModel = string;
 
 export interface MessageContentItem {
   type: "text" | "image";

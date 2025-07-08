@@ -1,30 +1,19 @@
 import { StoreKey } from "../constant";
 import { getHeaders } from "../client/api";
-import { getClientConfig } from "../config/client";
 import { createPersistStore, jchatStorage } from "../utils/store";
 
 let fetchState = 0; // 0 not fetch, 1 fetching, 2 done
 
 const DEFAULT_ACCESS_STATE = {
   accessCode: "",
-  customModels: "",
+  models: "",
 };
 
 export const useAccessStore = createPersistStore(
   { ...DEFAULT_ACCESS_STATE },
   (set, get) => ({
-    enabledAccessControl() {
-      this.fetch();
-      // 直接返回 true，始终需要访问码
-      return true;
-    },
-    isAuthorized() {
-      this.fetch();
-      // 只要 enabledAccessControl 恒为 true，这里逻辑也可简化
-      return false;
-    },
     fetch() {
-      if (fetchState > 0 || !getClientConfig()) return;
+      if (fetchState > 0) return;
       fetchState = 1;
       fetch("/api/config", {
         method: "post",
@@ -36,7 +25,7 @@ export const useAccessStore = createPersistStore(
         .then((res) => res.json())
         .then((res: any) => {
           console.log("[Config] got config from server", res);
-          set(() => ({ ...res }));
+          set(() => ({ ...res })); // 更新 accessStore 的值，直接使用返回的参数
         })
         .catch(() => {
           console.error("[Config] failed to fetch config");

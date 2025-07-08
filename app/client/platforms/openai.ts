@@ -235,7 +235,7 @@ export class ChatGPTApi implements LLMApi {
     // 获取服务器端配置的模型列表
     const accessStore = useAccessStore.getState();
     // 使用 getModelList 来获取完整的模型列表
-    const allModels = getModelList(accessStore.customModels);
+    const allModels = getModelList(accessStore.models);
     return allModels;
   }
 }

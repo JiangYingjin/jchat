@@ -23,8 +23,6 @@ import {
 } from "react-router-dom";
 import { SideBar } from "./sidebar";
 import { AuthPage } from "./auth";
-import { getClientConfig } from "../config/client";
-import { type ClientApi, getClientApi } from "../client/api";
 import { useAccessStore } from "../store";
 import { DataMigration } from "../utils/migration";
 
@@ -150,7 +148,6 @@ export function Home() {
   useHtmlLang();
 
   useEffect(() => {
-    console.log("[Config] got config from build time", getClientConfig());
     useAccessStore.getState().fetch();
   }, []);
 

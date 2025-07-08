@@ -3,40 +3,13 @@ import md5 from "spark-md5";
 declare global {
   namespace NodeJS {
     interface ProcessEnv {
-      PROXY_URL?: string; // docker only
-
-      OPENAI_API_KEY?: string;
       CODE?: string;
-
       BASE_URL?: string;
-
-      CUSTOM_MODELS?: string; // to control custom models
-
-      // custom template for preprocessing user input
-      DEFAULT_INPUT_TEMPLATE?: string;
+      API_KEY?: string;
+      MODELS?: string;
+      PROXY_URL?: string;
     }
   }
-}
-
-const ACCESS_CODES = (function getAccessCodes(): Set<string> {
-  const code = process.env.CODE;
-
-  try {
-    const codes = (code?.split(",") ?? [])
-      .filter((v) => !!v)
-      .map((v) => md5.hash(v.trim()));
-    return new Set(codes);
-  } catch (e) {
-    return new Set();
-  }
-})();
-
-function getApiKey(keys?: string) {
-  const apiKey = keys?.trim();
-  if (apiKey) {
-    console.log(`[Server Config] using api key - ${apiKey}`);
-  }
-  return apiKey;
 }
 
 function getDefaultModel(customModels: string): string {
@@ -51,16 +24,28 @@ export const getServerSideConfig = () => {
     );
   }
 
-  let customModels = process.env.CUSTOM_MODELS ?? "";
-  let defaultModel = getDefaultModel(customModels);
+  let models = process.env.MODELS ?? "";
+  // let defaultModel = getDefaultModel(customModels);
+
+  const ACCESS_CODES = (function getAccessCodes(): Set<string> {
+    const code = process.env.CODE;
+    try {
+      const codes = (code?.split(",") ?? [])
+        .filter((v) => !!v)
+        .map((v) => md5.hash(v.trim()));
+      return new Set(codes);
+    } catch (e) {
+      return new Set();
+    }
+  })();
 
   return {
     baseUrl: process.env.BASE_URL,
-    apiKey: getApiKey(process.env.OPENAI_API_KEY),
+    apiKey: process.env.API_KEY?.trim(),
     code: process.env.CODE,
     codes: ACCESS_CODES,
     proxyUrl: process.env.PROXY_URL,
-    customModels,
-    defaultModel,
+    models,
+    // defaultModel,
   };
 };

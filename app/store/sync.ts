@@ -1,4 +1,3 @@
-import { getClientConfig } from "../config/client";
 import { ApiPath, StoreKey } from "../constant";
 import { createPersistStore, jchatStorage } from "../utils/store";
 import {

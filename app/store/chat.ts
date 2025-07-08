@@ -14,7 +14,7 @@ import Locale from "../locales";
 import { prettyObject } from "../utils/format";
 import { createPersistStore, jchatStorage } from "../utils/store";
 import { estimateTokenLength } from "../utils/token";
-import { ModelConfig, ModelType, useAppConfig } from "./config";
+import { ModelConfig, useAppConfig } from "./config";
 import { useAccessStore } from "./access";
 import { getModelList } from "../utils/model";
 
@@ -32,7 +32,7 @@ export type ChatMessage = RequestMessage & {
   streaming?: boolean;
   isError?: boolean;
   id: string;
-  model?: ModelType;
+  model?: string;
 };
 
 export function createMessage(override: Partial<ChatMessage>): ChatMessage {
@@ -574,7 +574,7 @@ export const useChatStore = createPersistStore(
 
         // 直接使用全局默认模型进行总结
         const accessStore = useAccessStore.getState();
-        const allModel = getModelList(accessStore.customModels);
+        const allModel = getModelList(accessStore.models);
         const model =
           allModel.length > 0 ? allModel[0].name : DEFAULT_MODELS[0];
 

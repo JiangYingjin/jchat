@@ -1,36 +1,24 @@
-import { LLMModel } from "../client/api";
 import { StoreKey } from "../constant";
 import { createPersistStore, jchatStorage } from "../utils/store";
-import { useAccessStore } from "./access";
-
-export type ModelType = string; // 改为更灵活的类型定义
 
 export const DEFAULT_CONFIG = {
   modelConfig: {
-    model: "" as ModelType, // 默认模型将由服务器端配置决定
+    model: "" as string, // 默认模型将由服务器端配置决定
   },
 };
 
 export type ChatConfig = typeof DEFAULT_CONFIG;
 export type ModelConfig = ChatConfig["modelConfig"];
 
-// 移除了未被使用的 limitNumber 函数
-
 export const ModalConfigValidator = {
   model(x: string) {
-    return x as ModelType;
+    return x as string;
   },
 };
 
 export const useAppConfig = createPersistStore(
   { ...DEFAULT_CONFIG },
-  (set, get) => ({
-    reset() {
-      set(() => ({ ...DEFAULT_CONFIG }));
-    },
-
-    // 移除了 mergeModels 方法（该方法无实际逻辑）
-  }),
+  (set, get) => ({}),
   {
     name: StoreKey.Config,
     version: 3.2,

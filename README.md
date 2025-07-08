@@ -213,10 +213,6 @@ For ByteDance: use `modelName@bytedance=deploymentName` to customize model name 
   > `https://xxxx/xxx`
 - 多个地址以`,`相连
 
-### `DEFAULT_INPUT_TEMPLATE` （可选）
-
-自定义默认的 template，用于初始化『设置』中的『用户输入预处理』配置项
-
 ### `DEEPSEEK_API_KEY` (可选)
 
 DeepSeek Api Key

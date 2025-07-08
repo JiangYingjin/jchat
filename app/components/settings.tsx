@@ -30,8 +30,6 @@ import {
   showConfirm,
   showToast,
 } from "./ui-lib";
-import { ModelConfigList } from "./model-config";
-
 import { IconButton } from "./button";
 import { useChatStore, useAccessStore, useAppConfig } from "../store";
 
@@ -42,7 +40,6 @@ import { OPENAI_BASE_URL, Path } from "../constant";
 import { ErrorBoundary } from "./error";
 import { InputRange } from "./input-range";
 import { useNavigate } from "react-router-dom";
-import { getClientConfig } from "../config/client";
 import { useSyncStore } from "../store/sync";
 import { nanoid } from "nanoid";
 import { ProviderType } from "../utils/cloud";
@@ -304,15 +301,7 @@ function SyncItems() {
 export function Settings() {
   const navigate = useNavigate();
   const config = useAppConfig();
-  const updateConfig = config.update;
-
   const accessStore = useAccessStore();
-
-  const enabledAccessControl = useMemo(
-    () => accessStore.enabledAccessControl(),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
 
   useEffect(() => {
     const keydownEvent = (e: KeyboardEvent) => {
@@ -327,27 +316,6 @@ export function Settings() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  const clientConfig = useMemo(() => getClientConfig(), []);
-  const showAccessCode = enabledAccessControl; // 始终显示访问码输入
-
-  const accessCodeComponent = showAccessCode && (
-    <ListItem
-      title={Locale.Settings.Access.AccessCode.Title}
-      subTitle={Locale.Settings.Access.AccessCode.SubTitle}
-    >
-      <PasswordInput
-        value={accessStore.accessCode}
-        type="text"
-        placeholder={Locale.Settings.Access.AccessCode.Placeholder}
-        onChange={(e) => {
-          accessStore.update(
-            (access) => (access.accessCode = e.currentTarget.value),
-          );
-        }}
-      />
-    </ListItem>
-  );
 
   return (
     <ErrorBoundary>
@@ -373,12 +341,29 @@ export function Settings() {
           </div>
         </div>
       </div>
+
       <div className={styles["settings"]}>
-        <List>{accessCodeComponent}</List>
+        <List>
+          <ListItem
+            title={Locale.Settings.Access.AccessCode.Title}
+            subTitle={Locale.Settings.Access.AccessCode.SubTitle}
+          >
+            <PasswordInput
+              value={accessStore.accessCode}
+              type="text"
+              placeholder={Locale.Settings.Access.AccessCode.Placeholder}
+              onChange={(e) => {
+                accessStore.update(
+                  (access) => (access.accessCode = e.currentTarget.value),
+                );
+              }}
+            />
+          </ListItem>
+        </List>
 
         <SyncItems />
 
-        <List>
+        {/* <List>
           <ModelConfigList
             modelConfig={config.modelConfig}
             updateConfig={(updater) => {
@@ -387,7 +372,7 @@ export function Settings() {
               config.update((config) => (config.modelConfig = modelConfig));
             }}
           />
-        </List>
+        </List> */}
       </div>
     </ErrorBoundary>
   );
