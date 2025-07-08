@@ -92,65 +92,6 @@ function createEmptySession(): ChatSession {
   };
 }
 
-function getSummarizeModel(currentModel: string): string {
-  if (currentModel.startsWith("google/gemini-2.5-flash")) {
-    const accessStore = useAccessStore.getState();
-    const allModel = getModelList(accessStore.customModels);
-
-    // 优先使用服务器端提供的模型
-    if (
-      accessStore.customModels &&
-      accessStore.customModels.trim().length > 0
-    ) {
-      // 如果服务器端提供了模型列表，使用第一个可用的模型
-      const serverModels = accessStore.customModels
-        .split(",")
-        .filter((v) => !!v && v.length > 0);
-
-      if (serverModels.length > 0) {
-        const firstServerModel = allModel.find(
-          (m) => m.name === serverModels[0],
-        );
-        if (firstServerModel) {
-          return firstServerModel.name;
-        }
-      }
-    }
-
-    // 如果没有服务器端模型，尝试使用 DEFAULT_MODELS[0]
-    const summarizeModel = allModel.find((m) => m.name === DEFAULT_MODELS[0]);
-    if (summarizeModel) {
-      return summarizeModel.name;
-    }
-  }
-  if (currentModel.startsWith("google/gemini-2.5-flash")) {
-    // 对于 gemini 模型，优先使用服务器端模型，否则使用 DEFAULT_MODELS[0]
-    const accessStore = useAccessStore.getState();
-    if (
-      accessStore.customModels &&
-      accessStore.customModels.trim().length > 0
-    ) {
-      const serverModels = accessStore.customModels
-        .split(",")
-        .filter((v) => !!v && v.length > 0);
-
-      if (serverModels.length > 0) {
-        // 检查服务器端模型是否在可用模型列表中
-        const configStore = useAppConfig.getState();
-        const allModel = getModelList(accessStore.customModels);
-        const firstServerModel = allModel.find(
-          (m) => m.name === serverModels[0],
-        );
-        if (firstServerModel) {
-          return firstServerModel.name;
-        }
-      }
-    }
-    return DEFAULT_MODELS[0];
-  }
-  return currentModel;
-}
-
 function countMessages(msgs: ChatMessage[]) {
   return msgs.reduce(
     (pre, cur) => pre + estimateTokenLength(getMessageTextContent(cur)),
@@ -632,7 +573,10 @@ export const useChatStore = createPersistStore(
         const session = targetSession;
 
         // 直接使用全局默认模型进行总结
-        const model = getSummarizeModel(session.mask.modelConfig.model);
+        const accessStore = useAccessStore.getState();
+        const allModel = getModelList(accessStore.customModels);
+        const model =
+          allModel.length > 0 ? allModel[0].name : DEFAULT_MODELS[0];
 
         const api: ClientApi = getClientApi();
 

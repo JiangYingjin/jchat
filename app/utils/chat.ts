@@ -15,7 +15,6 @@ import {
   fetchEventSource,
 } from "@fortaine/fetch-event-source";
 import { prettyObject } from "./format";
-import { fetch as tauriFetch } from "./stream";
 import { getMessageTextContent } from "../utils";
 
 declare global {
@@ -575,7 +574,17 @@ export function streamWithThink(
       REQUEST_TIMEOUT_MS,
     );
     fetchEventSource(chatPath, {
-      fetch: tauriFetch as any,
+      fetch: (input, init) => {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(
+          () => controller.abort(),
+          REQUEST_TIMEOUT_MS,
+        );
+        return fetch(input, {
+          ...(init || {}),
+          signal: controller.signal,
+        }).finally(() => clearTimeout(timeoutId));
+      },
       ...chatPayload,
       async onopen(res) {
         clearTimeout(requestTimeoutId);

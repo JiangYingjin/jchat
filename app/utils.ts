@@ -7,8 +7,6 @@ import {
   REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION,
   REQUEST_TIMEOUT_MS_FOR_THINKING,
 } from "./constant";
-import { fetch as tauriStreamFetch } from "./utils/stream";
-import { useAccessStore } from "./store";
 
 export function trimTopic(topic: string) {
   // Fix an issue where double quotes still show in the Indonesian language
@@ -114,12 +112,6 @@ export function useMobileScreen() {
   return width <= MOBILE_MAX_WIDTH;
 }
 
-export function isFirefox() {
-  return (
-    typeof navigator !== "undefined" && /firefox/i.test(navigator.userAgent)
-  );
-}
-
 function getDomContentWidth(dom: HTMLElement) {
   const style = window.getComputedStyle(dom);
   const paddingWidth =
@@ -170,22 +162,6 @@ export function autoGrowTextArea(dom: HTMLTextAreaElement) {
   return rows;
 }
 
-export function getCSSVar(varName: string) {
-  return getComputedStyle(document.body).getPropertyValue(varName).trim();
-}
-
-/**
- * Detects Macintosh
- */
-export function isMacOS(): boolean {
-  if (typeof window !== "undefined") {
-    let userAgent = window.navigator.userAgent.toLocaleLowerCase();
-    const macintosh = /iphone|ipad|ipod|macintosh/.test(userAgent);
-    return !!macintosh;
-  }
-  return false;
-}
-
 export function getMessageTextContent(message: RequestMessage) {
   return getTextContent(message.content);
 }
@@ -205,28 +181,6 @@ export function getTextContent(content: string | MultimodalContent[]) {
     }
   }
   return combinedText.trim();
-}
-
-export function getMessageTextContentWithoutThinking(message: RequestMessage) {
-  let content = "";
-
-  if (typeof message.content === "string") {
-    content = message.content;
-  } else {
-    for (const c of message.content) {
-      if (c.type === "text") {
-        content = c.text ?? "";
-        break;
-      }
-    }
-  }
-
-  // Filter out thinking lines (starting with "> ")
-  return content
-    .split("\n")
-    .filter((line) => !line.startsWith("> ") && line.trim() !== "")
-    .join("\n")
-    .trim();
 }
 
 export function getMessageImages(message: RequestMessage): string[] {
@@ -258,102 +212,4 @@ export function getTimeoutMSByModel(model: string) {
   )
     return REQUEST_TIMEOUT_MS_FOR_THINKING;
   return REQUEST_TIMEOUT_MS;
-}
-
-export function isImageGenerationModel(modelName: string) {
-  const specialModels = ["gemini-2.0-flash-exp"];
-  return specialModels.some((keyword) => modelName === keyword);
-}
-
-export function fetch(
-  url: string,
-  options?: Record<string, unknown>,
-): Promise<any> {
-  return window.fetch(url, options);
-}
-
-export function adapter(config: Record<string, unknown>) {
-  const { baseURL, url, params, data: body, ...rest } = config;
-  const path = baseURL ? `${baseURL}${url}` : url;
-  const fetchUrl = params
-    ? `${path}?${new URLSearchParams(params as any).toString()}`
-    : path;
-  return fetch(fetchUrl as string, { ...rest, body }).then((res) => {
-    const { status, headers, statusText } = res;
-    return res
-      .text()
-      .then((data: string) => ({ status, statusText, headers, data }));
-  });
-}
-
-export function safeLocalStorage(): {
-  getItem: (key: string) => string | null;
-  setItem: (key: string, value: string) => void;
-  removeItem: (key: string) => void;
-  clear: () => void;
-} {
-  let storage: Storage | null;
-
-  try {
-    if (typeof window !== "undefined" && window.localStorage) {
-      storage = window.localStorage;
-    } else {
-      storage = null;
-    }
-  } catch (e) {
-    console.error("localStorage is not available:", e);
-    storage = null;
-  }
-
-  return {
-    getItem(key: string): string | null {
-      if (storage) {
-        return storage.getItem(key);
-      } else {
-        console.warn(
-          `Attempted to get item "${key}" from localStorage, but localStorage is not available.`,
-        );
-        return null;
-      }
-    },
-    setItem(key: string, value: string): void {
-      if (storage) {
-        storage.setItem(key, value);
-      } else {
-        console.warn(
-          `Attempted to set item "${key}" in localStorage, but localStorage is not available.`,
-        );
-      }
-    },
-    removeItem(key: string): void {
-      if (storage) {
-        storage.removeItem(key);
-      } else {
-        console.warn(
-          `Attempted to remove item "${key}" from localStorage, but localStorage is not available.`,
-        );
-      }
-    },
-    clear(): void {
-      if (storage) {
-        storage.clear();
-      } else {
-        console.warn(
-          "Attempted to clear localStorage, but localStorage is not available.",
-        );
-      }
-    },
-  };
-}
-
-export function getOperationId(operation: {
-  operationId?: string;
-  method: string;
-  path: string;
-}) {
-  // pattern '^[a-zA-Z0-9_-]+$'
-  return (
-    operation?.operationId ||
-    `${operation.method.toUpperCase()}${operation.path.replaceAll("/", "_")}`
-  );
 }

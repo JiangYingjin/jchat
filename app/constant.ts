@@ -1,5 +1,3 @@
-export const RUNTIME_CONFIG_DOM = "danger-runtime-config";
-
 export const OPENAI_BASE_URL = "https://api.openai.com";
 
 export const CACHE_URL_PREFIX = "/api/cache";
