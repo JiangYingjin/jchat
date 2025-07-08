@@ -44,10 +44,6 @@ export const REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION = REQUEST_TIMEOUT_MS * 5;
 
 export const EXPORT_MESSAGE_CLASS_NAME = "export-markdown";
 
-export enum ModelProvider {
-  GPT = "GPT",
-}
-
 export const OpenaiPath = {
   ChatPath: "v1/chat/completions",
   ImagePath: "v1/images/generations",

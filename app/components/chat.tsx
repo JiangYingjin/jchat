@@ -84,12 +84,7 @@ import {
 } from "./ui-lib";
 import { copyImageToClipboard } from "../utils/image";
 import { useNavigate } from "react-router-dom";
-import {
-  CHAT_PAGE_SIZE,
-  ModelProvider,
-  Path,
-  REQUEST_TIMEOUT_MS,
-} from "../constant";
+import { CHAT_PAGE_SIZE, Path, REQUEST_TIMEOUT_MS } from "../constant";
 
 import { useCommand } from "../command";
 import { prettyObject } from "../utils/format";

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { getServerSideConfig } from "../config/server";
 import md5 from "spark-md5";
-import { ACCESS_CODE_PREFIX, ModelProvider } from "../constant";
+import { ACCESS_CODE_PREFIX } from "../constant";
 
 function getIP(req: NextRequest) {
   let ip = req.ip ?? req.headers.get("x-real-ip");
@@ -24,7 +24,7 @@ function parseApiKey(bearToken: string) {
   };
 }
 
-export function auth(req: NextRequest, modelProvider: ModelProvider) {
+export function auth(req: NextRequest) {
   const authToken = req.headers.get("Authorization") ?? "";
 
   // check if it is openai api key or user token
@@ -47,14 +47,7 @@ export function auth(req: NextRequest, modelProvider: ModelProvider) {
   }
 
   // 始终使用系统 API 密钥
-  let systemApiKey: string | undefined;
-
-  switch (modelProvider) {
-    case ModelProvider.GPT:
-    default:
-      systemApiKey = serverConfig.apiKey;
-      break;
-  }
+  const systemApiKey = serverConfig.apiKey;
 
   if (systemApiKey) {
     console.log("[Auth] use system api key");

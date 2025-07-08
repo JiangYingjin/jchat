@@ -10,10 +10,10 @@ const cn = {
       : "访问密码不正确或为空，请前往[登录](/#/auth)页输入正确的访问密码。",
   },
   Auth: {
-    Title: "需要密码",
-    Tips: "管理员开启了密码验证，请在下方填入访问码",
+    Title: "访问受限",
+    Tips: "请输入访问码",
 
-    Input: "在此处填写访问码",
+    Input: "Access Code",
     Confirm: "确认",
     Later: "稍后再说",
   },

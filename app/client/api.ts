@@ -1,13 +1,11 @@
 import { getClientConfig } from "../config/client";
-import { ACCESS_CODE_PREFIX, ModelProvider } from "../constant";
+import { ACCESS_CODE_PREFIX } from "../constant";
 import { ChatMessage, ModelType, useAccessStore, useChatStore } from "../store";
 import { ChatGPTApi } from "./platforms/openai";
 import { FileApi, FileInfo } from "./platforms/utils";
 
 export const ROLES = ["system", "user", "assistant"] as const;
 export type MessageRole = (typeof ROLES)[number];
-
-export const Models = ["google/gemini-2.5-flash"] as const;
 
 export type ChatModel = ModelType;
 
@@ -81,7 +79,7 @@ export class ClientApi {
   public llm: LLMApi;
   public file: FileApi;
 
-  constructor(provider: ModelProvider = ModelProvider.GPT) {
+  constructor() {
     this.llm = new ChatGPTApi();
     this.file = new FileApi();
   }
@@ -127,5 +125,5 @@ export function getHeaders(ignoreHeaders: boolean = false) {
 }
 
 export function getClientApi(): ClientApi {
-  return new ClientApi(ModelProvider.GPT);
+  return new ClientApi();
 }

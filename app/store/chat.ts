@@ -11,7 +11,6 @@ import { ChatControllerPool } from "../client/controller";
 import { showToast } from "../components/ui-lib";
 import { StoreKey, DEFAULT_MODELS } from "../constant";
 import Locale from "../locales";
-import { safeLocalStorage } from "../utils";
 import { prettyObject } from "../utils/format";
 import { createPersistStore, jchatStorage } from "../utils/store";
 import { estimateTokenLength } from "../utils/token";

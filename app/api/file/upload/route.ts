@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ModelProvider } from "@/app/constant";
+
 import { auth } from "@/app/api/auth";
 import LocalFileStorage from "@/app/utils/local_file_storage";
 import { getServerSideConfig } from "@/app/config/server";
@@ -10,7 +10,7 @@ async function handle(req: NextRequest) {
     return NextResponse.json({ body: "OK" }, { status: 200 });
   }
 
-  const authResult = auth(req, ModelProvider.GPT);
+  const authResult = auth(req);
   if (authResult.error) {
     return NextResponse.json(authResult, {
       status: 401,
