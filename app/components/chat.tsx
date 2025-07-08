@@ -106,6 +106,7 @@ import clsx from "clsx";
 
 import { ThinkingContent } from "./thinking-content";
 import { MessageContentEditPanel } from "./message-content-edit-panel";
+import { ContextPrompts } from "./context-prompts";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
@@ -617,6 +618,15 @@ export function EditMessageModal(props: { onClose: () => void }) {
             />
           </ListItem>
         </List>
+        <ContextPrompts
+          context={messages}
+          updateContext={(updater) => {
+            const newMessages = messages.slice();
+            updater(newMessages);
+            setMessages(newMessages);
+          }}
+          onModalClose={props.onClose}
+        />
       </Modal>
     </div>
   );
