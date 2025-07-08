@@ -32,67 +32,6 @@ export function ModelConfigList(props: {
           ))}
         </Select>
       </ListItem>
-      <ListItem
-        title={Locale.Settings.Temperature.Title}
-        subTitle={Locale.Settings.Temperature.SubTitle}
-      >
-        <InputRange
-          aria={Locale.Settings.Temperature.Title}
-          value={props.modelConfig.temperature?.toFixed(1)}
-          min="0"
-          max="1" // lets limit it to 0-1
-          step="0.1"
-          onChange={(e) => {
-            props.updateConfig(
-              (config) =>
-                (config.temperature = ModalConfigValidator.temperature(
-                  e.currentTarget.valueAsNumber,
-                )),
-            );
-          }}
-        ></InputRange>
-      </ListItem>
-      <ListItem
-        title={Locale.Settings.MaxTokens.Title}
-        subTitle={Locale.Settings.MaxTokens.SubTitle}
-      >
-        <input
-          aria-label={Locale.Settings.MaxTokens.Title}
-          type="number"
-          min={1024}
-          max={512000}
-          value={props.modelConfig.max_tokens}
-          onChange={(e) =>
-            props.updateConfig(
-              (config) =>
-                (config.max_tokens = ModalConfigValidator.max_tokens(
-                  e.currentTarget.valueAsNumber,
-                )),
-            )
-          }
-        ></input>
-      </ListItem>
-
-      <ListItem
-        title={Locale.Settings.BudgetTokens.Title}
-        subTitle={Locale.Settings.BudgetTokens.SubTitle}
-      >
-        <input
-          aria-label={Locale.Settings.BudgetTokens.Title}
-          type="number"
-          min={1024}
-          max={32000}
-          value={props.modelConfig.budget_tokens}
-          onChange={(e) =>
-            props.updateConfig(
-              (config) =>
-                (config.budget_tokens = ModalConfigValidator.budget_tokens(
-                  e.currentTarget.valueAsNumber,
-                )),
-            )
-          }
-        ></input>
-      </ListItem>
     </>
   );
 }

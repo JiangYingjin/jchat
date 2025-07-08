@@ -33,7 +33,6 @@ export interface RequestMessage {
 
 export interface LLMConfig {
   model: string;
-  temperature?: number;
   stream?: boolean;
 }
 
@@ -98,7 +97,6 @@ export function validString(x: string): boolean {
 
 export function getHeaders(ignoreHeaders: boolean = false) {
   const accessStore = useAccessStore.getState();
-  const chatStore = useChatStore.getState();
   let headers: Record<string, string> = {};
   if (!ignoreHeaders) {
     headers = {

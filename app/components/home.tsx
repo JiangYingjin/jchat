@@ -12,7 +12,7 @@ import LoadingIcon from "../icons/three-dots.svg";
 import { useMobileScreen } from "../utils";
 
 import dynamic from "next/dynamic";
-import { Path, SlotID } from "../constant";
+import { Path, SlotID, DEFAULT_THEME } from "../constant";
 import { ErrorBoundary } from "./error";
 
 // 移除多语言支持
@@ -78,7 +78,6 @@ const loadAsyncGoogleFont = () => {
 };
 
 function Screen() {
-  const config = useAppConfig();
   const location = useLocation();
   const isHome = location.pathname === Path.Home;
   const isAuth = location.pathname === Path.Auth;
@@ -95,9 +94,9 @@ function Screen() {
     document.body.classList.remove("light");
     document.body.classList.remove("dark");
 
-    if (config.theme === "dark") {
+    if (DEFAULT_THEME.toString().includes("dark")) {
       document.body.classList.add("dark");
-    } else if (config.theme === "light") {
+    } else if (DEFAULT_THEME.toString().includes("light")) {
       document.body.classList.add("light");
     }
 
@@ -120,7 +119,7 @@ function Screen() {
       metaDescriptionDark?.setAttribute("content", "#151515");
       metaDescriptionLight?.setAttribute("content", "#fafafa");
     }
-  }, [config.theme, isHome, shouldTightBorder, isMobileScreen]);
+  }, [isHome, shouldTightBorder, isMobileScreen]);
 
   return (
     <div

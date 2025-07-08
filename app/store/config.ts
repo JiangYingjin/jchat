@@ -5,28 +5,12 @@ import { useAccessStore } from "./access";
 
 export type ModelType = string; // 改为更灵活的类型定义
 
-export enum Theme {
-  Auto = "auto",
-  Dark = "dark",
-  Light = "light",
-}
-
 export const DEFAULT_CONFIG = {
   lastUpdate: Date.now(), // timestamp, to merge state
-
-  fontSize: 14.5,
-  fontFamily: "",
-  theme: Theme.Auto as Theme,
-
   enableCodeFold: true, // code fold config
-
   models: [{ name: "google/gemini-2.5-flash" }],
-
   modelConfig: {
     model: "" as ModelType, // 默认模型将由服务器端配置决定
-    temperature: 0.5,
-    max_tokens: 8000,
-    budget_tokens: 4000,
   },
 };
 
@@ -49,15 +33,6 @@ export function limitNumber(
 export const ModalConfigValidator = {
   model(x: string) {
     return x as ModelType;
-  },
-  max_tokens(x: number) {
-    return limitNumber(x, 0, 1000000, 1024);
-  },
-  budget_tokens(x: number) {
-    return limitNumber(x, 0, 64000, 1024);
-  },
-  temperature(x: number) {
-    return limitNumber(x, 0, 2, 1);
   },
 };
 

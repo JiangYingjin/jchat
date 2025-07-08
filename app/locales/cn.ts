@@ -441,19 +441,6 @@ const cn = {
 
     Model: "模型 (model)",
 
-    Temperature: {
-      Title: "随机性 (temperature)",
-      SubTitle: "值越大，回复越随机",
-    },
-    MaxTokens: {
-      Title: "单次回复限制 (max_tokens)",
-      SubTitle: "单次交互所用的最大 Token 数",
-    },
-    BudgetTokens: {
-      Title: "扩展思考预算限制 (budget_tokens)",
-      SubTitle:
-        "内部推理过程中允许使用的最大令牌数，budget_tokens 必须始终小于 max_tokens。",
-    },
     PresencePenalty: {
       Title: "话题新鲜度 (presence_penalty)",
       SubTitle: "值越大，越有可能扩展到新话题",

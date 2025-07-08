@@ -14,7 +14,6 @@ import {
   LLMModel,
   MultimodalContent,
 } from "../api";
-import { getClientConfig } from "@/app/config/client";
 import { getTimeoutMSByModel } from "@/app/utils";
 
 export interface OpenAIListModelResponse {
@@ -34,18 +33,12 @@ export interface RequestPayload {
   }[];
   stream?: boolean;
   model: string;
-  temperature: number;
   max_tokens?: number;
 }
 
 export class ChatGPTApi implements LLMApi {
   path(path: string, model?: string): string {
-    const accessStore = useAccessStore.getState();
-
-    let baseUrl: string = accessStore.openaiUrl;
-    if (!baseUrl || baseUrl.length === 0) {
-      baseUrl = ApiPath.OpenAI as string;
-    }
+    let baseUrl: string = ApiPath.OpenAI as string;
 
     if (baseUrl.endsWith("/")) {
       baseUrl = baseUrl.slice(0, baseUrl.length - 1);
@@ -92,17 +85,16 @@ export class ChatGPTApi implements LLMApi {
         messages.push({ role: v.role, content });
     }
 
-    // O1 support image, tools (except o4-mini for now) and system, stream, *NOT* logprobs, temperature, top_p, n yet.
+    // O1 support image, tools (except o4-mini for now) and system, stream, *NOT* logprobs, top_p, n yet.
     requestPayload = {
       messages,
       stream: options.config.stream,
       model: modelConfig.model,
-      temperature: !isOseries ? modelConfig.temperature : 1,
       // max_tokens: Math.max(modelConfig.max_tokens, 1024),
       // Please do not ask me why not send max_tokens, no reason, this param is just shit, I dont want to explain anymore.
     };
 
-    requestPayload["max_tokens"] = modelConfig.max_tokens;
+    requestPayload["max_tokens"] = 8000;
 
     console.log("[Request] openai payload: ", requestPayload);
 

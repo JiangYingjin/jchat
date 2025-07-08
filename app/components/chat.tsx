@@ -84,7 +84,14 @@ import {
 } from "./ui-lib";
 import { copyImageToClipboard } from "../utils/image";
 import { useNavigate } from "react-router-dom";
-import { CHAT_PAGE_SIZE, Path, REQUEST_TIMEOUT_MS } from "../constant";
+import {
+  CHAT_PAGE_SIZE,
+  Path,
+  REQUEST_TIMEOUT_MS,
+  DEFAULT_FONT_SIZE,
+  DEFAULT_FONT_FAMILY,
+  DEFAULT_THEME,
+} from "../constant";
 
 import { useCommand } from "../command";
 import { prettyObject } from "../utils/format";
@@ -738,8 +745,6 @@ export function SystemPromptEditModal(props: {
             uploading={uploading}
             setUploading={setUploading}
             handlePaste={handlePaste}
-            fontSize={config.fontSize}
-            fontFamily={config.fontFamily}
             onConfirm={handleSave}
           />
         </div>
@@ -1118,9 +1123,6 @@ function _Chat() {
       }
     }
   }, [accessStore, allModels, session.isModelManuallySelected ?? false]);
-
-  const fontSize = config.fontSize;
-  const fontFamily = config.fontFamily;
 
   const [showExport, setShowExport] = useState(false);
 
@@ -1565,23 +1567,7 @@ function _Chat() {
           url?: string;
           code?: string;
         };
-
         console.log("[Command] got settings from url: ", payload);
-
-        if (payload.key || payload.url) {
-          showConfirm(
-            Locale.URLCommand.Settings +
-              `\n${JSON.stringify(payload, null, 4)}`,
-          ).then((res) => {
-            if (!res) return;
-            if (payload.url) {
-              accessStore.update(
-                (access) => (access.openaiUrl = payload.url! as any),
-              );
-            }
-          });
-        }
-
         if (payload.code) {
           accessStore.update((access) => (access.accessCode = payload.code!));
         }
@@ -2197,8 +2183,6 @@ function _Chat() {
                                       if (!isMobileScreen) return;
                                       setUserInput(content.text || "");
                                     }}
-                                    fontSize={fontSize}
-                                    fontFamily={fontFamily}
                                     parentRef={scrollRef}
                                     defaultShow={i >= messages.length - 6}
                                   />
@@ -2229,8 +2213,6 @@ function _Chat() {
                                   if (!isMobileScreen) return;
                                   setUserInput(getMessageTextContent(message));
                                 }}
-                                fontSize={fontSize}
-                                fontFamily={fontFamily}
                                 parentRef={scrollRef}
                                 defaultShow={i >= messages.length - 6}
                               />
@@ -2328,10 +2310,6 @@ function _Chat() {
                   onPaste={handlePaste}
                   rows={inputRows}
                   autoFocus={autoFocus}
-                  style={{
-                    fontSize: config.fontSize,
-                    fontFamily: config.fontFamily,
-                  }}
                   onBlur={() => {
                     const currentValue = inputRef.current?.value ?? "";
                     setUserInput(currentValue);
@@ -2567,8 +2545,6 @@ export function EditMessageWithImageModal(props: {
             uploading={uploading}
             setUploading={setUploading}
             handlePaste={handlePaste}
-            fontSize={config.fontSize}
-            fontFamily={config.fontFamily}
             onConfirm={handleConfirm}
           />
         </div>

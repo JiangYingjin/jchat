@@ -4,6 +4,7 @@ import styles from "./chat.module.scss";
 import { DeleteImageButton } from "./chat";
 import { copyImageToClipboard } from "../utils/image";
 import { showImageModal } from "./ui-lib";
+import { DEFAULT_FONT_SIZE, DEFAULT_FONT_FAMILY } from "../constant";
 
 interface MessageContentEditPanelProps {
   value: string;
@@ -13,8 +14,6 @@ interface MessageContentEditPanelProps {
   uploading?: boolean;
   setUploading?: (uploading: boolean) => void;
   handlePaste?: (event: React.ClipboardEvent<HTMLTextAreaElement>) => void;
-  fontSize?: number;
-  fontFamily?: string;
   onConfirm?: () => void;
 }
 
@@ -28,8 +27,6 @@ export const MessageContentEditPanel: React.FC<
   uploading,
   setUploading,
   handlePaste,
-  fontSize,
-  fontFamily,
   onConfirm,
 }) => {
   const localTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -61,8 +58,8 @@ export const MessageContentEditPanel: React.FC<
         onChange={(e) => onChange(e.target.value, images)}
         onPaste={handlePaste}
         style={{
-          fontSize,
-          fontFamily,
+          fontSize: DEFAULT_FONT_SIZE,
+          fontFamily: DEFAULT_FONT_FAMILY,
         }}
         onKeyDown={(e) => {
           if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {

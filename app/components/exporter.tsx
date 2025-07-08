@@ -36,7 +36,11 @@ import NextImage from "next/image";
 import { toBlob, toPng } from "html-to-image";
 
 import { prettyObject } from "../utils/format";
-import { EXPORT_MESSAGE_CLASS_NAME } from "../constant";
+import {
+  EXPORT_MESSAGE_CLASS_NAME,
+  DEFAULT_FONT_SIZE,
+  DEFAULT_FONT_FAMILY,
+} from "../constant";
 import { getClientConfig } from "../config/client";
 import { type ClientApi, getClientApi } from "../client/api";
 import { getMessageTextContent } from "../utils";
@@ -486,12 +490,7 @@ export function ImagePreviewer(props: {
               key={i}
             >
               <div className={styles["body"]}>
-                <Markdown
-                  content={getMessageTextContent(m)}
-                  fontSize={config.fontSize}
-                  fontFamily={config.fontFamily}
-                  defaultShow
-                />
+                <Markdown content={getMessageTextContent(m)} defaultShow />
                 {getMessageImages(m).length == 1 && (
                   <img
                     key={i}

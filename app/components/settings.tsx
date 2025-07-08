@@ -33,7 +33,7 @@ import {
 import { ModelConfigList } from "./model-config";
 
 import { IconButton } from "./button";
-import { useChatStore, Theme, useAccessStore, useAppConfig } from "../store";
+import { useChatStore, useAccessStore, useAppConfig } from "../store";
 
 import Locale from "../locales";
 import { copyToClipboard } from "../utils";

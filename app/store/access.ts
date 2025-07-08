@@ -1,17 +1,12 @@
-import { StoreKey, ApiPath, OPENAI_BASE_URL } from "../constant";
+import { StoreKey } from "../constant";
 import { getHeaders } from "../client/api";
 import { getClientConfig } from "../config/client";
 import { createPersistStore, jchatStorage } from "../utils/store";
 
 let fetchState = 0; // 0 not fetch, 1 fetching, 2 done
 
-const DEFAULT_OPENAI_URL = ApiPath.OpenAI; // 始终使用代理
-
 const DEFAULT_ACCESS_STATE = {
   accessCode: "",
-  // openai
-  openaiUrl: DEFAULT_OPENAI_URL,
-  // server config
   customModels: "",
 };
 

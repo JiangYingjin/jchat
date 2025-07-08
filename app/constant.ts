@@ -50,3 +50,12 @@ export const DEFAULT_MODELS = ["google/gemini-2.5-flash"] as const;
 
 export const CHAT_PAGE_SIZE = 15;
 export const MAX_RENDER_MSG_COUNT = 45;
+
+export const DEFAULT_FONT_SIZE = 14.5;
+export const DEFAULT_FONT_FAMILY = "";
+export enum Theme {
+  Auto = "auto",
+  Light = "light",
+  Dark = "dark",
+}
+export const DEFAULT_THEME = Theme.Auto;

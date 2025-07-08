@@ -23,6 +23,7 @@ import { useChatStore } from "../store";
 import { IconButton } from "./button";
 
 import { useAppConfig } from "../store/config";
+import { DEFAULT_FONT_SIZE, DEFAULT_FONT_FAMILY } from "../constant";
 
 export function Mermaid(props: { code: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -324,8 +325,6 @@ export function Markdown(
   props: {
     content: string;
     loading?: boolean;
-    fontSize?: number;
-    fontFamily?: string;
     parentRef?: RefObject<HTMLDivElement>;
     defaultShow?: boolean;
   } & React.DOMAttributes<HTMLDivElement>,
@@ -336,8 +335,8 @@ export function Markdown(
     <div
       className="markdown-body"
       style={{
-        fontSize: `${props.fontSize ?? 14}px`,
-        fontFamily: props.fontFamily || "inherit",
+        fontSize: DEFAULT_FONT_SIZE,
+        fontFamily: DEFAULT_FONT_FAMILY,
       }}
       ref={mdRef}
       onContextMenu={props.onContextMenu}
