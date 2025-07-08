@@ -27,28 +27,28 @@ function reorder<T>(list: T[], startIndex: number, endIndex: number): T[] {
   return result;
 }
 
-function ContextPromptItem(props: {
+function MessageListItem(props: {
   index: number;
-  prompt: ChatMessage;
-  update: (prompt: ChatMessage) => void;
+  message: ChatMessage;
+  update: (message: ChatMessage) => void;
   remove: () => void;
   onModalClose?: () => void;
 }) {
   const [focusingInput, setFocusingInput] = useState(false);
 
   return (
-    <div className={chatStyle["context-prompt-row"]}>
+    <div className={chatStyle["message-list-row"]}>
       {!focusingInput && (
         <>
-          <div className={chatStyle["context-drag"]}>
+          <div className={chatStyle["message-drag"]}>
             <DragIcon />
           </div>
           <Select
-            value={props.prompt.role}
-            className={chatStyle["context-role"]}
+            value={props.message.role}
+            className={chatStyle["message-role"]}
             onChange={(e) =>
               props.update({
-                ...props.prompt,
+                ...props.message,
                 role: e.target.value as any,
               })
             }
@@ -62,9 +62,9 @@ function ContextPromptItem(props: {
         </>
       )}
       <Input
-        value={getMessageTextContent(props.prompt)}
+        value={getMessageTextContent(props.message)}
         type="text"
-        className={chatStyle["context-content"]}
+        className={chatStyle["message-content"]}
         rows={focusingInput ? 5 : 1}
         onFocus={() => setFocusingInput(true)}
         onBlur={() => {
@@ -75,7 +75,7 @@ function ContextPromptItem(props: {
         }}
         onInput={(e) =>
           props.update({
-            ...props.prompt,
+            ...props.message,
             content: e.currentTarget.value as any,
           })
         }
@@ -89,7 +89,7 @@ function ContextPromptItem(props: {
       {!focusingInput && (
         <IconButton
           icon={<DeleteIcon />}
-          className={chatStyle["context-delete-button"]}
+          className={chatStyle["message-delete-button"]}
           onClick={() => props.remove()}
           bordered
         />
@@ -98,25 +98,25 @@ function ContextPromptItem(props: {
   );
 }
 
-export function ContextPrompts(props: {
+export function MessageListEditor(props: {
   context: ChatMessage[];
   updateContext: (updater: (context: ChatMessage[]) => void) => void;
   onModalClose?: () => void;
 }) {
   const context = props.context;
 
-  const addContextPrompt = (prompt: ChatMessage, i: number) => {
-    props.updateContext((context) => context.splice(i, 0, prompt));
+  const addMessage = (message: ChatMessage, i: number) => {
+    props.updateContext((context) => context.splice(i, 0, message));
   };
 
-  const removeContextPrompt = (i: number) => {
+  const removeMessage = (i: number) => {
     props.updateContext((context) => context.splice(i, 1));
   };
 
-  const updateContextPrompt = (i: number, prompt: ChatMessage) => {
+  const updateMessage = (i: number, message: ChatMessage) => {
     props.updateContext((context) => {
       const images = getMessageImages(context[i]);
-      context[i] = prompt;
+      context[i] = message;
       if (images.length > 0) {
         const text = getMessageTextContent(context[i]);
         const newContext: MultimodalContent[] = [{ type: "text", text }];
@@ -144,9 +144,12 @@ export function ContextPrompts(props: {
 
   return (
     <>
-      <div className={chatStyle["context-prompt"]} style={{ marginBottom: 20 }}>
+      <div
+        className={chatStyle["message-list-editor"]}
+        style={{ marginBottom: 20 }}
+      >
         <DragDropContext onDragEnd={onDragEnd}>
-          <Droppable droppableId="context-prompt-list">
+          <Droppable droppableId="message-list">
             {(provided) => (
               <div ref={provided.innerRef} {...provided.droppableProps}>
                 {context.map((c, i) => (
@@ -161,17 +164,17 @@ export function ContextPrompts(props: {
                         {...provided.draggableProps}
                         {...provided.dragHandleProps}
                       >
-                        <ContextPromptItem
+                        <MessageListItem
                           index={i}
-                          prompt={c}
-                          update={(prompt) => updateContextPrompt(i, prompt)}
-                          remove={() => removeContextPrompt(i)}
+                          message={c}
+                          update={(message) => updateMessage(i, message)}
+                          remove={() => removeMessage(i)}
                           onModalClose={props.onModalClose}
                         />
                         <div
-                          className={chatStyle["context-prompt-insert"]}
+                          className={chatStyle["message-list-insert"]}
                           onClick={() => {
-                            addContextPrompt(
+                            addMessage(
                               createMessage({
                                 role: "user",
                                 content: "",
@@ -194,14 +197,14 @@ export function ContextPrompts(props: {
         </DragDropContext>
 
         {props.context.length === 0 && (
-          <div className={chatStyle["context-prompt-row"]}>
+          <div className={chatStyle["message-list-row"]}>
             <IconButton
               icon={<AddIcon />}
               text={Locale.Context.Add}
               bordered
-              className={chatStyle["context-prompt-button"]}
+              className={chatStyle["message-list-button"]}
               onClick={() =>
-                addContextPrompt(
+                addMessage(
                   createMessage({
                     role: "user",
                     content: "",

@@ -218,8 +218,8 @@
   }
 }
 
-.context-prompt {
-  .context-prompt-insert {
+.message-list-editor {
+  .message-list-insert {
     display: flex;
     justify-content: center;
     padding: 4px;
@@ -237,40 +237,40 @@
     }
   }
 
-  .context-prompt-row {
+  .message-list-row {
     display: flex;
     justify-content: center;
     width: 100%;
 
     &:hover {
-      .context-drag {
+      .message-drag {
         opacity: 1;
       }
     }
 
-    .context-drag {
+    .message-drag {
       display: flex;
       align-items: center;
       opacity: 0.5;
       transition: all ease 0.3s;
     }
 
-    .context-role {
+    .message-role {
       margin-right: 10px;
     }
 
-    .context-content {
+    .message-content {
       flex: 1;
       max-width: 100%;
       text-align: left;
     }
 
-    .context-delete-button {
+    .message-delete-button {
       margin-left: 10px;
     }
   }
 
-  .context-prompt-button {
+  .message-list-button {
     flex: 1;
   }
 }

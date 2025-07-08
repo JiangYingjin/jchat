@@ -106,7 +106,7 @@ import clsx from "clsx";
 
 import { ThinkingContent } from "./thinking-content";
 import { MessageContentEditPanel } from "./message-content-edit-panel";
-import { ContextPrompts } from "./context-prompts";
+import { MessageListEditor } from "./message-list-editor";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
@@ -618,7 +618,7 @@ export function EditMessageModal(props: { onClose: () => void }) {
             />
           </ListItem>
         </List>
-        <ContextPrompts
+        <MessageListEditor
           context={messages}
           updateContext={(updater) => {
             const newMessages = messages.slice();
