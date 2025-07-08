@@ -106,65 +106,10 @@ import clsx from "clsx";
 
 import { ThinkingContent } from "./thinking-content";
 import { MessageContentEditPanel } from "./message-content-edit-panel";
-import { ContextPrompts } from "./mask";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
 });
-
-export function SessionConfigModel(props: { onClose: () => void }) {
-  const chatStore = useChatStore();
-  const session = chatStore.currentSession();
-
-  return (
-    <div className="modal-mask">
-      <Modal title={Locale.Context.Edit} onClose={() => props.onClose()}>
-        <ContextPrompts
-          context={session.mask.context}
-          updateContext={(updater) => {
-            const context = session.mask.context.slice();
-            updater(context);
-            chatStore.updateTargetSession(
-              session,
-              (session) => (session.mask.context = context),
-            );
-          }}
-          onModalClose={props.onClose}
-        />
-      </Modal>
-    </div>
-  );
-}
-
-function PromptToast(props: {
-  showToast?: boolean;
-  showModal?: boolean;
-  setShowModal: (_: boolean) => void;
-}) {
-  const chatStore = useChatStore();
-  const session = chatStore.currentSession();
-  const context = session.mask.context;
-
-  return (
-    <div className={styles["prompt-toast"]} key="prompt-toast">
-      {props.showToast && context.length > 0 && (
-        <div
-          className={clsx(styles["prompt-toast-inner"], "clickable")}
-          role="button"
-          onClick={() => props.setShowModal(true)}
-        >
-          <BrainIcon />
-          <span className={styles["prompt-toast-content"]}>
-            {Locale.Context.Toast(context.length)}
-          </span>
-        </div>
-      )}
-      {props.showModal && (
-        <SessionConfigModel onClose={() => props.setShowModal(false)} />
-      )}
-    </div>
-  );
-}
 
 function useSubmitHandler() {
   const isComposing = useRef(false);
@@ -581,7 +526,6 @@ export function ChatActions(props: {
               const [model] = getModelProvider(s[0]);
               chatStore.updateTargetSession(session, (session) => {
                 session.mask.modelConfig.model = model as ModelType;
-                session.mask.syncGlobalConfig = false;
                 // 标记用户手动选择了模型
                 session.isModelManuallySelected = true;
               });
@@ -673,15 +617,6 @@ export function EditMessageModal(props: { onClose: () => void }) {
             />
           </ListItem>
         </List>
-        <ContextPrompts
-          context={messages}
-          updateContext={(updater) => {
-            const newMessages = messages.slice();
-            updater(newMessages);
-            setMessages(newMessages);
-          }}
-          onModalClose={props.onClose}
-        />
       </Modal>
     </div>
   );
@@ -1169,7 +1104,8 @@ function _Chat() {
         if (!isModelValid && !session.isModelManuallySelected) {
           chatStore.updateTargetSession(session, (session) => {
             session.mask.modelConfig.model = defaultModel;
-            session.mask.syncGlobalConfig = true;
+            // 标记用户手动选择了模型
+            session.isModelManuallySelected = true;
             console.log(
               "[updateConfig] session.mask.modelConfig.model",
               session.mask.modelConfig.model,
@@ -1343,10 +1279,8 @@ function _Chat() {
       });
 
       // auto sync mask config from global config
-      if (session.mask.syncGlobalConfig) {
-        console.log("[Mask] syncing from global, name = ", session.mask.name);
-        session.mask.modelConfig = { ...config.modelConfig };
-      }
+      console.log("[Mask] syncing from global, name = ", session.mask.name);
+      session.mask.modelConfig = { ...config.modelConfig };
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
@@ -1456,19 +1390,6 @@ function _Chat() {
     inputRef.current?.focus();
   };
 
-  const onPinMessage = (message: ChatMessage) => {
-    chatStore.updateTargetSession(session, (session) =>
-      session.mask.context.push(message),
-    );
-
-    showToast(Locale.Chat.Actions.PinToastContent, {
-      text: Locale.Chat.Actions.PinToastAction,
-      onClick: () => {
-        setShowPromptModal(true);
-      },
-    });
-  };
-
   // 分支到新会话
   const handleBranch = async (message: ChatMessage, messageIndex: number) => {
     try {
@@ -1482,9 +1403,7 @@ function _Chat() {
       );
 
       // 获取完整的消息历史（不受分页限制）
-      const fullMessages = context.concat(
-        session.messages.filter((m) => m.role !== "system"),
-      );
+      const fullMessages = session.messages.filter((m) => m.role !== "system");
 
       // 通过message.id在完整历史中找到真实位置（不依赖分页后的索引）
       const realIndex = fullMessages.findIndex((m) => m.id === message.id);
@@ -1546,12 +1465,6 @@ function _Chat() {
     }
   };
 
-  // 优化点1：渲染相关 useMemo/useState/useEffect 彻底排除 system message
-  // context 只保留 mask.context，不包含 system message
-  const context: RenderMessage[] = useMemo(() => {
-    return session.mask.hideContext ? [] : session.mask.context.slice();
-  }, [session.mask.context, session.mask.hideContext]);
-
   // 优化点2：渲染消息时彻底过滤 system message
   // 只在渲染时过滤，不影响原始 session.messages
   const filteredSessionMessages = useMemo(() => {
@@ -1561,8 +1474,8 @@ function _Chat() {
   }, [session.messages]);
 
   const renderMessages = useMemo(() => {
-    return context.concat(filteredSessionMessages);
-  }, [context, filteredSessionMessages]);
+    return filteredSessionMessages;
+  }, [filteredSessionMessages]);
 
   const [msgRenderIndex, _setMsgRenderIndex] = useState(
     Math.max(0, renderMessages.length - CHAT_PAGE_SIZE),
@@ -1672,9 +1585,6 @@ function _Chat() {
 
         if (payload.code) {
           accessStore.update((access) => (access.accessCode = payload.code!));
-          if (accessStore.isAuthorized()) {
-            context.pop();
-          }
         }
       } catch {
         console.error("[Command] failed to get settings from url: ", text);
@@ -1874,7 +1784,8 @@ function _Chat() {
             // 只有当前模型不是目标模型时才切换
             if (currentModel !== proModelName) {
               session.mask.modelConfig.model = proModelName as ModelType;
-              session.mask.syncGlobalConfig = false;
+              // 标记用户手动选择了模型
+              session.isModelManuallySelected = true;
               console.log(
                 `[AutoSwitch] 系统提示词长度 ${systemPromptLength} 字符，自动切换到 jyj.cx/pro 模型`,
               );
@@ -2163,12 +2074,6 @@ function _Chat() {
               />
             </div>
           </div>
-
-          <PromptToast
-            showToast={!hitBottom}
-            showModal={showPromptModal}
-            setShowModal={setShowPromptModal}
-          />
         </div>
         <div className={styles["chat-main"]}>
           <div className={styles["chat-body-container"]}>
@@ -2185,10 +2090,9 @@ function _Chat() {
               {messages.map((message, i) => {
                 const isUser = message.role === "user";
                 const isSystem = message.role === "system";
-                const isContext = i < context.length;
-                const showActions =
-                  !(message.preview || message.content.length === 0) &&
-                  !isContext;
+                const showActions = !(
+                  message.preview || message.content.length === 0
+                );
                 // Clear context functionality has been removed
 
                 // 系统级提示词在会话界面中隐藏
@@ -2387,9 +2291,7 @@ function _Chat() {
                           )}
 
                         <div className={styles["chat-message-action-date"]}>
-                          {isContext
-                            ? Locale.Chat.IsContext
-                            : message.date.toLocaleString()}
+                          {message.date.toLocaleString()}
                         </div>
                       </div>
                     </div>
@@ -2561,9 +2463,9 @@ function _Chat() {
             retryOnConfirm?: boolean,
           ) => {
             chatStore.updateTargetSession(session, (session) => {
-              const m = session.mask.context
-                .concat(session.messages)
-                .find((m) => m.id === editMessageData.message.id);
+              const m = session.messages.find(
+                (m) => m.id === editMessageData.message.id,
+              );
               if (m) {
                 if (editMessageData.type === "content") {
                   if (newImages.length > 0) {

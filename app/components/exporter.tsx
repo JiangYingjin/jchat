@@ -206,7 +206,7 @@ export function MessageExporter() {
         });
       } else {
         // text/json
-        session.mask.context.forEach((m) => selection.add(m.id));
+
         session.messages.forEach((m) => selection.add(m.id));
       }
     });
@@ -228,18 +228,9 @@ export function MessageExporter() {
 
   const selectedMessages = useMemo(() => {
     const ret: ChatMessage[] = [];
-    if (exportConfig.includeContext) {
-      ret.push(...session.mask.context);
-    }
-
     ret.push(...session.messages.filter((m) => selection.has(m.id)));
     return ret;
-  }, [
-    exportConfig.includeContext,
-    session.messages,
-    session.mask.context,
-    selection,
-  ]);
+  }, [session.messages, selection]);
   function preview() {
     if (exportConfig.format === "text") {
       return (

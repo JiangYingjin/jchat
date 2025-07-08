@@ -23,12 +23,8 @@ import { buildMultimodalContent } from "../utils/chat";
 import localforage from "localforage";
 
 export type Mask = {
-  id: string;
   createdAt: number;
   name: string;
-  hideContext?: boolean;
-  context: ChatMessage[];
-  syncGlobalConfig?: boolean;
   modelConfig: ModelConfig;
 };
 
@@ -77,10 +73,7 @@ export const DEFAULT_TOPIC = Locale.Store.DefaultTopic;
 function createEmptySession(): ChatSession {
   const config = useAppConfig.getState();
   const emptyMask: Mask = {
-    id: nanoid(),
     name: DEFAULT_TOPIC,
-    context: [],
-    syncGlobalConfig: true,
     modelConfig: { ...config.modelConfig },
     createdAt: Date.now(),
   };
@@ -286,9 +279,6 @@ export const useChatStore = createPersistStore(
 
         // 复制模型配置
         newSession.mask.modelConfig = { ...originalSession.mask.modelConfig };
-        newSession.mask.syncGlobalConfig =
-          originalSession.mask.syncGlobalConfig;
-        newSession.mask.context = [...originalSession.mask.context];
 
         const currentIndex = get().currentSessionIndex;
 
@@ -547,8 +537,6 @@ export const useChatStore = createPersistStore(
       async getMessagesWithMemory() {
         const session = get().currentSession();
         const messages = session.messages.slice();
-        // in-context prompts
-        const contextPrompts = session.mask.context.slice();
         // ========== system message 动态加载 ==========
         let systemMessage: ChatMessage | undefined = messages.find(
           (m) => m.role === "system",
@@ -614,7 +602,7 @@ export const useChatStore = createPersistStore(
           (msg) => !msg.isError && msg.role !== "system",
         );
         // 合并所有消息，包含动态加载的 system message
-        return [...systemPrompt, ...contextPrompts, ...recentMessages];
+        return [...systemPrompt, ...recentMessages];
       },
 
       updateMessage(
