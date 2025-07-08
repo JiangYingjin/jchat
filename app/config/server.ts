@@ -74,13 +74,10 @@ export const getServerSideConfig = () => {
   return {
     baseUrl: process.env.BASE_URL,
     apiKey: getApiKey(process.env.OPENAI_API_KEY),
-
-    needCode: ACCESS_CODES.size > 0,
+    // needCode 字段已移除
     code: process.env.CODE,
     codes: ACCESS_CODES,
-
     proxyUrl: process.env.PROXY_URL,
-
     customModels,
     defaultModel,
   };

@@ -1,6 +1,5 @@
 import { LLMModel } from "../client/api";
-import { getClientConfig } from "../config/client";
-import { DEFAULT_MODELS, StoreKey } from "../constant";
+import { StoreKey } from "../constant";
 import { createPersistStore, jchatStorage } from "../utils/store";
 import { useAccessStore } from "./access";
 
@@ -12,8 +11,6 @@ export enum Theme {
   Light = "light",
 }
 
-const config = getClientConfig();
-
 export const DEFAULT_CONFIG = {
   lastUpdate: Date.now(), // timestamp, to merge state
 
@@ -23,7 +20,6 @@ export const DEFAULT_CONFIG = {
 
   enableCodeFold: true, // code fold config
 
-  // customModels 移除，只保留 accessStore.customModels
   models: [{ name: "google/gemini-2.5-flash" }],
 
   modelConfig: {
@@ -55,10 +51,10 @@ export const ModalConfigValidator = {
     return x as ModelType;
   },
   max_tokens(x: number) {
-    return limitNumber(x, 0, 512000, 1024);
+    return limitNumber(x, 0, 1000000, 1024);
   },
   budget_tokens(x: number) {
-    return limitNumber(x, 0, 32000, 1024);
+    return limitNumber(x, 0, 64000, 1024);
   },
   temperature(x: number) {
     return limitNumber(x, 0, 2, 1);
@@ -97,8 +93,6 @@ export const useAppConfig = createPersistStore(
         set(() => ({ models: Object.values(modelMap) }));
       }
     },
-
-    allModels() {},
   }),
   {
     name: StoreKey.Config,

@@ -1,12 +1,5 @@
 "use client";
-// azure and openai, using same models. so using same LLMApi.
-import {
-  ApiPath,
-  DEFAULT_MODELS,
-  OpenaiPath,
-  REQUEST_TIMEOUT_MS,
-  OPENAI_BASE_URL,
-} from "@/app/constant";
+import { ApiPath, OpenaiPath, OPENAI_BASE_URL } from "@/app/constant";
 import { useAccessStore, useAppConfig, useChatStore } from "@/app/store";
 import { getModelList } from "@/app/utils/model";
 import {
@@ -21,14 +14,8 @@ import {
   LLMModel,
   MultimodalContent,
 } from "../api";
-import Locale from "../../locales";
-import {
-  EventStreamContentType,
-  fetchEventSource,
-} from "@fortaine/fetch-event-source";
-import { prettyObject } from "@/app/utils/format";
 import { getClientConfig } from "@/app/config/client";
-import { getMessageTextContent, getTimeoutMSByModel } from "@/app/utils";
+import { getTimeoutMSByModel } from "@/app/utils";
 
 export interface OpenAIListModelResponse {
   object: string;
@@ -52,8 +39,6 @@ export interface RequestPayload {
 }
 
 export class ChatGPTApi implements LLMApi {
-  private disableListModels = false;
-
   path(path: string, model?: string): string {
     const accessStore = useAccessStore.getState();
 
@@ -255,14 +240,8 @@ export class ChatGPTApi implements LLMApi {
   async models(): Promise<LLMModel[]> {
     // 获取服务器端配置的模型列表
     const accessStore = useAccessStore.getState();
-    const configStore = useAppConfig.getState();
-
     // 使用 getModelList 来获取完整的模型列表
-    const allModels = getModelList(
-      accessStore.customModels,
-      accessStore.defaultModel,
-    );
-
+    const allModels = getModelList(accessStore.customModels);
     return allModels;
   }
 }

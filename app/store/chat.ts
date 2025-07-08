@@ -94,12 +94,8 @@ function createEmptySession(): ChatSession {
 
 function getSummarizeModel(currentModel: string): string {
   if (currentModel.startsWith("google/gemini-2.5-flash")) {
-    const configStore = useAppConfig.getState();
     const accessStore = useAccessStore.getState();
-    const allModel = getModelList(
-      accessStore.customModels,
-      accessStore.defaultModel,
-    );
+    const allModel = getModelList(accessStore.customModels);
 
     // 优先使用服务器端提供的模型
     if (
@@ -141,10 +137,7 @@ function getSummarizeModel(currentModel: string): string {
       if (serverModels.length > 0) {
         // 检查服务器端模型是否在可用模型列表中
         const configStore = useAppConfig.getState();
-        const allModel = getModelList(
-          accessStore.customModels,
-          accessStore.defaultModel,
-        );
+        const allModel = getModelList(accessStore.customModels);
         const firstServerModel = allModel.find(
           (m) => m.name === serverModels[0],
         );
@@ -637,13 +630,9 @@ export const useChatStore = createPersistStore(
         targetSession: ChatSession,
       ) {
         const session = targetSession;
-        const modelConfig = session.mask.modelConfig;
 
         // 直接使用全局默认模型进行总结
-        const accessStore = useAccessStore.getState();
-        const model =
-          accessStore.defaultModel ||
-          getSummarizeModel(session.mask.modelConfig.model);
+        const model = getSummarizeModel(session.mask.modelConfig.model);
 
         const api: ClientApi = getClientApi();
 

@@ -1087,12 +1087,11 @@ function _Chat() {
     // console.log("[updateConfig] isModelValid", isModelValid);
     // 如果主模型无效，自动 fetch 并更新为 defaultModel
     if (!isModelValid) {
-      // 拉取服务器配置，获取 defaultModel
+      // 拉取服务器配置
       accessStore.fetch();
-      // 取最新 defaultModel
-      const defaultModelStr = accessStore.defaultModel;
-      if (defaultModelStr) {
-        const defaultModel = defaultModelStr;
+      // 从 allModels 中获取默认模型
+      const defaultModel = allModels.find((m) => m.isDefault)?.name;
+      if (defaultModel) {
         config.update((cfg) => {
           // 主模型无效时修正
           if (!isModelValid) {

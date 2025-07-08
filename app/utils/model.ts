@@ -1,4 +1,4 @@
-export function getModelList(customModels: string, defaultModel: string) {
+export function getModelList(customModels: string) {
   const modelTable: Record<
     string,
     {
@@ -12,7 +12,9 @@ export function getModelList(customModels: string, defaultModel: string) {
     .split(",")
     .filter((v) => !!v && v.length > 0);
 
-  serverModels.forEach((m, index) => {
+  const defaultModel = serverModels[0];
+
+  serverModels.forEach((m) => {
     if (m && m.length > 0) {
       modelTable[m] = {
         name: m,

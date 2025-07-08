@@ -5,11 +5,9 @@ import md5 from "spark-md5";
 function getIP(req: NextRequest) {
   let ip = req.ip ?? req.headers.get("x-real-ip");
   const forwardedFor = req.headers.get("x-forwarded-for");
-
   if (!ip && forwardedFor) {
     ip = forwardedFor.split(",").at(0) ?? "";
   }
-
   return ip;
 }
 
@@ -32,7 +30,8 @@ export function auth(req: NextRequest) {
   console.log("[User IP] ", getIP(req));
   console.log("[Time] ", new Date().toLocaleString());
 
-  if (serverConfig.needCode && !serverConfig.codes.has(hashedCode)) {
+  // 直接校验 access code，无需 needCode 判断
+  if (!serverConfig.codes.has(hashedCode)) {
     return {
       error: true,
       msg: !accessCode ? "empty access code" : "wrong access code",

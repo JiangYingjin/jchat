@@ -11,36 +11,28 @@ const DEFAULT_OPENAI_URL = isApp ? OPENAI_BASE_URL : ApiPath.OpenAI;
 
 const DEFAULT_ACCESS_STATE = {
   accessCode: "",
-
   // openai
   openaiUrl: DEFAULT_OPENAI_URL,
-
   // server config
-  needCode: true,
   customModels: "",
-  defaultModel: "",
 };
 
 export const useAccessStore = createPersistStore(
   { ...DEFAULT_ACCESS_STATE },
-
   (set, get) => ({
     enabledAccessControl() {
       this.fetch();
-      return get().needCode;
+      // 直接返回 true，始终需要访问码
+      return true;
     },
-
     isAuthorized() {
       this.fetch();
-
-      // has code or disabled access control
-      return !this.enabledAccessControl();
+      // 只要 enabledAccessControl 恒为 true，这里逻辑也可简化
+      return false;
     },
-
     fetch() {
       if (fetchState > 0 || !getClientConfig()) return;
       fetchState = 1;
-
       fetch("/api/config", {
         method: "post",
         body: null,
@@ -66,8 +58,6 @@ export const useAccessStore = createPersistStore(
     version: 7.2,
     storage: jchatStorage,
     migrate(persistedState: any, version: number) {
-      // 简化 migrate 函数，只做版本兼容性处理
-      // 数据迁移改为在应用启动时主动执行，使用 app/utils/migration.ts 并在 app/components/home.tsx 中调用
       return persistedState as any;
     },
   },
