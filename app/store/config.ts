@@ -6,9 +6,6 @@ import { useAccessStore } from "./access";
 export type ModelType = string; // 改为更灵活的类型定义
 
 export const DEFAULT_CONFIG = {
-  lastUpdate: Date.now(), // timestamp, to merge state
-  enableCodeFold: true, // code fold config
-  models: [{ name: "google/gemini-2.5-flash" }],
   modelConfig: {
     model: "" as ModelType, // 默认模型将由服务器端配置决定
   },
@@ -17,18 +14,7 @@ export const DEFAULT_CONFIG = {
 export type ChatConfig = typeof DEFAULT_CONFIG;
 export type ModelConfig = ChatConfig["modelConfig"];
 
-export function limitNumber(
-  x: number,
-  min: number,
-  max: number,
-  defaultValue: number,
-) {
-  if (isNaN(x)) {
-    return defaultValue;
-  }
-
-  return Math.min(max, Math.max(min, x));
-}
+// 移除了未被使用的 limitNumber 函数
 
 export const ModalConfigValidator = {
   model(x: string) {
@@ -43,31 +29,7 @@ export const useAppConfig = createPersistStore(
       set(() => ({ ...DEFAULT_CONFIG }));
     },
 
-    mergeModels(newModels: LLMModel[]) {
-      if (!newModels || newModels.length === 0) {
-        return;
-      }
-
-      // 只用 accessStore.customModels 判断
-      const accessStore = useAccessStore.getState();
-      if (
-        accessStore.customModels &&
-        accessStore.customModels.trim().length > 0
-      ) {
-        set(() => ({ models: newModels }));
-      } else {
-        // 没有服务器端模型时合并默认模型
-        const oldModels = get().models;
-        const modelMap: Record<string, LLMModel> = {};
-        for (const model of oldModels) {
-          modelMap[`${model.name}`] = model;
-        }
-        for (const model of newModels) {
-          modelMap[`${model.name}`] = model;
-        }
-        set(() => ({ models: Object.values(modelMap) }));
-      }
-    },
+    // 移除了 mergeModels 方法（该方法无实际逻辑）
   }),
   {
     name: StoreKey.Config,

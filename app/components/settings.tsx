@@ -388,25 +388,6 @@ export function Settings() {
             }}
           />
         </List>
-
-        <List>
-          <ListItem
-            title="启用代码折叠"
-            subTitle="启用之后可以自动折叠/展开过长的代码块"
-          >
-            <input
-              aria-label="启用代码折叠"
-              type="checkbox"
-              checked={config.enableCodeFold}
-              data-testid="enable-code-fold-checkbox"
-              onChange={(e) =>
-                updateConfig(
-                  (config) => (config.enableCodeFold = e.currentTarget.checked),
-                )
-              }
-            ></input>
-          </ListItem>
-        </List>
       </div>
     </ErrorBoundary>
   );

@@ -41,7 +41,6 @@ import {
   DEFAULT_FONT_SIZE,
   DEFAULT_FONT_FAMILY,
 } from "../constant";
-import { getClientConfig } from "../config/client";
 import { type ClientApi, getClientApi } from "../client/api";
 import { getMessageTextContent } from "../utils";
 

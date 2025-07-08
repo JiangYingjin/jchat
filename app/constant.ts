@@ -59,3 +59,5 @@ export enum Theme {
   Dark = "dark",
 }
 export const DEFAULT_THEME = Theme.Auto;
+
+export const ENABLE_CODE_FOLD = true;

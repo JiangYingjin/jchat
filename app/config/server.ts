@@ -39,15 +39,9 @@ function getApiKey(keys?: string) {
   return apiKey;
 }
 
-// 获取默认模型：从 CUSTOM_MODELS 中取第一个，如果为空则使用 google/gemini-2.5-flash
 function getDefaultModel(customModels: string): string {
   const models = customModels.split(",").filter((v) => !!v && v.length > 0);
-
-  if (models.length > 0) {
-    return models[0];
-  }
-
-  return "google/gemini-2.5-flash";
+  return models.length > 0 ? models[0] : "google/gemini-2.5-flash";
 }
 
 export const getServerSideConfig = () => {

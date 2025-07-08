@@ -15,8 +15,6 @@ import dynamic from "next/dynamic";
 import { Path, SlotID, DEFAULT_THEME } from "../constant";
 import { ErrorBoundary } from "./error";
 
-// 移除多语言支持
-
 import {
   HashRouter as Router,
   Routes,
@@ -24,7 +22,6 @@ import {
   useLocation,
 } from "react-router-dom";
 import { SideBar } from "./sidebar";
-import { useAppConfig } from "../store/config";
 import { AuthPage } from "./auth";
 import { getClientConfig } from "../config/client";
 import { type ClientApi, getClientApi } from "../client/api";
@@ -149,22 +146,7 @@ function Screen() {
   );
 }
 
-export function useLoadData() {
-  const config = useAppConfig();
-
-  const api: ClientApi = getClientApi();
-
-  useEffect(() => {
-    (async () => {
-      const models = await api.llm.models();
-      config.mergeModels(models);
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-}
-
 export function Home() {
-  useLoadData();
   useHtmlLang();
 
   useEffect(() => {

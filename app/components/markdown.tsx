@@ -23,7 +23,11 @@ import { useChatStore } from "../store";
 import { IconButton } from "./button";
 
 import { useAppConfig } from "../store/config";
-import { DEFAULT_FONT_SIZE, DEFAULT_FONT_FAMILY } from "../constant";
+import {
+  DEFAULT_FONT_SIZE,
+  DEFAULT_FONT_FAMILY,
+  ENABLE_CODE_FOLD,
+} from "../constant";
 
 export function Mermaid(props: { code: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -187,7 +191,7 @@ function CustomCode(props: React.ComponentPropsWithoutRef<"code">) {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
   const config = useAppConfig();
-  const enableCodeFold = config.enableCodeFold;
+  const enableCodeFold = ENABLE_CODE_FOLD;
 
   const ref = useRef<HTMLPreElement>(null);
   const [collapsed, setCollapsed] = useState(true);
