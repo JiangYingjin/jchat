@@ -56,25 +56,15 @@ export const OpenaiPath = {
   ListModelPath: "v1/models",
 };
 
-export const SUMMARIZE_MODEL = "gpt-4.1-mini";
+export const SUMMARIZE_MODEL = "google/gemini-2.5-flash";
 
-export const KnowledgeCutOffDate: Record<string, string> = {
-  default: "2021-09",
-  "gpt-4.1-mini": "2024-6",
-};
-
-const openaiModels = ["gpt-4.1-mini"];
+const openaiModels = ["google/gemini-2.5-flash"];
 
 let seq = 1000; // 内置的模型序号生成器从1000开始
 export const DEFAULT_MODELS = [
   ...openaiModels.map((name) => ({
     name,
-    available: true,
     sorted: seq++, // Global sequence sort(index)
-    provider: {
-      id: "openai",
-      sorted: 1, // 这里是固定的，确保顺序与之前内置的版本一致
-    },
   })),
 ] as const;
 

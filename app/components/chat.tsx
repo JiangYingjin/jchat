@@ -473,17 +473,16 @@ export function ChatActions(props: {
   const currentModel = session.mask.modelConfig.model;
   const allModels = useAllModels();
   const models = useMemo(() => {
-    const filteredModels = allModels.filter((m) => m.available);
-    const defaultModel = filteredModels.find((m) => m.isDefault);
+    const defaultModel = allModels.find((m) => m.isDefault);
 
     if (defaultModel) {
       const arr = [
         defaultModel,
-        ...filteredModels.filter((m) => m !== defaultModel),
+        ...allModels.filter((m) => m !== defaultModel),
       ];
       return arr;
     } else {
-      return filteredModels;
+      return allModels;
     }
   }, [allModels]);
 
@@ -1145,7 +1144,7 @@ function _Chat() {
     // 获取当前模型
     const { model } = config.modelConfig;
     // 检查主模型是否有效
-    const isModelValid = allModels.some((m) => m.name === model && m.available);
+    const isModelValid = allModels.some((m) => m.name === model);
     // console.log("[updateConfig] isModelValid", isModelValid);
     // 如果主模型无效，自动 fetch 并更新为 defaultModel
     if (!isModelValid) {
@@ -1819,9 +1818,7 @@ function _Chat() {
     }
 
     // 检查是否存在目标模型
-    const targetModel = allModels.find(
-      (m) => m.name === "jyj.cx/pro" && m.available,
-    );
+    const targetModel = allModels.find((m) => m.name === "jyj.cx/pro");
     if (!targetModel) {
       console.log(
         "[AutoSwitch] 目标模型 jyj.cx/pro 不存在或不可用，跳过自动切换",
@@ -1870,9 +1867,7 @@ function _Chat() {
           )
         ) {
           // 检查是否存在 jyj.cx/pro 模型
-          const targetModel = allModels.find(
-            (m) => m.name === proModelName && m.available,
-          );
+          const targetModel = allModels.find((m) => m.name === proModelName);
           if (targetModel) {
             const currentModel = session.mask.modelConfig.model;
 

@@ -15,22 +15,12 @@ const CustomSeq = {
   },
 };
 
-const customProvider = (name: string) => ({
-  id: name.toLowerCase(),
-  sorted: CustomSeq.next(name),
-});
-
 /**
  * Sorts an array of models based on specified rules.
  */
 const sortModelTable = (models: ReturnType<typeof collectModels>) =>
   models.sort((a, b) => {
-    if (a.provider && b.provider) {
-      let cmp = a.provider.sorted - b.provider.sorted;
-      return cmp === 0 ? a.sorted - b.sorted : cmp;
-    } else {
-      return a.sorted - b.sorted;
-    }
+    return a.sorted - b.sorted;
   });
 
 /**
@@ -51,11 +41,9 @@ export function collectModelTable(
   const modelTable: Record<
     string,
     {
-      available: boolean;
       name: string;
       displayName: string;
       sorted: number;
-      provider?: LLMModel["provider"]; // Marked as optional
       isDefault?: boolean;
     }
   > = {};
@@ -74,37 +62,31 @@ export function collectModelTable(
     .split(",")
     .filter((v) => !!v && v.length > 0)
     .forEach((m) => {
-      const available = !m.startsWith("-");
       const nameConfig =
         m.startsWith("+") || m.startsWith("-") ? m.slice(1) : m;
       let [name, displayName] = nameConfig.split("=");
 
-      // enable or disable all models
+      // enable or disable all models - now just set display names
       if (name === "all") {
-        Object.values(modelTable).forEach(
-          (model) => (model.available = available),
-        );
+        // 移除 available 逻辑，所有模型默认可用
+        return;
       } else {
-        // 1. find model by name, and set available value
+        // 1. find model by name, and set display name if provided
         const customModelName = name;
         let count = 0;
         for (const modelName in modelTable) {
           if (customModelName === modelName) {
             count += 1;
-            modelTable[modelName]["available"] = available;
             if (displayName) {
               modelTable[modelName]["displayName"] = displayName;
             }
           }
         }
-        // 2. if model not exists, create new model with available value
+        // 2. if model not exists, create new model
         if (count === 0) {
-          const provider = customProvider(customModelName);
           modelTable[customModelName] = {
             name: customModelName,
             displayName: displayName || customModelName,
-            available,
-            provider,
             sorted: CustomSeq.next(customModelName),
           };
         }
@@ -126,7 +108,7 @@ export function collectModelTableWithDefaultModel(
       modelTable[defaultModelName].isDefault = true;
     } else {
       for (const key of Object.keys(modelTable)) {
-        if (modelTable[key].available && key === defaultModelName) {
+        if (key === defaultModelName) {
           modelTable[key].isDefault = true;
           break;
         }

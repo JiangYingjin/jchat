@@ -11,7 +11,6 @@ export function ModelConfigList(props: {
   updateConfig: (updater: (config: ModelConfig) => void) => void;
 }) {
   const allModels = useAllModels();
-  const availableModels = allModels.filter((v) => v.available);
   const value = props.modelConfig.model;
 
   return (
@@ -28,7 +27,7 @@ export function ModelConfigList(props: {
             });
           }}
         >
-          {availableModels.map((v, i) => (
+          {allModels.map((v, i) => (
             <option value={v.name} key={i}>
               {v.displayName}
             </option>

@@ -80,13 +80,11 @@ export const useAppConfig = createPersistStore(
       const modelMap: Record<string, LLMModel> = {};
 
       for (const model of oldModels) {
-        model.available = false;
-        modelMap[`${model.name}@${model?.provider?.id}`] = model;
+        modelMap[`${model.name}`] = model;
       }
 
       for (const model of newModels) {
-        model.available = true;
-        modelMap[`${model.name}@${model?.provider?.id}`] = model;
+        modelMap[`${model.name}`] = model;
       }
 
       set(() => ({

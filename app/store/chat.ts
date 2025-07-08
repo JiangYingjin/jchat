@@ -9,12 +9,7 @@ import type {
 import { getClientApi } from "../client/api";
 import { ChatControllerPool } from "../client/controller";
 import { showToast } from "../components/ui-lib";
-import {
-  DEFAULT_MODELS,
-  KnowledgeCutOffDate,
-  StoreKey,
-  SUMMARIZE_MODEL,
-} from "../constant";
+import { DEFAULT_MODELS, StoreKey, SUMMARIZE_MODEL } from "../constant";
 import Locale from "../locales";
 import { safeLocalStorage } from "../utils";
 import { prettyObject } from "../utils/format";
@@ -115,9 +110,7 @@ function getSummarizeModel(currentModel: string): string {
       [configStore.customModels, accessStore.customModels].join(","),
       accessStore.defaultModel,
     );
-    const summarizeModel = allModel.find(
-      (m) => m.name === SUMMARIZE_MODEL && m.available,
-    );
+    const summarizeModel = allModel.find((m) => m.name === SUMMARIZE_MODEL);
     if (summarizeModel) {
       return summarizeModel.name;
     }
