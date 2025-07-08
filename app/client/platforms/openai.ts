@@ -8,7 +8,7 @@ import {
   OPENAI_BASE_URL,
 } from "@/app/constant";
 import { useAccessStore, useAppConfig, useChatStore } from "@/app/store";
-import { collectModelsWithDefaultModel } from "@/app/utils/model";
+import { getModelList } from "@/app/utils/model";
 import {
   preProcessImageAndWebReferenceContent,
   streamWithThink,
@@ -57,13 +57,8 @@ export class ChatGPTApi implements LLMApi {
   path(path: string, model?: string): string {
     const accessStore = useAccessStore.getState();
 
-    let baseUrl = "";
-
-    if (accessStore.useCustomConfig) {
-      baseUrl = accessStore.openaiUrl;
-    }
-
-    if (baseUrl.length === 0) {
+    let baseUrl = accessStore.openaiUrl;
+    if (!baseUrl || baseUrl.length === 0) {
       const isApp = !!getClientConfig()?.isApp;
       baseUrl = isApp ? OPENAI_BASE_URL : ApiPath.OpenAI;
     }
@@ -262,9 +257,9 @@ export class ChatGPTApi implements LLMApi {
     const accessStore = useAccessStore.getState();
     const configStore = useAppConfig.getState();
 
-    // 使用 collectModelsWithDefaultModel 来获取完整的模型列表
-    const allModels = collectModelsWithDefaultModel(
-      [configStore.customModels, accessStore.customModels].join(","),
+    // 使用 getModelList 来获取完整的模型列表
+    const allModels = getModelList(
+      accessStore.customModels,
       accessStore.defaultModel,
     );
 

@@ -1,7 +1,4 @@
-export function collectModelsWithDefaultModel(
-  customModels: string,
-  defaultModel: string,
-) {
+export function getModelList(customModels: string, defaultModel: string) {
   const modelTable: Record<
     string,
     {

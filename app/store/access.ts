@@ -12,17 +12,14 @@ const DEFAULT_OPENAI_URL = isApp ? OPENAI_BASE_URL : ApiPath.OpenAI;
 
 const DEFAULT_ACCESS_STATE = {
   accessCode: "",
-  useCustomConfig: false,
 
   provider: "OpenAI",
 
   // openai
   openaiUrl: DEFAULT_OPENAI_URL,
-  openaiApiKey: "",
 
   // server config
   needCode: true,
-  hideUserApiKey: false,
   customModels: "",
   defaultModel: "",
 };
@@ -36,15 +33,11 @@ export const useAccessStore = createPersistStore(
       return get().needCode;
     },
 
-    isValidOpenAI() {
-      return ensure(get(), ["openaiApiKey"]);
-    },
-
     isAuthorized() {
       this.fetch();
 
-      // has token or has code or disabled access control
-      return this.isValidOpenAI() || !this.enabledAccessControl();
+      // has code or disabled access control
+      return !this.enabledAccessControl();
     },
 
     fetch() {

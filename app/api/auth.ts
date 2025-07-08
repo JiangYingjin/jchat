@@ -20,7 +20,7 @@ function parseApiKey(bearToken: string) {
 
   return {
     accessCode: isApiKey ? "" : token.slice(ACCESS_CODE_PREFIX.length),
-    apiKey: isApiKey ? token : "",
+    apiKey: "", // 不再支持用户 API 密钥
   };
 }
 
@@ -39,34 +39,28 @@ export function auth(req: NextRequest, modelProvider: ModelProvider) {
   console.log("[User IP] ", getIP(req));
   console.log("[Time] ", new Date().toLocaleString());
 
-  if (serverConfig.needCode && !serverConfig.codes.has(hashedCode) && !apiKey) {
+  if (serverConfig.needCode && !serverConfig.codes.has(hashedCode)) {
     return {
       error: true,
       msg: !accessCode ? "empty access code" : "wrong access code",
     };
   }
 
-  // if user does not provide an api key, inject system api key
-  if (!apiKey) {
-    const serverConfig = getServerSideConfig();
+  // 始终使用系统 API 密钥
+  let systemApiKey: string | undefined;
 
-    let systemApiKey: string | undefined;
+  switch (modelProvider) {
+    case ModelProvider.GPT:
+    default:
+      systemApiKey = serverConfig.apiKey;
+      break;
+  }
 
-    switch (modelProvider) {
-      case ModelProvider.GPT:
-      default:
-        systemApiKey = serverConfig.apiKey;
-        break;
-    }
-
-    if (systemApiKey) {
-      console.log("[Auth] use system api key");
-      req.headers.set("Authorization", `Bearer ${systemApiKey}`);
-    } else {
-      console.log("[Auth] admin did not provide an api key");
-    }
+  if (systemApiKey) {
+    console.log("[Auth] use system api key");
+    req.headers.set("Authorization", `Bearer ${systemApiKey}`);
   } else {
-    console.log("[Auth] use user api key");
+    console.log("[Auth] admin did not provide an api key");
   }
 
   return {

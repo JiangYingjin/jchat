@@ -7,7 +7,7 @@ import { FileApi, FileInfo } from "./platforms/utils";
 export const ROLES = ["system", "user", "assistant"] as const;
 export type MessageRole = (typeof ROLES)[number];
 
-export const Models = ["gpt-3.5-turbo", "gpt-4"] as const;
+export const Models = ["google/gemini-2.5-flash"] as const;
 
 export type ChatModel = ModelType;
 
@@ -89,44 +89,6 @@ export class ClientApi {
   config() {}
 
   prompts() {}
-
-  async share(messages: ChatMessage[]) {
-    const msgs = messages
-      .map((m) => ({
-        from: m.role === "user" ? "human" : "gpt",
-        value: m.content,
-      }))
-      .concat([
-        {
-          from: "human",
-          value:
-            "Share from [JChat]: https://github.com/Yidadaa/ChatGPT-Next-Web",
-        },
-      ]);
-    // 敬告二开开发者们，为了开源大模型的发展，请不要修改上述消息，此消息用于后续数据清洗使用
-    // Please do not modify this message
-
-    console.log("[Share]", messages, msgs);
-    const clientConfig = getClientConfig();
-    const proxyUrl = "/sharegpt";
-    const rawUrl = "https://sharegpt.com/api/conversations";
-    const shareUrl = clientConfig?.isApp ? rawUrl : proxyUrl;
-    const res = await fetch(shareUrl, {
-      body: JSON.stringify({
-        items: msgs,
-      }),
-      headers: {
-        "Content-Type": "application/json",
-      },
-      method: "POST",
-    });
-
-    const resJson = await res.json();
-    console.log("[Share]", resJson);
-    if (resJson.id) {
-      return `https://shareg.pt/${resJson.id}`;
-    }
-  }
 }
 
 export function getBearerToken(
@@ -155,26 +117,7 @@ export function getHeaders(ignoreHeaders: boolean = false) {
 
   const clientConfig = getClientConfig();
 
-  function getConfig() {
-    const modelConfig = chatStore.currentSession().mask.modelConfig;
-    const apiKey = accessStore.openaiApiKey;
-    if (ignoreHeaders) {
-      return {
-        apiKey: accessStore.openaiApiKey,
-      };
-    }
-    return {
-      apiKey,
-    };
-  }
-
-  const { apiKey } = getConfig();
-
-  const bearerToken = getBearerToken(apiKey);
-
-  if (bearerToken) {
-    headers["Authorization"] = bearerToken;
-  } else if (validString(accessStore.accessCode)) {
+  if (validString(accessStore.accessCode)) {
     headers["Authorization"] = getBearerToken(
       ACCESS_CODE_PREFIX + accessStore.accessCode,
     );

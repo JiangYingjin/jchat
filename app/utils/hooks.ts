@@ -1,20 +1,13 @@
 import { useMemo } from "react";
 import { useAccessStore, useAppConfig } from "../store";
-import { collectModelsWithDefaultModel } from "./model";
+import { getModelList } from "./model";
 
 export function useAllModels() {
   const accessStore = useAccessStore();
   const configStore = useAppConfig();
   const models = useMemo(() => {
-    return collectModelsWithDefaultModel(
-      [configStore.customModels, accessStore.customModels].join(","),
-      accessStore.defaultModel,
-    );
-  }, [
-    accessStore.customModels,
-    accessStore.defaultModel,
-    configStore.customModels,
-  ]);
+    return getModelList(accessStore.customModels, accessStore.defaultModel);
+  }, [accessStore.customModels, accessStore.defaultModel]);
 
   return models;
 }

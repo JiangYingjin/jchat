@@ -23,8 +23,8 @@ export const DEFAULT_CONFIG = {
 
   enableCodeFold: true, // code fold config
 
-  customModels: "",
-  models: DEFAULT_MODELS as any as LLMModel[],
+  // customModels 移除，只保留 accessStore.customModels
+  models: [{ name: "google/gemini-2.5-flash" }],
 
   modelConfig: {
     model: "" as ModelType, // 默认模型将由服务器端配置决定
@@ -77,32 +77,24 @@ export const useAppConfig = createPersistStore(
         return;
       }
 
-      // 检查是否有服务器端自定义模型
+      // 只用 accessStore.customModels 判断
       const accessStore = useAccessStore.getState();
-      const hasServerModels =
-        accessStore.customModels && accessStore.customModels.trim().length > 0;
-
-      if (hasServerModels) {
-        // 如果服务器端提供了模型列表，直接使用这些模型，不合并默认模型
-        set(() => ({
-          models: newModels,
-        }));
+      if (
+        accessStore.customModels &&
+        accessStore.customModels.trim().length > 0
+      ) {
+        set(() => ({ models: newModels }));
       } else {
-        // 只有在没有服务器端模型时，才合并默认模型
+        // 没有服务器端模型时合并默认模型
         const oldModels = get().models;
         const modelMap: Record<string, LLMModel> = {};
-
         for (const model of oldModels) {
           modelMap[`${model.name}`] = model;
         }
-
         for (const model of newModels) {
           modelMap[`${model.name}`] = model;
         }
-
-        set(() => ({
-          models: Object.values(modelMap),
-        }));
+        set(() => ({ models: Object.values(modelMap) }));
       }
     },
 

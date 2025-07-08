@@ -9,7 +9,7 @@ import type {
 import { getClientApi } from "../client/api";
 import { ChatControllerPool } from "../client/controller";
 import { showToast } from "../components/ui-lib";
-import { StoreKey, SUMMARIZE_MODEL } from "../constant";
+import { StoreKey, DEFAULT_MODELS } from "../constant";
 import Locale from "../locales";
 import { safeLocalStorage } from "../utils";
 import { prettyObject } from "../utils/format";
@@ -17,7 +17,7 @@ import { createPersistStore, jchatStorage } from "../utils/store";
 import { estimateTokenLength } from "../utils/token";
 import { ModelConfig, ModelType, useAppConfig } from "./config";
 import { useAccessStore } from "./access";
-import { collectModelsWithDefaultModel } from "../utils/model";
+import { getModelList } from "../utils/model";
 
 import { buildMultimodalContent } from "../utils/chat";
 import localforage from "localforage";
@@ -94,11 +94,11 @@ function createEmptySession(): ChatSession {
 }
 
 function getSummarizeModel(currentModel: string): string {
-  if (currentModel.startsWith("gpt") || currentModel.startsWith("chatgpt")) {
+  if (currentModel.startsWith("google/gemini-2.5-flash")) {
     const configStore = useAppConfig.getState();
     const accessStore = useAccessStore.getState();
-    const allModel = collectModelsWithDefaultModel(
-      [configStore.customModels, accessStore.customModels].join(","),
+    const allModel = getModelList(
+      accessStore.customModels,
       accessStore.defaultModel,
     );
 
@@ -122,14 +122,14 @@ function getSummarizeModel(currentModel: string): string {
       }
     }
 
-    // 如果没有服务器端模型，尝试使用 SUMMARIZE_MODEL
-    const summarizeModel = allModel.find((m) => m.name === SUMMARIZE_MODEL);
+    // 如果没有服务器端模型，尝试使用 DEFAULT_MODELS[0]
+    const summarizeModel = allModel.find((m) => m.name === DEFAULT_MODELS[0]);
     if (summarizeModel) {
       return summarizeModel.name;
     }
   }
-  if (currentModel.startsWith("gemini")) {
-    // 对于 gemini 模型，优先使用服务器端模型，否则使用 SUMMARIZE_MODEL
+  if (currentModel.startsWith("google/gemini-2.5-flash")) {
+    // 对于 gemini 模型，优先使用服务器端模型，否则使用 DEFAULT_MODELS[0]
     const accessStore = useAccessStore.getState();
     if (
       accessStore.customModels &&
@@ -142,8 +142,8 @@ function getSummarizeModel(currentModel: string): string {
       if (serverModels.length > 0) {
         // 检查服务器端模型是否在可用模型列表中
         const configStore = useAppConfig.getState();
-        const allModel = collectModelsWithDefaultModel(
-          [configStore.customModels, accessStore.customModels].join(","),
+        const allModel = getModelList(
+          accessStore.customModels,
           accessStore.defaultModel,
         );
         const firstServerModel = allModel.find(
@@ -154,7 +154,7 @@ function getSummarizeModel(currentModel: string): string {
         }
       }
     }
-    return SUMMARIZE_MODEL;
+    return DEFAULT_MODELS[0];
   }
   return currentModel;
 }
