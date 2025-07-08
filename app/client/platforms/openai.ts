@@ -42,16 +42,18 @@ export class ChatGPTApi implements LLMApi {
   path(path: string, model?: string): string {
     const accessStore = useAccessStore.getState();
 
-    let baseUrl = accessStore.openaiUrl;
+    let baseUrl: string = accessStore.openaiUrl;
     if (!baseUrl || baseUrl.length === 0) {
-      const isApp = !!getClientConfig()?.isApp;
-      baseUrl = isApp ? OPENAI_BASE_URL : ApiPath.OpenAI;
+      baseUrl = ApiPath.OpenAI as string;
     }
 
     if (baseUrl.endsWith("/")) {
       baseUrl = baseUrl.slice(0, baseUrl.length - 1);
     }
-    if (!baseUrl.startsWith("http") && !baseUrl.startsWith(ApiPath.OpenAI)) {
+    if (
+      !baseUrl.startsWith("http") &&
+      !baseUrl.startsWith(ApiPath.OpenAI as string)
+    ) {
       baseUrl = "https://" + baseUrl;
     }
 

@@ -1,5 +1,3 @@
-import tauriConfig from "../../src-tauri/tauri.conf.json";
-
 export const getBuildConfig = () => {
   if (typeof process === "undefined") {
     throw Error(
@@ -7,8 +5,7 @@ export const getBuildConfig = () => {
     );
   }
 
-  const isApp = typeof window !== "undefined" && !!window.__TAURI__;
-  const version = "v" + tauriConfig.package.version;
+  const version = "v1.0.0"; // 使用固定版本号
 
   const commitInfo = (() => {
     try {
@@ -36,7 +33,6 @@ export const getBuildConfig = () => {
     version,
     ...commitInfo,
     buildMode: "standalone",
-    isApp,
   };
 };
 

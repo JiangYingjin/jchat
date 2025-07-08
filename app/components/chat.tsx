@@ -1543,7 +1543,7 @@ function _Chat() {
   const clientConfig = useMemo(() => getClientConfig(), []);
 
   const autoFocus = !isMobileScreen; // wont auto focus on mobile screen
-  const showMaxIcon = !isMobileScreen && !clientConfig?.isApp;
+  const showMaxIcon = !isMobileScreen;
 
   useCommand({
     fill: setUserInput,
@@ -1575,7 +1575,9 @@ function _Chat() {
           ).then((res) => {
             if (!res) return;
             if (payload.url) {
-              accessStore.update((access) => (access.openaiUrl = payload.url!));
+              accessStore.update(
+                (access) => (access.openaiUrl = payload.url! as any),
+              );
             }
           });
         }
@@ -1971,7 +1973,7 @@ function _Chat() {
   return (
     <>
       <div className={styles.chat} key={session.id}>
-        <div className="window-header" data-tauri-drag-region>
+        <div className="window-header">
           <div
             className={clsx("window-header-title", styles["chat-body-title"])}
           >
