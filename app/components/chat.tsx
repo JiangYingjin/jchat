@@ -471,38 +471,26 @@ export function ChatActions(props: {
 
   // switch model
   const currentModel = session.mask.modelConfig.model;
-  const currentProviderName =
-    session.mask.modelConfig?.providerName || "OpenAI";
   const allModels = useAllModels();
   const models = useMemo(() => {
     const filteredModels = allModels.filter((m) => m.available);
     const defaultModel = filteredModels.find((m) => m.isDefault);
 
-    const groupedModels = filteredModels.sort((a, b) => {
-      const providerA = a.provider?.providerName || "";
-      const providerB = b.provider?.providerName || "";
-      return providerA.localeCompare(providerB);
-    });
-
     if (defaultModel) {
       const arr = [
         defaultModel,
-        ...groupedModels.filter((m) => m !== defaultModel),
+        ...filteredModels.filter((m) => m !== defaultModel),
       ];
       return arr;
     } else {
-      return groupedModels;
+      return filteredModels;
     }
   }, [allModels]);
 
   const currentModelName = useMemo(() => {
-    const model = models.find(
-      (m) =>
-        m.name == currentModel &&
-        m?.provider?.providerName == currentProviderName,
-    );
+    const model = models.find((m) => m.name == currentModel);
     return model?.displayName ?? "";
-  }, [models, currentModel, currentProviderName]);
+  }, [models, currentModel]);
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [showUploadImage, setShowUploadImage] = useState(false);
 
@@ -526,8 +514,6 @@ export function ChatActions(props: {
       let nextModel = models.find((model) => model.isDefault) || models[0];
       chatStore.updateTargetSession(session, (session) => {
         session.mask.modelConfig.model = nextModel.name;
-        session.mask.modelConfig.providerName = nextModel?.provider
-          ?.providerName as "OpenAI";
       });
     }
   }, [chatStore, currentModel, models, session]);
@@ -585,19 +571,17 @@ export function ChatActions(props: {
 
         {showModelSelector && (
           <SearchSelector
-            defaultSelectedValue={`${currentModel}@${currentProviderName}`}
+            defaultSelectedValue={currentModel}
             items={models.map((m) => ({
               title: `${m.displayName}`,
-              value: `${m.name}@${m?.provider?.providerName}`,
+              value: m.name,
             }))}
             onClose={() => setShowModelSelector(false)}
             onSelection={(s) => {
               if (s.length === 0) return;
-              const [model, providerName] = getModelProvider(s[0]);
+              const [model] = getModelProvider(s[0]);
               chatStore.updateTargetSession(session, (session) => {
                 session.mask.modelConfig.model = model as ModelType;
-                session.mask.modelConfig.providerName =
-                  providerName as "OpenAI";
                 session.mask.syncGlobalConfig = false;
                 // 标记用户手动选择了模型
                 session.isModelManuallySelected = true;
@@ -1158,59 +1142,26 @@ function _Chat() {
 
   // 自动修正模型配置
   useEffect(() => {
-    // 获取当前模型和 provider
-    const { model, providerName, compressModel, compressProviderName } =
-      config.modelConfig;
+    // 获取当前模型
+    const { model } = config.modelConfig;
     // 检查主模型是否有效
-    const isModelValid = allModels.some(
-      (m) =>
-        m.name === model &&
-        m.provider?.providerName === providerName &&
-        m.available,
-    );
-    // 检查压缩模型是否有效
-    const isCompressModelValid = allModels.some(
-      (m) =>
-        m.name === compressModel &&
-        m.provider?.providerName === compressProviderName &&
-        m.available,
-    );
+    const isModelValid = allModels.some((m) => m.name === model && m.available);
     // console.log("[updateConfig] isModelValid", isModelValid);
-    // console.log("[updateConfig] isCompressModelValid", isCompressModelValid);
-    // 如果主模型或压缩模型无效，自动 fetch 并更新为 defaultModel
-    if (!isModelValid || !isCompressModelValid) {
+    // 如果主模型无效，自动 fetch 并更新为 defaultModel
+    if (!isModelValid) {
       // 拉取服务器配置，获取 defaultModel
       accessStore.fetch();
       // 取最新 defaultModel
       const defaultModelStr = accessStore.defaultModel;
       if (defaultModelStr) {
-        const [defaultModel, defaultProvider] =
-          getModelProvider(defaultModelStr);
+        const defaultModel = defaultModelStr;
         config.update((cfg) => {
           // 主模型无效时修正
           if (!isModelValid) {
             cfg.modelConfig.model = defaultModel;
-            cfg.modelConfig.providerName = defaultProvider as any;
             console.log(
               "[updateConfig] cfg.modelConfig.model",
               cfg.modelConfig.model,
-            );
-            console.log(
-              "[updateConfig] cfg.modelConfig.providerName",
-              cfg.modelConfig.providerName,
-            );
-          }
-          // 压缩模型无效时修正
-          if (!isCompressModelValid) {
-            cfg.modelConfig.compressModel = defaultModel;
-            cfg.modelConfig.compressProviderName = defaultProvider as any;
-            console.log(
-              "[updateConfig] cfg.modelConfig.compressModel",
-              cfg.modelConfig.compressModel,
-            );
-            console.log(
-              "[updateConfig] cfg.modelConfig.compressProviderName",
-              cfg.modelConfig.compressProviderName,
             );
           }
         });
@@ -1219,15 +1170,10 @@ function _Chat() {
         if (!isModelValid && !session.isModelManuallySelected) {
           chatStore.updateTargetSession(session, (session) => {
             session.mask.modelConfig.model = defaultModel;
-            session.mask.modelConfig.providerName = defaultProvider as any;
             session.mask.syncGlobalConfig = true;
             console.log(
               "[updateConfig] session.mask.modelConfig.model",
               session.mask.modelConfig.model,
-            );
-            console.log(
-              "[updateConfig] session.mask.modelConfig.providerName",
-              session.mask.modelConfig.providerName,
             );
           });
         }
@@ -1929,16 +1875,10 @@ function _Chat() {
           );
           if (targetModel) {
             const currentModel = session.mask.modelConfig.model;
-            const currentProvider = session.mask.modelConfig.providerName;
 
             // 只有当前模型不是目标模型时才切换
-            if (
-              currentModel !== proModelName ||
-              currentProvider !== targetModel.provider?.providerName
-            ) {
+            if (currentModel !== proModelName) {
               session.mask.modelConfig.model = proModelName as ModelType;
-              session.mask.modelConfig.providerName = targetModel.provider
-                ?.providerName as "OpenAI";
               session.mask.syncGlobalConfig = false;
               console.log(
                 `[AutoSwitch] 系统提示词长度 ${systemPromptLength} 字符，自动切换到 jyj.cx/pro 模型`,

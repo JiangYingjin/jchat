@@ -15,7 +15,6 @@ declare global {
 
       ENABLE_BALANCE_QUERY?: string; // allow user to query balance or not
       CUSTOM_MODELS?: string; // to control custom models
-      DEFAULT_MODEL?: string; // to control default model in every new chat window
 
       // custom template for preprocessing user input
       DEFAULT_INPUT_TEMPLATE?: string;
@@ -52,6 +51,22 @@ function getApiKey(keys?: string) {
   return apiKey;
 }
 
+// 获取默认模型：从 CUSTOM_MODELS 中取第一个，如果为空则使用 google/gemini-2.5-flash
+function getDefaultModel(customModels: string): string {
+  const models = customModels
+    .split(",")
+    .filter(
+      (v) => !!v && v.length > 0 && !v.startsWith("-") && !v.startsWith("+"),
+    )
+    .map((v) => v.split("=")[0]); // 取等号前的部分作为模型名
+
+  if (models.length > 0) {
+    return models[0];
+  }
+
+  return "google/gemini-2.5-flash";
+}
+
 export const getServerSideConfig = () => {
   if (typeof process === "undefined") {
     throw Error(
@@ -60,7 +75,7 @@ export const getServerSideConfig = () => {
   }
 
   let customModels = process.env.CUSTOM_MODELS ?? "";
-  let defaultModel = process.env.DEFAULT_MODEL ?? "";
+  let defaultModel = getDefaultModel(customModels);
 
   return {
     baseUrl: process.env.BASE_URL,

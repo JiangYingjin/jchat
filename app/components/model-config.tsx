@@ -4,7 +4,6 @@ import Locale from "../locales";
 import { InputRange } from "./input-range";
 import { ListItem, Select } from "./ui-lib";
 import { useAllModels } from "../utils/hooks";
-import { groupBy } from "lodash-es";
 import { getModelProvider } from "../utils/model";
 
 export function ModelConfigList(props: {
@@ -12,11 +11,8 @@ export function ModelConfigList(props: {
   updateConfig: (updater: (config: ModelConfig) => void) => void;
 }) {
   const allModels = useAllModels();
-  const groupModels = groupBy(
-    allModels.filter((v) => v.available),
-    "provider.providerName",
-  );
-  const value = `${props.modelConfig.model}@${props.modelConfig?.providerName}`;
+  const availableModels = allModels.filter((v) => v.available);
+  const value = props.modelConfig.model;
 
   return (
     <>
@@ -26,23 +22,16 @@ export function ModelConfigList(props: {
           value={value}
           align="left"
           onChange={(e) => {
-            const [model, providerName] = getModelProvider(
-              e.currentTarget.value,
-            );
+            const [model] = getModelProvider(e.currentTarget.value);
             props.updateConfig((config) => {
               config.model = ModalConfigValidator.model(model);
-              config.providerName = providerName as "OpenAI";
             });
           }}
         >
-          {Object.keys(groupModels).map((providerName, index) => (
-            <optgroup label={providerName} key={index}>
-              {groupModels[providerName].map((v, i) => (
-                <option value={`${v.name}@${v.provider?.providerName}`} key={i}>
-                  {v.displayName}
-                </option>
-              ))}
-            </optgroup>
+          {availableModels.map((v, i) => (
+            <option value={v.name} key={i}>
+              {v.displayName}
+            </option>
           ))}
         </Select>
       </ListItem>
@@ -87,28 +76,26 @@ export function ModelConfigList(props: {
         ></input>
       </ListItem>
 
-      {props.modelConfig?.providerName === "OpenAI" && (
-        <ListItem
-          title={Locale.Settings.BudgetTokens.Title}
-          subTitle={Locale.Settings.BudgetTokens.SubTitle}
-        >
-          <input
-            aria-label={Locale.Settings.BudgetTokens.Title}
-            type="number"
-            min={1024}
-            max={32000}
-            value={props.modelConfig.budget_tokens}
-            onChange={(e) =>
-              props.updateConfig(
-                (config) =>
-                  (config.budget_tokens = ModalConfigValidator.budget_tokens(
-                    e.currentTarget.valueAsNumber,
-                  )),
-              )
-            }
-          ></input>
-        </ListItem>
-      )}
+      <ListItem
+        title={Locale.Settings.BudgetTokens.Title}
+        subTitle={Locale.Settings.BudgetTokens.SubTitle}
+      >
+        <input
+          aria-label={Locale.Settings.BudgetTokens.Title}
+          type="number"
+          min={1024}
+          max={32000}
+          value={props.modelConfig.budget_tokens}
+          onChange={(e) =>
+            props.updateConfig(
+              (config) =>
+                (config.budget_tokens = ModalConfigValidator.budget_tokens(
+                  e.currentTarget.valueAsNumber,
+                )),
+            )
+          }
+        ></input>
+      </ListItem>
     </>
   );
 }

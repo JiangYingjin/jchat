@@ -156,7 +156,7 @@ function Screen() {
 export function useLoadData() {
   const config = useAppConfig();
 
-  const api: ClientApi = getClientApi(config.modelConfig.providerName);
+  const api: ClientApi = getClientApi();
 
   useEffect(() => {
     (async () => {

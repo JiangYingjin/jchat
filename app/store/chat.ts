@@ -105,10 +105,7 @@ function createEmptySession(): ChatSession {
   };
 }
 
-function getSummarizeModel(
-  currentModel: string,
-  providerName: string,
-): string[] {
+function getSummarizeModel(currentModel: string): string {
   // if it is using gpt-* models, force to use 4o-mini to summarize
   if (currentModel.startsWith("gpt") || currentModel.startsWith("chatgpt")) {
     const configStore = useAppConfig.getState();
@@ -122,16 +119,13 @@ function getSummarizeModel(
       (m) => m.name === SUMMARIZE_MODEL && m.available,
     );
     if (summarizeModel) {
-      return [
-        summarizeModel.name,
-        summarizeModel.provider?.providerName as string,
-      ];
+      return summarizeModel.name;
     }
   }
   if (currentModel.startsWith("gemini")) {
-    return [SUMMARIZE_MODEL, "OpenAI"];
+    return SUMMARIZE_MODEL;
   }
-  return [currentModel, providerName];
+  return currentModel;
 }
 
 function countMessages(msgs: ChatMessage[]) {
@@ -360,12 +354,16 @@ export const useChatStore = createPersistStore(
         return session;
       },
 
-      onNewMessage(message: ChatMessage, targetSession: ChatSession) {
+      onNewMessage(
+        message: ChatMessage,
+        targetSession: ChatSession,
+        usage?: any,
+      ) {
         get().updateTargetSession(targetSession, (session) => {
           session.messages = session.messages.concat();
           session.lastUpdate = Date.now();
         });
-        get().updateStat(message, targetSession);
+        get().updateStat(message, targetSession, usage);
         get().summarizeSession(false, targetSession);
       },
 
@@ -449,7 +447,7 @@ export const useChatStore = createPersistStore(
           }
         });
 
-        const api: ClientApi = getClientApi("OpenAI");
+        const api: ClientApi = getClientApi();
         // make request
         api.llm.chat({
           messages: sendMessages,
@@ -481,18 +479,7 @@ export const useChatStore = createPersistStore(
                 botMessage.isError = true;
               }
 
-              // 更新 tokenCount
-              if (usage?.completion_tokens) {
-                get().updateTargetSession(session, (session) => {
-                  session.stat.tokenCount = usage.completion_tokens!;
-                });
-                console.log(
-                  "[Token Count] Updated with completion_tokens:",
-                  usage.completion_tokens,
-                );
-              }
-
-              get().onNewMessage(botMessage, session);
+              get().onNewMessage(botMessage, session, usage);
             }
             ChatControllerPool.remove(session.id, botMessage.id);
           },
@@ -627,15 +614,13 @@ export const useChatStore = createPersistStore(
         const session = targetSession;
         const modelConfig = session.mask.modelConfig;
 
-        // if not config compressModel, then using getSummarizeModel
-        const [model, providerName] = modelConfig.compressModel
-          ? [modelConfig.compressModel, modelConfig.compressProviderName]
-          : getSummarizeModel(
-              session.mask.modelConfig.model,
-              session.mask.modelConfig.providerName,
-            );
+        // 直接使用全局默认模型进行总结
+        const accessStore = useAccessStore.getState();
+        const model =
+          accessStore.defaultModel ||
+          getSummarizeModel(session.mask.modelConfig.model);
 
-        const api: ClientApi = getClientApi(providerName);
+        const api: ClientApi = getClientApi();
 
         // remove error messages if any
         const messages = session.messages;
@@ -660,7 +645,6 @@ export const useChatStore = createPersistStore(
             config: {
               model,
               stream: true,
-              providerName,
             },
             onUpdate(message) {
               if (message) {
@@ -685,10 +669,13 @@ export const useChatStore = createPersistStore(
         return;
       },
 
-      updateStat(message: ChatMessage, session: ChatSession) {
+      updateStat(message: ChatMessage, session: ChatSession, usage?: any) {
         get().updateTargetSession(session, (session) => {
+          // 更新 tokenCount
+          if (usage?.completion_tokens) {
+            session.stat.tokenCount = usage.completion_tokens;
+          }
           session.stat.charCount += message.content.length;
-          // TODO: should update chat count and word count
         });
       },
 

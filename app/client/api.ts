@@ -37,7 +37,6 @@ export interface RequestMessage {
 
 export interface LLMConfig {
   model: string;
-  providerName?: string;
   temperature?: number;
   stream?: boolean;
 }
@@ -77,8 +76,6 @@ export interface LLMModel {
 
 export interface LLMModelProvider {
   id: string;
-  providerName: string;
-  providerType: string;
   sorted: number;
 }
 
@@ -201,6 +198,6 @@ export function getHeaders(ignoreHeaders: boolean = false) {
   return headers;
 }
 
-export function getClientApi(provider: string): ClientApi {
+export function getClientApi(): ClientApi {
   return new ClientApi(ModelProvider.GPT);
 }

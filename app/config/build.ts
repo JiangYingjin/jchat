@@ -1,5 +1,4 @@
 import tauriConfig from "../../src-tauri/tauri.conf.json";
-import { DEFAULT_INPUT_TEMPLATE } from "../constant";
 
 export const getBuildConfig = () => {
   if (typeof process === "undefined") {
@@ -39,7 +38,6 @@ export const getBuildConfig = () => {
     ...commitInfo,
     buildMode,
     isApp,
-    template: process.env.DEFAULT_INPUT_TEMPLATE ?? DEFAULT_INPUT_TEMPLATE,
   };
 };
 

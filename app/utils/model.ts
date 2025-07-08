@@ -15,17 +15,13 @@ const CustomSeq = {
   },
 };
 
-const customProvider = (providerName: string) => ({
-  id: providerName.toLowerCase(),
-  providerName: providerName,
-  providerType: "custom",
-  sorted: CustomSeq.next(providerName),
+const customProvider = (name: string) => ({
+  id: name.toLowerCase(),
+  sorted: CustomSeq.next(name),
 });
 
 /**
  * Sorts an array of models based on specified rules.
- *
- * First, sorted by provider; if the same, sorted by model
  */
 const sortModelTable = (models: ReturnType<typeof collectModels>) =>
   models.sort((a, b) => {
@@ -38,14 +34,14 @@ const sortModelTable = (models: ReturnType<typeof collectModels>) =>
   });
 
 /**
- * get model name and provider from a formatted string,
- * e.g. `gpt-4@OpenAi` or `gpt-4@20240620@Google`
- * @param modelWithProvider model name with provider separated by last `@` char,
- * @returns [model, provider] tuple, if no `@` char found, provider is undefined
+ * get model name from a formatted string,
+ * e.g. `gpt-4` or `gpt-4=GPT-4`
+ * @param modelWithDisplay model name with optional display name separated by `=`,
+ * @returns model name
  */
-export function getModelProvider(modelWithProvider: string): [string, string?] {
-  const [model, provider] = modelWithProvider.split(/@(?!.*@)/);
-  return [model, provider];
+export function getModelProvider(modelWithDisplay: string): [string] {
+  const [model] = modelWithDisplay.split("=");
+  return [model];
 }
 
 export function collectModelTable(
@@ -66,10 +62,10 @@ export function collectModelTable(
 
   // default models
   models.forEach((m) => {
-    // using <modelName>@<providerId> as fullName
-    modelTable[`${m.name}@${m?.provider?.id}`] = {
+    // using model name as key since we only have one provider
+    modelTable[m.name] = {
       ...m,
-      displayName: m.name, // 'provider' is copied over if it exists
+      displayName: m.name,
     };
   });
 
@@ -90,34 +86,26 @@ export function collectModelTable(
         );
       } else {
         // 1. find model by name, and set available value
-        const [customModelName, customProviderName] = getModelProvider(name);
+        const customModelName = name;
         let count = 0;
-        for (const fullName in modelTable) {
-          const [modelName, providerName] = getModelProvider(fullName);
-          if (
-            customModelName == modelName &&
-            (customProviderName === undefined ||
-              customProviderName === providerName)
-          ) {
+        for (const modelName in modelTable) {
+          if (customModelName === modelName) {
             count += 1;
-            modelTable[fullName]["available"] = available;
+            modelTable[modelName]["available"] = available;
             if (displayName) {
-              modelTable[fullName]["displayName"] = displayName;
+              modelTable[modelName]["displayName"] = displayName;
             }
           }
         }
         // 2. if model not exists, create new model with available value
         if (count === 0) {
-          let [customModelName, customProviderName] = getModelProvider(name);
-          const provider = customProvider(
-            customProviderName || customModelName,
-          );
-          modelTable[`${customModelName}@${provider?.id}`] = {
+          const provider = customProvider(customModelName);
+          modelTable[customModelName] = {
             name: customModelName,
             displayName: displayName || customModelName,
             available,
-            provider, // Use optional chaining
-            sorted: CustomSeq.next(`${customModelName}@${provider?.id}`),
+            provider,
+            sorted: CustomSeq.next(customModelName),
           };
         }
       }
@@ -133,16 +121,12 @@ export function collectModelTableWithDefaultModel(
 ) {
   let modelTable = collectModelTable(models, customModels);
   if (defaultModel && defaultModel !== "") {
-    if (defaultModel.includes("@")) {
-      if (defaultModel in modelTable) {
-        modelTable[defaultModel].isDefault = true;
-      }
+    const defaultModelName = defaultModel;
+    if (defaultModelName in modelTable) {
+      modelTable[defaultModelName].isDefault = true;
     } else {
       for (const key of Object.keys(modelTable)) {
-        if (
-          modelTable[key].available &&
-          getModelProvider(key)[0] == defaultModel
-        ) {
+        if (modelTable[key].available && key === defaultModelName) {
           modelTable[key].isDefault = true;
           break;
         }

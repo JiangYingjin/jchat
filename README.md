@@ -205,9 +205,9 @@ For ByteDance: use `modelName@bytedance=deploymentName` to customize model name 
 
 > 示例: `+Doubao-lite-4k@bytedance=ep-xxxxx-xxx`这个配置会在模型列表显示一个`Doubao-lite-4k(ByteDance)`的选项
 
-### `DEFAULT_MODEL` （可选）
+### `DEFAULT_MODEL` （已移除）
 
-更改默认模型
+默认模型现在自动从 `CUSTOM_MODELS` 环境变量的第一个模型中选择。如果 `CUSTOM_MODELS` 为空，则自动使用 `google/gemini-2.5-flash` 作为默认模型。
 
 ### `WHITE_WEBDAV_ENDPOINTS` （可选）
 

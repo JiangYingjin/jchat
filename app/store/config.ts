@@ -27,12 +27,9 @@ export const DEFAULT_CONFIG = {
 
   modelConfig: {
     model: "gpt-4.1-mini" as ModelType,
-    providerName: "OpenAI",
     temperature: 0.5,
     max_tokens: 8000,
     budget_tokens: 4000,
-    compressModel: "",
-    compressProviderName: "",
   },
 };
 
