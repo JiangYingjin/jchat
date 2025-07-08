@@ -1,7 +1,6 @@
 import { NextRequest } from "next/server";
 import { getServerSideConfig } from "../config/server";
 import md5 from "spark-md5";
-import { ACCESS_CODE_PREFIX } from "../constant";
 
 function getIP(req: NextRequest) {
   let ip = req.ip ?? req.headers.get("x-real-ip");
@@ -14,21 +13,15 @@ function getIP(req: NextRequest) {
   return ip;
 }
 
-function parseApiKey(bearToken: string) {
-  const token = bearToken.trim().replaceAll("Bearer ", "").trim();
-  const isApiKey = !token.startsWith(ACCESS_CODE_PREFIX);
-
-  return {
-    accessCode: isApiKey ? "" : token.slice(ACCESS_CODE_PREFIX.length),
-    apiKey: "", // 不再支持用户 API 密钥
-  };
+function parseAccessCode(bearToken: string): string {
+  return bearToken.trim().replaceAll("Bearer ", "").trim();
 }
 
 export function auth(req: NextRequest) {
   const authToken = req.headers.get("Authorization") ?? "";
 
-  // check if it is openai api key or user token
-  const { accessCode, apiKey } = parseApiKey(authToken);
+  // 直接解析访问码
+  const accessCode = parseAccessCode(authToken);
 
   const hashedCode = md5.hash(accessCode ?? "").trim();
 

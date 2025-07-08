@@ -1,8 +1,6 @@
-import { getClientConfig } from "../config/client";
-import { ACCESS_CODE_PREFIX } from "../constant";
-import { ChatMessage, ModelType, useAccessStore, useChatStore } from "../store";
+import { ModelType, useAccessStore, useChatStore } from "../store";
 import { ChatGPTApi } from "./platforms/openai";
-import { FileApi, FileInfo } from "./platforms/utils";
+import { FileApi } from "./platforms/utils";
 
 export const ROLES = ["system", "user", "assistant"] as const;
 export type MessageRole = (typeof ROLES)[number];
@@ -83,10 +81,6 @@ export class ClientApi {
     this.llm = new ChatGPTApi();
     this.file = new FileApi();
   }
-
-  config() {}
-
-  prompts() {}
 }
 
 export function getBearerToken(
@@ -113,12 +107,8 @@ export function getHeaders(ignoreHeaders: boolean = false) {
     };
   }
 
-  const clientConfig = getClientConfig();
-
   if (validString(accessStore.accessCode)) {
-    headers["Authorization"] = getBearerToken(
-      ACCESS_CODE_PREFIX + accessStore.accessCode,
-    );
+    headers["Authorization"] = getBearerToken(accessStore.accessCode);
   }
 
   return headers;

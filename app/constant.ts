@@ -34,8 +34,6 @@ export const MAX_SIDEBAR_WIDTH = MIN_SIDEBAR_WIDTH;
 export const DEFAULT_SIDEBAR_WIDTH = MIN_SIDEBAR_WIDTH;
 export const NARROW_SIDEBAR_WIDTH = 80;
 
-export const ACCESS_CODE_PREFIX = "nk-";
-
 export const STORAGE_KEY = "jchat";
 
 export const REQUEST_TIMEOUT_MS = 60000;
