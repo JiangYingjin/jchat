@@ -7,8 +7,7 @@ export const getBuildConfig = () => {
     );
   }
 
-  const buildMode = process.env.BUILD_MODE ?? "standalone";
-  const isApp = !!process.env.BUILD_APP;
+  const isApp = typeof window !== "undefined" && !!window.__TAURI__;
   const version = "v" + tauriConfig.package.version;
 
   const commitInfo = (() => {
@@ -36,7 +35,7 @@ export const getBuildConfig = () => {
   return {
     version,
     ...commitInfo,
-    buildMode,
+    buildMode: "standalone",
     isApp,
   };
 };

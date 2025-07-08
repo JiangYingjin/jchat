@@ -10,9 +10,6 @@ declare global {
 
       BASE_URL?: string;
 
-      BUILD_MODE?: "standalone" | "export";
-      BUILD_APP?: string; // is building desktop app
-
       CUSTOM_MODELS?: string; // to control custom models
 
       // custom template for preprocessing user input
@@ -35,18 +32,10 @@ const ACCESS_CODES = (function getAccessCodes(): Set<string> {
 })();
 
 function getApiKey(keys?: string) {
-  const apiKeyEnvVar = keys ?? "";
-  const apiKeys = apiKeyEnvVar.split(",").map((v) => v.trim());
-  const randomIndex = Math.floor(Math.random() * apiKeys.length);
-  const apiKey = apiKeys[randomIndex];
+  const apiKey = keys?.trim();
   if (apiKey) {
-    console.log(
-      `[Server Config] using ${randomIndex + 1} of ${
-        apiKeys.length
-      } api key - ${apiKey}`,
-    );
+    console.log(`[Server Config] using api key - ${apiKey}`);
   }
-
   return apiKey;
 }
 
@@ -74,7 +63,6 @@ export const getServerSideConfig = () => {
   return {
     baseUrl: process.env.BASE_URL,
     apiKey: getApiKey(process.env.OPENAI_API_KEY),
-    // needCode 字段已移除
     code: process.env.CODE,
     codes: ACCESS_CODES,
     proxyUrl: process.env.PROXY_URL,
