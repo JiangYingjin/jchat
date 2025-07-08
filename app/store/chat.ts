@@ -98,7 +98,6 @@ function getSummarizeModel(currentModel: string): string {
     const configStore = useAppConfig.getState();
     const accessStore = useAccessStore.getState();
     const allModel = collectModelsWithDefaultModel(
-      configStore.models,
       [configStore.customModels, accessStore.customModels].join(","),
       accessStore.defaultModel,
     );
@@ -141,7 +140,18 @@ function getSummarizeModel(currentModel: string): string {
         .filter((v) => !!v && v.length > 0);
 
       if (serverModels.length > 0) {
-        return serverModels[0];
+        // 检查服务器端模型是否在可用模型列表中
+        const configStore = useAppConfig.getState();
+        const allModel = collectModelsWithDefaultModel(
+          [configStore.customModels, accessStore.customModels].join(","),
+          accessStore.defaultModel,
+        );
+        const firstServerModel = allModel.find(
+          (m) => m.name === serverModels[0],
+        );
+        if (firstServerModel) {
+          return firstServerModel.name;
+        }
       }
     }
     return SUMMARIZE_MODEL;

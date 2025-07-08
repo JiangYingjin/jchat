@@ -4,7 +4,6 @@ import Locale from "../locales";
 import { InputRange } from "./input-range";
 import { ListItem, Select } from "./ui-lib";
 import { useAllModels } from "../utils/hooks";
-import { getModelProvider } from "../utils/model";
 
 export function ModelConfigList(props: {
   modelConfig: ModelConfig;
@@ -21,9 +20,8 @@ export function ModelConfigList(props: {
           value={value}
           align="left"
           onChange={(e) => {
-            const [model] = getModelProvider(e.currentTarget.value);
             props.updateConfig((config) => {
-              config.model = ModalConfigValidator.model(model);
+              config.model = ModalConfigValidator.model(e.currentTarget.value);
             });
           }}
         >

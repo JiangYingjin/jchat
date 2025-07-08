@@ -101,7 +101,7 @@ import { MultimodalContent } from "../client/api";
 import { ClientApi } from "../client/api";
 
 import { isEmpty } from "lodash-es";
-import { getModelProvider } from "../utils/model";
+
 import clsx from "clsx";
 
 import { ThinkingContent } from "./thinking-content";
@@ -524,9 +524,8 @@ export function ChatActions(props: {
             onClose={() => setShowModelSelector(false)}
             onSelection={(s) => {
               if (s.length === 0) return;
-              const [model] = getModelProvider(s[0]);
               chatStore.updateTargetSession(session, (session) => {
-                session.mask.modelConfig.model = model as ModelType;
+                session.mask.modelConfig.model = s[0] as ModelType;
                 // 标记用户手动选择了模型
                 session.isModelManuallySelected = true;
               });

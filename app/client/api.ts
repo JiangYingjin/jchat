@@ -61,20 +61,13 @@ export interface ChatOptions {
   onController?: (controller: AbortController) => void;
 }
 
-export interface LLMUsage {
-  used: number;
-  total: number;
-}
-
 export interface LLMModel {
   name: string;
-  sorted: number;
 }
 
 export abstract class LLMApi {
   abstract chat(options: ChatOptions): Promise<void>;
 
-  abstract usage(): Promise<LLMUsage>;
   abstract models(): Promise<LLMModel[]>;
 }
 

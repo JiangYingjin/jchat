@@ -134,10 +134,6 @@ OpenAI 接口代理 URL，如果你手动配置了 openai 接口代理，请填�
 
 如果你不想让用户自行填入 API Key，将此环境变量设置为 1 即可。
 
-### `ENABLE_BALANCE_QUERY` （可选）
-
-如果你想启用余额查询功能，将此环境变量设置为 1 即可。
-
 ### `GOOGLE_API_KEY` （可选）
 
 Google Gemini Pro Api Key.

@@ -13,7 +13,6 @@ declare global {
       BUILD_MODE?: "standalone" | "export";
       BUILD_APP?: string; // is building desktop app
 
-      ENABLE_BALANCE_QUERY?: string; // allow user to query balance or not
       CUSTOM_MODELS?: string; // to control custom models
 
       // custom template for preprocessing user input
