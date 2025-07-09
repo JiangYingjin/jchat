@@ -47,26 +47,16 @@ export const useSyncStore = createPersistStore(
       set({ lastSyncTime: Date.now(), lastProvider: get().provider });
     },
 
-    export() {
-      const state = getLocalAppState();
-      const datePart = new Date().toLocaleString();
-      const fileName = `Backup-${datePart}.json`;
-      downloadAs(JSON.stringify(state), fileName);
+    async export() {
+      // 使用新的数据管理器导出完整数据
+      const { jchatDataManager } = await import("../utils/data-manager");
+      await jchatDataManager.exportData();
     },
 
     async import() {
-      const rawContent = await readFromFile();
-
-      try {
-        const remoteState = JSON.parse(rawContent) as AppState;
-        const localState = getLocalAppState();
-        mergeAppState(localState, remoteState);
-        setLocalAppState(localState);
-        location.reload();
-      } catch (e) {
-        console.error("[Import]", e);
-        showToast(Locale.Settings.Sync.ImportFailed);
-      }
+      // 使用新的数据管理器导入完整数据
+      const { jchatDataManager } = await import("../utils/data-manager");
+      await jchatDataManager.importData();
     },
 
     getClient() {

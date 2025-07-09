@@ -214,17 +214,45 @@ function SyncItems() {
   }, [syncStore]);
 
   const [showSyncConfigModal, setShowSyncConfigModal] = useState(false);
+  const [databaseStats, setDatabaseStats] = useState({
+    sessions: 0,
+    messages: 0,
+    systemMessages: 0,
+    chatInputs: 0,
+  });
+
+  // 异步加载真实的数据库统计信息
+  useEffect(() => {
+    const loadDatabaseStats = async () => {
+      try {
+        const { jchatDataManager } = await import("../utils/data-manager");
+        const stats = await jchatDataManager.getDatabaseStats();
+        setDatabaseStats(stats);
+      } catch (error) {
+        console.error("加载数据库统计信息失败:", error);
+      }
+    };
+
+    loadDatabaseStats();
+  }, []);
 
   const stateOverview = useMemo(() => {
+    // 使用真实的数据库统计，同时保持向后兼容
     const sessions = chatStore.sessions;
-    const messageCount = sessions.reduce((p, c) => p + c.messages.length, 0);
+    const fallbackMessageCount = sessions.reduce(
+      (p, c) => p + c.messageCount,
+      0,
+    );
 
     return {
-      chat: sessions.length,
-      message: messageCount,
+      chat: Math.max(sessions.length, databaseStats.sessions),
+      message:
+        databaseStats.messages > 0
+          ? databaseStats.messages
+          : fallbackMessageCount,
       mask: 0,
     };
-  }, [chatStore.sessions]);
+  }, [chatStore.sessions, databaseStats]);
 
   return (
     <>
@@ -268,23 +296,27 @@ function SyncItems() {
 
         <ListItem
           title={Locale.Settings.Sync.LocalState}
-          subTitle={Locale.Settings.Sync.Overview(stateOverview)}
+          subTitle={
+            databaseStats.sessions > 0
+              ? `${databaseStats.sessions} 组会话，${databaseStats.messages + databaseStats.systemMessages} 条消息`
+              : Locale.Settings.Sync.Overview(stateOverview)
+          }
         >
           <div style={{ display: "flex" }}>
             <IconButton
               aria={Locale.Settings.Sync.LocalState + Locale.UI.Export}
               icon={<UploadIcon />}
               text={Locale.UI.Export}
-              onClick={() => {
-                syncStore.export();
+              onClick={async () => {
+                await syncStore.export();
               }}
             />
             <IconButton
               aria={Locale.Settings.Sync.LocalState + Locale.UI.Import}
               icon={<DownloadIcon />}
               text={Locale.UI.Import}
-              onClick={() => {
-                syncStore.import();
+              onClick={async () => {
+                await syncStore.import();
               }}
             />
           </div>

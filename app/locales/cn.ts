@@ -221,7 +221,7 @@ const cn = {
 
       LocalState: "本地数据",
       Overview: (overview: any) => {
-        return `${overview.chat} 次对话，${overview.message} 条消息`;
+        return `${overview.chat} 组对话，${overview.message} 条消息`;
       },
       ImportFailed: "导入失败",
     },
