@@ -43,7 +43,6 @@ import {
   DEFAULT_TOPIC,
   systemMessageStorage,
   chatInputStorage,
-  ChatSession,
 } from "../store";
 
 import { createMessage } from "../utils/session";
