@@ -1,31 +1,21 @@
-import { getMessageTextContent, getTextContent, trimTopic } from "../utils";
-
-import { nanoid } from "nanoid";
 import type {
   ClientApi,
   MultimodalContent,
   RequestMessage,
 } from "../client/api";
-import { getClientApi } from "../client/api";
+import { getClientApi, getHeaders } from "../client/api";
 import { ChatControllerPool } from "../client/controller";
 import { showToast } from "../components/ui-lib";
-import { StoreKey, DEFAULT_MODELS } from "../constant";
+import { StoreKey } from "../constant";
 import Locale from "../locales";
 import { prettyObject } from "../utils/format";
 import { createPersistStore, jchatStorage } from "../utils/store";
-import { estimateTokenLength } from "../utils/token";
-import { useAppConfig } from "./config";
-import { useAccessStore } from "./access";
-import { getModelList } from "../utils/model";
-
-import { buildMultimodalContent } from "../utils/chat";
 import localforage from "localforage";
 
 // 导入session工具函数
 import {
   createMessage,
   createEmptySession,
-  countMessages,
   createBranchSession,
   getMessagesWithMemory,
   summarizeSession,
@@ -35,6 +25,8 @@ import {
   calculateMoveIndex,
   validateSessionIndex,
 } from "../utils/session";
+
+let fetchState = 0; // 0 not fetch, 1 fetching, 2 done
 
 export type ChatMessage = RequestMessage & {
   id: string;
@@ -61,8 +53,10 @@ export interface ChatSession {
 }
 
 const DEFAULT_CHAT_STATE = {
-  currentSessionIndex: 0,
+  accessCode: "",
+  models: [],
   sessions: [createEmptySession()],
+  currentSessionIndex: 0,
 };
 
 export const DEFAULT_TOPIC = Locale.Store.DefaultTopic;
@@ -70,13 +64,6 @@ export const DEFAULT_TOPIC = Locale.Store.DefaultTopic;
 export const useChatStore = createPersistStore(
   DEFAULT_CHAT_STATE,
   (set, _get) => {
-    function get() {
-      return {
-        ..._get(),
-        ...methods,
-      };
-    }
-
     const methods = {
       forkSession() {
         // 获取当前会话
@@ -428,13 +415,43 @@ export const useChatStore = createPersistStore(
         updater(sessions[index]);
         set(() => ({ sessions }));
       },
+
+      fetchModels() {
+        if (fetchState > 0) return;
+        fetchState = 1;
+        fetch("/api/models", {
+          method: "post",
+          body: null,
+          headers: {
+            ...getHeaders(),
+          },
+        })
+          .then((res) => res.json())
+          .then((res: any) => {
+            console.log("[Config] got config from server", res);
+            set(() => ({ models: res.models }));
+          })
+          .catch(() => {
+            console.error("[Config] failed to fetch config");
+          })
+          .finally(() => {
+            fetchState = 2;
+          });
+      },
     };
+
+    function get() {
+      return {
+        ..._get(),
+        ...methods,
+      };
+    }
 
     return methods;
   },
   {
     name: StoreKey.Chat,
-    version: 4.0,
+    version: 4.2,
     storage: jchatStorage,
     migrate(persistedState: any, version: number) {
       // 版本 4.0: 移除 ChatSession 中的 mask 属性
@@ -445,6 +462,20 @@ export const useChatStore = createPersistStore(
               delete session.mask;
             }
           });
+        }
+      }
+
+      // 版本 4.1: 添加 accessCode 属性
+      if (version < 4.1) {
+        if (persistedState.accessCode === undefined) {
+          persistedState.accessCode = "";
+        }
+      }
+
+      // 版本 4.2: 添加 models 属性
+      if (version < 4.2) {
+        if (persistedState.models === undefined) {
+          persistedState.models = "";
         }
       }
 

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChatMessage, useAppConfig, useChatStore } from "../store";
+import { ChatMessage, useChatStore } from "../store";
 import { Updater } from "../typing";
 import { IconButton } from "./button";
 
@@ -91,7 +91,6 @@ export function MessageSelector(props: {
     [allMessages],
   );
   const messageCount = messages.length;
-  const config = useAppConfig();
 
   const [searchInput, setSearchInput] = useState("");
   const [searchIds, setSearchIds] = useState(new Set<string>());

@@ -23,7 +23,7 @@ import {
 } from "react-router-dom";
 import { SideBar } from "./sidebar";
 import { AuthPage } from "./auth";
-import { useAccessStore } from "../store";
+import { useChatStore } from "../store";
 import { DataMigration } from "../utils/migration";
 
 export function Loading(props: { noLogo?: boolean }) {
@@ -148,7 +148,7 @@ export function Home() {
   useHtmlLang();
 
   useEffect(() => {
-    useAccessStore.getState().fetch();
+    useChatStore.getState().fetchModels();
   }, []);
 
   if (!useHasHydrated()) {

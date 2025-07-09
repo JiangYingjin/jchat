@@ -1,45 +1,22 @@
 import { StoreKey } from "../constant";
-import { getHeaders } from "../client/api";
 import { createPersistStore, jchatStorage } from "../utils/store";
 
-let fetchState = 0; // 0 not fetch, 1 fetching, 2 done
-
-const DEFAULT_ACCESS_STATE = {
-  accessCode: "",
-  models: "",
-};
+const DEFAULT_ACCESS_STATE = {};
 
 export const useAccessStore = createPersistStore(
   { ...DEFAULT_ACCESS_STATE },
-  (set, get) => ({
-    fetch() {
-      if (fetchState > 0) return;
-      fetchState = 1;
-      fetch("/api/config", {
-        method: "post",
-        body: null,
-        headers: {
-          ...getHeaders(),
-        },
-      })
-        .then((res) => res.json())
-        .then((res: any) => {
-          console.log("[Config] got config from server", res);
-          set(() => ({ ...res })); // 更新 accessStore 的值，直接使用返回的参数
-        })
-        .catch(() => {
-          console.error("[Config] failed to fetch config");
-        })
-        .finally(() => {
-          fetchState = 2;
-        });
-    },
-  }),
+  (set, get) => ({}),
   {
     name: StoreKey.Access,
-    version: 7.2,
+    version: 8.0,
     storage: jchatStorage,
     migrate(persistedState: any, version: number) {
+      // 版本 8.0: 移除 models 属性（已迁移到 useChatStore）
+      if (version < 8.0) {
+        if (persistedState.models !== undefined) {
+          delete persistedState.models;
+        }
+      }
       return persistedState as any;
     },
   },

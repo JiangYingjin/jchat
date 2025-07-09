@@ -31,7 +31,7 @@ import {
   showToast,
 } from "./ui-lib";
 import { IconButton } from "./button";
-import { useChatStore, useAccessStore, useAppConfig } from "../store";
+import { useChatStore } from "../store";
 
 import Locale from "../locales";
 import { copyToClipboard } from "../utils";
@@ -300,8 +300,7 @@ function SyncItems() {
 
 export function Settings() {
   const navigate = useNavigate();
-  const config = useAppConfig();
-  const accessStore = useAccessStore();
+  const chatStore = useChatStore();
 
   useEffect(() => {
     const keydownEvent = (e: KeyboardEvent) => {
@@ -349,12 +348,12 @@ export function Settings() {
             subTitle={Locale.Settings.Access.AccessCode.SubTitle}
           >
             <PasswordInput
-              value={accessStore.accessCode}
+              value={chatStore.accessCode}
               type="text"
               placeholder={Locale.Settings.Access.AccessCode.Placeholder}
               onChange={(e) => {
-                accessStore.update(
-                  (access) => (access.accessCode = e.currentTarget.value),
+                chatStore.update(
+                  (chat) => (chat.accessCode = e.currentTarget.value),
                 );
               }}
             />
@@ -362,17 +361,6 @@ export function Settings() {
         </List>
 
         <SyncItems />
-
-        {/* <List>
-          <ModelConfigList
-            modelConfig={config.modelConfig}
-            updateConfig={(updater) => {
-              const modelConfig = { ...config.modelConfig };
-              updater(modelConfig);
-              config.update((config) => (config.modelConfig = modelConfig));
-            }}
-          />
-        </List> */}
       </div>
     </ErrorBoundary>
   );

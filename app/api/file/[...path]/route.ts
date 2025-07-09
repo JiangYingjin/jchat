@@ -1,4 +1,3 @@
-import { getServerSideConfig } from "@/app/config/server";
 import LocalFileStorage from "@/app/utils/local_file_storage";
 import { NextRequest, NextResponse } from "next/server";
 import mime from "mime";
@@ -12,7 +11,6 @@ async function handle(
   }
 
   try {
-    const serverConfig = getServerSideConfig();
     const fileName = params.path[0];
     const contentType = mime.getType(fileName);
 

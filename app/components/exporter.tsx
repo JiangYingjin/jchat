@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import { ChatMessage, useAppConfig, useChatStore } from "../store";
+import { ChatMessage, useChatStore } from "../store";
 import Locale from "../locales";
 import styles from "./exporter.module.scss";
 import {
@@ -8,7 +8,6 @@ import {
   Modal,
   Select,
   showImageModal,
-  showModal,
   showToast,
 } from "./ui-lib";
 import { IconButton } from "./button";
@@ -22,26 +21,15 @@ import { jchatStorage } from "../utils/store";
 
 import CopyIcon from "../icons/copy.svg";
 import LoadingIcon from "../icons/three-dots.svg";
-import ChatGptIcon from "../icons/chatgpt.png";
-
-import BotIcon from "../icons/bot.png";
-
 import DownloadIcon from "../icons/download.svg";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageSelector, useMessageSelector } from "./message-selector";
 
 import dynamic from "next/dynamic";
-import NextImage from "next/image";
 
 import { toBlob, toPng } from "html-to-image";
 
-import { prettyObject } from "../utils/format";
-import {
-  EXPORT_MESSAGE_CLASS_NAME,
-  DEFAULT_FONT_SIZE,
-  DEFAULT_FONT_FAMILY,
-} from "../constant";
-import { type ClientApi, getClientApi } from "../client/api";
+import { EXPORT_MESSAGE_CLASS_NAME } from "../constant";
 import { getMessageTextContent } from "../utils";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
@@ -358,8 +346,6 @@ export function PreviewActions(props: {
   showCopy?: boolean;
   messages?: ChatMessage[];
 }) {
-  const config = useAppConfig();
-
   return (
     <>
       <div className={styles["preview-actions"]}>
@@ -390,7 +376,6 @@ export function ImagePreviewer(props: {
 }) {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
-  const config = useAppConfig();
 
   const previewRef = useRef<HTMLDivElement>(null);
 

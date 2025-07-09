@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { STORAGE_KEY } from "../../../constant";
-import { getServerSideConfig } from "@/app/config/server";
-
-const config = getServerSideConfig();
 
 const normalizeUrl = (url: string) => {
   try {

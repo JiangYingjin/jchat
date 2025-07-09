@@ -1,9 +1,4 @@
-import {
-  ChatSession,
-  useAccessStore,
-  useAppConfig,
-  useChatStore,
-} from "../store";
+import { ChatSession, useAccessStore, useChatStore } from "../store";
 
 import { StoreKey } from "../constant";
 import { merge } from "./merge";
@@ -32,13 +27,46 @@ export type GetStoreState<T> = T extends { getState: () => infer U }
 const LocalStateSetters = {
   [StoreKey.Chat]: useChatStore.setState,
   [StoreKey.Access]: useAccessStore.setState,
-  [StoreKey.Config]: useAppConfig.setState,
 } as const;
 
 const LocalStateGetters = {
-  [StoreKey.Chat]: () => getNonFunctionFileds(useChatStore.getState()),
-  [StoreKey.Access]: () => getNonFunctionFileds(useAccessStore.getState()),
-  [StoreKey.Config]: () => getNonFunctionFileds(useAppConfig.getState()),
+  [StoreKey.Chat]: () => {
+    try {
+      return getNonFunctionFileds(useChatStore.getState());
+    } catch (error) {
+      console.error("[Sync] Failed to get chat store state:", error);
+      // 返回默认的聊天状态结构，包含一个基本的空会话
+      return {
+        accessCode: "",
+        models: [],
+        sessions: [
+          {
+            id: "default",
+            topic: "新的对话",
+            messages: [],
+            model: "jyj.cx/flash",
+            stat: { tokenCount: 0, charCount: 0 },
+            lastUpdate: Date.now(),
+            longInputMode: false,
+            isModelManuallySelected: false,
+          },
+        ],
+        currentSessionIndex: 0,
+        lastUpdateTime: 0,
+      };
+    }
+  },
+  [StoreKey.Access]: () => {
+    try {
+      return getNonFunctionFileds(useAccessStore.getState());
+    } catch (error) {
+      console.error("[Sync] Failed to get access store state:", error);
+      // 返回默认的访问状态结构
+      return {
+        lastUpdateTime: 0,
+      };
+    }
+  },
 } as const;
 
 export type AppState = {
@@ -96,7 +124,6 @@ const MergeStates: StateMerger = {
     return localState;
   },
 
-  [StoreKey.Config]: mergeWithUpdate<AppState[StoreKey.Config]>,
   [StoreKey.Access]: mergeWithUpdate<AppState[StoreKey.Access]>,
 };
 

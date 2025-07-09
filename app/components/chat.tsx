@@ -40,8 +40,6 @@ import DisableThinkingIcon from "../icons/thinking_disable.svg";
 import {
   ChatMessage,
   useChatStore,
-  useAccessStore,
-  useAppConfig,
   DEFAULT_TOPIC,
   systemMessageStorage,
   chatInputStorage,
@@ -95,7 +93,6 @@ import {
 import { useCommand } from "../command";
 import { prettyObject } from "../utils/format";
 import { ExportMessageModal } from "./exporter";
-import { useAllModels } from "../utils/hooks";
 import { MultimodalContent } from "../client/api";
 
 import { ClientApi } from "../client/api";
@@ -415,7 +412,7 @@ export function ChatActions(props: {
 
   // switch model
   const currentModel = session.model;
-  const models = useAllModels();
+  const models = chatStore.models;
 
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [showUploadImage, setShowUploadImage] = useState(false);
@@ -425,18 +422,7 @@ export function ChatActions(props: {
   useEffect(() => {
     // 所有模型都支持视觉功能
     setShowUploadImage(isMobileScreen);
-
-    // if current model is not available
-    // switch to first available model
-    const isUnavailableModel = !models.some((m) => m.name === currentModel);
-    if (isUnavailableModel && models.length > 0) {
-      // show next model to default model if exist
-      let nextModel = models.find((model) => model.isDefault) || models[0];
-      chatStore.updateTargetSession(session, (session) => {
-        session.model = nextModel.name;
-      });
-    }
-  }, [chatStore, currentModel, models, session]);
+  }, [isMobileScreen]);
 
   return (
     <div className={styles["chat-input-actions"]}>
@@ -493,8 +479,8 @@ export function ChatActions(props: {
           <SearchSelector
             defaultSelectedValue={currentModel}
             items={models.map((m) => ({
-              title: `${m.name}`,
-              value: m.name,
+              title: `${m}`,
+              value: m,
             }))}
             onClose={() => setShowModelSelector(false)}
             onSelection={(s) => {
@@ -897,9 +883,7 @@ function _Chat() {
 
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
-  const config = useAppConfig();
-  const accessStore = useAccessStore();
-  const models = useAllModels();
+  const allModels = chatStore.models;
 
   // 记住未完成输入的防抖保存函数，间隔放宽到 500ms
   const saveChatInputText = useDebouncedCallback(async (value: string) => {
@@ -1055,43 +1039,43 @@ function _Chat() {
     loadChatInputToState();
   }, [session.id, loadChatInputToState]);
 
-  // 自动修正模型配置
-  useEffect(() => {
-    // 获取当前模型
-    const { model } = config.modelConfig;
-    // 检查主模型是否有效
-    const isModelValid = models.some((m) => m.name === model);
-    // console.log("[updateConfig] isModelValid", isModelValid);
-    // 如果主模型无效，自动 fetch 并更新为 defaultModel
-    if (!isModelValid) {
-      // 拉取服务器配置
-      accessStore.fetch();
-      // 从 allModels 中获取默认模型
-      const defaultModel = models.find((m) => m.isDefault)?.name;
-      if (defaultModel) {
-        config.update((cfg) => {
-          // 主模型无效时修正
-          if (!isModelValid) {
-            cfg.modelConfig.model = defaultModel;
-            console.log(
-              "[updateConfig] cfg.modelConfig.model",
-              cfg.modelConfig.model,
-            );
-          }
-        });
+  // // 自动修正模型配置
+  // useEffect(() => {
+  //   // 获取当前模型
+  //   const model = chatStore.models[0];
+  //   // 检查主模型是否有效
+  //   const isModelValid = allModels.some((m) => m === model);
+  //   // console.log("[updateConfig] isModelValid", isModelValid);
+  //   // 如果主模型无效，自动 fetch 并更新为 defaultModel
+  //   if (!isModelValid) {
+  //     // 拉取服务器配置
+  //     chatStore.fetchModels();
+  //     // 从 allModels 中获取默认模型
+  //     const defaultModel = allModels[0];
+  //     if (defaultModel) {
+  //       config.update((cfg) => {
+  //         // 主模型无效时修正
+  //         if (!isModelValid) {
+  //           cfg.modelConfig.model = defaultModel;
+  //           console.log(
+  //             "[updateConfig] cfg.modelConfig.model",
+  //             cfg.modelConfig.model,
+  //           );
+  //         }
+  //       });
 
-        // 如果当前会话的模型无效且用户没有手动选择模型，则更新会话的模型配置
-        if (!isModelValid && !session.isModelManuallySelected) {
-          chatStore.updateTargetSession(session, (session) => {
-            session.model = defaultModel;
-            // 标记用户手动选择了模型
-            session.isModelManuallySelected = true;
-            console.log("[updateConfig] session.model", session.model);
-          });
-        }
-      }
-    }
-  }, [accessStore, models, session.isModelManuallySelected ?? false]);
+  //       // 如果当前会话的模型无效且用户没有手动选择模型，则更新会话的模型配置
+  //       if (!isModelValid && !session.isModelManuallySelected) {
+  //         chatStore.updateTargetSession(session, (session) => {
+  //           session.model = defaultModel;
+  //           // 标记用户手动选择了模型
+  //           session.isModelManuallySelected = true;
+  //           console.log("[updateConfig] session.model", session.model);
+  //         });
+  //       }
+  //     }
+  //   }
+  // }, [accessStore, allModels, session.isModelManuallySelected ?? false]);
 
   const [showExport, setShowExport] = useState(false);
 
@@ -1254,7 +1238,7 @@ function _Chat() {
         }
       });
 
-      session.model = config.modelConfig.model;
+      session.model = chatStore.models[0];
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
@@ -1523,7 +1507,7 @@ function _Chat() {
       console.log("[Command] got code from url: ", text);
       showConfirm(Locale.URLCommand.Code + `code = ${text}`).then((res) => {
         if (res) {
-          accessStore.update((access) => (access.accessCode = text));
+          chatStore.update((chat) => (chat.accessCode = text));
         }
       });
     },
@@ -1536,7 +1520,7 @@ function _Chat() {
         };
         console.log("[Command] got settings from url: ", payload);
         if (payload.code) {
-          accessStore.update((access) => (access.accessCode = payload.code!));
+          chatStore.update((chat) => (chat.accessCode = payload.code!));
         }
       } catch {
         console.error("[Command] failed to get settings from url: ", text);
@@ -1680,7 +1664,7 @@ function _Chat() {
     }
 
     // 检查是否存在目标模型
-    const targetModel = models.find((m) => m.name === "jyj.cx/pro");
+    const targetModel = allModels.find((m) => m === "jyj.cx/pro");
     if (!targetModel) {
       console.log(
         "[AutoSwitch] 目标模型 jyj.cx/pro 不存在或不可用，跳过自动切换",
@@ -1729,7 +1713,7 @@ function _Chat() {
           )
         ) {
           // 检查是否存在 jyj.cx/pro 模型
-          const targetModel = models.find((m) => m.name === proModelName);
+          const targetModel = allModels.find((m) => m === proModelName);
           if (targetModel) {
             const currentModel = session.model;
 

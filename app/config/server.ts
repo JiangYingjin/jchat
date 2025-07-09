@@ -12,20 +12,20 @@ declare global {
   }
 }
 
-function getDefaultModel(customModels: string): string {
-  const models = customModels.split(",").filter((v) => !!v && v.length > 0);
-  return models.length > 0 ? models[0] : "google/gemini-2.5-flash";
-}
-
 export const getServerSideConfig = () => {
-  if (typeof process === "undefined") {
+  if (typeof process === "undefined")
     throw Error(
       "[Server Config] you are importing a nodejs-only module outside of nodejs",
     );
-  }
 
-  let models = process.env.MODELS ?? "";
-  // let defaultModel = getDefaultModel(customModels);
+  let models =
+    (process.env.MODELS ?? "")
+      .split(",")
+      .map((v) => v.trim())
+      .filter((v) => !!v && v.length > 0) || [];
+  if (models.length === 0) {
+    models = ["jyj.cx/flash"];
+  }
 
   const ACCESS_CODES = (function getAccessCodes(): Set<string> {
     const code = process.env.CODE;
@@ -46,6 +46,5 @@ export const getServerSideConfig = () => {
     codes: ACCESS_CODES,
     proxyUrl: process.env.PROXY_URL,
     models,
-    // defaultModel,
   };
 };

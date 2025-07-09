@@ -1,7 +1,6 @@
 "use client";
-import { ApiPath, OpenaiPath, OPENAI_BASE_URL } from "@/app/constant";
-import { useAccessStore, useAppConfig, useChatStore } from "@/app/store";
-import { getModelList } from "@/app/utils/model";
+import { ApiPath, OpenaiPath } from "@/app/constant";
+import { useChatStore } from "@/app/store";
 import {
   preProcessImageAndWebReferenceContent,
   streamWithThink,
@@ -60,14 +59,6 @@ export class ChatGPTApi implements LLMApi {
   }
 
   async chat(options: ChatOptions) {
-    const modelConfig = {
-      ...useAppConfig.getState().modelConfig,
-      ...{ model: useChatStore.getState().currentSession().model },
-      ...{
-        model: options.config.model,
-      },
-    };
-
     let requestPayload: // | RequestPayload
     // | DalleRequestPayload
     // | GPTImageRequestPayload
@@ -89,7 +80,8 @@ export class ChatGPTApi implements LLMApi {
     requestPayload = {
       messages,
       stream: options.config.stream,
-      model: modelConfig.model,
+      model:
+        options.config.model || useChatStore.getState().currentSession().model,
       // max_tokens: Math.max(modelConfig.max_tokens, 1024),
       // Please do not ask me why not send max_tokens, no reason, this param is just shit, I dont want to explain anymore.
     };
@@ -229,14 +221,6 @@ export class ChatGPTApi implements LLMApi {
       console.log("[Request] failed to make a chat request", e);
       options.onError?.(e as Error);
     }
-  }
-
-  async models(): Promise<LLMModel[]> {
-    // 获取服务器端配置的模型列表
-    const accessStore = useAccessStore.getState();
-    // 使用 getModelList 来获取完整的模型列表
-    const allModels = getModelList(accessStore.models);
-    return allModels;
   }
 }
 export { OpenaiPath };

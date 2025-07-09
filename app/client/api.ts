@@ -1,4 +1,4 @@
-import { useAccessStore } from "../store";
+import { useChatStore } from "../store";
 import { ChatGPTApi } from "./platforms/openai";
 import { FileApi } from "./platforms/utils";
 
@@ -62,8 +62,6 @@ export interface LLMModel {
 
 export abstract class LLMApi {
   abstract chat(options: ChatOptions): Promise<void>;
-
-  abstract models(): Promise<LLMModel[]>;
 }
 
 export abstract class ToolApi {
@@ -96,7 +94,7 @@ export function validString(x: string): boolean {
 }
 
 export function getHeaders(ignoreHeaders: boolean = false) {
-  const accessStore = useAccessStore.getState();
+  const chatStore = useChatStore.getState();
   let headers: Record<string, string> = {};
   if (!ignoreHeaders) {
     headers = {
@@ -105,8 +103,8 @@ export function getHeaders(ignoreHeaders: boolean = false) {
     };
   }
 
-  if (validString(accessStore.accessCode)) {
-    headers["Authorization"] = getBearerToken(accessStore.accessCode);
+  if (validString(chatStore.accessCode)) {
+    headers["Authorization"] = getBearerToken(chatStore.accessCode);
   }
 
   return headers;

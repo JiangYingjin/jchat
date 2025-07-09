@@ -3,20 +3,20 @@ import { IconButton } from "./button";
 
 import { useNavigate } from "react-router-dom";
 import { Path } from "../constant";
-import { useAccessStore } from "../store";
+import { useChatStore } from "../store";
 import Locale from "../locales";
 
 import BotIcon from "../icons/bot.svg";
 
 export function AuthPage() {
   const navigate = useNavigate();
-  const accessStore = useAccessStore();
+  const chatStore = useChatStore();
 
   const goHome = () => navigate(Path.Home);
   const goChat = () => navigate(Path.Chat);
   const resetAccessCode = () => {
-    accessStore.update((access) => {
-      access.accessCode = "";
+    chatStore.update((chat) => {
+      chat.accessCode = "";
     });
   }; // Reset access code to empty string
 
@@ -33,11 +33,9 @@ export function AuthPage() {
         className={styles["auth-input"]}
         type="password"
         placeholder={Locale.Auth.Input}
-        value={accessStore.accessCode}
+        value={chatStore.accessCode}
         onChange={(e) => {
-          accessStore.update(
-            (access) => (access.accessCode = e.currentTarget.value),
-          );
+          chatStore.update((chat) => (chat.accessCode = e.currentTarget.value));
         }}
       />
 

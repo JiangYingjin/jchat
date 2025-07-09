@@ -22,7 +22,6 @@ import {
 import { useChatStore } from "../store";
 import { IconButton } from "./button";
 
-import { useAppConfig } from "../store/config";
 import {
   DEFAULT_FONT_SIZE,
   DEFAULT_FONT_FAMILY,
@@ -190,7 +189,6 @@ export function PreCode(props: React.ComponentPropsWithoutRef<"pre">) {
 function CustomCode(props: React.ComponentPropsWithoutRef<"code">) {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
-  const config = useAppConfig();
   const enableCodeFold = ENABLE_CODE_FOLD;
 
   const ref = useRef<HTMLPreElement>(null);

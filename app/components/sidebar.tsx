@@ -6,7 +6,7 @@ import { IconButton } from "./button";
 import SettingsIcon from "../icons/settings.svg";
 import AddIcon from "../icons/add.svg";
 
-import { useAppConfig, useChatStore } from "../store";
+import { useChatStore } from "../store";
 
 import { DEFAULT_SIDEBAR_WIDTH, Path } from "../constant";
 
@@ -54,7 +54,6 @@ export function SideBar(props: { className?: string }) {
   // sidebar
   useSideBar();
   const navigate = useNavigate();
-  const config = useAppConfig();
   const isMobileScreen = useMobileScreen();
   const isIOSMobile = useMemo(
     () => isIOS() && isMobileScreen,

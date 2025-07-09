@@ -4,10 +4,7 @@ import type { ChatMessage, ChatSession, ChatStat } from "../store/chat";
 import type { ClientApi, MultimodalContent } from "../client/api";
 import { getClientApi } from "../client/api";
 import { estimateTokenLength } from "./token";
-import { useAppConfig } from "../store/config";
-import { useAccessStore } from "../store/access";
-import { getModelList } from "./model";
-import { DEFAULT_MODELS } from "../constant";
+import { useChatStore } from "../store/chat";
 import Locale from "../locales";
 import { buildMultimodalContent } from "./chat";
 
@@ -31,7 +28,17 @@ export function createMessage(override: Partial<ChatMessage>): ChatMessage {
  * 创建空的会话对象
  */
 export function createEmptySession(): ChatSession {
-  const config = useAppConfig.getState();
+  // 延迟获取 models，避免在模块初始化时访问 store
+  const getDefaultModel = () => {
+    try {
+      const models = useChatStore.getState().models;
+      return models && models.length > 0 ? models[0] : "jyj.cx/flash";
+    } catch (error) {
+      // 如果获取失败，返回默认模型
+      return "jyj.cx/flash";
+    }
+  };
+
   return {
     id: nanoid(),
     topic: DEFAULT_TOPIC,
@@ -41,7 +48,7 @@ export function createEmptySession(): ChatSession {
       charCount: 0,
     },
     lastUpdate: Date.now(),
-    model: config.modelConfig.model,
+    model: getDefaultModel(),
     longInputMode: false,
     isModelManuallySelected: false,
   };
@@ -164,9 +171,8 @@ export async function summarizeSession(
   onTopicUpdate?: (topic: string) => void,
 ): Promise<void> {
   // 直接使用全局默认模型进行总结
-  const accessStore = useAccessStore.getState();
-  const allModel = getModelList(accessStore.models);
-  const model = allModel.length > 0 ? allModel[0].name : DEFAULT_MODELS[0];
+  const chatStore = useChatStore.getState();
+  const model = chatStore.models[0];
 
   const api: ClientApi = getClientApi();
 
