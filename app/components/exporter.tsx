@@ -1,5 +1,5 @@
 /* eslint-disable @next/next/no-img-element */
-import { ChatMessage, useChatStore } from "../store";
+import { ChatMessage, useChatStore, systemMessageStorage } from "../store";
 import Locale from "../locales";
 import styles from "./exporter.module.scss";
 import {
@@ -143,6 +143,9 @@ export function MessageExporter() {
   // 新增：追踪用户是否手动调整过选择
   const [userSelectionTouched, setUserSelectionTouched] = useState(false);
 
+  // 添加系统提示词状态
+  const [systemMessageData, setSystemMessageData] = useState<any>(null);
+
   // 异步加载保存的导出格式
   useEffect(() => {
     const loadSavedFormat = async () => {
@@ -166,6 +169,24 @@ export function MessageExporter() {
     loadSavedFormat();
   }, []);
 
+  const chatStore = useChatStore();
+  const session = chatStore.currentSession();
+  const { selection, updateSelection } = useMessageSelector();
+
+  // 加载系统提示词
+  useEffect(() => {
+    async function loadSystemMessage() {
+      try {
+        const data = await systemMessageStorage.getSystemMessage(session.id);
+        setSystemMessageData(data);
+      } catch (error) {
+        console.error("Failed to load system message:", error);
+        setSystemMessageData(null);
+      }
+    }
+    loadSystemMessage();
+  }, [session.id]);
+
   // 更新导出配置，并在切换格式时写入 jchatStorage
   const updateExportConfig = async (
     updater: (config: typeof exportConfig) => void,
@@ -183,10 +204,6 @@ export function MessageExporter() {
     }
   };
 
-  const chatStore = useChatStore();
-  const session = chatStore.currentSession();
-  const { selection, updateSelection } = useMessageSelector();
-
   // 自动选择函数
   function autoSelectByFormat(format: ExportFormat) {
     updateSelection((selection) => {
@@ -196,9 +213,16 @@ export function MessageExporter() {
           if (m.role !== "system") selection.add(m.id);
         });
       } else {
-        // text/json
-
+        // text/json - 同时检查是否有系统提示词需要选中
         session.messages.forEach((m) => selection.add(m.id));
+
+        // 如果有系统提示词，也添加到选择中
+        if (
+          systemMessageData &&
+          (systemMessageData.text.trim() || systemMessageData.images.length > 0)
+        ) {
+          selection.add(`system-${session.id}`);
+        }
       }
     });
   }
@@ -209,7 +233,7 @@ export function MessageExporter() {
       autoSelectByFormat(exportConfig.format);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [exportConfig.format]);
+  }, [exportConfig.format, systemMessageData]);
 
   // 只要用户手动调整选择，就设置 userSelectionTouched
   function onUserSelectChange(updater: (selection: Set<string>) => void) {
@@ -219,9 +243,27 @@ export function MessageExporter() {
 
   const selectedMessages = useMemo(() => {
     const ret: ChatMessage[] = [];
+
+    // 首先检查是否选中了系统提示词
+    const systemMessageId = `system-${session.id}`;
+    if (
+      selection.has(systemMessageId) &&
+      systemMessageData &&
+      (systemMessageData.text.trim() || systemMessageData.images.length > 0)
+    ) {
+      const systemMessage: ChatMessage = {
+        id: systemMessageId,
+        role: "system",
+        content: systemMessageData.text,
+        date: new Date(systemMessageData.updateAt).toISOString(),
+      };
+      ret.push(systemMessage);
+    }
+
+    // 然后添加其他选中的消息
     ret.push(...session.messages.filter((m) => selection.has(m.id)));
     return ret;
-  }, [session.messages, selection]);
+  }, [session.messages, selection, systemMessageData, session.id]);
   function preview() {
     if (exportConfig.format === "text") {
       return (

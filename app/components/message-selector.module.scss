@@ -53,9 +53,44 @@
         border-bottom: var(--border-in-light);
       }
 
+      .role-icon {
+        flex-shrink: 0;
+        width: 24px;
+        height: 24px;
+        margin-right: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 4px;
+        color: var(--primary);
+
+        svg {
+          width: 16px;
+          height: 16px;
+        }
+
+        // 为不同角色设置不同的背景色
+        .message[data-role="system"] & {
+          background-color: var(--blue);
+          color: white;
+        }
+
+        .message[data-role="user"] & {
+          background-color: var(--green);
+          color: white;
+        }
+
+        .message[data-role="assistant"] & {
+          background-color: var(--purple);
+          color: white;
+        }
+      }
+
       .body {
         flex: 1;
-        max-width: calc(100% - 80px);
+        max-width: calc(
+          100% - 56px
+        ); // 修正计算：24px(图标) + 8px(margin) + 24px(复选框) = 56px
 
         .date {
           font-size: 12px;
@@ -71,7 +106,28 @@
       .checkbox {
         display: flex;
         justify-content: flex-end;
-        flex: 1;
+        flex-shrink: 0;
+        width: 24px;
+      }
+
+      // 为系统消息添加特殊样式，但保持可选中
+      &[data-role="system"] {
+        background-color: rgba(var(--blue-rgb), 0.05);
+
+        .role-icon {
+          background-color: var(--blue);
+          color: white;
+        }
+      }
+
+      &[data-role="user"] .role-icon {
+        background-color: var(--green);
+        color: white;
+      }
+
+      &[data-role="assistant"] .role-icon {
+        background-color: var(--purple);
+        color: white;
       }
     }
   }

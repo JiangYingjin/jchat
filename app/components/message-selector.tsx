@@ -1,12 +1,61 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChatMessage, useChatStore } from "../store";
+import { ChatMessage, useChatStore, systemMessageStorage } from "../store";
 import { Updater } from "../typing";
 import { IconButton } from "./button";
 
 import Locale from "../locales";
 
+// 导入角色图标
+import RobotIcon from "../icons/robot.svg";
+import SettingsIcon from "../icons/settings.svg";
+
 import styles from "./message-selector.module.scss";
 import { getMessageTextContent } from "../utils";
+
+// 系统消息数据接口
+interface SystemMessageData {
+  text: string;
+  images: string[];
+  scrollTop: number;
+  selection: { start: number; end: number };
+  updateAt: number;
+}
+
+// 用户图标组件 (自定义 SVG)
+function UserIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle cx="12" cy="7" r="4" stroke="black" strokeWidth="2" />
+      <path
+        d="M5.5 20v-2a6 6 0 0 1 6-6h1a6 6 0 0 1 6 6v2"
+        stroke="black"
+        strokeWidth="2"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+// 获取角色图标
+function getRoleIcon(role: string) {
+  switch (role) {
+    case "system":
+      return <SettingsIcon />;
+    case "user":
+      return <UserIcon />;
+    case "assistant":
+    case "model":
+      return <RobotIcon />;
+    default:
+      return null;
+  }
+}
 
 function useShiftRange() {
   const [startIndex, setStartIndex] = useState<number>();
@@ -72,24 +121,57 @@ export function MessageSelector(props: {
 }) {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
+  const [systemMessageData, setSystemMessageData] =
+    useState<SystemMessageData | null>(null);
+
   const isValid = (m: ChatMessage) => m.content && !m.isError && !m.streaming;
+
   const allMessages = useMemo(() => {
     // Clear context functionality has been removed, use all messages
     return session.messages;
   }, [session.messages]);
 
-  const messages = useMemo(
-    () =>
-      allMessages.filter(
-        (m, i) =>
-          m.id && // message must have id
-          isValid(m) &&
-          (m.role === "system" ||
-            i >= allMessages.length - 1 ||
-            isValid(allMessages[i + 1])),
-      ),
-    [allMessages],
-  );
+  // 加载系统提示词
+  useEffect(() => {
+    async function loadSystemMessage() {
+      try {
+        const data = await systemMessageStorage.getSystemMessage(session.id);
+        setSystemMessageData(data);
+      } catch (error) {
+        console.error("Failed to load system message:", error);
+        setSystemMessageData(null);
+      }
+    }
+    loadSystemMessage();
+  }, [session.id]);
+
+  const messages = useMemo(() => {
+    const filteredMessages = allMessages.filter(
+      (m, i) =>
+        m.id && // message must have id
+        isValid(m) &&
+        (m.role === "system" ||
+          i >= allMessages.length - 1 ||
+          isValid(allMessages[i + 1])),
+    );
+
+    // 如果有系统提示词数据且内容不为空，添加一个虚拟的系统消息用于显示
+    if (
+      systemMessageData &&
+      (systemMessageData.text.trim() || systemMessageData.images.length > 0)
+    ) {
+      const systemMessage: ChatMessage = {
+        id: `system-${session.id}`,
+        role: "system",
+        content: systemMessageData.text,
+        date: new Date(systemMessageData.updateAt).toISOString(),
+      };
+      return [systemMessage, ...filteredMessages];
+    }
+
+    return filteredMessages;
+  }, [allMessages, systemMessageData, session.id]);
+
   const messageCount = messages.length;
 
   const [searchInput, setSearchInput] = useState("");
@@ -100,11 +182,15 @@ export function MessageSelector(props: {
   const doSearch = (text: string) => {
     const searchResults = new Set<string>();
     if (text.length > 0) {
-      messages.forEach((m) =>
-        getMessageTextContent(m).includes(text)
-          ? searchResults.add(m.id!)
-          : null,
-      );
+      messages.forEach((m) => {
+        const content =
+          m.role === "system" && m.id?.startsWith("system-")
+            ? systemMessageData?.text || ""
+            : getMessageTextContent(m);
+        if (content.includes(text)) {
+          searchResults.add(m.id!);
+        }
+      });
     }
     setSearchIds(searchResults);
   };
@@ -115,9 +201,7 @@ export function MessageSelector(props: {
   const selectAll = () => {
     props.updateSelection((selection) =>
       messages.forEach((m) => {
-        if (m.role !== "system") {
-          selection.add(m.id!);
-        }
+        selection.add(m.id!);
       }),
     );
   };
@@ -142,8 +226,6 @@ export function MessageSelector(props: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startIndex, endIndex]);
 
-  const LATEST_COUNT = 4;
-
   return (
     <div className={styles["message-selector"]}>
       <div className={styles["message-filter"]}>
@@ -165,19 +247,6 @@ export function MessageSelector(props: {
             className={styles["filter-item"]}
             onClick={selectAll}
           />
-          {/* <IconButton
-            text={Locale.Select.Latest}
-            bordered
-            className={styles["filter-item"]}
-            onClick={() =>
-              props.updateSelection((selection) => {
-                selection.clear();
-                messages
-                  .slice(messageCount - LATEST_COUNT)
-                  .forEach((m) => selection.add(m.id!));
-              })
-            }
-          /> */}
           <IconButton
             text={Locale.Select.Clear}
             bordered
@@ -194,6 +263,8 @@ export function MessageSelector(props: {
           if (!isInSearchResult(m.id!)) return null;
           const id = m.id ?? i;
           const isSelected = props.selection.has(id);
+          const isSystemMessage =
+            m.role === "system" && m.id?.startsWith("system-");
 
           return (
             <div
@@ -209,6 +280,8 @@ export function MessageSelector(props: {
                 onClickIndex(i);
               }}
             >
+              <div className={styles["role-icon"]}>{getRoleIcon(m.role)}</div>
+
               <div className={styles["body"]}>
                 <div className={styles["date"]}>
                   {m.role === "system"
@@ -216,12 +289,14 @@ export function MessageSelector(props: {
                     : new Date(m.date).toLocaleString()}
                 </div>
                 <div className={`${styles["content"]} one-line`}>
-                  {getMessageTextContent(m)}
+                  {isSystemMessage
+                    ? systemMessageData?.text || ""
+                    : getMessageTextContent(m)}
                 </div>
               </div>
 
               <div className={styles["checkbox"]}>
-                <input type="checkbox" checked={isSelected} readOnly></input>
+                <input type="checkbox" checked={isSelected} readOnly />
               </div>
             </div>
           );
