@@ -229,6 +229,14 @@ export const useChatStore = createPersistStore(
 
         if (!deletedSession) return;
 
+        // **保存删除前的完整状态用于撤销**
+        const restoreState = {
+          sessions: get().sessions,
+          currentSessionIndex: get().currentSessionIndex,
+        };
+        const deletedSessionIndex = index;
+
+        // 准备新的状态
         const sessions = get().sessions.slice();
         sessions.splice(index, 1);
 
@@ -246,13 +254,16 @@ export const useChatStore = createPersistStore(
           await get().saveSessionMessages(newSession);
         }
 
+        // 立即更新UI状态（从sessions数组中移除）
         set(() => ({
           currentSessionIndex: nextIndex,
           sessions,
         }));
 
-        // **核心改动：删除对应的消息存储和其他关联数据**
-        const deleteSessionData = async () => {
+        // **延迟删除相关数据的定时器**
+        let deleteTimer: NodeJS.Timeout | null = null;
+
+        const performActualDeletion = async () => {
           try {
             await Promise.all([
               messageStorage.deleteMessages(deletedSession.id),
@@ -269,10 +280,39 @@ export const useChatStore = createPersistStore(
             );
           }
         };
-        deleteSessionData();
 
-        // 简化toast，暂时不提供恢复功能（因为恢复messageStorage数据较复杂）
-        showToast(Locale.Chat.DeleteMessageToast, undefined, 3000);
+        // **撤销删除的功能**
+        const restoreSession = async () => {
+          // 取消延迟删除定时器
+          if (deleteTimer) {
+            clearTimeout(deleteTimer);
+            deleteTimer = null;
+          }
+
+          // 恢复会话状态
+          set(() => restoreState);
+
+          // 确保恢复的会话消息已加载
+          await get().loadSessionMessages(deletedSessionIndex);
+
+          console.log(`[DeleteSession] 已撤销删除会话 ${deletedSession.id}`);
+        };
+
+        // 设置8秒后的延迟删除
+        deleteTimer = setTimeout(() => {
+          performActualDeletion();
+          deleteTimer = null;
+        }, 8000);
+
+        // **显示带撤销选项的Toast**
+        showToast(
+          Locale.Chat.DeleteMessageToast,
+          {
+            text: Locale.Chat.Revert,
+            onClick: restoreSession,
+          },
+          8000,
+        );
       },
 
       currentSession() {
