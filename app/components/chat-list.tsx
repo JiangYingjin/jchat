@@ -73,7 +73,7 @@ export function ChatItem(props: {
   id: string;
   index: number;
   narrow?: boolean;
-  messages?: any[];
+  status: "normal" | "error" | "pending";
 }) {
   const draggableRef = useRef<HTMLDivElement | null>(null);
   const { pathname: currentPath } = useLocation();
@@ -86,31 +86,28 @@ export function ChatItem(props: {
     props.selected && (currentPath === Path.Chat || currentPath === Path.Home);
   // 标记点逻辑
   let statusDot: JSX.Element | null = null;
-  if (props.messages && props.messages.length > 0) {
-    const lastMsg = props.messages[props.messages.length - 1];
-    if (lastMsg.role === "user") {
-      statusDot = (
-        <span
-          className={
-            styles["chat-item-status-dot"] +
-            " " +
-            styles["chat-item-status-dot-yellow"]
-          }
-          title="用户消息结尾"
-        />
-      );
-    } else if (lastMsg.role === "assistant" && lastMsg.isError) {
-      statusDot = (
-        <span
-          className={
-            styles["chat-item-status-dot"] +
-            " " +
-            styles["chat-item-status-dot-red"]
-          }
-          title="模型消息报错结尾"
-        />
-      );
-    }
+  if (props.status === "pending") {
+    statusDot = (
+      <span
+        className={
+          styles["chat-item-status-dot"] +
+          " " +
+          styles["chat-item-status-dot-yellow"]
+        }
+        title="用户消息待回复"
+      />
+    );
+  } else if (props.status === "error") {
+    statusDot = (
+      <span
+        className={
+          styles["chat-item-status-dot"] +
+          " " +
+          styles["chat-item-status-dot-red"]
+        }
+        title="会话出现错误"
+      />
+    );
   }
   return (
     <Draggable draggableId={`${props.id}`} index={props.index}>
@@ -194,7 +191,7 @@ export function ChatList(props: { narrow?: boolean }) {
               <ChatItem
                 title={item.topic}
                 time={new Date(item.lastUpdate).toLocaleString()}
-                count={item.messages.length}
+                count={item.messageCount}
                 key={item.id}
                 id={item.id}
                 index={i}
@@ -213,7 +210,7 @@ export function ChatList(props: { narrow?: boolean }) {
                   }
                 }}
                 narrow={props.narrow}
-                messages={item.messages}
+                status={item.status}
               />
             ))}
             {provided.placeholder}

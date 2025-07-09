@@ -43,15 +43,16 @@ export interface ChatSession {
   id: string;
 
   topic: string;
-  messages: ChatMessage[];
   model: string; // 当前会话选择的模型
 
   messageCount: number; // 消息数量
-  status: "normal" | "error" | "pending"; // 会话状态：正常、错误、用户消息待回复
-  lastUpdate: number;
+  status: "normal" | "error" | "pending"; // 会话状态：正常、错误、用户消息结尾
 
   isModelManuallySelected?: boolean; // 用户是否手动选择了模型（用于自动切换逻辑）
   longInputMode?: boolean; // 是否为长输入模式（Enter 换行，Ctrl+Enter 发送）
+  lastUpdate: number;
+
+  messages: ChatMessage[];
 }
 
 const DEFAULT_CHAT_STATE = {

@@ -45,7 +45,7 @@ import {
   chatInputStorage,
 } from "../store";
 
-import { createMessage } from "../utils/session";
+import { createMessage, updateSessionStats } from "../utils/session";
 
 import {
   copyToClipboard,
@@ -1274,12 +1274,13 @@ function _Chat() {
     }
   };
 
-  const deleteMessage = (msgId?: string) => {
-    chatStore.updateTargetSession(
-      session,
-      (session) =>
-        (session.messages = session.messages.filter((m) => m.id !== msgId)),
-    );
+  const deleteMessage = async (msgId?: string) => {
+    chatStore.updateTargetSession(session, (session) => {
+      session.messages = session.messages.filter((m) => m.id !== msgId);
+      updateSessionStats(session); // 重新计算会话状态
+    });
+    // 保存删除后的消息到存储
+    await chatStore.saveSessionMessages(session);
   };
 
   const onDelete = (msgId: string) => {
@@ -1293,11 +1294,13 @@ function _Chat() {
       Locale.Home.DeleteToast, // 你可以在 Locale 里加一个类似 "消息已删除"
       {
         text: Locale.Home.Revert, // 你可以在 Locale 里加一个 "撤销"
-        onClick() {
-          chatStore.updateTargetSession(
-            session,
-            (session) => (session.messages = prevMessages),
-          );
+        async onClick() {
+          chatStore.updateTargetSession(session, (session) => {
+            session.messages = prevMessages;
+            updateSessionStats(session); // 重新计算会话状态
+          });
+          // 撤销删除后也需要保存到存储
+          await chatStore.saveSessionMessages(session);
         },
       },
       5000,
