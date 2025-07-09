@@ -40,15 +40,15 @@ import DisableThinkingIcon from "../icons/thinking_disable.svg";
 import {
   ChatMessage,
   useChatStore,
-  createMessage,
   useAccessStore,
   useAppConfig,
   DEFAULT_TOPIC,
   systemMessageStorage,
   chatInputStorage,
   ChatSession,
-  Mask,
 } from "../store";
+
+import { createMessage } from "../utils/session";
 
 import {
   copyToClipboard,
@@ -414,7 +414,7 @@ export function ChatActions(props: {
   const stopAll = () => ChatControllerPool.stopAll();
 
   // switch model
-  const currentModel = session.mask.modelConfig.model;
+  const currentModel = session.model;
   const models = useAllModels();
 
   const [showModelSelector, setShowModelSelector] = useState(false);
@@ -433,7 +433,7 @@ export function ChatActions(props: {
       // show next model to default model if exist
       let nextModel = models.find((model) => model.isDefault) || models[0];
       chatStore.updateTargetSession(session, (session) => {
-        session.mask.modelConfig.model = nextModel.name;
+        session.model = nextModel.name;
       });
     }
   }, [chatStore, currentModel, models, session]);
@@ -500,7 +500,7 @@ export function ChatActions(props: {
             onSelection={(s) => {
               if (s.length === 0) return;
               chatStore.updateTargetSession(session, (session) => {
-                session.mask.modelConfig.model = s[0] as string;
+                session.model = s[0] as string;
                 // 标记用户手动选择了模型
                 session.isModelManuallySelected = true;
               });
@@ -788,7 +788,7 @@ function usePasteImageUpload(
 
   const handlePaste = useCallback(
     async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
-      const currentModel = chatStore.currentSession().mask.modelConfig.model;
+      const currentModel = chatStore.currentSession().model;
       const items = event.clipboardData?.items;
       const imageFiles: File[] = [];
 
@@ -1083,13 +1083,10 @@ function _Chat() {
         // 如果当前会话的模型无效且用户没有手动选择模型，则更新会话的模型配置
         if (!isModelValid && !session.isModelManuallySelected) {
           chatStore.updateTargetSession(session, (session) => {
-            session.mask.modelConfig.model = defaultModel;
+            session.model = defaultModel;
             // 标记用户手动选择了模型
             session.isModelManuallySelected = true;
-            console.log(
-              "[updateConfig] session.mask.modelConfig.model",
-              session.mask.modelConfig.model,
-            );
+            console.log("[updateConfig] session.model", session.model);
           });
         }
       }
@@ -1198,7 +1195,9 @@ function _Chat() {
     saveChatInputText.cancel && saveChatInputText.cancel();
 
     setIsLoading(true);
-    chatStore.onUserInput(value, attachImages).then(() => setIsLoading(false));
+    chatStore
+      .onSendMessage(value, attachImages)
+      .then(() => setIsLoading(false));
     setAttachImages([]);
 
     setUserInput("");
@@ -1255,9 +1254,7 @@ function _Chat() {
         }
       });
 
-      // auto sync mask config from global config
-      console.log("[Mask] syncing from global, name = ", session.mask.name);
-      session.mask.modelConfig = { ...config.modelConfig };
+      session.model = config.modelConfig.model;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
@@ -1362,7 +1359,7 @@ function _Chat() {
     const textContent = getMessageTextContent(userMessage);
     const images = getMessageImages(userMessage);
     chatStore
-      .onUserInput(textContent, images, requestIndex)
+      .onSendMessage(textContent, images, requestIndex)
       .then(() => setIsLoading(false));
     inputRef.current?.focus();
   };
@@ -1734,11 +1731,11 @@ function _Chat() {
           // 检查是否存在 jyj.cx/pro 模型
           const targetModel = models.find((m) => m.name === proModelName);
           if (targetModel) {
-            const currentModel = session.mask.modelConfig.model;
+            const currentModel = session.model;
 
             // 只有当前模型不是目标模型时才切换
             if (currentModel !== proModelName) {
-              session.mask.modelConfig.model = proModelName;
+              session.model = proModelName;
               // 标记用户手动选择了模型
               session.isModelManuallySelected = true;
               console.log(

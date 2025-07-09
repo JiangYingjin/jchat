@@ -14,7 +14,6 @@ import { useChatStore } from "../store";
 import Locale from "../locales";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { Path } from "../constant";
-import { Mask } from "../store/chat";
 import { useRef, useEffect, useMemo } from "react";
 import { showConfirm } from "./ui-lib";
 import { useMobileScreen } from "../utils";
@@ -74,7 +73,6 @@ export function ChatItem(props: {
   id: string;
   index: number;
   narrow?: boolean;
-  mask: Mask;
   messages?: any[];
 }) {
   const draggableRef = useRef<HTMLDivElement | null>(null);
@@ -215,7 +213,6 @@ export function ChatList(props: { narrow?: boolean }) {
                   }
                 }}
                 narrow={props.narrow}
-                mask={item.mask}
                 messages={item.messages}
               />
             ))}

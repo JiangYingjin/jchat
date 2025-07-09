@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { IconButton } from "./button";
-import { ChatMessage, createMessage } from "../store";
+import { ChatMessage } from "../store";
+import { createMessage } from "../utils/session";
 import { MultimodalContent, ROLES } from "../client/api";
 import { Input, Select } from "./ui-lib";
 import Locale from "../locales";

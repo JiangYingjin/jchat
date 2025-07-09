@@ -14,35 +14,35 @@ import Locale from "../locales";
 import { prettyObject } from "../utils/format";
 import { createPersistStore, jchatStorage } from "../utils/store";
 import { estimateTokenLength } from "../utils/token";
-import { ModelConfig, useAppConfig } from "./config";
+import { useAppConfig } from "./config";
 import { useAccessStore } from "./access";
 import { getModelList } from "../utils/model";
 
 import { buildMultimodalContent } from "../utils/chat";
 import localforage from "localforage";
 
-export type Mask = {
-  name: string;
-  modelConfig: ModelConfig;
-};
+// 导入session工具函数
+import {
+  createMessage,
+  createEmptySession,
+  countMessages,
+  createBranchSession,
+  getMessagesWithMemory,
+  summarizeSession,
+  updateSessionStat,
+  prepareSendMessages,
+  insertMessage,
+  calculateMoveIndex,
+  validateSessionIndex,
+} from "../utils/session";
 
 export type ChatMessage = RequestMessage & {
+  id: string;
+  model?: string;
   date: string;
   streaming?: boolean;
   isError?: boolean;
-  id: string;
-  model?: string;
 };
-
-export function createMessage(override: Partial<ChatMessage>): ChatMessage {
-  return {
-    id: nanoid(),
-    date: new Date().toLocaleString(),
-    role: "user",
-    content: "",
-    ...override,
-  };
-}
 
 export interface ChatStat {
   tokenCount: number;
@@ -52,55 +52,20 @@ export interface ChatStat {
 export interface ChatSession {
   id: string;
   topic: string;
-
   messages: ChatMessage[];
+  model: string; // 当前会话选择的模型
   stat: ChatStat;
   lastUpdate: number;
-
-  mask: Mask;
-
-  // 是否为长输入模式（Enter 换行，Ctrl+Enter 发送）
-  longInputMode?: boolean;
-
-  // 用户是否手动选择了模型（用于自动切换逻辑）
-  isModelManuallySelected?: boolean;
-}
-
-export const DEFAULT_TOPIC = Locale.Store.DefaultTopic;
-
-function createEmptySession(): ChatSession {
-  const config = useAppConfig.getState();
-  const emptyMask: Mask = {
-    name: DEFAULT_TOPIC,
-    modelConfig: { ...config.modelConfig },
-  };
-
-  return {
-    id: nanoid(),
-    topic: DEFAULT_TOPIC,
-    messages: [],
-    stat: {
-      tokenCount: 0,
-      charCount: 0,
-    },
-    lastUpdate: Date.now(),
-    mask: emptyMask,
-    longInputMode: false, // 默认不是长输入模式
-    isModelManuallySelected: false, // 默认用户没有手动选择模型
-  };
-}
-
-function countMessages(msgs: ChatMessage[]) {
-  return msgs.reduce(
-    (pre, cur) => pre + estimateTokenLength(getMessageTextContent(cur)),
-    0,
-  );
+  longInputMode?: boolean; // 是否为长输入模式（Enter 换行，Ctrl+Enter 发送）
+  isModelManuallySelected?: boolean; // 用户是否手动选择了模型（用于自动切换逻辑）
 }
 
 const DEFAULT_CHAT_STATE = {
-  sessions: [createEmptySession()],
   currentSessionIndex: 0,
+  sessions: [createEmptySession()],
 };
+
+export const DEFAULT_TOPIC = Locale.Store.DefaultTopic;
 
 export const useChatStore = createPersistStore(
   DEFAULT_CHAT_STATE,
@@ -122,12 +87,7 @@ export const useChatStore = createPersistStore(
 
         newSession.topic = currentSession.topic;
         newSession.messages = [...currentSession.messages];
-        newSession.mask = {
-          ...currentSession.mask,
-          modelConfig: {
-            ...currentSession.mask.modelConfig,
-          },
-        };
+        newSession.model = currentSession.model;
         newSession.isModelManuallySelected =
           currentSession.isModelManuallySelected;
 
@@ -160,13 +120,8 @@ export const useChatStore = createPersistStore(
           newSessions.splice(from, 1);
           newSessions.splice(to, 0, session);
 
-          // modify current session id
-          let newIndex = oldIndex === from ? to : oldIndex;
-          if (oldIndex > from && oldIndex <= to) {
-            newIndex -= 1;
-          } else if (oldIndex < from && oldIndex >= to) {
-            newIndex += 1;
-          }
+          // calculate new index using utility function
+          const newIndex = calculateMoveIndex(from, to, oldIndex);
 
           return {
             currentSessionIndex: newIndex,
@@ -190,22 +145,14 @@ export const useChatStore = createPersistStore(
         systemMessageData: any,
         branchTopic: string,
       ) {
-        // 使用底层方法创建完整的新会话对象
-        const newSession = createEmptySession();
-
-        // 设置会话属性
-        newSession.topic = branchTopic;
-        newSession.messages = [...messagesToCopy];
-        newSession.longInputMode = originalSession.longInputMode;
-        newSession.isModelManuallySelected =
-          originalSession.isModelManuallySelected;
-
-        // 复制模型配置
-        newSession.mask.modelConfig = { ...originalSession.mask.modelConfig };
+        const newSession = createBranchSession(
+          originalSession,
+          messagesToCopy,
+          branchTopic,
+        );
 
         const currentIndex = get().currentSessionIndex;
 
-        // 一次性插入完整的新会话到sessions开头
         set((state) => ({
           sessions: [newSession, ...state.sessions],
           currentSessionIndex: currentIndex + 1,
@@ -285,14 +232,13 @@ export const useChatStore = createPersistStore(
         let index = get().currentSessionIndex;
         const sessions = get().sessions;
 
-        if (index < 0 || index >= sessions.length) {
-          index = Math.min(sessions.length - 1, Math.max(0, index));
-          set(() => ({ currentSessionIndex: index }));
+        const validIndex = validateSessionIndex(index, sessions.length);
+        if (validIndex !== index) {
+          set(() => ({ currentSessionIndex: validIndex }));
+          index = validIndex;
         }
 
-        const session = sessions[index];
-
-        return session;
+        return sessions[index];
       },
 
       onNewMessage(
@@ -308,13 +254,12 @@ export const useChatStore = createPersistStore(
         get().summarizeSession(false, targetSession);
       },
 
-      async onUserInput(
+      async onSendMessage(
         content: string,
         attachImages?: string[],
         messageIdx?: number,
       ) {
         const session = get().currentSession();
-        const modelConfig = session.mask.modelConfig;
 
         let mContent: string | MultimodalContent[] = content;
 
@@ -337,20 +282,16 @@ export const useChatStore = createPersistStore(
           role: "assistant",
           content: "",
           streaming: true,
-          model: modelConfig.model,
+          model: session.model,
         });
 
         // get recent messages
         let recentMessages = await get().getMessagesWithMemory();
-        let sendMessages: ChatMessage[];
-        if (typeof messageIdx === "number" && messageIdx >= 0) {
-          // 只取到 messageIdx（含）为止的消息
-          sendMessages = recentMessages
-            .slice(0, messageIdx)
-            .concat(userMessage);
-        } else {
-          sendMessages = recentMessages.concat(userMessage);
-        }
+        let sendMessages = prepareSendMessages(
+          recentMessages,
+          userMessage,
+          messageIdx,
+        );
         const messageIndex = session.messages.length + 1;
 
         // save user's and bot's message
@@ -359,40 +300,19 @@ export const useChatStore = createPersistStore(
             ...userMessage,
             content: mContent,
           };
-          if (typeof messageIdx === "number" && messageIdx >= 0) {
-            // 入参 messageIdx，插入到指定位置
-            const insertIdx = Math.min(messageIdx, session.messages.length);
-            // 要确定 messageIdx+1 位置消息的 role 是否为 assistant
-            const nextMessage = session.messages[insertIdx + 1];
-            if (nextMessage && nextMessage.role === "assistant") {
-              // 如果 nextMessage 是 assistant，则插入到 nextMessage 后面
-              session.messages = [
-                ...session.messages.slice(0, insertIdx + 1),
-                modelMessage,
-                ...session.messages.slice(insertIdx + 2),
-              ];
-            } else {
-              // 如果 nextMessage 不是 assistant，则插入到 nextMessage 前面
-              session.messages = [
-                ...session.messages.slice(0, insertIdx + 1),
-                modelMessage,
-                ...session.messages.slice(insertIdx + 1),
-              ];
-            }
-          } else {
-            // 没有入参 messageIdx，插入到末尾
-            session.messages = session.messages.concat([
-              savedUserMessage,
-              modelMessage,
-            ]);
-          }
+          session.messages = insertMessage(
+            session.messages,
+            savedUserMessage,
+            modelMessage,
+            messageIdx,
+          );
         });
 
         const api: ClientApi = getClientApi();
         // make request
         api.llm.chat({
           messages: sendMessages,
-          config: { ...modelConfig, stream: true },
+          config: { model: session.model, stream: true },
           onUpdate(message) {
             modelMessage.streaming = true;
             if (message) {
@@ -459,73 +379,7 @@ export const useChatStore = createPersistStore(
 
       async getMessagesWithMemory() {
         const session = get().currentSession();
-        const messages = session.messages.slice();
-        // ========== system message 动态加载 ==========
-        let systemMessage: ChatMessage | undefined = messages.find(
-          (m) => m.role === "system",
-        );
-        let systemPrompt: ChatMessage[] = [];
-        if (systemMessage) {
-          let content = systemMessage.content;
-          if (!content && (systemMessage as any).contentKey) {
-            // 动态从 IndexedDB 取
-            const storedData = await systemMessageStorage.getSystemMessage(
-              session.id,
-            );
-            // 只有当IndexedDB中有内容时才使用，否则跳过该系统消息
-            if (
-              storedData &&
-              (storedData.text.trim() !== "" || storedData.images.length > 0)
-            ) {
-              // 使用新格式的数据构建 multimodalContent
-              const multimodalContent = buildMultimodalContent(
-                storedData.text,
-                storedData.images,
-              );
-              content = multimodalContent;
-            }
-          }
-          if (
-            content &&
-            (typeof content === "string"
-              ? content.trim() !== ""
-              : content.length > 0)
-          ) {
-            let multimodalContent: import("../client/api").MultimodalContent[];
-            if (typeof content === "string") {
-              try {
-                const data = JSON.parse(content);
-                if (
-                  typeof data === "object" &&
-                  (data.content !== undefined || data.images !== undefined)
-                ) {
-                  multimodalContent = buildMultimodalContent(
-                    data.content,
-                    data.images,
-                  );
-                } else {
-                  multimodalContent = buildMultimodalContent(content, []);
-                }
-              } catch (e) {
-                multimodalContent = buildMultimodalContent(content, []);
-              }
-            } else {
-              multimodalContent = content;
-            }
-            systemPrompt = [
-              {
-                ...systemMessage,
-                content: multimodalContent,
-              },
-            ];
-          }
-        }
-        // 获取所有消息（除了错误消息和系统消息）
-        const recentMessages = messages.filter(
-          (msg) => !msg.isError && msg.role !== "system",
-        );
-        // 合并所有消息，包含动态加载的 system message
-        return [...systemPrompt, ...recentMessages];
+        return await getMessagesWithMemory(session, systemMessageStorage);
       },
 
       updateMessage(
@@ -550,70 +404,17 @@ export const useChatStore = createPersistStore(
         refreshTitle: boolean = false,
         targetSession: ChatSession,
       ) {
-        const session = targetSession;
-
-        // 直接使用全局默认模型进行总结
-        const accessStore = useAccessStore.getState();
-        const allModel = getModelList(accessStore.models);
-        const model =
-          allModel.length > 0 ? allModel[0].name : DEFAULT_MODELS[0];
-
-        const api: ClientApi = getClientApi();
-
-        // remove error messages if any
-        const messages = session.messages;
-
-        // should summarize topic after chating more than 50 words
-        const SUMMARIZE_MIN_LEN = 50;
-        if (
-          (!process.env.NEXT_PUBLIC_DISABLE_AUTOGENERATETITLE &&
-            session.topic === DEFAULT_TOPIC &&
-            countMessages(messages) >= SUMMARIZE_MIN_LEN) ||
-          refreshTitle
-        ) {
-          const topicMessages = messages.concat(
-            createMessage({
-              role: "user",
-              content: Locale.Store.Prompt.Topic,
-            }),
-          );
-          let topicContent: string | MultimodalContent[] = "";
-          api.llm.chat({
-            messages: topicMessages,
-            config: {
-              model,
-              stream: true,
-            },
-            onUpdate(message) {
-              if (message) {
-                topicContent = message;
-              }
-            },
-            onFinish(message, responseRes, usage) {
-              const finalMessage = message || topicContent;
-              if (responseRes?.status === 200 && finalMessage) {
-                get().updateTargetSession(
-                  session,
-                  (session) =>
-                    (session.topic =
-                      finalMessage.length > 0
-                        ? trimTopic(getTextContent(finalMessage))
-                        : DEFAULT_TOPIC),
-                );
-              }
-            },
+        await summarizeSession(targetSession, refreshTitle, (newTopic) => {
+          get().updateTargetSession(targetSession, (session) => {
+            session.topic = newTopic;
           });
-        }
-        return;
+        });
       },
 
       updateStat(message: ChatMessage, session: ChatSession, usage?: any) {
         get().updateTargetSession(session, (session) => {
-          // 更新 tokenCount
-          if (usage?.completion_tokens) {
-            session.stat.tokenCount = usage.completion_tokens;
-          }
-          session.stat.charCount += message.content.length;
+          const statUpdates = updateSessionStat(message, session, usage);
+          Object.assign(session.stat, statUpdates);
         });
       },
 
@@ -633,11 +434,20 @@ export const useChatStore = createPersistStore(
   },
   {
     name: StoreKey.Chat,
-    version: 3.8,
+    version: 4.0,
     storage: jchatStorage,
     migrate(persistedState: any, version: number) {
-      // 简化 migrate 函数，只做版本兼容性处理
-      // 数据迁移改为在应用启动时主动执行，使用 app/utils/migration.ts 并在 app/components/home.tsx 中调用
+      // 版本 4.0: 移除 ChatSession 中的 mask 属性
+      if (version < 4.0) {
+        if (persistedState.sessions) {
+          persistedState.sessions.forEach((session: any) => {
+            if (session.mask !== undefined) {
+              delete session.mask;
+            }
+          });
+        }
+      }
+
       return persistedState as any;
     },
   },

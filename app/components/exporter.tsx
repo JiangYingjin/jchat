@@ -390,7 +390,6 @@ export function ImagePreviewer(props: {
 }) {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
-  const mask = session.mask;
   const config = useAppConfig();
 
   const previewRef = useRef<HTMLDivElement>(null);
@@ -469,7 +468,7 @@ export function ImagePreviewer(props: {
         <div className={styles["chat-info"]}>
           <div>
             <div className={styles["chat-info-item"]}>
-              {Locale.Exporter.Model}：{mask.modelConfig.model}
+              {Locale.Exporter.Model}：{session.model}
             </div>
             {/* <div className={styles["chat-info-item"]}>
               {Locale.Exporter.Topic}：{session.topic}

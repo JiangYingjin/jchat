@@ -62,7 +62,7 @@ export class ChatGPTApi implements LLMApi {
   async chat(options: ChatOptions) {
     const modelConfig = {
       ...useAppConfig.getState().modelConfig,
-      ...useChatStore.getState().currentSession().mask.modelConfig,
+      ...{ model: useChatStore.getState().currentSession().model },
       ...{
         model: options.config.model,
       },
