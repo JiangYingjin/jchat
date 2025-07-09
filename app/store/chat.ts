@@ -54,7 +54,7 @@ export interface ChatSession {
 
 const DEFAULT_CHAT_STATE = {
   accessCode: "",
-  models: [],
+  models: [] as string[],
   sessions: [createEmptySession()],
   currentSessionIndex: 0,
 };

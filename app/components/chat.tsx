@@ -1237,7 +1237,21 @@ function _Chat() {
         }
       });
 
-      session.model = chatStore.models[0];
+      // 只有在当前模型无效且用户没有手动选择时才自动更新模型
+      const currentModel = session.model;
+      const availableModels = chatStore.models;
+      const isCurrentModelValid = availableModels.includes(currentModel);
+
+      if (
+        !isCurrentModelValid &&
+        !session.isModelManuallySelected &&
+        availableModels.length > 0
+      ) {
+        session.model = availableModels[0];
+        console.log(
+          `[ModelUpdate] 自动更新无效模型 ${currentModel} 到 ${availableModels[0]}`,
+        );
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);

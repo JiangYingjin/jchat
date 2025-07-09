@@ -506,6 +506,16 @@ export function SearchSelector<T>(props: {
         : [],
   );
 
+  // 当 defaultSelectedValue 变化时，同步更新内部状态
+  useEffect(() => {
+    const newSelectedValues = Array.isArray(props.defaultSelectedValue)
+      ? props.defaultSelectedValue
+      : props.defaultSelectedValue !== undefined
+        ? [props.defaultSelectedValue]
+        : [];
+    setSelectedValues(newSelectedValues);
+  }, [props.defaultSelectedValue]);
+
   // 添加搜索状态
   const [searchQuery, setSearchQuery] = useState("");
 
