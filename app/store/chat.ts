@@ -22,7 +22,6 @@ import { buildMultimodalContent } from "../utils/chat";
 import localforage from "localforage";
 
 export type Mask = {
-  createdAt: number;
   name: string;
   modelConfig: ModelConfig;
 };
@@ -74,7 +73,6 @@ function createEmptySession(): ChatSession {
   const emptyMask: Mask = {
     name: DEFAULT_TOPIC,
     modelConfig: { ...config.modelConfig },
-    createdAt: Date.now(),
   };
 
   return {
@@ -177,26 +175,8 @@ export const useChatStore = createPersistStore(
         });
       },
 
-      newSession(mask?: Mask) {
+      newSession() {
         const session = createEmptySession();
-
-        if (mask) {
-          const config = useAppConfig.getState();
-          const globalModelConfig = config.modelConfig;
-
-          session.mask = {
-            ...mask,
-            modelConfig: {
-              ...globalModelConfig,
-              ...mask.modelConfig,
-            },
-          };
-          session.topic = mask.name;
-          // 使用 mask 创建会话时，如果 mask 有特定的模型配置，则认为是手动选择的
-          session.isModelManuallySelected =
-            mask.modelConfig.model !== globalModelConfig.model;
-        }
-
         set((state) => ({
           currentSessionIndex: 0,
           sessions: [session].concat(state.sessions),
@@ -353,7 +333,7 @@ export const useChatStore = createPersistStore(
           content: mContent,
         });
 
-        const botMessage = createMessage({
+        const modelMessage = createMessage({
           role: "assistant",
           content: "",
           streaming: true,
@@ -388,14 +368,14 @@ export const useChatStore = createPersistStore(
               // 如果 nextMessage 是 assistant，则插入到 nextMessage 后面
               session.messages = [
                 ...session.messages.slice(0, insertIdx + 1),
-                botMessage,
+                modelMessage,
                 ...session.messages.slice(insertIdx + 2),
               ];
             } else {
               // 如果 nextMessage 不是 assistant，则插入到 nextMessage 前面
               session.messages = [
                 ...session.messages.slice(0, insertIdx + 1),
-                botMessage,
+                modelMessage,
                 ...session.messages.slice(insertIdx + 1),
               ];
             }
@@ -403,7 +383,7 @@ export const useChatStore = createPersistStore(
             // 没有入参 messageIdx，插入到末尾
             session.messages = session.messages.concat([
               savedUserMessage,
-              botMessage,
+              modelMessage,
             ]);
           }
         });
@@ -414,54 +394,54 @@ export const useChatStore = createPersistStore(
           messages: sendMessages,
           config: { ...modelConfig, stream: true },
           onUpdate(message) {
-            botMessage.streaming = true;
+            modelMessage.streaming = true;
             if (message) {
-              botMessage.content = message;
+              modelMessage.content = message;
             }
             get().updateTargetSession(session, (session) => {
               session.messages = session.messages.concat();
             });
           },
           onReasoningUpdate(message) {
-            botMessage.streaming = true;
+            modelMessage.streaming = true;
             if (message) {
-              botMessage.reasoningContent = message;
+              modelMessage.reasoningContent = message;
             }
             get().updateTargetSession(session, (session) => {
               session.messages = session.messages.concat();
             });
           },
           onFinish(message, responseRes, usage) {
-            botMessage.streaming = false;
+            modelMessage.streaming = false;
             if (message) {
-              botMessage.content = message;
-              botMessage.date = new Date().toLocaleString();
+              modelMessage.content = message;
+              modelMessage.date = new Date().toLocaleString();
               if (responseRes && responseRes.status !== 200) {
-                botMessage.isError = true;
+                modelMessage.isError = true;
               }
 
-              get().onNewMessage(botMessage, session, usage);
+              get().onNewMessage(modelMessage, session, usage);
             }
-            ChatControllerPool.remove(session.id, botMessage.id);
+            ChatControllerPool.remove(session.id, modelMessage.id);
           },
 
           onError(error) {
             const isAborted = error.message?.includes?.("aborted");
-            botMessage.content +=
+            modelMessage.content +=
               "\n\n" +
               prettyObject({
                 error: true,
                 message: error.message,
               });
-            botMessage.streaming = false;
+            modelMessage.streaming = false;
             userMessage.isError = !isAborted;
-            botMessage.isError = !isAborted;
+            modelMessage.isError = !isAborted;
             get().updateTargetSession(session, (session) => {
               session.messages = session.messages.concat();
             });
             ChatControllerPool.remove(
               session.id,
-              botMessage.id ?? messageIndex,
+              modelMessage.id ?? messageIndex,
             );
 
             console.error("[Chat] failed ", error);
@@ -470,7 +450,7 @@ export const useChatStore = createPersistStore(
             // collect controller for stop/retry
             ChatControllerPool.addController(
               session.id,
-              botMessage.id ?? messageIndex,
+              modelMessage.id ?? messageIndex,
               controller,
             );
           },
