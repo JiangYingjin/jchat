@@ -23,6 +23,7 @@ import {
   insertMessage,
   calculateMoveIndex,
   validateSessionIndex,
+  updateSessionStats,
 } from "../utils/session";
 
 let fetchState = 0; // 0 not fetch, 1 fetching, 2 done
@@ -42,10 +43,12 @@ export interface ChatSession {
   messages: ChatMessage[];
   model: string; // 当前会话选择的模型
 
+  messageCount: number; // 消息数量
+  status: "normal" | "error" | "pending"; // 会话状态：正常、错误、用户消息待回复
+  lastUpdate: number;
+
   isModelManuallySelected?: boolean; // 用户是否手动选择了模型（用于自动切换逻辑）
   longInputMode?: boolean; // 是否为长输入模式（Enter 换行，Ctrl+Enter 发送）
-
-  lastUpdate: number;
 }
 
 const DEFAULT_CHAT_STATE = {
@@ -232,6 +235,7 @@ export const useChatStore = createPersistStore(
         get().updateTargetSession(targetSession, (session) => {
           session.messages = session.messages.concat();
           session.lastUpdate = Date.now();
+          updateSessionStats(session);
         });
         get().summarizeSession(false, targetSession);
       },
@@ -288,6 +292,7 @@ export const useChatStore = createPersistStore(
             modelMessage,
             messageIdx,
           );
+          updateSessionStats(session);
         });
 
         const api: ClientApi = getClientApi();
@@ -302,6 +307,7 @@ export const useChatStore = createPersistStore(
             }
             get().updateTargetSession(session, (session) => {
               session.messages = session.messages.concat();
+              updateSessionStats(session);
             });
           },
           onReasoningUpdate(message) {
@@ -311,6 +317,7 @@ export const useChatStore = createPersistStore(
             }
             get().updateTargetSession(session, (session) => {
               session.messages = session.messages.concat();
+              updateSessionStats(session);
             });
           },
           onFinish(message, responseRes, usage) {
@@ -340,6 +347,7 @@ export const useChatStore = createPersistStore(
             modelMessage.isError = !isAborted;
             get().updateTargetSession(session, (session) => {
               session.messages = session.messages.concat();
+              updateSessionStats(session);
             });
             ChatControllerPool.remove(
               session.id,
@@ -373,12 +381,16 @@ export const useChatStore = createPersistStore(
         const session = sessions.at(sessionIndex);
         const messages = session?.messages;
         updater(messages?.at(messageIndex));
+        if (session) {
+          updateSessionStats(session);
+        }
         set(() => ({ sessions }));
       },
 
       resetSession(session: ChatSession) {
         get().updateTargetSession(session, (session) => {
           session.messages = [];
+          updateSessionStats(session);
         });
       },
 
@@ -439,7 +451,7 @@ export const useChatStore = createPersistStore(
   },
   {
     name: StoreKey.Chat,
-    version: 4.2,
+    version: 4.3,
     storage: jchatStorage,
     migrate(persistedState: any, version: number) {
       // 版本 4.0: 移除 ChatSession 中的 mask 属性
@@ -464,6 +476,35 @@ export const useChatStore = createPersistStore(
       if (version < 4.2) {
         if (persistedState.models === undefined) {
           persistedState.models = "";
+        }
+      }
+
+      // 版本 4.3: 添加 messageCount 和 status 属性
+      if (version < 4.3) {
+        if (persistedState.sessions) {
+          persistedState.sessions.forEach((session: any) => {
+            if (session.messageCount === undefined) {
+              session.messageCount = session.messages
+                ? session.messages.length
+                : 0;
+            }
+            if (session.status === undefined) {
+              // 计算状态
+              const messages = session.messages || [];
+              if (messages.length === 0) {
+                session.status = "normal";
+              } else {
+                const lastMessage = messages[messages.length - 1];
+                if (lastMessage.isError) {
+                  session.status = "error";
+                } else if (lastMessage.role === "user") {
+                  session.status = "pending";
+                } else {
+                  session.status = "normal";
+                }
+              }
+            }
+          });
         }
       }
 

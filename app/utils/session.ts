@@ -12,6 +12,40 @@ import { buildMultimodalContent } from "./chat";
 const DEFAULT_TOPIC = Locale.Store.DefaultTopic;
 
 /**
+ * 计算会话状态
+ */
+export function calculateSessionStatus(
+  messages: ChatMessage[],
+): "normal" | "error" | "pending" {
+  if (messages.length === 0) {
+    return "normal";
+  }
+
+  const lastMessage = messages[messages.length - 1];
+
+  // 如果最后一条消息有错误，返回错误状态
+  if (lastMessage.isError) {
+    return "error";
+  }
+
+  // 如果最后一条消息是用户消息，返回用户待回复状态
+  if (lastMessage.role === "user") {
+    return "pending";
+  }
+
+  // 其他情况返回正常状态
+  return "normal";
+}
+
+/**
+ * 更新会话计数和状态
+ */
+export function updateSessionStats(session: ChatSession): void {
+  session.messageCount = session.messages.length;
+  session.status = calculateSessionStatus(session.messages);
+}
+
+/**
  * 创建消息对象
  */
 export function createMessage(override: Partial<ChatMessage>): ChatMessage {
@@ -43,6 +77,8 @@ export function createEmptySession(): ChatSession {
     id: nanoid(),
     topic: DEFAULT_TOPIC,
     messages: [],
+    messageCount: 0,
+    status: "normal",
     lastUpdate: Date.now(),
     model: getDefaultModel(),
     longInputMode: false,
@@ -75,6 +111,9 @@ export function createBranchSession(
   newSession.longInputMode = originalSession.longInputMode;
   newSession.isModelManuallySelected = originalSession.isModelManuallySelected;
   newSession.model = originalSession.model;
+
+  // 更新消息计数和状态
+  updateSessionStats(newSession);
 
   return newSession;
 }

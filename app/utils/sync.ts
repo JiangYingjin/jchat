@@ -2,6 +2,7 @@ import { ChatSession, useChatStore } from "../store";
 
 import { StoreKey } from "../constant";
 import { merge } from "./merge";
+import { updateSessionStats } from "./session";
 
 type NonFunctionKeys<T> = {
   [K in keyof T]: T[K] extends (...args: any[]) => any ? never : K;
@@ -43,6 +44,8 @@ const LocalStateGetters = {
             id: "default",
             topic: "新的对话",
             messages: [],
+            messageCount: 0,
+            status: "normal" as const,
             model: "jyj.cx/flash",
             lastUpdate: Date.now(),
             longInputMode: false,
@@ -71,25 +74,46 @@ type StateMerger = {
   [K in keyof AppState]: Merger<K>;
 };
 
+// 确保会话对象包含所有必需的属性
+function ensureSessionComplete(session: any): ChatSession {
+  return {
+    ...session,
+    messageCount: session.messageCount ?? (session.messages?.length || 0),
+    status:
+      session.status ??
+      (() => {
+        const messages = session.messages || [];
+        if (messages.length === 0) return "normal";
+        const lastMessage = messages[messages.length - 1];
+        if (lastMessage.isError) return "error";
+        if (lastMessage.role === "user") return "pending";
+        return "normal";
+      })(),
+  };
+}
+
 // we merge remote state to local state
 const MergeStates: StateMerger = {
   [StoreKey.Chat]: (localState, remoteState) => {
     // merge sessions
     const localSessions: Record<string, ChatSession> = {};
-    localState.sessions.forEach((s) => (localSessions[s.id] = s));
+    localState.sessions.forEach(
+      (s) => (localSessions[s.id] = ensureSessionComplete(s)),
+    );
 
     remoteState.sessions.forEach((remoteSession) => {
       // skip empty chats
       if (remoteSession.messages.length === 0) return;
 
-      const localSession = localSessions[remoteSession.id];
+      const completeRemoteSession = ensureSessionComplete(remoteSession);
+      const localSession = localSessions[completeRemoteSession.id];
       if (!localSession) {
         // if remote session is new, just merge it
-        localState.sessions.push(remoteSession);
+        localState.sessions.push(completeRemoteSession);
       } else {
         // if both have the same session id, merge the messages
         const localMessageIds = new Set(localSession.messages.map((v) => v.id));
-        remoteSession.messages.forEach((m) => {
+        completeRemoteSession.messages.forEach((m) => {
           if (!localMessageIds.has(m.id)) {
             localSession.messages.push(m);
           }
@@ -99,6 +123,9 @@ const MergeStates: StateMerger = {
         localSession.messages.sort(
           (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
         );
+
+        // update session stats after merging messages
+        updateSessionStats(localSession);
       }
     });
 
