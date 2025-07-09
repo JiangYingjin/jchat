@@ -12,6 +12,8 @@ import { prettyObject } from "../utils/format";
 import { createPersistStore, jchatStorage } from "../utils/store";
 import { chatInputStorage } from "./input";
 import { systemMessageStorage } from "./system";
+// 导入新的 messageStorage
+import { messageStorage } from "./message";
 
 // 导入session工具函数
 import {
@@ -65,7 +67,52 @@ export const useChatStore = createPersistStore(
   DEFAULT_CHAT_STATE,
   (set, _get) => {
     const methods = {
-      forkSession() {
+      // 新增：加载指定会话的消息
+      async loadSessionMessages(sessionIndex: number): Promise<void> {
+        // 只在客户端环境下执行
+        if (typeof window === "undefined") return;
+
+        const sessions = get().sessions;
+        const session = sessions[sessionIndex];
+        if (!session) return;
+
+        // 如果消息已经加载（非空），则不重复加载
+        if (session.messages && session.messages.length > 0) return;
+
+        try {
+          // 从 messageStorage 异步加载消息
+          const messages = await messageStorage.getMessages(session.id);
+          get().updateTargetSession(session, (s) => {
+            s.messages = messages;
+            updateSessionStats(s); // 重新计算统计信息
+          });
+        } catch (error) {
+          console.error(
+            `[ChatStore] Failed to load messages for session ${session.id}`,
+            error,
+          );
+        }
+      },
+
+      // 新增：保存会话消息到独立存储
+      async saveSessionMessages(session: ChatSession): Promise<void> {
+        try {
+          await messageStorage.saveMessages(session.id, session.messages || []);
+        } catch (error) {
+          console.error(
+            `[ChatStore] Failed to save messages for session ${session.id}`,
+            error,
+          );
+        }
+      },
+
+      // 新增：更新会话并同步保存消息
+      async updateSessionAndSaveMessages(session: ChatSession): Promise<void> {
+        updateSessionStats(session);
+        get().updateTargetSession(session, () => {});
+        await get().saveSessionMessages(session);
+      },
+      async forkSession() {
         // 获取当前会话
         const currentSession = get().currentSession();
         if (!currentSession) return;
@@ -78,15 +125,30 @@ export const useChatStore = createPersistStore(
         newSession.isModelManuallySelected =
           currentSession.isModelManuallySelected;
 
+        // 为新会话保存消息到独立存储
+        await get().saveSessionMessages(newSession);
+
         set((state) => ({
           currentSessionIndex: 0,
           sessions: [newSession, ...state.sessions],
         }));
       },
 
-      clearSessions() {
+      async clearSessions() {
+        // 删除所有会话的消息
+        const currentSessions = get().sessions;
+        await Promise.all(
+          currentSessions.map((session) =>
+            messageStorage.deleteMessages(session.id),
+          ),
+        );
+
+        const newSession = createEmptySession();
+        // 为新创建的空会话保存（空的）消息
+        await get().saveSessionMessages(newSession);
+
         set(() => ({
-          sessions: [createEmptySession()],
+          sessions: [newSession],
           currentSessionIndex: 0,
         }));
       },
@@ -95,6 +157,8 @@ export const useChatStore = createPersistStore(
         set({
           currentSessionIndex: index,
         });
+        // 当选择一个新会话时，触发消息加载
+        get().loadSessionMessages(index);
       },
 
       moveSession(from: number, to: number) {
@@ -117,8 +181,11 @@ export const useChatStore = createPersistStore(
         });
       },
 
-      newSession() {
+      async newSession() {
         const session = createEmptySession();
+        // 为新会话保存空的 message 数组
+        await get().saveSessionMessages(session);
+
         set((state) => ({
           currentSessionIndex: 0,
           sessions: [session].concat(state.sessions),
@@ -126,7 +193,7 @@ export const useChatStore = createPersistStore(
       },
 
       // 分支会话：创建一个包含指定消息历史的新会话
-      branchSession(
+      async branchSession(
         originalSession: ChatSession,
         messagesToCopy: ChatMessage[],
         systemMessageData: any,
@@ -138,11 +205,12 @@ export const useChatStore = createPersistStore(
           branchTopic,
         );
 
-        const currentIndex = get().currentSessionIndex;
+        // 为新分支会话保存消息
+        await get().saveSessionMessages(newSession);
 
         set((state) => ({
           sessions: [newSession, ...state.sessions],
-          currentSessionIndex: currentIndex + 1,
+          currentSessionIndex: 0, // 切换到新创建的分支会话
         }));
 
         return newSession;
@@ -155,7 +223,7 @@ export const useChatStore = createPersistStore(
         get().selectSession(limit(i + delta));
       },
 
-      deleteSession(index: number) {
+      async deleteSession(index: number) {
         const deletingLastSession = get().sessions.length === 1;
         const deletedSession = get().sessions.at(index);
 
@@ -172,27 +240,27 @@ export const useChatStore = createPersistStore(
 
         if (deletingLastSession) {
           nextIndex = 0;
-          sessions.push(createEmptySession());
+          const newSession = createEmptySession();
+          sessions.push(newSession);
+          // 为新创建的空会话保存（空的）消息
+          await get().saveSessionMessages(newSession);
         }
-
-        // for undo delete action
-        const restoreState = {
-          currentSessionIndex: get().currentSessionIndex,
-          sessions: get().sessions.slice(),
-        };
 
         set(() => ({
           currentSessionIndex: nextIndex,
           sessions,
         }));
 
-        // 删除对应的聊天输入数据和系统消息数据
+        // **核心改动：删除对应的消息存储和其他关联数据**
         const deleteSessionData = async () => {
           try {
-            await chatInputStorage.deleteChatInput(deletedSession.id);
-            await systemMessageStorage.deleteSystemMessage(deletedSession.id);
+            await Promise.all([
+              messageStorage.deleteMessages(deletedSession.id),
+              chatInputStorage.deleteChatInput(deletedSession.id),
+              systemMessageStorage.deleteSystemMessage(deletedSession.id),
+            ]);
             console.log(
-              `[DeleteSession] 已删除会话 ${deletedSession.id} 的聊天输入数据和系统消息数据`,
+              `[DeleteSession] 已删除会话 ${deletedSession.id} 的所有数据`,
             );
           } catch (error) {
             console.error(
@@ -203,16 +271,8 @@ export const useChatStore = createPersistStore(
         };
         deleteSessionData();
 
-        showToast(
-          Locale.Chat.DeleteMessageToast,
-          {
-            text: Locale.Chat.Revert,
-            onClick() {
-              set(() => restoreState);
-            },
-          },
-          8000,
-        );
+        // 简化toast，暂时不提供恢复功能（因为恢复messageStorage数据较复杂）
+        showToast(Locale.Chat.DeleteMessageToast, undefined, 3000);
       },
 
       currentSession() {
@@ -234,9 +294,7 @@ export const useChatStore = createPersistStore(
         usage?: any,
       ) {
         get().updateTargetSession(targetSession, (session) => {
-          session.messages = session.messages.concat();
           session.lastUpdate = Date.now();
-          updateSessionStats(session);
         });
         get().summarizeSession(false, targetSession);
       },
@@ -247,6 +305,11 @@ export const useChatStore = createPersistStore(
         messageIdx?: number,
       ) {
         const session = get().currentSession();
+
+        // 确保消息已加载
+        if (!session.messages || session.messages.length === 0) {
+          await get().loadSessionMessages(get().currentSessionIndex);
+        }
 
         let mContent: string | MultimodalContent[] = content;
 
@@ -296,6 +359,9 @@ export const useChatStore = createPersistStore(
           updateSessionStats(session);
         });
 
+        // 立即保存消息到独立存储
+        await get().saveSessionMessages(session);
+
         const api: ClientApi = getClientApi();
         // make request
         api.llm.chat({
@@ -310,6 +376,8 @@ export const useChatStore = createPersistStore(
               session.messages = session.messages.concat();
               updateSessionStats(session);
             });
+            // 异步保存消息更新
+            get().saveSessionMessages(session);
           },
           onReasoningUpdate(message) {
             modelMessage.streaming = true;
@@ -320,6 +388,8 @@ export const useChatStore = createPersistStore(
               session.messages = session.messages.concat();
               updateSessionStats(session);
             });
+            // 异步保存消息更新
+            get().saveSessionMessages(session);
           },
           onFinish(message, responseRes, usage) {
             modelMessage.streaming = false;
@@ -332,6 +402,8 @@ export const useChatStore = createPersistStore(
 
               get().onNewMessage(modelMessage, session, usage);
             }
+            // 保存最终消息状态
+            get().saveSessionMessages(session);
             ChatControllerPool.remove(session.id, modelMessage.id);
           },
 
@@ -350,6 +422,8 @@ export const useChatStore = createPersistStore(
               session.messages = session.messages.concat();
               updateSessionStats(session);
             });
+            // 保存错误状态的消息
+            get().saveSessionMessages(session);
             ChatControllerPool.remove(
               session.id,
               modelMessage.id ?? messageIndex,
@@ -370,29 +444,42 @@ export const useChatStore = createPersistStore(
 
       async getMessagesWithMemory() {
         const session = get().currentSession();
-        return await getMessagesWithMemory(session, systemMessageStorage);
+        // **核心改动：如果消息未加载，先加载它们**
+        if (session && (!session.messages || session.messages.length === 0)) {
+          await get().loadSessionMessages(get().currentSessionIndex);
+        }
+        // get() 会获取最新状态，此时 messages 应该已加载
+        return await getMessagesWithMemory(
+          get().currentSession(),
+          systemMessageStorage,
+        );
       },
 
-      updateMessage(
+      async updateMessage(
         sessionIndex: number,
         messageIndex: number,
         updater: (message?: ChatMessage) => void,
       ) {
         const sessions = get().sessions;
         const session = sessions.at(sessionIndex);
+        if (!session) return;
+
         const messages = session?.messages;
         updater(messages?.at(messageIndex));
+
         if (session) {
           updateSessionStats(session);
+          await get().saveSessionMessages(session);
         }
         set(() => ({ sessions }));
       },
 
-      resetSession(session: ChatSession) {
+      async resetSession(session: ChatSession) {
         get().updateTargetSession(session, (session) => {
           session.messages = [];
           updateSessionStats(session);
         });
+        await get().saveSessionMessages(session);
       },
 
       async summarizeSession(
@@ -452,9 +539,68 @@ export const useChatStore = createPersistStore(
   },
   {
     name: StoreKey.Chat,
-    version: 4.3,
+    version: 4.4, // 增加版本号，因为数据结构发生了变化
     storage: jchatStorage,
+
+    /**
+     * **核心改动：使用 partialize 排除 messages**
+     * 这个函数在持久化状态之前被调用。
+     * 我们返回一个不包含任何 session.messages 的新状态对象。
+     */
+    partialize: (state) => {
+      // 创建一个没有 messages 的 state副本
+      const stateToPersist = {
+        ...state,
+        sessions: state.sessions.map((session) => {
+          const { messages, ...rest } = session;
+          return { ...rest, messages: [] }; // 保持结构但清空messages
+        }),
+      };
+      return stateToPersist;
+    },
+
+    /**
+     * **核心改动：在数据恢复后加载当前会话的消息**
+     * 这个钩子在状态从 storage 成功恢复（rehydrated）后触发
+     */
+    onRehydrateStorage: () => {
+      return (hydratedState, error) => {
+        if (error) {
+          console.error("[Store] An error happened during hydration", error);
+        } else {
+          console.log("[Store] Hydration finished.");
+          // 只在客户端环境下执行消息加载
+          if (typeof window !== "undefined") {
+            // 确保在状态设置后调用，可以稍微延迟执行
+            setTimeout(() => {
+              const { currentSessionIndex } = useChatStore.getState();
+              useChatStore.getState().loadSessionMessages(currentSessionIndex);
+            }, 0);
+          }
+        }
+      };
+    },
+
     migrate(persistedState: any, version: number) {
+      // 在这里处理旧版本数据的迁移逻辑
+      // 例如，从 v4.3 升级到 v4.4，我们需要将旧的 messages 提取到 messageStorage
+      if (version < 4.4 && persistedState && persistedState.sessions) {
+        console.log("[Migrate] Migrating chat store from v4.3 to v4.4");
+        // 只在客户端环境下进行消息迁移
+        if (typeof window !== "undefined") {
+          persistedState.sessions.forEach((session: any) => {
+            if (session.messages && Array.isArray(session.messages)) {
+              console.log(
+                `[Migrate] Moving messages for session ${session.id}`,
+              );
+              // 异步保存消息，无需等待完成
+              messageStorage.saveMessages(session.id, session.messages);
+              // 从会话对象中删除消息，尽管 partialize 会处理，但在这里清理更干净
+              session.messages = [];
+            }
+          });
+        }
+      }
       return persistedState as any;
     },
   },

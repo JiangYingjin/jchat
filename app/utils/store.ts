@@ -4,29 +4,50 @@ import { Updater } from "../typing";
 import { deepClone } from "./clone";
 import localforage from "localforage";
 
-const jchatLocalForageInstance = localforage.createInstance({
-  name: "JChat",
-  storeName: "default",
-});
+// 检查是否在客户端环境
+const isClient = typeof window !== "undefined";
+
+let jchatLocalForageInstance: LocalForage | null = null;
+
+// 延迟初始化 localforage 实例
+const getJchatLocalForage = (): LocalForage | null => {
+  if (!isClient) return null;
+
+  if (!jchatLocalForageInstance) {
+    jchatLocalForageInstance = localforage.createInstance({
+      name: "JChat",
+      storeName: "default",
+    });
+  }
+
+  return jchatLocalForageInstance;
+};
 
 // 导出底层的 localforage 实例，供 migrate 函数使用以避免循环依赖
-export const jchatLocalForage = jchatLocalForageInstance;
+export const jchatLocalForage = getJchatLocalForage();
 
 export const jchatStorage = {
   async getItem(key: string) {
-    return (await jchatLocalForageInstance.getItem(key)) as any;
+    const instance = getJchatLocalForage();
+    if (!instance) return null; // 服务器端返回null
+    return (await instance.getItem(key)) as any;
   },
   async setItem(key: string, value: any) {
+    const instance = getJchatLocalForage();
+    if (!instance) return; // 服务器端直接返回
+
     // 过滤掉函数字段
     const filteredValue = JSON.parse(
       JSON.stringify(value, (key, val) => {
         return typeof val === "function" ? undefined : val;
       }),
     );
-    return await jchatLocalForageInstance.setItem(key, filteredValue);
+    return await instance.setItem(key, filteredValue);
   },
   async removeItem(key: string) {
-    return await jchatLocalForageInstance.removeItem(key);
+    const instance = getJchatLocalForage();
+    if (!instance) return; // 服务器端直接返回
+    return await instance.removeItem(key);
   },
 };
 

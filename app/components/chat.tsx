@@ -1394,7 +1394,7 @@ function _Chat() {
       }));
 
       // 使用新的branchSession方法，完全避免使用newSession()
-      const newSession = chatStore.branchSession(
+      const newSession = await chatStore.branchSession(
         session,
         messagesToCopy,
         systemMessageData,
@@ -2017,7 +2017,7 @@ function _Chat() {
                 bordered
                 title={Locale.Chat.Actions.Delete}
                 onClick={async () => {
-                  chatStore.deleteSession(chatStore.currentSessionIndex);
+                  await chatStore.deleteSession(chatStore.currentSessionIndex);
                   scrollToBottom();
                 }}
               />

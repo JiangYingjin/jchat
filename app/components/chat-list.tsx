@@ -209,7 +209,7 @@ export function ChatList(props: { narrow?: boolean }) {
                     true ||
                     (await showConfirm(Locale.Home.DeleteChat))
                   ) {
-                    chatStore.deleteSession(i);
+                    await chatStore.deleteSession(i);
                   }
                 }}
                 narrow={props.narrow}

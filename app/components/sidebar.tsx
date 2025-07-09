@@ -113,8 +113,8 @@ export function SideBar(props: { className?: string }) {
         <div>
           <IconButton
             icon={<AddIcon />}
-            onClick={() => {
-              chatStore.newSession();
+            onClick={async () => {
+              await chatStore.newSession();
               navigate(Path.Chat);
               stopSearch();
             }}

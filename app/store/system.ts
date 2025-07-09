@@ -1,5 +1,8 @@
 import localforage from "localforage";
 
+// 检查是否在客户端环境
+const isClient = typeof window !== "undefined";
+
 // 系统消息数据存储接口
 interface SystemMessageData {
   text: string;
@@ -11,14 +14,19 @@ interface SystemMessageData {
 
 // 使用 localforage 存储系统消息
 class SystemMessageStorage {
-  private storage: LocalForage;
+  private storage: LocalForage | null = null;
 
-  constructor() {
-    this.storage = localforage.createInstance({
-      name: "JChat",
-      storeName: "systemMessages",
-      description: "System messages storage",
-    });
+  private getStorage(): LocalForage | null {
+    if (!isClient) return null;
+
+    if (!this.storage) {
+      this.storage = localforage.createInstance({
+        name: "JChat",
+        storeName: "systemMessages",
+        description: "System messages storage",
+      });
+    }
+    return this.storage;
   }
 
   async saveSystemMessage(
@@ -26,7 +34,9 @@ class SystemMessageStorage {
     data: SystemMessageData,
   ): Promise<boolean> {
     try {
-      await this.storage.setItem(sessionId, data);
+      const storage = this.getStorage();
+      if (!storage) return false; // 服务器端直接返回false
+      await storage.setItem(sessionId, data);
       return true;
     } catch (error) {
       console.error("保存系统消息失败:", error);
@@ -36,7 +46,9 @@ class SystemMessageStorage {
 
   async getSystemMessage(sessionId: string): Promise<SystemMessageData | null> {
     try {
-      const data = await this.storage.getItem<SystemMessageData>(sessionId);
+      const storage = this.getStorage();
+      if (!storage) return null; // 服务器端直接返回null
+      const data = await storage.getItem<SystemMessageData>(sessionId);
       return data || null;
     } catch (error) {
       console.error("获取系统消息失败:", error);
@@ -46,7 +58,9 @@ class SystemMessageStorage {
 
   async deleteSystemMessage(sessionId: string): Promise<boolean> {
     try {
-      await this.storage.removeItem(sessionId);
+      const storage = this.getStorage();
+      if (!storage) return false; // 服务器端直接返回false
+      await storage.removeItem(sessionId);
       return true;
     } catch (error) {
       console.error("删除系统消息失败:", error);
@@ -89,7 +103,9 @@ class SystemMessageStorage {
   // 获取所有会话ID
   async getAllSessionIds(): Promise<string[]> {
     try {
-      const keys = await this.storage.keys();
+      const storage = this.getStorage();
+      if (!storage) return []; // 服务器端直接返回空数组
+      const keys = await storage.keys();
       return keys;
     } catch (error) {
       console.error("获取所有会话ID失败:", error);

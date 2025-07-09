@@ -24,7 +24,6 @@ import {
 import { SideBar } from "./sidebar";
 import { AuthPage } from "./auth";
 import { useChatStore } from "../store";
-import { DataMigration } from "../utils/migration";
 
 export function Loading(props: { noLogo?: boolean }) {
   return (
