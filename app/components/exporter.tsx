@@ -425,7 +425,10 @@ export function ImagePreviewer(props: {
     showToast(Locale.Export.Image.Toast);
     const dom = previewRef.current;
     if (!dom) return;
-    toBlob(dom).then((blob) => {
+    toBlob(dom, {
+      pixelRatio: 1.5, // 分辨率倍数
+      includeQueryParams: true,
+    }).then((blob) => {
       if (!blob) return;
       try {
         navigator.clipboard
@@ -445,8 +448,6 @@ export function ImagePreviewer(props: {
     });
   };
 
-  const isMobile = useMobileScreen();
-
   const download = async () => {
     showToast(Locale.Export.Image.Toast);
     const dom = previewRef.current;
@@ -454,19 +455,16 @@ export function ImagePreviewer(props: {
 
     try {
       const blob = await toPng(dom, {
+        pixelRatio: 2, // 分辨率倍数
         includeQueryParams: true,
       });
       if (!blob) return;
 
-      if (isMobile) {
-        showImageModal(blob);
-      } else {
-        const link = document.createElement("a");
-        link.download = `${props.topic}.png`;
-        link.href = blob;
-        link.click();
-        refreshPreview();
-      }
+      const link = document.createElement("a");
+      link.download = `${props.topic}.png`;
+      link.href = blob;
+      link.click();
+      refreshPreview();
     } catch (error) {
       showToast(Locale.Download.Failed);
     }
