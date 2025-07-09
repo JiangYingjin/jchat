@@ -19,7 +19,6 @@ import {
   createBranchSession,
   getMessagesWithMemory,
   summarizeSession,
-  updateSessionStat,
   prepareSendMessages,
   insertMessage,
   calculateMoveIndex,
@@ -36,20 +35,17 @@ export type ChatMessage = RequestMessage & {
   isError?: boolean;
 };
 
-export interface ChatStat {
-  tokenCount: number;
-  charCount: number;
-}
-
 export interface ChatSession {
   id: string;
+
   topic: string;
   messages: ChatMessage[];
   model: string; // 当前会话选择的模型
-  stat: ChatStat;
-  lastUpdate: number;
-  longInputMode?: boolean; // 是否为长输入模式（Enter 换行，Ctrl+Enter 发送）
+
   isModelManuallySelected?: boolean; // 用户是否手动选择了模型（用于自动切换逻辑）
+  longInputMode?: boolean; // 是否为长输入模式（Enter 换行，Ctrl+Enter 发送）
+
+  lastUpdate: number;
 }
 
 const DEFAULT_CHAT_STATE = {
@@ -237,7 +233,6 @@ export const useChatStore = createPersistStore(
           session.messages = session.messages.concat();
           session.lastUpdate = Date.now();
         });
-        get().updateStat(message, targetSession, usage);
         get().summarizeSession(false, targetSession);
       },
 
@@ -395,13 +390,6 @@ export const useChatStore = createPersistStore(
           get().updateTargetSession(targetSession, (session) => {
             session.topic = newTopic;
           });
-        });
-      },
-
-      updateStat(message: ChatMessage, session: ChatSession, usage?: any) {
-        get().updateTargetSession(session, (session) => {
-          const statUpdates = updateSessionStat(message, session, usage);
-          Object.assign(session.stat, statUpdates);
         });
       },
 

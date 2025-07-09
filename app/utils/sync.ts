@@ -1,4 +1,4 @@
-import { ChatSession, useAccessStore, useChatStore } from "../store";
+import { ChatSession, useChatStore } from "../store";
 
 import { StoreKey } from "../constant";
 import { merge } from "./merge";
@@ -26,7 +26,6 @@ export type GetStoreState<T> = T extends { getState: () => infer U }
 
 const LocalStateSetters = {
   [StoreKey.Chat]: useChatStore.setState,
-  [StoreKey.Access]: useAccessStore.setState,
 } as const;
 
 const LocalStateGetters = {
@@ -45,24 +44,12 @@ const LocalStateGetters = {
             topic: "新的对话",
             messages: [],
             model: "jyj.cx/flash",
-            stat: { tokenCount: 0, charCount: 0 },
             lastUpdate: Date.now(),
             longInputMode: false,
             isModelManuallySelected: false,
           },
         ],
         currentSessionIndex: 0,
-        lastUpdateTime: 0,
-      };
-    }
-  },
-  [StoreKey.Access]: () => {
-    try {
-      return getNonFunctionFileds(useAccessStore.getState());
-    } catch (error) {
-      console.error("[Sync] Failed to get access store state:", error);
-      // 返回默认的访问状态结构
-      return {
         lastUpdateTime: 0,
       };
     }
@@ -123,8 +110,6 @@ const MergeStates: StateMerger = {
 
     return localState;
   },
-
-  [StoreKey.Access]: mergeWithUpdate<AppState[StoreKey.Access]>,
 };
 
 export function getLocalAppState() {

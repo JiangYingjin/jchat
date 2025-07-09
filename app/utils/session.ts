@@ -1,6 +1,6 @@
 import { nanoid } from "nanoid";
 import { getMessageTextContent, getTextContent, trimTopic } from "../utils";
-import type { ChatMessage, ChatSession, ChatStat } from "../store/chat";
+import type { ChatMessage, ChatSession } from "../store/chat";
 import type { ClientApi, MultimodalContent } from "../client/api";
 import { getClientApi } from "../client/api";
 import { estimateTokenLength } from "./token";
@@ -17,9 +17,9 @@ const DEFAULT_TOPIC = Locale.Store.DefaultTopic;
 export function createMessage(override: Partial<ChatMessage>): ChatMessage {
   return {
     id: nanoid(),
-    date: new Date().toLocaleString(),
     role: "user",
     content: "",
+    date: new Date().toLocaleString(),
     ...override,
   };
 }
@@ -43,10 +43,6 @@ export function createEmptySession(): ChatSession {
     id: nanoid(),
     topic: DEFAULT_TOPIC,
     messages: [],
-    stat: {
-      tokenCount: 0,
-      charCount: 0,
-    },
     lastUpdate: Date.now(),
     model: getDefaultModel(),
     longInputMode: false,
@@ -218,27 +214,6 @@ export async function summarizeSession(
       },
     });
   }
-}
-
-/**
- * 更新会话统计信息
- */
-export function updateSessionStat(
-  message: ChatMessage,
-  session: ChatSession,
-  usage?: any,
-): Partial<ChatStat> {
-  const updates: Partial<ChatStat> = {};
-
-  // 更新 tokenCount
-  if (usage?.completion_tokens) {
-    updates.tokenCount = usage.completion_tokens;
-  }
-
-  // 更新字符数
-  updates.charCount = (session.stat.charCount || 0) + message.content.length;
-
-  return updates;
 }
 
 /**

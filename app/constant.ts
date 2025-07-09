@@ -22,7 +22,6 @@ export enum SlotID {
 
 export enum StoreKey {
   Chat = "chats",
-  Access = "access",
   Config = "config",
   Sync = "sync",
 }
