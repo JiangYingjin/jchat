@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { IconButton } from "./button";
 import { ChatMessage } from "../store";
 import { createMessage } from "../utils/session";
@@ -54,7 +54,7 @@ function MessageListItem(props: {
               })
             }
           >
-            {ROLES.map((r) => (
+            {ROLES.filter((r) => r !== "system").map((r) => (
               <option key={r} value={r}>
                 {r}
               </option>
@@ -104,27 +104,65 @@ export function MessageListEditor(props: {
   updateContext: (updater: (context: ChatMessage[]) => void) => void;
   onModalClose?: () => void;
 }) {
-  const context = props.context;
+  // 过滤掉空的 system 消息，并保持索引映射
+  const { filteredMessages, indexMap } = useMemo(() => {
+    const filtered: ChatMessage[] = [];
+    const map: number[] = []; // 存储过滤后索引到原始索引的映射
 
-  const addMessage = (message: ChatMessage, i: number) => {
-    props.updateContext((context) => context.splice(i, 0, message));
+    props.context.forEach((message, originalIndex) => {
+      // 如果是 system 消息且内容为空，则过滤掉
+      if (message.role === "system") {
+        const textContent = getMessageTextContent(message);
+        if (textContent.trim().length === 0) {
+          return; // 跳过空的 system 消息
+        }
+      }
+      // 其他消息保留
+      filtered.push(message);
+      map.push(originalIndex);
+    });
+
+    return {
+      filteredMessages: filtered,
+      indexMap: map,
+    };
+  }, [props.context]);
+
+  const context = filteredMessages;
+
+  const addMessage = (message: ChatMessage, filteredIndex: number) => {
+    // 将过滤后的索引转换为原始索引
+    let originalIndex: number;
+    if (filteredIndex >= indexMap.length) {
+      // 如果要添加到末尾，使用原始数组的长度
+      originalIndex = props.context.length;
+    } else {
+      // 否则使用映射的原始索引
+      originalIndex = indexMap[filteredIndex];
+    }
+
+    props.updateContext((context) => context.splice(originalIndex, 0, message));
   };
 
-  const removeMessage = (i: number) => {
-    props.updateContext((context) => context.splice(i, 1));
+  const removeMessage = (filteredIndex: number) => {
+    // 将过滤后的索引转换为原始索引
+    const originalIndex = indexMap[filteredIndex];
+    props.updateContext((context) => context.splice(originalIndex, 1));
   };
 
-  const updateMessage = (i: number, message: ChatMessage) => {
+  const updateMessage = (filteredIndex: number, message: ChatMessage) => {
+    // 将过滤后的索引转换为原始索引
+    const originalIndex = indexMap[filteredIndex];
     props.updateContext((context) => {
-      const images = getMessageImages(context[i]);
-      context[i] = message;
+      const images = getMessageImages(context[originalIndex]);
+      context[originalIndex] = message;
       if (images.length > 0) {
-        const text = getMessageTextContent(context[i]);
+        const text = getMessageTextContent(context[originalIndex]);
         const newContext: MultimodalContent[] = [{ type: "text", text }];
         for (const img of images) {
           newContext.push({ type: "image_url", image_url: { url: img } });
         }
-        context[i].content = newContext;
+        context[originalIndex].content = newContext;
       }
     });
   };
@@ -133,13 +171,15 @@ export function MessageListEditor(props: {
     if (!result.destination) {
       return;
     }
-    const newContext = reorder(
-      context,
-      result.source.index,
-      result.destination.index,
-    );
-    props.updateContext((context) => {
-      context.splice(0, context.length, ...newContext);
+
+    // 获取源和目标的原始索引
+    const sourceOriginalIndex = indexMap[result.source.index];
+    const destinationOriginalIndex = indexMap[result.destination.index];
+
+    props.updateContext((originalContext) => {
+      // 在原始数组中执行重排序
+      const [movedItem] = originalContext.splice(sourceOriginalIndex, 1);
+      originalContext.splice(destinationOriginalIndex, 0, movedItem);
     });
   };
 

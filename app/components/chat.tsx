@@ -1404,7 +1404,7 @@ function _Chat() {
         branchTopic,
       );
 
-      // 如果有系统提示词，在新会话中添加系统消息
+      // 如果有系统提示词，保存到新会话的独立存储
       if (
         systemMessageData.text.trim() ||
         systemMessageData.images.length > 0
@@ -1418,18 +1418,8 @@ function _Chat() {
           systemMessageData.selection,
         );
 
-        // 添加系统消息到新会话
-        const newSystemMessage = createMessage({
-          role: "system",
-          content: "",
-        }) as SystemMetaMessage;
-        // @ts-ignore
-        newSystemMessage.contentKey = getSystemMessageContentKey(newSession.id);
-
-        // 直接更新新会话，添加系统消息到开头
-        chatStore.updateTargetSession(newSession, (session) => {
-          session.messages.unshift(newSystemMessage);
-        });
+        // 注意：不在 messages 中创建 system 消息，因为系统提示词独立存储
+        // prepareMessagesForApi 会在需要时动态加载和合并
       }
 
       chatStore.selectSession(0);
@@ -1701,6 +1691,8 @@ function _Chat() {
     chatStore.updateTargetSession(session, (session) => {
       // 移除现有的 system 消息
       session.messages = session.messages.filter((m) => m.role !== "system");
+
+      // 只保存到独立存储，不在 messages 中创建 system 消息
       if (content.trim() || images.length > 0) {
         saveSystemMessageContentToStorage(
           session.id,
@@ -1709,13 +1701,8 @@ function _Chat() {
           scrollTop || 0,
           selection || { start: 0, end: 0 },
         );
-        const newSystemMessage = createMessage({
-          role: "system",
-          content: "", // 不存内容
-        }) as SystemMetaMessage;
-        // @ts-ignore
-        newSystemMessage.contentKey = getSystemMessageContentKey(session.id);
-        session.messages.unshift(newSystemMessage);
+        // 注意：不在 messages 中创建 system 消息，因为系统提示词独立存储
+        // prepareMessagesForApi 会在需要时动态加载和合并
       }
 
       // 自动切换模型逻辑

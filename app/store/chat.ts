@@ -20,7 +20,7 @@ import {
   createMessage,
   createEmptySession,
   createBranchSession,
-  getMessagesWithMemory,
+  prepareMessagesForApi,
   summarizeSession,
   prepareSendMessages,
   insertMessage,
@@ -377,7 +377,7 @@ export const useChatStore = createPersistStore(
         });
 
         // get recent messages
-        let recentMessages = await get().getMessagesWithMemory();
+        let recentMessages = await get().prepareMessagesForApi();
         let sendMessages = prepareSendMessages(
           recentMessages,
           userMessage,
@@ -483,14 +483,14 @@ export const useChatStore = createPersistStore(
         });
       },
 
-      async getMessagesWithMemory() {
+      async prepareMessagesForApi() {
         const session = get().currentSession();
         // **核心改动：如果消息未加载，先加载它们**
         if (session && (!session.messages || session.messages.length === 0)) {
           await get().loadSessionMessages(get().currentSessionIndex);
         }
         // get() 会获取最新状态，此时 messages 应该已加载
-        return await getMessagesWithMemory(
+        return await prepareMessagesForApi(
           get().currentSession(),
           systemMessageStorage,
         );

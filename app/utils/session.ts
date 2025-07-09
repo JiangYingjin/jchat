@@ -121,26 +121,22 @@ export function createBranchSession(
 /**
  * 获取包含内存的消息列表
  */
-export async function getMessagesWithMemory(
+export async function prepareMessagesForApi(
   session: ChatSession,
   systemMessageStorage?: any,
 ): Promise<ChatMessage[]> {
   const messages = session.messages.slice();
 
   // ========== system message 动态加载 ==========
-  let systemMessage: ChatMessage | undefined = messages.find(
-    (m) => m.role === "system",
-  );
   let systemPrompt: ChatMessage[] = [];
 
-  if (systemMessage && systemMessageStorage) {
-    let content = systemMessage.content;
-    if (!content && (systemMessage as any).contentKey) {
-      // 动态从 IndexedDB 取
+  // 直接从 systemMessageStorage 加载系统提示词，不依赖 messages 中的 system 消息
+  if (systemMessageStorage) {
+    try {
       const storedData = await systemMessageStorage.getSystemMessage(
         session.id,
       );
-      // 只有当IndexedDB中有内容时才使用，否则跳过该系统消息
+      // 只有当有有效内容时才创建 system 消息
       if (
         storedData &&
         (storedData.text.trim() !== "" || storedData.images.length > 0)
@@ -150,41 +146,17 @@ export async function getMessagesWithMemory(
           storedData.text,
           storedData.images,
         );
-        content = multimodalContent;
-      }
-    }
 
-    if (
-      content &&
-      (typeof content === "string" ? content.trim() !== "" : content.length > 0)
-    ) {
-      let multimodalContent: MultimodalContent[];
-      if (typeof content === "string") {
-        try {
-          const data = JSON.parse(content);
-          if (
-            typeof data === "object" &&
-            (data.content !== undefined || data.images !== undefined)
-          ) {
-            multimodalContent = buildMultimodalContent(
-              data.content,
-              data.images,
-            );
-          } else {
-            multimodalContent = buildMultimodalContent(content, []);
-          }
-        } catch (e) {
-          multimodalContent = buildMultimodalContent(content, []);
-        }
-      } else {
-        multimodalContent = content;
+        // 创建 system 消息（仅用于发送给 API，不存储在 session.messages 中）
+        systemPrompt = [
+          createMessage({
+            role: "system",
+            content: multimodalContent,
+          }),
+        ];
       }
-      systemPrompt = [
-        {
-          ...systemMessage,
-          content: multimodalContent,
-        },
-      ];
+    } catch (error) {
+      console.error("[prepareMessagesForApi] 加载系统提示词失败:", error);
     }
   }
 
