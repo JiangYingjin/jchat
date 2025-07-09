@@ -10,7 +10,6 @@ import { StoreKey } from "../constant";
 import Locale from "../locales";
 import { prettyObject } from "../utils/format";
 import { createPersistStore, jchatStorage } from "../utils/store";
-import localforage from "localforage";
 import { chatInputStorage } from "./input";
 import { systemMessageStorage } from "./system";
 
@@ -456,60 +455,6 @@ export const useChatStore = createPersistStore(
     version: 4.3,
     storage: jchatStorage,
     migrate(persistedState: any, version: number) {
-      // 版本 4.0: 移除 ChatSession 中的 mask 属性
-      if (version < 4.0) {
-        if (persistedState.sessions) {
-          persistedState.sessions.forEach((session: any) => {
-            if (session.mask !== undefined) {
-              delete session.mask;
-            }
-          });
-        }
-      }
-
-      // 版本 4.1: 添加 accessCode 属性
-      if (version < 4.1) {
-        if (persistedState.accessCode === undefined) {
-          persistedState.accessCode = "";
-        }
-      }
-
-      // 版本 4.2: 添加 models 属性
-      if (version < 4.2) {
-        if (persistedState.models === undefined) {
-          persistedState.models = "";
-        }
-      }
-
-      // 版本 4.3: 添加 messageCount 和 status 属性
-      if (version < 4.3) {
-        if (persistedState.sessions) {
-          persistedState.sessions.forEach((session: any) => {
-            if (session.messageCount === undefined) {
-              session.messageCount = session.messages
-                ? session.messages.length
-                : 0;
-            }
-            if (session.status === undefined) {
-              // 计算状态
-              const messages = session.messages || [];
-              if (messages.length === 0) {
-                session.status = "normal";
-              } else {
-                const lastMessage = messages[messages.length - 1];
-                if (lastMessage.isError) {
-                  session.status = "error";
-                } else if (lastMessage.role === "user") {
-                  session.status = "pending";
-                } else {
-                  session.status = "normal";
-                }
-              }
-            }
-          });
-        }
-      }
-
       return persistedState as any;
     },
   },
