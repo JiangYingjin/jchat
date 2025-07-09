@@ -20,7 +20,7 @@
     "heic2any": "^0.0.4",
     "html-to-image": "^1.11.11",
     "localforage": "^1.10.0",
-    "mermaid": "^10.6.1",
+    "mermaid": "^11.8.1",
     "mime": "^4.0.1",
     "nanoid": "^5.0.3",
     "next": "^14.1.1",
