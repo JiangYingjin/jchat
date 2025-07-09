@@ -189,8 +189,7 @@ export async function summarizeSession(
   // should summarize topic after chating more than 50 words
   const SUMMARIZE_MIN_LEN = 50;
   if (
-    (!process.env.NEXT_PUBLIC_DISABLE_AUTOGENERATETITLE &&
-      session.topic === DEFAULT_TOPIC &&
+    (session.topic === DEFAULT_TOPIC &&
       countMessages(messages) >= SUMMARIZE_MIN_LEN) ||
     refreshTitle
   ) {

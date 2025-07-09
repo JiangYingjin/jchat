@@ -421,12 +421,14 @@ export function ImagePreviewer(props: {
 
   const previewRef = useRef<HTMLDivElement>(null);
 
+  const isMobile = useMobileScreen();
+
   const copy = () => {
     showToast(Locale.Export.Image.Toast);
     const dom = previewRef.current;
     if (!dom) return;
     toBlob(dom, {
-      pixelRatio: 1.5, // 分辨率倍数
+      pixelRatio: isMobile ? 2 : 1.5, // 分辨率倍数
       includeQueryParams: true,
     }).then((blob) => {
       if (!blob) return;
@@ -455,7 +457,7 @@ export function ImagePreviewer(props: {
 
     try {
       const blob = await toPng(dom, {
-        pixelRatio: 2, // 分辨率倍数
+        pixelRatio: isMobile ? 3 : 2, // 分辨率倍数
         includeQueryParams: true,
       });
       if (!blob) return;
