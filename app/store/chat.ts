@@ -17,8 +17,6 @@ import {
   summarizeSession,
   prepareSendMessages,
   insertMessage,
-  calculateMoveIndex,
-  validateSessionIndex,
   updateSessionStats,
 } from "../utils/session";
 
@@ -40,27 +38,68 @@ export function onStoreHydrated(callback: () => void): void {
   }
 }
 
+/**
+ * 基础会话单元 (The Basic Session Entity)
+ * 这是一个纯粹的聊天会话，不关心自己是否属于某个组。
+ * 它是我们状态数据库中的 "sessions" 表的行记录。
+ */
 export interface ChatSession {
-  id: string;
-
+  id: string; // 全局唯一标识符，例如 "session-abc-123"
   title: string;
   model: string; // 当前会话选择的模型
-
   messageCount: number; // 消息数量
   status: "normal" | "error" | "pending"; // 会话状态：正常、错误、用户消息结尾
-
   isModelManuallySelected?: boolean; // 用户是否手动选择了模型（用于自动切换逻辑）
   longInputMode?: boolean; // 是否为长输入模式（Enter 换行，Ctrl+Enter 发送）
   lastUpdate: number;
-
   messages: ChatMessage[];
 }
+
+/**
+ * 会话组 (The Session Group Entity)
+ * 这是一个容器，用于组织和管理多个 ChatSession。
+ * 它本身不存储消息，只存储关系和组级别的状态。
+ * 它是我们状态数据库中的 "groups" 表的行记录。
+ */
+export interface SessionGroup {
+  id: string; // 全局唯一标识符，例如 "group-xyz-456"
+
+  // 核心关系：只存储子会话的 ID 列表。这是范式化的关键。
+  sessionIds: string[];
+
+  // 派生数据与元数据
+  title: string; // 通常是第一个子会话的标题，也可由用户自定义
+  lastUpdate: number; // 以组内最新的会话更新时间为准
+
+  // UI 状态：这些状态与组的展示逻辑紧密相关
+  isExpandedInSidebar?: boolean; // 标记在侧边栏是否处于“展开”状态
+  activeSubSessionId?: string; // 标记在聊天视图中，当前显示的是哪个子会话
+}
+
+// in app/store/chat.ts
 
 const DEFAULT_CHAT_STATE = {
   accessCode: "",
   models: [] as string[],
-  sessions: [createEmptySession()],
-  currentSessionIndex: 0,
+
+  // 1. "sessions" 表: 存储所有 ChatSession 实体
+  // key 是 ChatSession.id，value 是 ChatSession 对象。
+  // O(1) 复杂度即可按 ID 访问任何会话，无论它是否在组内。
+  sessionsRecord: {} as Record<string, ChatSession>,
+
+  // 2. "groups" 表: 存储所有 SessionGroup 实体
+  // key 是 SessionGroup.id，value 是 SessionGroup 对象。
+  groups: {} as Record<string, SessionGroup>,
+
+  // 3. 侧边栏的显示顺序 (The "View")
+  // 数组里只存储 ID，这些 ID 要么指向一个 SessionGroup，要么指向一个独立的 ChatSession。
+  // UI 渲染侧边栏时，只需遍历此数组。
+  sessionOrder: [] as string[],
+
+  // 4. 当前激活的上下文 (The "Active Context")
+  // 存储当前在侧边栏被高亮选中的条目的 ID。
+  // 这个 ID 可以是 group ID，也可以是独立的 session ID。
+  activeId: null as string | null,
 };
 
 export const DEFAULT_TOPIC = Locale.Store.DefaultTopic;
@@ -70,12 +109,12 @@ export const useChatStore = createPersistStore(
   (set, _get) => {
     const methods = {
       // 新增：加载指定会话的消息
-      async loadSessionMessages(sessionIndex: number): Promise<void> {
+      async loadSessionMessages(sessionId: string): Promise<void> {
         // 只在客户端环境下执行
         if (typeof window === "undefined") return;
 
-        const sessions = get().sessions;
-        const session = sessions[sessionIndex];
+        const { sessionsRecord } = get();
+        const session = sessionsRecord[sessionId];
         if (!session) return;
 
         // 如果消息已经加载（非空），则不重复加载
@@ -84,13 +123,26 @@ export const useChatStore = createPersistStore(
         try {
           // 从 messageStorage 异步加载消息
           const messages = await messageStorage.getMessages(session.id);
-          get().updateTargetSession(session, (s) => {
-            s.messages = messages;
-            updateSessionStats(s); // 重新计算统计信息
-          });
+
+          // 直接更新状态，确保数据同步
+          const { sessionsRecord: currentRecord } = get();
+          const currentSession = currentRecord[sessionId];
+
+          if (currentSession) {
+            // 更新 sessionsRecord 中的会话
+            const updatedSession = { ...currentSession, messages };
+            updateSessionStats(updatedSession);
+
+            const updatedRecord = { ...currentRecord };
+            updatedRecord[sessionId] = updatedSession;
+
+            set(() => ({
+              sessionsRecord: updatedRecord,
+            }));
+          }
         } catch (error) {
           console.error(
-            `[ChatStore] Failed to load messages for session ${session.id}`,
+            `[ChatStore] Failed to load messages for session ${sessionId}`,
             error,
           );
         }
@@ -131,54 +183,43 @@ export const useChatStore = createPersistStore(
         await get().saveSessionMessages(newSession);
 
         set((state) => ({
-          currentSessionIndex: 0,
-          sessions: [newSession, ...state.sessions],
+          sessionsRecord: {
+            ...state.sessionsRecord,
+            [newSession.id]: newSession,
+          },
+          sessionOrder: [newSession.id, ...state.sessionOrder],
+          activeId: newSession.id,
         }));
       },
 
-      async clearSessions() {
-        // 删除所有会话的消息
-        const currentSessions = get().sessions;
-        await Promise.all(
-          currentSessions.map((session) =>
-            messageStorage.deleteMessages(session.id),
-          ),
-        );
+      selectSession(sessionId: string) {
+        const { sessionsRecord } = get();
+        const session = sessionsRecord[sessionId];
 
-        const newSession = createEmptySession();
-        // 为新创建的空会话保存（空的）消息
-        await get().saveSessionMessages(newSession);
-
-        set(() => ({
-          sessions: [newSession],
-          currentSessionIndex: 0,
-        }));
-      },
-
-      selectSession(index: number) {
-        set({
-          currentSessionIndex: index,
-        });
-        // 当选择一个新会话时，触发消息加载
-        get().loadSessionMessages(index);
+        if (session) {
+          set({ activeId: sessionId });
+          // 当选择一个新会话时，异步触发消息加载
+          setTimeout(() => {
+            get().loadSessionMessages(sessionId);
+          }, 0);
+        }
       },
 
       moveSession(from: number, to: number) {
         set((state) => {
-          const { sessions, currentSessionIndex: oldIndex } = state;
+          const { sessionOrder, activeId } = state;
 
-          // move the session
-          const newSessions = [...sessions];
-          const session = newSessions[from];
-          newSessions.splice(from, 1);
-          newSessions.splice(to, 0, session);
-
-          // calculate new index using utility function
-          const newIndex = calculateMoveIndex(from, to, oldIndex);
+          // move session in sessionOrder
+          const newSessionOrder = [...sessionOrder];
+          if (from < newSessionOrder.length && to < newSessionOrder.length) {
+            const sessionId = newSessionOrder[from];
+            newSessionOrder.splice(from, 1);
+            newSessionOrder.splice(to, 0, sessionId);
+          }
 
           return {
-            currentSessionIndex: newIndex,
-            sessions: newSessions,
+            sessionOrder: newSessionOrder,
+            activeId: activeId, // activeId 保持不变
           };
         });
       },
@@ -189,8 +230,9 @@ export const useChatStore = createPersistStore(
         await get().saveSessionMessages(session);
 
         set((state) => ({
-          currentSessionIndex: 0,
-          sessions: [session].concat(state.sessions),
+          sessionsRecord: { ...state.sessionsRecord, [session.id]: session },
+          sessionOrder: [session.id, ...state.sessionOrder],
+          activeId: session.id,
         }));
       },
 
@@ -229,58 +271,85 @@ export const useChatStore = createPersistStore(
         }
 
         set((state) => ({
-          sessions: [newSession, ...state.sessions],
-          currentSessionIndex: 0, // 切换到新创建的分支会话
+          sessionsRecord: {
+            ...state.sessionsRecord,
+            [newSession.id]: newSession,
+          },
+          sessionOrder: [newSession.id, ...state.sessionOrder],
+          activeId: newSession.id, // 切换到新创建的分支会话
         }));
 
         // 确保新会话的消息已正确加载（虽然是新创建的，但为了保险起见）
-        await get().loadSessionMessages(0);
+        await get().loadSessionMessages(newSession.id);
 
         return newSession;
       },
 
       nextSession(delta: number) {
-        const n = get().sessions.length;
+        const { sessionOrder, activeId } = get();
+        const n = sessionOrder.length;
+        if (n === 0) return;
+
+        const currentIndex = activeId ? sessionOrder.indexOf(activeId) : 0;
         const limit = (x: number) => (x + n) % n;
-        const i = get().currentSessionIndex;
-        get().selectSession(limit(i + delta));
+        const nextIndex = limit(currentIndex + delta);
+        const nextSessionId = sessionOrder[nextIndex];
+
+        if (nextSessionId) {
+          get().selectSession(nextSessionId);
+        }
       },
 
-      async deleteSession(index: number) {
-        const deletingLastSession = get().sessions.length === 1;
-        const deletedSession = get().sessions.at(index);
+      async deleteSessionByIndex(index: number) {
+        const { sessionOrder, sessionsRecord } = get();
+        const deletingLastSession = sessionOrder.length === 1;
+        const sessionIdToDelete = sessionOrder[index];
+        const sessionToDelete = sessionIdToDelete
+          ? sessionsRecord[sessionIdToDelete]
+          : undefined;
 
-        if (!deletedSession) return;
+        if (!sessionToDelete) return;
 
         // **保存删除前的完整状态用于撤销**
         const restoreState = {
-          sessions: get().sessions,
-          currentSessionIndex: get().currentSessionIndex,
+          sessionsRecord: get().sessionsRecord,
+          sessionOrder: get().sessionOrder,
+          activeId: get().activeId,
         };
-        const deletedSessionIndex = index;
 
         // 准备新的状态
-        const sessions = get().sessions.slice();
-        sessions.splice(index, 1);
-
-        const currentIndex = get().currentSessionIndex;
-        let nextIndex = Math.min(
-          currentIndex - Number(index < currentIndex),
-          sessions.length - 1,
+        const {
+          sessionsRecord: currentRecord,
+          sessionOrder: currentOrder,
+          activeId,
+        } = get();
+        const newSessionOrder = currentOrder.filter(
+          (id) => id !== sessionToDelete.id,
         );
+        const newSessionsRecord = { ...currentRecord };
+        let newActiveId = activeId;
+
+        // 从 sessionsRecord 中删除会话
+        delete newSessionsRecord[sessionToDelete.id];
 
         if (deletingLastSession) {
-          nextIndex = 0;
           const newSession = createEmptySession();
-          sessions.push(newSession);
+          newSessionsRecord[newSession.id] = newSession;
+          newSessionOrder.push(newSession.id);
+          newActiveId = newSession.id;
           // 为新创建的空会话保存（空的）消息
           await get().saveSessionMessages(newSession);
+        } else if (activeId === sessionToDelete.id) {
+          // 如果删除的是当前活跃会话，选择下一个
+          const nextIndex = Math.min(index, newSessionOrder.length - 1);
+          newActiveId = newSessionOrder[nextIndex] || null;
         }
 
-        // 立即更新UI状态（从sessions数组中移除）
+        // 立即更新UI状态
         set(() => ({
-          currentSessionIndex: nextIndex,
-          sessions,
+          sessionsRecord: newSessionsRecord,
+          sessionOrder: newSessionOrder,
+          activeId: newActiveId,
         }));
 
         // **延迟删除相关数据的定时器**
@@ -289,16 +358,16 @@ export const useChatStore = createPersistStore(
         const performActualDeletion = async () => {
           try {
             await Promise.all([
-              messageStorage.deleteMessages(deletedSession.id),
-              chatInputStorage.deleteChatInput(deletedSession.id),
-              systemMessageStorage.deleteSystemMessage(deletedSession.id),
+              messageStorage.deleteMessages(sessionToDelete.id),
+              chatInputStorage.deleteChatInput(sessionToDelete.id),
+              systemMessageStorage.deleteSystemMessage(sessionToDelete.id),
             ]);
             console.log(
-              `[DeleteSession] 已删除会话 ${deletedSession.id} 的所有数据`,
+              `[DeleteSession] 已删除会话 ${sessionToDelete.id} 的所有数据`,
             );
           } catch (error) {
             console.error(
-              `[DeleteSession] 删除会话 ${deletedSession.id} 的数据失败:`,
+              `[DeleteSession] 删除会话 ${sessionToDelete.id} 的数据失败:`,
               error,
             );
           }
@@ -316,9 +385,126 @@ export const useChatStore = createPersistStore(
           set(() => restoreState);
 
           // 确保恢复的会话消息已加载
-          await get().loadSessionMessages(deletedSessionIndex);
+          await get().loadSessionMessages(sessionToDelete.id);
 
-          console.log(`[DeleteSession] 已撤销删除会话 ${deletedSession.id}`);
+          console.log(`[DeleteSession] 已撤销删除会话 ${sessionToDelete.id}`);
+        };
+
+        // 设置8秒后的延迟删除
+        deleteTimer = setTimeout(() => {
+          performActualDeletion();
+          deleteTimer = null;
+        }, 8000);
+
+        // **显示带撤销选项的Toast**
+        showToast(
+          Locale.Chat.DeleteMessageToast,
+          {
+            text: Locale.Chat.Revert,
+            onClick: restoreSession,
+          },
+          8000,
+        );
+      },
+
+      async deleteSessionById(sessionId: string) {
+        const state = get();
+        const { sessionsRecord, sessionOrder, activeId } = state;
+
+        // 检查会话是否存在
+        const sessionToDelete = sessionsRecord[sessionId];
+        if (!sessionToDelete) {
+          console.warn(`[DeleteSession] Session ${sessionId} not found`);
+          return;
+        }
+
+        const deletingLastSession = Object.keys(sessionsRecord).length === 1;
+        const sessionOrderIndex = sessionOrder.indexOf(sessionId);
+
+        // **保存删除前的完整状态用于撤销**
+        const restoreState = {
+          sessionsRecord: { ...sessionsRecord },
+          sessionOrder: [...sessionOrder],
+          activeId: activeId,
+        };
+
+        // 准备新的状态
+        const newSessionsRecord = { ...sessionsRecord };
+        const newSessionOrder = sessionOrder.filter((id) => id !== sessionId);
+        let newActiveId = activeId;
+
+        // 从 sessionsRecord 中删除会话
+        delete newSessionsRecord[sessionId];
+
+        // 更新 activeId
+        if (activeId === sessionId) {
+          if (deletingLastSession) {
+            // 如果删除的是最后一个会话，创建新会话
+            const newSession = createEmptySession();
+            newSessionsRecord[newSession.id] = newSession;
+            newSessionOrder.push(newSession.id);
+            newActiveId = newSession.id;
+
+            // 为新创建的空会话保存（空的）消息
+            await get().saveSessionMessages(newSession);
+          } else {
+            // 选择下一个会话作为活跃会话
+            if (sessionOrderIndex >= 0) {
+              if (sessionOrderIndex < newSessionOrder.length) {
+                // 选择同一位置的下一个会话
+                newActiveId = newSessionOrder[sessionOrderIndex];
+              } else if (newSessionOrder.length > 0) {
+                // 选择最后一个会话
+                newActiveId = newSessionOrder[newSessionOrder.length - 1];
+              }
+            } else if (newSessionOrder.length > 0) {
+              // 选择第一个会话
+              newActiveId = newSessionOrder[0];
+            }
+          }
+        }
+
+        // 立即更新UI状态
+        set(() => ({
+          sessionsRecord: newSessionsRecord,
+          sessionOrder: newSessionOrder,
+          activeId: newActiveId,
+        }));
+
+        // **延迟删除相关数据的定时器**
+        let deleteTimer: NodeJS.Timeout | null = null;
+
+        const performActualDeletion = async () => {
+          try {
+            await Promise.all([
+              messageStorage.deleteMessages(sessionId),
+              chatInputStorage.deleteChatInput(sessionId),
+              systemMessageStorage.deleteSystemMessage(sessionId),
+            ]);
+            console.log(`[DeleteSession] 已删除会话 ${sessionId} 的所有数据`);
+          } catch (error) {
+            console.error(
+              `[DeleteSession] 删除会话 ${sessionId} 的数据失败:`,
+              error,
+            );
+          }
+        };
+
+        // **撤销删除的功能**
+        const restoreSession = async () => {
+          // 取消延迟删除定时器
+          if (deleteTimer) {
+            clearTimeout(deleteTimer);
+            deleteTimer = null;
+          }
+
+          // 恢复会话状态
+          set(() => restoreState);
+
+          // 确保恢复的会话消息已加载
+          await get().loadSessionMessages(sessionId);
+
+          console.log(`[DeleteSession] 已撤销删除会话 ${sessionId}`);
         };
 
         // 设置8秒后的延迟删除
@@ -339,16 +525,54 @@ export const useChatStore = createPersistStore(
       },
 
       currentSession() {
-        let index = get().currentSessionIndex;
-        const sessions = get().sessions;
+        const { activeId, sessionsRecord, sessionOrder } = get();
 
-        const validIndex = validateSessionIndex(index, sessions.length);
-        if (validIndex !== index) {
-          set(() => ({ currentSessionIndex: validIndex }));
-          index = validIndex;
+        // 如果有 activeId，从 sessionsRecord 中获取
+        if (activeId && sessionsRecord[activeId]) {
+          return sessionsRecord[activeId];
         }
 
-        return sessions[index];
+        // 回退到 sessionOrder 中第一个会话
+        if (sessionOrder.length > 0) {
+          const firstSessionId = sessionOrder[0];
+          const firstSession = sessionsRecord[firstSessionId];
+          if (firstSession) {
+            // 更新 activeId 为第一个会话的 ID
+            set(() => ({ activeId: firstSessionId }));
+            return firstSession;
+          } else {
+            // sessionOrder 中的 ID 在 sessionsRecord 中不存在，清理无效数据
+            console.warn(
+              "[Store] Found invalid session ID in sessionOrder, cleaning up",
+            );
+            const validSessionIds = sessionOrder.filter(
+              (id) => sessionsRecord[id],
+            );
+            if (validSessionIds.length > 0) {
+              const firstValidId = validSessionIds[0];
+              set(() => ({
+                sessionOrder: validSessionIds,
+                activeId: firstValidId,
+              }));
+              return sessionsRecord[firstValidId];
+            }
+          }
+        }
+
+        // 作为最后的手段才创建新会话
+        console.log(
+          "[Store] No valid sessions found, creating new session as last resort",
+        );
+        const newSession = createEmptySession();
+        set((state) => ({
+          sessionsRecord: {
+            ...state.sessionsRecord,
+            [newSession.id]: newSession,
+          },
+          sessionOrder: [newSession.id],
+          activeId: newSession.id,
+        }));
+        return newSession;
       },
 
       onNewMessage(
@@ -371,7 +595,7 @@ export const useChatStore = createPersistStore(
 
         // 确保消息已加载
         if (!session.messages || session.messages.length === 0) {
-          await get().loadSessionMessages(get().currentSessionIndex);
+          await get().loadSessionMessages(session.id);
         }
 
         let mContent: string | MultimodalContent[] = content;
@@ -523,22 +747,25 @@ export const useChatStore = createPersistStore(
         const session = get().currentSession();
         // **核心改动：如果消息未加载，先加载它们**
         if (session && (!session.messages || session.messages.length === 0)) {
-          await get().loadSessionMessages(get().currentSessionIndex);
+          await get().loadSessionMessages(session.id);
+          // 重新获取会话以确保得到最新的消息数据
+          const updatedSession = get().currentSession();
+          return await prepareMessagesForApi(
+            updatedSession,
+            systemMessageStorage,
+          );
         }
         // get() 会获取最新状态，此时 messages 应该已加载
-        return await prepareMessagesForApi(
-          get().currentSession(),
-          systemMessageStorage,
-        );
+        return await prepareMessagesForApi(session, systemMessageStorage);
       },
 
       async updateMessage(
-        sessionIndex: number,
+        sessionId: string,
         messageIndex: number,
         updater: (message?: ChatMessage) => void,
       ) {
-        const sessions = get().sessions;
-        const session = sessions.at(sessionIndex);
+        const { sessionsRecord } = get();
+        const session = sessionsRecord[sessionId];
         if (!session) return;
 
         const messages = session?.messages;
@@ -547,8 +774,11 @@ export const useChatStore = createPersistStore(
         if (session) {
           updateSessionStats(session);
           await get().saveSessionMessages(session);
+          // 更新 sessionsRecord 中的会话
+          set((state) => ({
+            sessionsRecord: { ...state.sessionsRecord, [sessionId]: session },
+          }));
         }
-        set(() => ({ sessions }));
       },
 
       async resetSession(session: ChatSession) {
@@ -574,11 +804,20 @@ export const useChatStore = createPersistStore(
         targetSession: ChatSession,
         updater: (session: ChatSession) => void,
       ) {
-        const sessions = get().sessions;
-        const index = sessions.findIndex((s) => s.id === targetSession.id);
-        if (index < 0) return;
-        updater(sessions[index]);
-        set(() => ({ sessions }));
+        const { sessionsRecord } = get();
+        const sessionToUpdate = sessionsRecord[targetSession.id];
+        if (!sessionToUpdate) return;
+
+        // 更新会话
+        updater(sessionToUpdate);
+
+        // 同步更新 sessionsRecord 中的会话
+        const updatedSessionsRecord = { ...sessionsRecord };
+        updatedSessionsRecord[targetSession.id] = sessionToUpdate;
+
+        set(() => ({
+          sessionsRecord: updatedSessionsRecord,
+        }));
       },
 
       fetchModels() {
@@ -616,25 +855,8 @@ export const useChatStore = createPersistStore(
   },
   {
     name: StoreKey.Chat,
-    version: 4.6, // 增加版本号，因为增加了 topic 到 title 的重命名迁移
+    version: 5.3,
     storage: jchatStorage,
-
-    /**
-     * **核心改动：使用 partialize 排除 messages**
-     * 这个函数在持久化状态之前被调用。
-     * 我们返回一个不包含任何 session.messages 的新状态对象。
-     */
-    partialize: (state) => {
-      // 创建一个没有 messages 的 state副本
-      const stateToPersist = {
-        ...state,
-        sessions: state.sessions.map((session) => {
-          const { messages, ...rest } = session;
-          return { ...rest, messages: [] }; // 保持结构但清空messages
-        }),
-      };
-      return stateToPersist;
-    },
 
     /**
      * **核心改动：在数据恢复后加载当前会话的消息**
@@ -644,129 +866,134 @@ export const useChatStore = createPersistStore(
       return (hydratedState, error) => {
         if (error) {
           console.error("[Store] An error happened during hydration", error);
-        } else {
-          // console.log("[Store] Hydration finished.");
+          return;
+        }
 
-          // 设置全局 hydration 状态
-          isHydrated = true;
+        // **关键修复：验证恢复的状态数据**
+        if (!hydratedState) {
+          console.warn("[Store] Hydrated state is null, using default state");
+          return;
+        }
 
-          // 执行所有等待 hydration 的回调
-          hydrationCallbacks.forEach((callback) => {
-            try {
-              callback();
-            } catch (error) {
-              console.error("[Store] Error in hydration callback:", error);
-            }
-          });
-          hydrationCallbacks.length = 0; // 清空回调数组
+        console.log(
+          "[Store] Hydration finished, sessions count:",
+          Object.keys(hydratedState.sessionsRecord || {}).length,
+        );
 
-          // 只在客户端环境下执行消息加载
-          if (typeof window !== "undefined") {
-            // 确保在状态设置后调用，可以稍微延迟执行
-            setTimeout(() => {
-              const { currentSessionIndex } = useChatStore.getState();
-              useChatStore.getState().loadSessionMessages(currentSessionIndex);
-            }, 0);
+        // 设置全局 hydration 状态
+        isHydrated = true;
+
+        // 执行所有等待 hydration 的回调
+        hydrationCallbacks.forEach((callback) => {
+          try {
+            callback();
+          } catch (error) {
+            console.error("[Store] Error in hydration callback:", error);
           }
+        });
+        hydrationCallbacks.length = 0; // 清空回调数组
+
+        // 只在客户端环境下执行消息加载
+        if (typeof window !== "undefined") {
+          // **优化：使用 requestAnimationFrame 确保 DOM 更新完成后再执行**
+          requestAnimationFrame(() => {
+            setTimeout(() => {
+              try {
+                const state = useChatStore.getState();
+                const { activeId, sessionOrder, sessionsRecord } = state;
+
+                console.log("[Store] Post-hydration state check:", {
+                  activeId,
+                  sessionOrderLength: sessionOrder.length,
+                  sessionsCount: Object.keys(sessionsRecord).length,
+                });
+
+                // 如果有 activeId，加载对应会话的消息
+                if (activeId && sessionsRecord[activeId]) {
+                  state.loadSessionMessages(activeId);
+                }
+                // 如果没有 activeId 但有会话，选择第一个会话
+                else if (sessionOrder.length > 0) {
+                  const firstSessionId = sessionOrder[0];
+                  if (sessionsRecord[firstSessionId]) {
+                    state.selectSession(firstSessionId);
+                  }
+                }
+              } catch (error) {
+                console.error("[Store] Error in post-hydration setup:", error);
+              }
+            }, 50); // 减少延迟时间，但保持异步执行
+          });
         }
       };
     },
 
     migrate(persistedState: any, version: number) {
-      // 从 v4.4 升级到 v4.5：清理持久化状态中无效或废弃的属性
-      if (version < 4.5 && persistedState) {
-        console.log(
-          "[Migrate] Migrating chat store from v4.4 to v4.5 - cleaning invalid properties",
+      return persistedState;
+
+      console.log("[Store] migrate", version, persistedState);
+
+      // **安全修复：即使数据为 null/undefined，也不直接重置，而是尝试保留现有状态**
+      if (!persistedState || typeof persistedState !== "object") {
+        console.warn(
+          "[Store] persistedState is null/undefined, but will use default state to avoid data loss",
         );
-
-        const cleanedState: any = { ...DEFAULT_CHAT_STATE };
-
-        // 1. 复制顶层属性
-        Object.keys(DEFAULT_CHAT_STATE).forEach((key) => {
-          if (persistedState.hasOwnProperty(key)) {
-            (cleanedState as any)[key] = persistedState[key];
-          }
-        });
-
-        // 2. 清理和验证会话
-        if (persistedState.sessions && Array.isArray(persistedState.sessions)) {
-          const sessionTemplate = createEmptySession();
-          const allowedSessionKeys = new Set([
-            ...Object.keys(sessionTemplate),
-            "isModelManuallySelected",
-            "longInputMode",
-          ]);
-
-          cleanedState.sessions = persistedState.sessions
-            .map((pSession: any) => {
-              if (!pSession || typeof pSession !== "object" || !pSession.id) {
-                return null; // 过滤无效会话
-              }
-
-              const newSession: any = {};
-              allowedSessionKeys.forEach((key) => {
-                if (pSession.hasOwnProperty(key)) {
-                  newSession[key] = pSession[key];
-                }
-              });
-
-              // messages 属性总是被持久化为空数组 (自 v4.4)
-              newSession.messages = [];
-
-              // 补全会话模板中的必要字段
-              Object.keys(sessionTemplate).forEach((key) => {
-                if (!newSession.hasOwnProperty(key)) {
-                  newSession[key] = (sessionTemplate as any)[key];
-                }
-              });
-
-              return newSession;
-            })
-            .filter(Boolean); // 移除 null 值
-        }
-
-        // 3. 如果没有有效会话，则重置
-        if (!cleanedState.sessions || cleanedState.sessions.length === 0) {
-          cleanedState.sessions = [createEmptySession()];
-          cleanedState.currentSessionIndex = 0;
-        }
-
-        // 4. 验证 currentSessionIndex
-        if (cleanedState.currentSessionIndex >= cleanedState.sessions.length) {
-          cleanedState.currentSessionIndex = Math.max(
-            0,
-            cleanedState.sessions.length - 1,
-          );
-        }
-
-        return cleanedState as any;
+        // 为了避免循环依赖和类型问题，我们使用默认状态，但会在 onRehydrateStorage 中尝试恢复
+        return DEFAULT_CHAT_STATE;
       }
 
-      // 从 v4.5 升级到 v4.6：将 ChatSession.topic 重命名为 ChatSession.title
-      if (version < 4.6 && persistedState && persistedState.sessions) {
-        console.log(
-          "[Migrate] Migrating chat store from v4.5 to v4.6 - renaming topic to title",
-        );
+      if (version === 5.2) {
+        // 处理从 5.2 升级的情况
+        if (Array.isArray(persistedState.sessions)) {
+          const sessions = persistedState.sessions;
+          const sessionsRecord: Record<string, any> = {};
+          const sessionOrder: string[] = [];
 
-        // 处理会话中的 topic 到 title 的重命名
-        persistedState.sessions.forEach((session: any) => {
-          if (session && typeof session === "object") {
-            // 如果存在 topic 属性，将其重命名为 title
-            if (
-              session.hasOwnProperty("topic") &&
-              !session.hasOwnProperty("title")
-            ) {
-              console.log(
-                `[Migrate] Renaming topic to title for session ${session.id}`,
-              );
-              session.title = session.topic;
-              delete session.topic;
+          sessions.forEach((session: any) => {
+            if (session && session.id) {
+              sessionsRecord[session.id] = session;
+              sessionOrder.push(session.id);
             }
-          }
-        });
+          });
+
+          console.log(
+            "[Store] Migrated from 5.2, sessions count:",
+            sessions.length,
+          );
+          return {
+            ...persistedState,
+            sessionsRecord,
+            sessionOrder,
+            activeId: sessionOrder[0] || null,
+          };
+        }
       }
 
-      return persistedState as any;
+      // 对于未知版本，更安全地保留数据
+      console.warn("[Store] Unknown version, attempting to preserve all data");
+      const fallbackState = {
+        ...DEFAULT_CHAT_STATE,
+        ...persistedState,
+      };
+
+      // 更安全地处理数据结构，尽量保留原有数据
+      if (
+        !fallbackState.sessionsRecord ||
+        typeof fallbackState.sessionsRecord !== "object"
+      ) {
+        console.warn(
+          "[Store] Preserving sessionsRecord as-is or using empty object",
+        );
+        fallbackState.sessionsRecord = fallbackState.sessionsRecord || {};
+      }
+      if (!Array.isArray(fallbackState.sessionOrder)) {
+        console.warn("[Store] Rebuilding sessionOrder from available data");
+        fallbackState.sessionOrder = Object.keys(
+          fallbackState.sessionsRecord || {},
+        );
+      }
+
+      return fallbackState;
     },
   },
 );

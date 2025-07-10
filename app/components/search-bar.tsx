@@ -92,12 +92,10 @@ function SearchResultItem({
   result,
   input,
   selectSession,
-  index,
 }: {
   result: SearchResult;
   input: string;
-  selectSession: (id: number) => void;
-  index: number;
+  selectSession: (id: string) => void;
 }) {
   const navigate = useNavigate();
 
@@ -106,7 +104,7 @@ function SearchResultItem({
       className={styles["search-result-item"]}
       onClick={() => {
         navigate(Path.Chat);
-        selectSession(index);
+        selectSession(result.sessionId);
       }}
     >
       <div className={styles["search-item-title"]}>{result.topic}</div>
@@ -135,10 +133,9 @@ function SearchBarComponent(
   { setIsSearching, className }: SearchBarProps,
   ref: Ref<SearchInputRef>,
 ) {
-  const [sessions, selectSession] = useChatStore((state) => [
-    state.sessions,
-    state.selectSession,
-  ]);
+  const [sessionOrder, sessionsRecord, selectSession] = useChatStore(
+    (state) => [state.sessionOrder, state.sessionsRecord, state.selectSession],
+  );
 
   const [input, setInput] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -179,16 +176,28 @@ function SearchBarComponent(
     }
   }, [setIsSearching]);
 
-  // 当用户输入变化时，执行搜索操作
+  // 管理搜索状态 - 只依赖输入内容
   useEffect(() => {
     if (input.trim().length === 0) {
       setResults([]);
       setIsSearching(false);
+    } else {
+      setIsSearching(true);
+    }
+  }, [input, setIsSearching]);
+
+  // 执行搜索操作 - 只在有搜索内容时执行
+  useEffect(() => {
+    if (input.trim().length === 0) {
       return;
     }
+
     const newResults: SearchResult[] = [];
 
-    for (const session of sessions) {
+    for (const sessionId of sessionOrder) {
+      const session = sessionsRecord[sessionId];
+      if (!session) continue;
+
       const matchingMessages: ChatMessage[] = [];
 
       for (const message of session.messages) {
@@ -212,8 +221,7 @@ function SearchBarComponent(
     }
 
     setResults(newResults);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, sessions]);
+  }, [input, sessionOrder, sessionsRecord]);
 
   const displayedResults = useMemo(() => results, [results]);
 
@@ -251,9 +259,6 @@ function SearchBarComponent(
             result={result}
             input={input}
             selectSession={selectSession}
-            index={sessions.findIndex(
-              (session) => session.id === result.sessionId,
-            )}
           />
         ))}
       </div>

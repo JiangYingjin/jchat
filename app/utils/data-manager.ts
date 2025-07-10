@@ -312,32 +312,6 @@ class JChatDataManager {
       return { sessions: 0, messages: 0, systemMessages: 0, chatInputs: 0 };
     }
   }
-
-  /**
-   * 清理所有数据（危险操作，需要确认）
-   */
-  async clearAllData(): Promise<void> {
-    if (!this.isClient) return;
-
-    try {
-      const stores = ["default", "messages", "systemMessages", "chatInput"];
-
-      await Promise.all(
-        stores.map(async (storeName) => {
-          const store = localforage.createInstance({
-            name: "JChat",
-            storeName: storeName,
-          });
-          await store.clear();
-        }),
-      );
-
-      console.log("[DataManager] 所有数据已清理");
-    } catch (error) {
-      console.error("[DataManager] 清理数据失败:", error);
-      throw error;
-    }
-  }
 }
 
 // 导出单例实例

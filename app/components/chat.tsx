@@ -44,6 +44,7 @@ import {
   systemMessageStorage,
   chatInputStorage,
 } from "../store";
+import type { ChatSession } from "../store/chat";
 
 import { createMessage, updateSessionStats } from "../utils/session";
 
@@ -162,6 +163,7 @@ function ChatAction(props: {
     icon: 16,
   });
 
+  // 简化的宽度更新函数，移除可能导致循环的逻辑
   function updateWidth() {
     if (!iconRef.current || !textRef.current) return;
     const getWidth = (dom: HTMLDivElement) => dom.getBoundingClientRect().width;
@@ -172,6 +174,15 @@ function ChatAction(props: {
       icon: iconWidth,
     });
   }
+
+  // 监听文本变化，自动更新宽度
+  useEffect(() => {
+    if (props.icon && !props.loding) {
+      // 使用 setTimeout 确保 DOM 已经更新完成
+      const timer = setTimeout(updateWidth, 10);
+      return () => clearTimeout(timer);
+    }
+  }, [props.text, props.icon, props.loding]);
 
   // 计算最终宽度
   const iconWidthValue = width.icon;
@@ -193,12 +204,7 @@ function ChatAction(props: {
           } as React.CSSProperties)
         : props.style;
 
-  // 保证 alwaysFullWidth 时宽度总是最新
-  useEffect(() => {
-    if (props.alwaysFullWidth) {
-      updateWidth();
-    }
-  }, [props.text, props.icon, props.alwaysFullWidth]);
+  // 移除自动更新逻辑，只在用户交互时更新宽度
 
   return (
     <div
@@ -252,6 +258,7 @@ function DoubleClickChatAction(props: {
   const [clickCount, setClickCount] = useState(0);
   const [isConfirmed, setIsConfirmed] = useState(false);
 
+  // 简化的宽度更新函数，移除可能导致循环的逻辑
   function updateWidth() {
     if (!iconRef.current || !textRef.current) return;
     const getWidth = (dom: HTMLDivElement) => dom.getBoundingClientRect().width;
@@ -291,12 +298,7 @@ function DoubleClickChatAction(props: {
           } as React.CSSProperties)
         : props.style;
 
-  // 保证 alwaysFullWidth 时宽度总是最新
-  useEffect(() => {
-    if (props.alwaysFullWidth) {
-      updateWidth();
-    }
-  }, [props.text, props.icon, props.alwaysFullWidth]);
+  // 移除自动更新逻辑，只在用户交互时更新宽度
 
   const handleClick = () => {
     if (props.loding) return;
@@ -1032,48 +1034,18 @@ function _Chat() {
     }
   }, [session.id]); // 只依赖 session.id，避免无限循环
 
-  // 会话切换时加载数据
+  // 会话切换时加载数据 - 只依赖 session.id 避免循环
   useEffect(() => {
     loadChatInputToState();
-  }, [session.id, loadChatInputToState]);
+    // 确保消息已加载：如果当前会话的消息为空，主动加载消息
+    if (!session.messages || session.messages.length === 0) {
+      chatStore.loadSessionMessages(session.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id]); // 只依赖 session.id，避免无限循环
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 
-  // // 自动修正模型配置
-  // useEffect(() => {
-  //   // 获取当前模型
-  //   const model = chatStore.models[0];
-  //   // 检查主模型是否有效
-  //   const isModelValid = allModels.some((m) => m === model);
-  //   // console.log("[updateConfig] isModelValid", isModelValid);
-  //   // 如果主模型无效，自动 fetch 并更新为 defaultModel
-  //   if (!isModelValid) {
-  //     // 拉取服务器配置
-  //     chatStore.fetchModels();
-  //     // 从 allModels 中获取默认模型
-  //     const defaultModel = allModels[0];
-  //     if (defaultModel) {
-  //       config.update((cfg) => {
-  //         // 主模型无效时修正
-  //         if (!isModelValid) {
-  //           cfg.modelConfig.model = defaultModel;
-  //           console.log(
-  //             "[updateConfig] cfg.modelConfig.model",
-  //             cfg.modelConfig.model,
-  //           );
-  //         }
-  //       });
-
-  //       // 如果当前会话的模型无效且用户没有手动选择模型，则更新会话的模型配置
-  //       if (!isModelValid && !session.isModelManuallySelected) {
-  //         chatStore.updateTargetSession(session, (session) => {
-  //           session.model = defaultModel;
-  //           // 标记用户手动选择了模型
-  //           session.isModelManuallySelected = true;
-  //           console.log("[updateConfig] session.model", session.model);
-  //         });
-  //       }
-  //     }
-  //   }
-  // }, [accessStore, allModels, session.isModelManuallySelected ?? false]);
+  // 移除可能导致循环的消息监听 useEffect
 
   const [showExport, setShowExport] = useState(false);
 
@@ -1134,26 +1106,35 @@ function _Chat() {
     };
   }, [navigate]);
 
-  // 移动端默认开启长输入模式
+  // 移动端默认开启长输入模式 - 使用 ref 避免循环
+  const longInputModeInitialized = useRef(new Set<string>());
   useEffect(() => {
-    if (isMobileScreen && session.longInputMode === false) {
+    if (
+      isMobileScreen &&
+      session.longInputMode === false &&
+      !longInputModeInitialized.current.has(session.id)
+    ) {
+      longInputModeInitialized.current.add(session.id);
       chatStore.updateTargetSession(session, (session) => {
         session.longInputMode = true;
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobileScreen, session.longInputMode, chatStore]);
+  }, [isMobileScreen, session.id, session.longInputMode]); // 添加 session.longInputMode 依赖
 
   // auto grow input
   const [inputRows, setInputRows] = useState(2);
+
+  // 创建防抖的 measure 函数
   const measure = useDebouncedCallback(
     () => {
-      const rows = inputRef.current ? autoGrowTextArea(inputRef.current) : 1;
-      const inputRows = Math.min(
+      if (!inputRef.current) return;
+      const rows = autoGrowTextArea(inputRef.current);
+      const calculatedInputRows = Math.min(
         20,
         Math.max(2 + Number(!isMobileScreen), rows),
       );
-      setInputRows(inputRows);
+      setInputRows(calculatedInputRows);
     },
     100,
     {
@@ -1162,8 +1143,12 @@ function _Chat() {
     },
   );
 
+  // 只在组件首次加载时调用一次 measure
+  useEffect(() => {
+    measure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // 空依赖数组，只在组件挂载时执行一次
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(measure, [userInput]);
 
   // onInput 只做本地保存，不 setUserInput
   const onInput = (
@@ -1184,6 +1169,8 @@ function _Chat() {
     ) {
       setUserInput(text);
     }
+    // 手动调用 measure 来调整输入框高度
+    measure();
   };
 
   const doSubmit = (input: string) => {
@@ -1228,45 +1215,73 @@ function _Chat() {
     ChatControllerPool.stop(session.id, messageId);
   };
 
-  useEffect(() => {
-    chatStore.updateTargetSession(session, (session) => {
-      const stopTiming = Date.now() - REQUEST_TIMEOUT_MS;
-      session.messages.forEach((m) => {
-        // check if should stop all stale messages
-        if (m.isError || new Date(m.date).getTime() < stopTiming) {
-          if (m.streaming) {
-            m.streaming = false;
-          }
+  // 移除导致无限循环的 session useEffect，改为在需要时手动调用
+  // 创建一个用于清理过期消息和更新模型的函数
+  const cleanupSessionMessages = useCallback(() => {
+    const stopTiming = Date.now() - REQUEST_TIMEOUT_MS;
+    let hasChanges = false;
 
-          // 排除系统消息和已迁移的系统消息
-          if (m.content.length === 0 && m.role !== "system") {
-            m.isError = true;
-            m.content = prettyObject({
-              error: true,
-              message: "empty response",
-            });
-          }
+    // 创建一个临时会话副本，避免直接修改原始对象
+    const sessionCopy = { ...session };
+    sessionCopy.messages = [...session.messages];
+
+    sessionCopy.messages.forEach((m) => {
+      // check if should stop all stale messages
+      if (m.isError || new Date(m.date).getTime() < stopTiming) {
+        if (m.streaming) {
+          m.streaming = false;
+          hasChanges = true;
         }
-      });
 
-      // 只有在当前模型无效且用户没有手动选择时才自动更新模型
-      const currentModel = session.model;
-      const availableModels = chatStore.models;
-      const isCurrentModelValid = availableModels.includes(currentModel);
-
-      if (
-        !isCurrentModelValid &&
-        !session.isModelManuallySelected &&
-        availableModels.length > 0
-      ) {
-        session.model = availableModels[0];
-        console.log(
-          `[ModelUpdate] 自动更新无效模型 ${currentModel} 到 ${availableModels[0]}`,
-        );
+        // 排除系统消息和已迁移的系统消息
+        if (m.content.length === 0 && m.role !== "system") {
+          m.isError = true;
+          m.content = prettyObject({
+            error: true,
+            message: "empty response",
+          });
+          hasChanges = true;
+        }
       }
     });
+
+    // 只有在当前模型无效且用户没有手动选择时才自动更新模型
+    const currentModel = sessionCopy.model;
+    const availableModels = chatStore.models;
+    const isCurrentModelValid = availableModels.includes(currentModel);
+
+    if (
+      !isCurrentModelValid &&
+      !sessionCopy.isModelManuallySelected &&
+      availableModels.length > 0
+    ) {
+      sessionCopy.model = availableModels[0];
+      hasChanges = true;
+      console.log(
+        `[ModelUpdate] 自动更新无效模型 ${currentModel} 到 ${availableModels[0]}`,
+      );
+    }
+
+    // 只有当确实有变化时才更新状态
+    if (hasChanges) {
+      chatStore.updateTargetSession(session, (session) => {
+        session.messages = sessionCopy.messages;
+        session.model = sessionCopy.model;
+        session.isModelManuallySelected = sessionCopy.isModelManuallySelected;
+      });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+  }, [
+    session.id,
+    session.model,
+    session.isModelManuallySelected,
+    chatStore.models.length,
+  ]); // 添加更精确的依赖
+
+  // 只在会话 ID 变化时执行一次清理
+  useEffect(() => {
+    cleanupSessionMessages();
+  }, [session.id, cleanupSessionMessages]); // 重新添加 cleanupSessionMessages 依赖，现在已经安全了
 
   // check if should send message
   const onInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -1467,7 +1482,7 @@ function _Chat() {
       _setMsgRenderIndex(newIndex);
     }
     prevMessageLength.current = renderMessages.length;
-  }, [renderMessages.length]);
+  }, [renderMessages.length]); // 保持原有依赖
 
   function setMsgRenderIndex(newIndex: number) {
     newIndex = Math.min(renderMessages.length - CHAT_PAGE_SIZE, newIndex);
@@ -1682,17 +1697,14 @@ function _Chat() {
   };
 
   // 处理系统提示词保存
-  const handleSystemPromptSave = (
-    content: string,
-    images: string[],
-    scrollTop?: number,
-    selection?: { start: number; end: number },
-  ) => {
-    chatStore.updateTargetSession(session, (session) => {
-      // 移除现有的 system 消息
-      session.messages = session.messages.filter((m) => m.role !== "system");
-
-      // 只保存到独立存储，不在 messages 中创建 system 消息
+  const handleSystemPromptSave = useCallback(
+    (
+      content: string,
+      images: string[],
+      scrollTop?: number,
+      selection?: { start: number; end: number },
+    ) => {
+      // 先保存系统提示词到独立存储
       if (content.trim() || images.length > 0) {
         saveSystemMessageContentToStorage(
           session.id,
@@ -1701,8 +1713,19 @@ function _Chat() {
           scrollTop || 0,
           selection || { start: 0, end: 0 },
         );
-        // 注意：不在 messages 中创建 system 消息，因为系统提示词独立存储
-        // prepareMessagesForApi 会在需要时动态加载和合并
+      }
+
+      // 检查是否需要更新会话状态
+      let needsUpdate = false;
+      const sessionUpdate: Partial<ChatSession> = {};
+
+      // 移除现有的 system 消息（如果有的话）
+      const filteredMessages = session.messages.filter(
+        (m) => m.role !== "system",
+      );
+      if (filteredMessages.length !== session.messages.length) {
+        sessionUpdate.messages = filteredMessages;
+        needsUpdate = true;
       }
 
       // 自动切换模型逻辑
@@ -1717,23 +1740,33 @@ function _Chat() {
         ) {
           // 检查是否存在 jyj.cx/pro 模型
           const targetModel = allModels.find((m) => m === proModelName);
-          if (targetModel) {
-            const currentModel = session.model;
-
-            // 只有当前模型不是目标模型时才切换
-            if (currentModel !== proModelName) {
-              session.model = proModelName;
-              // 标记用户手动选择了模型
-              session.isModelManuallySelected = true;
-              console.log(
-                `[AutoSwitch] 系统提示词长度 ${systemPromptLength} 字符，自动切换到 jyj.cx/pro 模型`,
-              );
-            }
+          if (targetModel && session.model !== proModelName) {
+            sessionUpdate.model = proModelName;
+            sessionUpdate.isModelManuallySelected = true;
+            needsUpdate = true;
+            console.log(
+              `[AutoSwitch] 系统提示词长度 ${systemPromptLength} 字符，自动切换到 jyj.cx/pro 模型`,
+            );
           }
         }
       }
-    });
-  };
+
+      // 只有在确实需要更新时才调用 updateTargetSession
+      if (needsUpdate) {
+        chatStore.updateTargetSession(session, (session) => {
+          Object.assign(session, sessionUpdate);
+        });
+      }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    },
+    [
+      session.id,
+      session.model,
+      session.isModelManuallySelected,
+      allModels,
+      chatStore,
+    ],
+  );
 
   // 修改编辑消息处理函数
   const [showEditMessageModal, setShowEditMessageModal] = useState(false);
@@ -1832,7 +1865,7 @@ function _Chat() {
     });
 
     return cleanup;
-  }, [session.messages.length]); // 只在消息列表长度变化时重新设置观察者
+  }, [messages.length]); // 改为依赖渲染的消息长度而不是原始消息长度
 
   // ========== system message content 存储工具 ==========
   // @ts-ignore
@@ -2006,8 +2039,11 @@ function _Chat() {
                 bordered
                 title={Locale.Chat.Actions.Delete}
                 onClick={async () => {
-                  await chatStore.deleteSession(chatStore.currentSessionIndex);
-                  scrollToBottom();
+                  const currentSession = chatStore.currentSession();
+                  if (currentSession) {
+                    await chatStore.deleteSessionById(currentSession.id);
+                    scrollToBottom();
+                  }
                 }}
               />
             </div>
@@ -2430,8 +2466,8 @@ function _Chat() {
 
 export function Chat() {
   const chatStore = useChatStore();
-  const sessionIndex = chatStore.currentSessionIndex;
-  return <_Chat key={sessionIndex}></_Chat>;
+  const activeId = chatStore.activeId;
+  return <_Chat key={activeId}></_Chat>;
 }
 
 export function EditMessageWithImageModal(props: {

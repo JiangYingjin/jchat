@@ -67,21 +67,21 @@ function LocalDataItems() {
 
   const stateOverview = useMemo(() => {
     // 使用真实的数据库统计，同时保持向后兼容
-    const sessions = chatStore.sessions;
-    const fallbackMessageCount = sessions.reduce(
+    const sessionsArray = Object.values(chatStore.sessionsRecord);
+    const fallbackMessageCount = sessionsArray.reduce(
       (p, c) => p + c.messageCount,
       0,
     );
 
     return {
-      chat: Math.max(sessions.length, databaseStats.sessions),
+      chat: Math.max(sessionsArray.length, databaseStats.sessions),
       message:
         databaseStats.messages > 0
           ? databaseStats.messages
           : fallbackMessageCount,
       mask: 0,
     };
-  }, [chatStore.sessions, databaseStats]);
+  }, [chatStore.sessionsRecord, databaseStats]);
 
   const handleExport = async () => {
     try {
