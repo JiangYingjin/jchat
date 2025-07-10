@@ -1100,6 +1100,7 @@ function _Chat() {
       scrollRef.current.getBoundingClientRect().top;
     // leave some space for user question
     return topDistance < 100;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scrollRef?.current?.scrollHeight]);
 
   const isTyping = userInput !== "";
@@ -1140,6 +1141,7 @@ function _Chat() {
         session.longInputMode = true;
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobileScreen, session.longInputMode, chatStore]);
 
   // auto grow input
@@ -1532,6 +1534,7 @@ function _Chat() {
     if (shouldUpdate) {
       setSearchParams(searchParams);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams, setSearchParams]);
 
   // edit / insert message modal

@@ -167,6 +167,7 @@ export function MessageExporter() {
       }
     };
     loadSavedFormat();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const chatStore = useChatStore();

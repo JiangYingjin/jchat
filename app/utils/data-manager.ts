@@ -3,7 +3,6 @@
 
 import localforage from "localforage";
 import { useChatStore } from "../store/chat";
-import { useSyncStore } from "../store/sync";
 import { messageStorage } from "../store/message";
 import { systemMessageStorage } from "../store/system";
 import { chatInputStorage } from "../store/input";
@@ -22,7 +21,7 @@ export interface JChatBackupData {
     exportSource: string;
   };
   data: {
-    // 默认存储桶：zustand store 状态（聊天会话元数据、同步配置等）
+    // 默认存储桶：zustand store 状态（聊天会话元数据、用户设置等）
     default: Record<string, any>;
     // 消息存储桶：所有会话的消息数据
     messages: Record<string, any[]>;
