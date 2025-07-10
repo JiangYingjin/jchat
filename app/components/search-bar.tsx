@@ -203,7 +203,7 @@ function SearchBarComponent(
 
       if (matchingMessages.length > 0) {
         newResults.push({
-          topic: session.topic,
+          topic: session.title,
           sessionId: session.id,
           lastUpdate: session.lastUpdate,
           message: matchingMessages,

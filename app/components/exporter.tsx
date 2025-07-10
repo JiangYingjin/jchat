@@ -268,15 +268,15 @@ export function MessageExporter() {
   function preview() {
     if (exportConfig.format === "text") {
       return (
-        <MarkdownPreviewer messages={selectedMessages} topic={session.topic} />
+        <MarkdownPreviewer messages={selectedMessages} topic={session.title} />
       );
     } else if (exportConfig.format === "json") {
       return (
-        <JsonPreviewer messages={selectedMessages} topic={session.topic} />
+        <JsonPreviewer messages={selectedMessages} topic={session.title} />
       );
     } else {
       return (
-        <ImagePreviewer messages={selectedMessages} topic={session.topic} />
+        <ImagePreviewer messages={selectedMessages} topic={session.title} />
       );
     }
   }

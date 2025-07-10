@@ -1,6 +1,7 @@
 import { nanoid } from "nanoid";
 import { getMessageTextContent, getTextContent, trimTopic } from "../utils";
-import type { ChatMessage, ChatSession } from "../store/chat";
+import type { ChatMessage } from "../store/message";
+import type { ChatSession } from "../store/chat";
 import type { ClientApi, MultimodalContent } from "../client/api";
 import { getClientApi } from "../client/api";
 import { estimateTokenLength } from "./token";
@@ -75,7 +76,7 @@ export function createEmptySession(): ChatSession {
 
   return {
     id: nanoid(),
-    topic: DEFAULT_TOPIC,
+    title: DEFAULT_TOPIC,
     messages: [],
     messageCount: 0,
     status: "normal",
@@ -106,7 +107,7 @@ export function createBranchSession(
 ): ChatSession {
   const newSession = createEmptySession();
 
-  newSession.topic = branchTopic;
+  newSession.title = branchTopic;
   newSession.messages = [...messagesToCopy];
   newSession.longInputMode = originalSession.longInputMode;
   newSession.isModelManuallySelected = originalSession.isModelManuallySelected;
@@ -189,7 +190,7 @@ export async function summarizeSession(
   // should summarize topic after chating more than 50 words
   const SUMMARIZE_MIN_LEN = 50;
   if (
-    (session.topic === DEFAULT_TOPIC &&
+    (session.title === DEFAULT_TOPIC &&
       countMessages(messages) >= SUMMARIZE_MIN_LEN) ||
     refreshTitle
   ) {

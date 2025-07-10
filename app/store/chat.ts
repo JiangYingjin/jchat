@@ -1,8 +1,4 @@
-import type {
-  ClientApi,
-  MultimodalContent,
-  RequestMessage,
-} from "../client/api";
+import type { ClientApi, MultimodalContent } from "../client/api";
 import { getClientApi, getHeaders } from "../client/api";
 import { ChatControllerPool } from "../client/controller";
 import { showToast } from "../components/ui-lib";
@@ -12,11 +8,7 @@ import { prettyObject } from "../utils/format";
 import { createPersistStore, jchatStorage } from "../utils/store";
 import { chatInputStorage } from "./input";
 import { systemMessageStorage } from "./system";
-// 导入新的 messageStorage
-import { messageStorage } from "./message";
-import { handleUnauthorizedResponse } from "../utils/auth";
-
-// 导入session工具函数
+import { messageStorage, type ChatMessage } from "./message";
 import {
   createMessage,
   createEmptySession,
@@ -48,18 +40,10 @@ export function onStoreHydrated(callback: () => void): void {
   }
 }
 
-export type ChatMessage = RequestMessage & {
-  id: string;
-  model?: string;
-  date: string;
-  streaming?: boolean;
-  isError?: boolean;
-};
-
 export interface ChatSession {
   id: string;
 
-  topic: string;
+  title: string;
   model: string; // 当前会话选择的模型
 
   messageCount: number; // 消息数量
@@ -137,7 +121,7 @@ export const useChatStore = createPersistStore(
 
         const newSession = createEmptySession();
 
-        newSession.topic = currentSession.topic;
+        newSession.title = currentSession.title;
         newSession.messages = [...currentSession.messages];
         newSession.model = currentSession.model;
         newSession.isModelManuallySelected =
@@ -558,7 +542,7 @@ export const useChatStore = createPersistStore(
       ) {
         await summarizeSession(targetSession, refreshTitle, (newTopic) => {
           get().updateTargetSession(targetSession, (session) => {
-            session.topic = newTopic;
+            session.title = newTopic;
           });
         });
       },
@@ -609,7 +593,7 @@ export const useChatStore = createPersistStore(
   },
   {
     name: StoreKey.Chat,
-    version: 4.4, // 增加版本号，因为数据结构发生了变化
+    version: 4.6, // 增加版本号，因为增加了 topic 到 title 的重命名迁移
     storage: jchatStorage,
 
     /**
@@ -666,25 +650,99 @@ export const useChatStore = createPersistStore(
     },
 
     migrate(persistedState: any, version: number) {
-      // 在这里处理旧版本数据的迁移逻辑
-      // 例如，从 v4.3 升级到 v4.4，我们需要将旧的 messages 提取到 messageStorage
-      if (version < 4.4 && persistedState && persistedState.sessions) {
-        console.log("[Migrate] Migrating chat store from v4.3 to v4.4");
-        // 只在客户端环境下进行消息迁移
-        if (typeof window !== "undefined") {
-          persistedState.sessions.forEach((session: any) => {
-            if (session.messages && Array.isArray(session.messages)) {
-              console.log(
-                `[Migrate] Moving messages for session ${session.id}`,
-              );
-              // 异步保存消息，无需等待完成
-              messageStorage.saveMessages(session.id, session.messages);
-              // 从会话对象中删除消息，尽管 partialize 会处理，但在这里清理更干净
-              session.messages = [];
-            }
-          });
+      // 从 v4.4 升级到 v4.5：清理持久化状态中无效或废弃的属性
+      if (version < 4.5 && persistedState) {
+        console.log(
+          "[Migrate] Migrating chat store from v4.4 to v4.5 - cleaning invalid properties",
+        );
+
+        const cleanedState: any = { ...DEFAULT_CHAT_STATE };
+
+        // 1. 复制顶层属性
+        Object.keys(DEFAULT_CHAT_STATE).forEach((key) => {
+          if (persistedState.hasOwnProperty(key)) {
+            (cleanedState as any)[key] = persistedState[key];
+          }
+        });
+
+        // 2. 清理和验证会话
+        if (persistedState.sessions && Array.isArray(persistedState.sessions)) {
+          const sessionTemplate = createEmptySession();
+          const allowedSessionKeys = new Set([
+            ...Object.keys(sessionTemplate),
+            "isModelManuallySelected",
+            "longInputMode",
+          ]);
+
+          cleanedState.sessions = persistedState.sessions
+            .map((pSession: any) => {
+              if (!pSession || typeof pSession !== "object" || !pSession.id) {
+                return null; // 过滤无效会话
+              }
+
+              const newSession: any = {};
+              allowedSessionKeys.forEach((key) => {
+                if (pSession.hasOwnProperty(key)) {
+                  newSession[key] = pSession[key];
+                }
+              });
+
+              // messages 属性总是被持久化为空数组 (自 v4.4)
+              newSession.messages = [];
+
+              // 补全会话模板中的必要字段
+              Object.keys(sessionTemplate).forEach((key) => {
+                if (!newSession.hasOwnProperty(key)) {
+                  newSession[key] = (sessionTemplate as any)[key];
+                }
+              });
+
+              return newSession;
+            })
+            .filter(Boolean); // 移除 null 值
         }
+
+        // 3. 如果没有有效会话，则重置
+        if (!cleanedState.sessions || cleanedState.sessions.length === 0) {
+          cleanedState.sessions = [createEmptySession()];
+          cleanedState.currentSessionIndex = 0;
+        }
+
+        // 4. 验证 currentSessionIndex
+        if (cleanedState.currentSessionIndex >= cleanedState.sessions.length) {
+          cleanedState.currentSessionIndex = Math.max(
+            0,
+            cleanedState.sessions.length - 1,
+          );
+        }
+
+        return cleanedState as any;
       }
+
+      // 从 v4.5 升级到 v4.6：将 ChatSession.topic 重命名为 ChatSession.title
+      if (version < 4.6 && persistedState && persistedState.sessions) {
+        console.log(
+          "[Migrate] Migrating chat store from v4.5 to v4.6 - renaming topic to title",
+        );
+
+        // 处理会话中的 topic 到 title 的重命名
+        persistedState.sessions.forEach((session: any) => {
+          if (session && typeof session === "object") {
+            // 如果存在 topic 属性，将其重命名为 title
+            if (
+              session.hasOwnProperty("topic") &&
+              !session.hasOwnProperty("title")
+            ) {
+              console.log(
+                `[Migrate] Renaming topic to title for session ${session.id}`,
+              );
+              session.title = session.topic;
+              delete session.topic;
+            }
+          }
+        });
+      }
+
       return persistedState as any;
     },
   },

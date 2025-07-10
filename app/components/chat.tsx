@@ -547,11 +547,11 @@ export function EditMessageModal(props: { onClose: () => void }) {
           >
             <input
               type="text"
-              value={session.topic}
+              value={session.title}
               onInput={(e) =>
                 chatStore.updateTargetSession(
                   session,
-                  (session) => (session.topic = e.currentTarget.value),
+                  (session) => (session.title = e.currentTarget.value),
                 )
               }
               onKeyDown={(e) => {
@@ -559,7 +559,7 @@ export function EditMessageModal(props: { onClose: () => void }) {
                   e.preventDefault();
                   chatStore.updateTargetSession(
                     session,
-                    (session) => (session.topic = e.currentTarget.value),
+                    (session) => (session.title = e.currentTarget.value),
                   );
                   props.onClose();
                 }
@@ -1384,7 +1384,7 @@ function _Chat() {
   const handleBranch = async (message: ChatMessage, messageIndex: number) => {
     try {
       // 复制会话标题并标注分支
-      const originalTopic = session.topic || DEFAULT_TOPIC;
+      const originalTopic = session.title || DEFAULT_TOPIC;
       const branchTopic = `${originalTopic} (分支)`;
 
       // 复制系统提示词
@@ -1927,7 +1927,7 @@ function _Chat() {
               )}
               onClickCapture={() => setIsEditingMessage(true)}
             >
-              {!session.topic ? DEFAULT_TOPIC : session.topic}
+              {!session.title ? DEFAULT_TOPIC : session.title}
             </div>
             {!isMobileScreen && (
               <div className="window-header-sub-title">

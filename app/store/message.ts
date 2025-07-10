@@ -1,5 +1,13 @@
 import localforage from "localforage";
-import { ChatMessage } from "./chat";
+import type { RequestMessage } from "../client/api";
+
+export type ChatMessage = RequestMessage & {
+  id: string;
+  model?: string;
+  date: string;
+  streaming?: boolean;
+  isError?: boolean;
+};
 
 // 检查是否在客户端环境
 const isClient = typeof window !== "undefined";
