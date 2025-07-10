@@ -64,16 +64,10 @@ export class ChatGPTApi implements LLMApi {
     // | GPTImageRequestPayload
     RequestPayload;
 
-    const isOseries =
-      options.config.model.startsWith("o1") ||
-      options.config.model.startsWith("o3") ||
-      options.config.model.startsWith("o4");
-
     const messages: ChatOptions["messages"] = [];
     for (const v of options.messages) {
       const content = await preProcessImageAndWebReferenceContent(v);
-      if (!(isOseries && v.role === "system"))
-        messages.push({ role: v.role, content });
+      messages.push({ role: v.role, content });
     }
 
     // O1 support image, tools (except o4-mini for now) and system, stream, *NOT* logprobs, top_p, n yet.

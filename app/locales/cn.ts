@@ -1,5 +1,4 @@
 const cn = {
-  WIP: "该功能仍在开发中……",
   Error: {
     Unauthorized:
       "访问密码不正确或为空，请前往[登录](/#/auth)页输入正确的访问密码。",
@@ -34,9 +33,6 @@ const cn = {
       Copy: "复制",
       Stop: "停止",
       Retry: "重试",
-      Pin: "固定",
-      PinToastContent: "已将 1 条对话固定至预设提示词",
-      PinToastAction: "查看",
       Delete: "删除",
       Edit: "编辑",
       Branch: "分支",
@@ -73,17 +69,6 @@ const cn = {
       EnableThinking: "开启思考",
       DisableThinking: "关闭思考",
     },
-    Rename: "重命名对话",
-    Input: (submitKey: string) => {
-      return "";
-      // var inputHints = `${submitKey} 发送`;
-      // if (submitKey === String(SubmitKey.Enter)) {
-      //   inputHints += "，Shift + Enter 换行";
-      // }
-      // return inputHints;
-      // return inputHints + "，/ 触发补全，: 触发命令";
-    },
-    Send: "发送",
     Config: {
       Reset: "清除记忆",
       SaveAs: "存为面具",
@@ -167,11 +152,6 @@ const cn = {
         Confirm: "确认清除所有聊天、设置数据？",
       },
     },
-    Lang: {
-      Name: "Language", // ATTENTION: if you wanna add a new translation, please do not translate this value, leave it as `Language`
-      All: "所有语言",
-    },
-
     FontSize: {
       Title: "字体大小",
       SubTitle: "聊天内容的字体大小",

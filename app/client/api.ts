@@ -39,7 +39,6 @@ export interface ChatOptions {
   messages: RequestMessage[];
   config: LLMConfig;
 
-  onToolUpdate?: (toolName: string, toolInput: string) => void;
   onUpdate?: (message: string | MultimodalContent[], chunk: string) => void;
   onReasoningUpdate?: (message: string, chunk: string) => void;
   onFinish: (
@@ -77,13 +76,8 @@ export class ClientApi {
   }
 }
 
-export function getBearerToken(
-  apiKey: string,
-  noBearer: boolean = false,
-): string {
-  return validString(apiKey)
-    ? `${noBearer ? "" : "Bearer "}${apiKey.trim()}`
-    : "";
+export function getBearerToken(apiKey: string): string {
+  return validString(apiKey) ? `Bearer ${apiKey.trim()}` : "";
 }
 
 export function validString(x: string): boolean {
