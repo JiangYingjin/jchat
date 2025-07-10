@@ -5,7 +5,6 @@ import { MultimodalContent, RequestMessage } from "./client/api";
 import {
   REQUEST_TIMEOUT_MS,
   REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION,
-  REQUEST_TIMEOUT_MS_FOR_THINKING,
 } from "./constant";
 
 export function trimTopic(topic: string) {
@@ -201,15 +200,5 @@ export function getTimeoutMSByModel(model: string) {
   if (model.startsWith("gemini-2.0-flash-exp")) {
     return REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION;
   }
-  if (
-    model.startsWith("dall-e") ||
-    model.startsWith("dalle") ||
-    model.startsWith("o1") ||
-    model.startsWith("o3") ||
-    model.startsWith("o4") ||
-    model.includes("deepseek-r") ||
-    model.includes("-thinking")
-  )
-    return REQUEST_TIMEOUT_MS_FOR_THINKING;
   return REQUEST_TIMEOUT_MS;
 }

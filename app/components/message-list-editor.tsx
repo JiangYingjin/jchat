@@ -7,7 +7,6 @@ import { Input, Select } from "./ui-lib";
 import Locale from "../locales";
 import chatStyle from "./chat.module.scss";
 import { getMessageTextContent, getMessageImages } from "../utils";
-import { Updater } from "../typing";
 
 import AddIcon from "../icons/add.svg";
 import DeleteIcon from "../icons/delete.svg";

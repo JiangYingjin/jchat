@@ -6,7 +6,6 @@ import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {
   title: "JChat",
-  description: "Your personal ChatGPT Chat Bot.",
   appleWebApp: {
     title: "JChat",
     statusBarStyle: "default",

@@ -1,7 +1,5 @@
 "use client";
 
-require("../polyfill");
-
 import { useState, useEffect } from "react";
 
 import styles from "./home.module.scss";
@@ -44,7 +42,6 @@ const Chat = dynamic(async () => (await import("./chat")).Chat, {
 
 function useHtmlLang() {
   useEffect(() => {
-    // 固定设置为简体中文
     document.documentElement.lang = "zh-Hans";
   }, []);
 }

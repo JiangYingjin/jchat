@@ -79,7 +79,7 @@ import {
   showImageModal,
 } from "./ui-lib";
 import { copyImageToClipboard } from "../utils/image";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   CHAT_PAGE_SIZE,
   Path,
@@ -88,8 +88,6 @@ import {
   DEFAULT_FONT_FAMILY,
   DEFAULT_THEME,
 } from "../constant";
-
-import { useCommand } from "../command";
 import { prettyObject } from "../utils/format";
 import { ExportMessageModal } from "./exporter";
 import { MultimodalContent } from "../client/api";
@@ -1496,43 +1494,29 @@ function _Chat() {
     scrollDomToBottom();
   }
 
-  // Clear context functionality has been removed
-  const clearContextIndex = -1;
-
   const [showPromptModal, setShowPromptModal] = useState(false);
 
   const autoFocus = !isMobileScreen; // wont auto focus on mobile screen
-  const showMaxIcon = !isMobileScreen;
 
-  useCommand({
-    fill: setUserInput,
-    submit: (text) => {
-      doSubmit(text);
-    },
-    code: (text) => {
-      console.log("[Command] got code from url: ", text);
-      showConfirm(Locale.URLCommand.Code + `code = ${text}`).then((res) => {
-        if (res) {
-          chatStore.update((chat) => (chat.accessCode = text));
+  // Handle URL commands - simplified from useCommand logic
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    let shouldUpdate = false;
+    searchParams.forEach((param, name) => {
+      if (name === "code") {
+        console.log("[Command] got code from url: ", param);
+        if (param) {
+          chatStore.update((chat) => (chat.accessCode = param));
         }
-      });
-    },
-    settings: (text) => {
-      try {
-        const payload = JSON.parse(text) as {
-          key?: string;
-          url?: string;
-          code?: string;
-        };
-        console.log("[Command] got settings from url: ", payload);
-        if (payload.code) {
-          chatStore.update((chat) => (chat.accessCode = payload.code!));
-        }
-      } catch {
-        console.error("[Command] failed to get settings from url: ", text);
+        searchParams.delete(name);
+        shouldUpdate = true;
       }
-    },
-  });
+    });
+
+    if (shouldUpdate) {
+      setSearchParams(searchParams);
+    }
+  }, [searchParams, setSearchParams]);
 
   // edit / insert message modal
   const [isEditingMessage, setIsEditingMessage] = useState(false);
