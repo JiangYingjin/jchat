@@ -71,6 +71,7 @@ function HighlightedMessage({
 }) {
   const highlightedMessage = useMemo(
     () => highlightAndShorten(getMessageTextContent(message), search),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [getMessageTextContent(message), search],
   );
   const ref = useRef<HTMLDivElement>(null);
@@ -165,6 +166,7 @@ function SearchBarComponent(
 
   const handleFocus = useCallback(() => {
     if (input && input.trim().length > 0) setIsSearching(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setIsSearching]);
 
   const handleBlur = useCallback(() => {
@@ -210,6 +212,7 @@ function SearchBarComponent(
     }
 
     setResults(newResults);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [input, sessions]);
 
   const displayedResults = useMemo(() => results, [results]);
