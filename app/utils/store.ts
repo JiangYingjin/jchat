@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { combine, persist } from "zustand/middleware";
-import { Updater } from "../typing";
 import { deepClone } from "./clone";
 import localforage from "localforage";
 
@@ -50,6 +49,8 @@ export const jchatStorage = {
     return await instance.removeItem(key);
   },
 };
+
+export type Updater<T> = (updater: (value: T) => void) => void;
 
 type SecondParam<T> = T extends (
   _f: infer _F,

@@ -188,7 +188,6 @@ export function PreCode(props: React.ComponentPropsWithoutRef<"pre">) {
 
 function CustomCode(props: React.ComponentPropsWithoutRef<"code">) {
   const chatStore = useChatStore();
-  const session = chatStore.currentSession();
   const enableCodeFold = ENABLE_CODE_FOLD;
 
   const ref = useRef<HTMLPreElement>(null);

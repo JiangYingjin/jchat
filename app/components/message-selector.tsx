@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { ChatMessage, useChatStore, systemMessageStorage } from "../store";
-import { Updater } from "../typing";
+import { Updater } from "../utils/store";
 import { IconButton } from "./button";
 
 import Locale from "../locales";
