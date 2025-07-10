@@ -22,8 +22,6 @@ export enum SlotID {
 
 export enum StoreKey {
   Chat = "chats",
-  Config = "config",
-  Sync = "sync",
 }
 
 export const MIN_SIDEBAR_WIDTH = 180;
@@ -41,7 +39,6 @@ export const EXPORT_MESSAGE_CLASS_NAME = "export-markdown";
 export const OpenaiPath = {
   ChatPath: "v1/chat/completions",
   ImagePath: "v1/images/generations",
-  ListModelPath: "v1/models",
 };
 
 export const DEFAULT_MODELS = ["google/gemini-2.5-flash"] as const;

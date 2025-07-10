@@ -1,4 +1,3 @@
-import { type OpenAIListModelResponse } from "@/app/client/platforms/openai";
 import { getServerSideConfig } from "@/app/config/server";
 import { OPENAI_BASE_URL, OpenaiPath } from "@/app/constant";
 import { prettyObject } from "@/app/utils/format";
@@ -79,10 +78,6 @@ export async function requestOpenai(req: NextRequest) {
 
 const ALLOWED_PATH = new Set(Object.values(OpenaiPath));
 
-function getModels(remoteModelRes: OpenAIListModelResponse) {
-  return remoteModelRes;
-}
-
 export async function handle(
   req: NextRequest,
   { params }: { params: { path: string[] } },
@@ -116,18 +111,7 @@ export async function handle(
   }
 
   try {
-    const response = await requestOpenai(req);
-
-    // list models
-    if (subpath === OpenaiPath.ListModelPath && response.status === 200) {
-      const resJson = (await response.json()) as OpenAIListModelResponse;
-      const availableModels = getModels(resJson);
-      return NextResponse.json(availableModels, {
-        status: response.status,
-      });
-    }
-
-    return response;
+    return await requestOpenai(req);
   } catch (e) {
     console.error("[OpenAI] ", e);
     return NextResponse.json(prettyObject(e));

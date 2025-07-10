@@ -15,16 +15,6 @@ import {
 } from "../api";
 import { getTimeoutMSByModel } from "@/app/utils";
 
-export interface OpenAIListModelResponse {
-  object: string;
-  data: Array<{
-    id: string;
-    object: string;
-    created: number;
-    owned_by: string;
-  }>;
-}
-
 export interface RequestPayload {
   messages: {
     role: "system" | "user" | "assistant";
