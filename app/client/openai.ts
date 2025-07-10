@@ -5,14 +5,7 @@ import {
   preProcessImageAndWebReferenceContent,
   streamWithThink,
 } from "@/app/utils/chat";
-
-import {
-  ChatOptions,
-  getHeaders,
-  LLMApi,
-  LLMModel,
-  MultimodalContent,
-} from "../api";
+import { ChatOptions, getHeaders, LLMApi, MultimodalContent } from "./api";
 import { getTimeoutMSByModel } from "@/app/utils";
 
 export interface RequestPayload {
@@ -25,7 +18,7 @@ export interface RequestPayload {
   max_tokens?: number;
 }
 
-export class ChatGPTApi implements LLMApi {
+export class OpenAIApi implements LLMApi {
   path(path: string, model?: string): string {
     let baseUrl: string = ApiPath.OpenAI as string;
 

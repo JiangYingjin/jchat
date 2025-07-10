@@ -1238,12 +1238,8 @@ function _Chat() {
             m.streaming = false;
           }
 
-          // 排除系统消息和已迁移的系统消息（有contentKey的消息）
-          if (
-            m.content.length === 0 &&
-            m.role !== "system" &&
-            !(m as any).contentKey
-          ) {
+          // 排除系统消息和已迁移的系统消息
+          if (m.content.length === 0 && m.role !== "system") {
             m.isError = true;
             m.content = prettyObject({
               error: true,
@@ -1839,9 +1835,7 @@ function _Chat() {
 
   // ========== system message content 存储工具 ==========
   // @ts-ignore
-  interface SystemMetaMessage extends ChatMessage {
-    contentKey?: string;
-  }
+  interface SystemMetaMessage extends ChatMessage {}
 
   interface SystemMessageData {
     text: string;
@@ -1849,10 +1843,6 @@ function _Chat() {
     scrollTop: number;
     selection: { start: number; end: number };
     updateAt: number;
-  }
-
-  function getSystemMessageContentKey(sessionId: string) {
-    return sessionId;
   }
 
   async function saveSystemMessageContentToStorage(
@@ -1954,12 +1944,17 @@ function _Chat() {
                     updateAt: Date.now(),
                   };
 
-                  // 如果存在 system 消息且有 contentKey，从 storage 加载
-                  if (systemMessage && systemMessage.contentKey) {
-                    systemData = await loadSystemMessageContentFromStorage(
-                      session.id,
-                    );
-                  } else if (systemMessage?.content) {
+                  // 总是先尝试从独立存储中加载系统提示词（现在是独立存储的）
+                  systemData = await loadSystemMessageContentFromStorage(
+                    session.id,
+                  );
+
+                  // 如果独立存储中没有数据，且存在旧格式的 system 消息，则从旧格式中解析
+                  if (
+                    !systemData.text.trim() &&
+                    !systemData.images.length &&
+                    systemMessage?.content
+                  ) {
                     // 兼容旧格式
                     if (typeof systemMessage.content === "string") {
                       systemData = {

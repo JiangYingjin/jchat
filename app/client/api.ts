@@ -1,5 +1,5 @@
 import { useChatStore } from "../store";
-import { ChatGPTApi } from "./platforms/openai";
+import { OpenAIApi } from "./openai";
 
 export const ROLES = ["system", "user", "assistant"] as const;
 export type MessageRole = (typeof ROLES)[number];
@@ -54,25 +54,15 @@ export interface ChatOptions {
   onController?: (controller: AbortController) => void;
 }
 
-export interface LLMModel {
-  name: string;
-}
-
 export abstract class LLMApi {
   abstract chat(options: ChatOptions): Promise<void>;
-}
-
-export abstract class ToolApi {
-  abstract call(input: string): Promise<string>;
-  abstract name: string;
-  abstract description: string;
 }
 
 export class ClientApi {
   public llm: LLMApi;
 
   constructor() {
-    this.llm = new ChatGPTApi();
+    this.llm = new OpenAIApi();
   }
 }
 
