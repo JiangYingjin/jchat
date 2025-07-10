@@ -638,7 +638,7 @@ export const useChatStore = createPersistStore(
         if (error) {
           console.error("[Store] An error happened during hydration", error);
         } else {
-          console.log("[Store] Hydration finished.");
+          // console.log("[Store] Hydration finished.");
 
           // 设置全局 hydration 状态
           isHydrated = true;
