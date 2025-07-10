@@ -1,5 +1,6 @@
 import styles from "./auth.module.scss";
 import { IconButton } from "./button";
+import { useRef, useEffect } from "react";
 
 import { useNavigate } from "react-router-dom";
 import { Path } from "../constant";
@@ -12,8 +13,15 @@ import BotIcon from "../icons/bot.svg";
 export function AuthPage() {
   const navigate = useNavigate();
   const chatStore = useChatStore();
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const goHome = () => navigate(Path.Home);
+  // 页面加载后自动聚焦到输入框
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, []);
+
   const goChat = async () => {
     // 同步检查当前 accessCode 是否有权限
     const currentAccessCode = chatStore.accessCode;
@@ -30,12 +38,6 @@ export function AuthPage() {
     // 如果没有权限，不更新 chatStore.accessCode，也不离开 auth 页面
   };
 
-  const resetAccessCode = () => {
-    chatStore.update((chat) => {
-      chat.accessCode = "";
-    });
-  }; // Reset access code to empty string
-
   return (
     <div className={styles["auth-page"]}>
       <div className={`no-dark ${styles["auth-logo"]}`}>
@@ -46,6 +48,7 @@ export function AuthPage() {
       <div className={styles["auth-tips"]}>{Locale.Auth.Tips}</div>
 
       <input
+        ref={inputRef}
         className={styles["auth-input"]}
         type="password"
         placeholder={Locale.Auth.Input}
@@ -66,13 +69,6 @@ export function AuthPage() {
           text={Locale.Auth.Confirm}
           type="primary"
           onClick={goChat}
-        />
-        <IconButton
-          text={Locale.Auth.Later}
-          onClick={() => {
-            resetAccessCode();
-            goHome();
-          }}
         />
       </div>
     </div>

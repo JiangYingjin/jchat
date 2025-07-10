@@ -32,6 +32,22 @@ import {
 
 let fetchState = 0; // 0 not fetch, 1 fetching, 2 done
 
+// 全局 hydration 状态管理
+let isHydrated = false;
+const hydrationCallbacks: (() => void)[] = [];
+
+export function isStoreHydrated(): boolean {
+  return isHydrated;
+}
+
+export function onStoreHydrated(callback: () => void): void {
+  if (isHydrated) {
+    callback();
+  } else {
+    hydrationCallbacks.push(callback);
+  }
+}
+
 export type ChatMessage = RequestMessage & {
   id: string;
   model?: string;
@@ -623,6 +639,20 @@ export const useChatStore = createPersistStore(
           console.error("[Store] An error happened during hydration", error);
         } else {
           console.log("[Store] Hydration finished.");
+
+          // 设置全局 hydration 状态
+          isHydrated = true;
+
+          // 执行所有等待 hydration 的回调
+          hydrationCallbacks.forEach((callback) => {
+            try {
+              callback();
+            } catch (error) {
+              console.error("[Store] Error in hydration callback:", error);
+            }
+          });
+          hydrationCallbacks.length = 0; // 清空回调数组
+
           // 只在客户端环境下执行消息加载
           if (typeof window !== "undefined") {
             // 确保在状态设置后调用，可以稍微延迟执行

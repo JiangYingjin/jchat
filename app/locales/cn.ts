@@ -6,10 +6,8 @@ const cn = {
   Auth: {
     Title: "访问受限",
     Tips: "请输入访问码",
-
     Input: "Access Code",
     Confirm: "确认",
-    Later: "稍后再说",
   },
   ChatItem: {
     ChatItemCount: (count: number) => `${count} 条对话`,
