@@ -35,7 +35,7 @@ export async function requestOpenai(req: NextRequest) {
   );
 
   const fetchUrl = `${baseUrl}/${path}`;
-  console.log("fetchUrl", fetchUrl);
+  // console.log("fetchUrl", fetchUrl);
   const fetchOptions: RequestInit = {
     headers: {
       "Content-Type": "application/json",
@@ -82,7 +82,7 @@ export async function handle(
   req: NextRequest,
   { params }: { params: { path: string[] } },
 ) {
-  console.log("[OpenAI Route] params ", params);
+  // console.log("[OpenAI Route] params ", params);
 
   if (req.method === "OPTIONS") {
     return NextResponse.json({ body: "OK" }, { status: 200 });
@@ -91,7 +91,7 @@ export async function handle(
   const subpath = params.path.join("/");
 
   if (!ALLOWED_PATH.has(subpath)) {
-    console.log("[OpenAI Route] forbidden path ", subpath);
+    // console.log("[OpenAI Route] forbidden path ", subpath);
     return NextResponse.json(
       {
         error: true,
@@ -113,7 +113,7 @@ export async function handle(
   try {
     return await requestOpenai(req);
   } catch (e) {
-    console.error("[OpenAI] ", e);
+    // console.error("[OpenAI] ", e);
     return NextResponse.json(prettyObject(e));
   }
 }

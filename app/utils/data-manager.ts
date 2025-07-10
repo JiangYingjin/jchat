@@ -181,20 +181,11 @@ class JChatDataManager {
       showToast("正在解析备份数据...");
 
       // 解析 JSON 数据
-      const rawBackupData = JSON.parse(rawContent);
+      const backupData = JSON.parse(rawContent);
 
       // 验证备份数据格式
-      if (!this.validateBackupData(rawBackupData)) {
+      if (!this.validateBackupData(backupData)) {
         throw new Error("备份文件格式不正确或版本不兼容");
-      }
-
-      // 处理数据迁移
-      let backupData: JChatBackupData;
-      if (this.isOldVersionBackup(rawBackupData)) {
-        showToast("检测到旧版本备份，正在自动迁移数据格式...");
-        backupData = this.migrateOldBackupData(rawBackupData);
-      } else {
-        backupData = rawBackupData as JChatBackupData;
       }
 
       showToast("正在恢复数据到 IndexedDB...");
@@ -235,193 +226,54 @@ class JChatDataManager {
    */
   private validateBackupData(data: any): data is JChatBackupData {
     try {
-      // 检查是否是新版本格式
-      if (this.isNewVersionBackup(data)) {
-        return this.validateNewVersionBackup(data);
+      // 检查基本结构
+      if (!data || typeof data !== "object") return false;
+      if (!data.version || !data.timestamp || !data.data) return false;
+
+      // 检查数据结构
+      const { data: backupDataContent } = data;
+      if (
+        !backupDataContent.default ||
+        typeof backupDataContent.default !== "object"
+      )
+        return false;
+      if (
+        !backupDataContent.messages ||
+        typeof backupDataContent.messages !== "object"
+      )
+        return false;
+      if (
+        !backupDataContent.systemMessages ||
+        typeof backupDataContent.systemMessages !== "object"
+      )
+        return false;
+      if (
+        !backupDataContent.chatInput ||
+        typeof backupDataContent.chatInput !== "object"
+      )
+        return false;
+
+      // 检查版本兼容性
+      const majorVersion = parseInt(data.version.split(".")[0]);
+      const currentMajorVersion = parseInt(this.CURRENT_VERSION.split(".")[0]);
+
+      if (majorVersion > currentMajorVersion) {
+        throw new Error(
+          `备份文件版本 ${data.version} 过新，当前应用版本 ${this.CURRENT_VERSION} 不支持`,
+        );
       }
 
-      // 检查是否是旧版本格式（需要迁移）
-      if (this.isOldVersionBackup(data)) {
-        console.log("[DataManager] 检测到旧版本备份格式，将进行自动迁移");
-        return true; // 旧版本数据在 migrateOldBackupData 中处理
+      if (majorVersion < currentMajorVersion) {
+        throw new Error(
+          `备份文件版本 ${data.version} 过旧，当前应用版本不再支持旧版本数据格式`,
+        );
       }
 
-      return false;
+      return true;
     } catch (error) {
       console.error("[DataManager] 验证备份数据失败:", error);
       return false;
     }
-  }
-
-  /**
-   * 检查是否为新版本备份格式
-   */
-  private isNewVersionBackup(data: any): boolean {
-    return (
-      data &&
-      data.version &&
-      data.timestamp &&
-      data.data &&
-      data.data.default &&
-      data.data.messages &&
-      data.data.systemMessages &&
-      data.data.chatInput
-    );
-  }
-
-  /**
-   * 验证新版本备份数据
-   */
-  private validateNewVersionBackup(data: any): boolean {
-    // 检查基本结构
-    if (!data || typeof data !== "object") return false;
-    if (!data.version || !data.timestamp || !data.data) return false;
-
-    // 检查数据结构
-    const { data: backupDataContent } = data;
-    if (
-      !backupDataContent.default ||
-      typeof backupDataContent.default !== "object"
-    )
-      return false;
-    if (
-      !backupDataContent.messages ||
-      typeof backupDataContent.messages !== "object"
-    )
-      return false;
-    if (
-      !backupDataContent.systemMessages ||
-      typeof backupDataContent.systemMessages !== "object"
-    )
-      return false;
-    if (
-      !backupDataContent.chatInput ||
-      typeof backupDataContent.chatInput !== "object"
-    )
-      return false;
-
-    // 检查版本兼容性
-    const majorVersion = parseInt(data.version.split(".")[0]);
-    const currentMajorVersion = parseInt(this.CURRENT_VERSION.split(".")[0]);
-
-    if (majorVersion > currentMajorVersion) {
-      throw new Error(
-        `备份文件版本 ${data.version} 过新，当前应用版本 ${this.CURRENT_VERSION} 不支持`,
-      );
-    }
-
-    return true;
-  }
-
-  /**
-   * 检查是否为旧版本备份格式
-   */
-  private isOldVersionBackup(data: any): boolean {
-    // 旧版本格式特征：直接包含 AppState 结构，有 chats 字段
-    return (
-      data &&
-      typeof data === "object" &&
-      data.chats &&
-      Array.isArray(data.chats.sessions)
-    );
-  }
-
-  /**
-   * 将旧版本备份数据迁移到新格式
-   */
-  private migrateOldBackupData(oldData: any): JChatBackupData {
-    console.log("[DataManager] 开始迁移旧版本备份数据");
-
-    // 提取旧版本数据
-    const oldChatData = oldData.chats || {};
-    const oldSessions = oldChatData.sessions || [];
-
-    // 构建新格式的数据结构
-    const messagesData: Record<string, any[]> = {};
-    const systemMessagesData: Record<string, any> = {};
-    const chatInputData: Record<string, any> = {};
-
-    // 迁移会话数据
-    const migratedSessions = oldSessions.map((session: any) => {
-      const sessionId = session.id || `migrated_${Date.now()}_${Math.random()}`;
-
-      // 提取并迁移消息数据
-      if (session.messages && Array.isArray(session.messages)) {
-        messagesData[sessionId] = session.messages;
-      }
-
-      // 从 messages 中提取系统消息到单独存储
-      const systemMessages =
-        session.messages?.filter((msg: any) => msg.role === "system") || [];
-      if (systemMessages.length > 0) {
-        // 合并所有系统消息的内容
-        const systemText = systemMessages
-          .map((msg: any) =>
-            typeof msg.content === "string" ? msg.content : "",
-          )
-          .join("\n");
-
-        if (systemText.trim()) {
-          systemMessagesData[sessionId] = {
-            text: systemText.trim(),
-            images: [],
-            scrollTop: 0,
-            selection: { start: 0, end: 0 },
-            updateAt: Date.now(),
-          };
-        }
-      }
-
-      // 清理会话数据（移除 messages，保留元数据）
-      const { messages, ...sessionMetadata } = session;
-      return {
-        ...sessionMetadata,
-        id: sessionId,
-        messages: [], // 新架构中 messages 不存储在 zustand 中
-      };
-    });
-
-    // 构建迁移后的默认存储桶数据
-    const defaultData = {
-      chats: {
-        ...oldChatData,
-        sessions: migratedSessions,
-      },
-      ...Object.fromEntries(
-        Object.entries(oldData).filter(([key]) => key !== "chats"),
-      ),
-    };
-
-    const migratedData: JChatBackupData = {
-      version: this.CURRENT_VERSION,
-      timestamp: Date.now(),
-      metadata: {
-        totalSessions: migratedSessions.length,
-        totalMessages: Object.values(messagesData).reduce(
-          (sum, messages) => sum + messages.length,
-          0,
-        ),
-        exportSource: "JChat (迁移自旧版本)",
-      },
-      data: {
-        default: defaultData,
-        messages: messagesData,
-        systemMessages: systemMessagesData,
-        chatInput: chatInputData, // 旧版本没有输入状态，保持为空
-      },
-    };
-
-    console.log("[DataManager] 旧版本数据迁移完成", {
-      原始会话数: oldSessions.length,
-      迁移会话数: migratedSessions.length,
-      消息数: Object.values(messagesData).reduce(
-        (sum, messages) => sum + messages.length,
-        0,
-      ),
-      系统消息数: Object.keys(systemMessagesData).length,
-    });
-
-    return migratedData;
   }
 
   /**

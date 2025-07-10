@@ -24,11 +24,11 @@ export function auth(req: NextRequest) {
   const hashedCode = md5.hash(accessCode ?? "").trim();
 
   const serverConfig = getServerSideConfig();
-  console.log("[Auth] allowed hashed codes: ", [...serverConfig.codes]);
-  console.log("[Auth] got access code:", accessCode);
-  console.log("[Auth] hashed access code:", hashedCode);
-  console.log("[User IP] ", getIP(req));
-  console.log("[Time] ", new Date().toLocaleString());
+  // console.log("[Auth] allowed hashed codes: ", [...serverConfig.codes]);
+  // console.log("[Auth] got access code:", accessCode);
+  // console.log("[Auth] hashed access code:", hashedCode);
+  // console.log("[User IP] ", getIP(req));
+  // console.log("[Time] ", new Date().toLocaleString());
 
   // 直接校验 access code，无需 needCode 判断
   if (!serverConfig.codes.has(hashedCode)) {
@@ -42,10 +42,10 @@ export function auth(req: NextRequest) {
   const systemApiKey = serverConfig.apiKey;
 
   if (systemApiKey) {
-    console.log("[Auth] use system api key");
+    // console.log("[Auth] use system api key");
     req.headers.set("Authorization", `Bearer ${systemApiKey}`);
   } else {
-    console.log("[Auth] admin did not provide an api key");
+    // console.log("[Auth] admin did not provide an api key");
   }
 
   return {

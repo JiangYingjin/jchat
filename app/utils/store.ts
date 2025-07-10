@@ -1,6 +1,5 @@
 import { create } from "zustand";
 import { combine, persist } from "zustand/middleware";
-import { deepClone } from "./clone";
 import localforage from "localforage";
 
 // 检查是否在客户端环境
@@ -51,6 +50,10 @@ export const jchatStorage = {
 };
 
 export type Updater<T> = (updater: (value: T) => void) => void;
+
+export function deepClone<T>(obj: T) {
+  return JSON.parse(JSON.stringify(obj));
+}
 
 type SecondParam<T> = T extends (
   _f: infer _F,
