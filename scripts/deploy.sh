@@ -71,4 +71,4 @@ else
 fi
 
 # 清理临时构建目录
-rm -rf "$TMP_BUILD_DIR"
+rm -rf "$PROJ_DIR/build"

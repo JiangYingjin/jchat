@@ -8,9 +8,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "prompts": "node ./scripts/fetch-prompts.mjs",
-    "prepare": "husky install",
-    "proxy-dev": "sh ./scripts/init-proxy.sh && proxychains -f ./scripts/proxychains.conf yarn dev"
+    "prepare": "husky install"
   },
   "dependencies": {
     "@fortaine/fetch-event-source": "^3.0.6",
