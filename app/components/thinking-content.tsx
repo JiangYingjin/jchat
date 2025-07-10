@@ -49,18 +49,19 @@ export function ThinkingContent({
 
   // 修改焦点离开事件处理
   useEffect(() => {
-    const currentContainer = containerRef.current;
-
     const handleClickOutside = (e: MouseEvent) => {
-      if (currentContainer && !currentContainer.contains(e.target as Node)) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
         setExpanded(false);
       }
     };
 
     const handleFocusOut = (e: FocusEvent) => {
       if (
-        currentContainer &&
-        !currentContainer.contains(e.relatedTarget as Node)
+        containerRef.current &&
+        !containerRef.current.contains(e.relatedTarget as Node)
       ) {
         setExpanded(false);
       }
@@ -74,13 +75,14 @@ export function ThinkingContent({
     };
 
     document.addEventListener("mousedown", handleClickOutside);
-    currentContainer?.addEventListener("focusout", handleFocusOut);
-    currentContainer?.addEventListener("click", handleClickInside);
+    containerRef.current?.addEventListener("focusout", handleFocusOut);
+    containerRef.current?.addEventListener("click", handleClickInside);
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
-      currentContainer?.removeEventListener("focusout", handleFocusOut);
-      currentContainer?.removeEventListener("click", handleClickInside);
+      containerRef.current?.removeEventListener("focusout", handleFocusOut);
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      containerRef.current?.removeEventListener("click", handleClickInside);
     };
   }, [expanded]); // 只需要 expanded 作为依赖
 
