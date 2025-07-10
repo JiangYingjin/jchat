@@ -16,8 +16,8 @@ async function requestOpenai(req: NextRequest) {
     const baseUrl = base.startsWith("http") ? base : `https://${base}`;
 
     const fetchUrl = new URL(path, baseUrl);
-    console.log("[Proxy] ", path);
-    console.log("[Base Url]", baseUrl);
+    // console.log("[Proxy] ", path);
+    // console.log("[Base Url]", baseUrl);
 
     const fetchOptions: RequestInit = {
       headers: {

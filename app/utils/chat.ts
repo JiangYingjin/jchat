@@ -103,16 +103,6 @@ export async function preProcessImageContent(
   return result;
 }
 
-export async function preProcessImageAndWebReferenceContent(
-  message: RequestMessage,
-) {
-  const content = message.content;
-  if (typeof content === "string") {
-    return getMessageTextContent(message);
-  }
-  return preProcessImageContent(content);
-}
-
 const imageCaches: Record<string, string> = {};
 export function cacheImageToBase64Image(imageUrl: string) {
   if (imageUrl.includes(CACHE_URL_PREFIX)) {
@@ -215,25 +205,13 @@ export async function stream(
   chatPath: string,
   requestPayload: any,
   headers: any,
-  tools: any[],
-  funcs: Record<string, Function>,
   controller: AbortController,
-  parseSSE: (
-    text: string,
-    runTools: any[],
-  ) => string | ImageContent | undefined,
-  processToolMessage: (
-    requestPayload: any,
-    toolCallMessage: any,
-    toolCallResult: any[],
-  ) => void,
+  parseSSE: (text: string) => string | ImageContent | undefined,
   options: any,
 ) {
   let responseText = "";
   let remainText = "";
   let finished = false;
-  let running = false;
-  let runTools: any[] = [];
   let contentQueue: MessageContentItem[] = [];
   let multimodalTextContent: MultimodalContent = { type: "text", text: "" };
   let multimodalContent: MultimodalContent[] = [multimodalTextContent];
@@ -298,35 +276,6 @@ export async function stream(
 
   const finish = () => {
     if (!finished) {
-      if (!running && runTools.length > 0) {
-        const toolCallMessage = {
-          role: "assistant",
-          tool_calls: [...runTools],
-        };
-        running = true;
-        runTools.splice(0, runTools.length); // empty runTools
-        return Promise.all(
-          toolCallMessage.tool_calls.map((tool) => {
-            return Promise.resolve("").then((content) => ({
-              role: "tool",
-              content,
-              tool_call_id: tool.id,
-            }));
-          }),
-        ).then((toolCallResult) => {
-          processToolMessage(requestPayload, toolCallMessage, toolCallResult);
-          setTimeout(() => {
-            // call again
-            console.debug("[ChatAPI] restart");
-            running = false;
-            chatApi(chatPath, headers, requestPayload, tools); // call fetchEventSource
-          }, 60);
-        });
-        return;
-      }
-      if (running) {
-        return;
-      }
       console.debug("[ChatAPI] end");
       finished = true;
       options.onFinish(multimodalContent);
@@ -335,18 +284,10 @@ export async function stream(
 
   controller.signal.onabort = finish;
 
-  function chatApi(
-    chatPath: string,
-    headers: any,
-    requestPayload: any,
-    tools: any,
-  ) {
+  function chatApi(chatPath: string, headers: any, requestPayload: any) {
     const chatPayload = {
       method: "POST",
-      body: JSON.stringify({
-        ...requestPayload,
-        tools: tools && tools.length ? tools : undefined,
-      }),
+      body: JSON.stringify(requestPayload),
       signal: controller.signal,
       headers,
     };
@@ -407,7 +348,7 @@ export async function stream(
         }
         const text = msg.data;
         try {
-          const chunk = parseSSE(msg.data, runTools);
+          const chunk = parseSSE(msg.data);
           console.log("chunk", chunk);
           if (chunk && typeof chunk === "string") {
             contentQueue.push({
@@ -435,28 +376,18 @@ export async function stream(
     });
   }
   console.debug("[ChatAPI] start");
-  chatApi(chatPath, headers, requestPayload, tools); // call fetchEventSource
+  chatApi(chatPath, headers, requestPayload); // call fetchEventSource
 }
 
 export function streamWithThink(
   chatPath: string,
   requestPayload: any,
   headers: any,
-  tools: any[],
-  funcs: Record<string, Function>,
   controller: AbortController,
-  parseSSE: (
-    text: string,
-    runTools: any[],
-  ) => {
+  parseSSE: (text: string) => {
     isThinking: boolean;
     content: string | undefined;
   },
-  processToolMessage: (
-    requestPayload: any,
-    toolCallMessage: any,
-    toolCallResult: any[],
-  ) => void,
   options: any,
 ) {
   let responseText = "";
@@ -464,8 +395,6 @@ export function streamWithThink(
   let reasoningResponseText = "";
   let reasoningRemainText = "";
   let finished = false;
-  let running = false;
-  let runTools: any[] = [];
   let responseRes: Response;
   let isInThinkingMode = false;
   let lastIsThinking = false;
@@ -524,36 +453,6 @@ export function streamWithThink(
 
   const finish = () => {
     if (!finished) {
-      if (!running && runTools.length > 0) {
-        const toolCallMessage = {
-          role: "assistant",
-          tool_calls: [...runTools],
-        };
-        running = true;
-        runTools.splice(0, runTools.length); // empty runTools
-        return Promise.all(
-          toolCallMessage.tool_calls.map((tool) => {
-            return Promise.resolve("").then((content) => ({
-              name: tool.function.name,
-              role: "tool",
-              content,
-              tool_call_id: tool.id,
-            }));
-          }),
-        ).then((toolCallResult) => {
-          processToolMessage(requestPayload, toolCallMessage, toolCallResult);
-          setTimeout(() => {
-            // call again
-            console.debug("[ChatAPI] restart");
-            running = false;
-            chatApi(chatPath, headers, requestPayload, tools); // call fetchEventSource
-          }, 60);
-        });
-        return;
-      }
-      if (running) {
-        return;
-      }
       console.debug("[ChatAPI] end");
       finished = true;
       options.onFinish(responseText + remainText, responseRes, usageInfo);
@@ -562,18 +461,10 @@ export function streamWithThink(
 
   controller.signal.onabort = finish;
 
-  function chatApi(
-    chatPath: string,
-    headers: any,
-    requestPayload: any,
-    tools: any,
-  ) {
+  function chatApi(chatPath: string, headers: any, requestPayload: any) {
     const chatPayload = {
       method: "POST",
-      body: JSON.stringify({
-        ...requestPayload,
-        tools: tools && tools.length ? tools : undefined,
-      }),
+      body: JSON.stringify(requestPayload),
       signal: controller.signal,
       headers,
     };
@@ -660,7 +551,7 @@ export function streamWithThink(
             // 忽略 usage 解析错误，继续处理内容
           }
 
-          const chunk = parseSSE(text, runTools);
+          const chunk = parseSSE(text);
           if (!chunk?.content || chunk.content.length === 0) {
             return;
           }
@@ -696,7 +587,7 @@ export function streamWithThink(
     });
   }
   console.debug("[ChatAPI] start");
-  chatApi(chatPath, headers, requestPayload, tools); // call fetchEventSource
+  chatApi(chatPath, headers, requestPayload); // call fetchEventSource
 }
 
 /**
