@@ -22,6 +22,8 @@ import {
 import { SideBar } from "./sidebar";
 import { AuthPage } from "./auth";
 import { useChatStore } from "../store";
+import { checkAndHandleAuth } from "../utils/auth";
+import { useNavigate } from "react-router-dom";
 
 export function Loading(props: { noLogo?: boolean }) {
   return (
@@ -70,6 +72,7 @@ const loadAsyncGoogleFont = () => {
 
 function Screen() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isHome = location.pathname === Path.Home;
   const isAuth = location.pathname === Path.Auth;
   const isMobileScreen = useMobileScreen();
@@ -78,6 +81,14 @@ function Screen() {
   useEffect(() => {
     loadAsyncGoogleFont();
   }, []);
+
+  // 权限检查：页面刷新时和访问其他页面时检查权限
+  useEffect(() => {
+    // 只在非 auth 页面进行权限检查
+    if (!isAuth) {
+      checkAndHandleAuth(navigate);
+    }
+  }, [location.pathname, navigate, isAuth]);
 
   // SwitchThemeColor
   // Adapting Safari's theme-color and changing it according to the path

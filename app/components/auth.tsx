@@ -5,6 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { Path } from "../constant";
 import { useChatStore } from "../store";
 import Locale from "../locales";
+import { checkAccessCodeSync } from "../utils/auth";
 
 import BotIcon from "../icons/bot.svg";
 
@@ -13,7 +14,22 @@ export function AuthPage() {
   const chatStore = useChatStore();
 
   const goHome = () => navigate(Path.Home);
-  const goChat = () => navigate(Path.Chat);
+  const goChat = async () => {
+    // 同步检查当前 accessCode 是否有权限
+    const currentAccessCode = chatStore.accessCode;
+    if (!currentAccessCode) {
+      // 如果 accessCode 为空，不做任何操作，停留在 auth 页面
+      return;
+    }
+
+    const hasPermission = await checkAccessCodeSync(currentAccessCode);
+    if (hasPermission) {
+      // 有权限，跳转到 chat 页面
+      navigate(Path.Chat);
+    }
+    // 如果没有权限，不更新 chatStore.accessCode，也不离开 auth 页面
+  };
+
   const resetAccessCode = () => {
     chatStore.update((chat) => {
       chat.accessCode = "";
@@ -36,6 +52,12 @@ export function AuthPage() {
         value={chatStore.accessCode}
         onChange={(e) => {
           chatStore.update((chat) => (chat.accessCode = e.currentTarget.value));
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || (e.key === "Enter" && e.ctrlKey)) {
+            e.preventDefault();
+            goChat();
+          }
         }}
       />
 

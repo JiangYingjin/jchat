@@ -43,6 +43,7 @@ import { useNavigate } from "react-router-dom";
 import { useSyncStore } from "../store/sync";
 import { nanoid } from "nanoid";
 import { ProviderType } from "../utils/cloud";
+import { checkAndHandleAuth } from "../utils/auth";
 
 function CheckButton() {
   const syncStore = useSyncStore();
@@ -332,7 +333,11 @@ function SyncItems() {
 
 export function Settings() {
   const navigate = useNavigate();
-  const chatStore = useChatStore();
+
+  // 打开 settings 页面时检查权限
+  useEffect(() => {
+    checkAndHandleAuth(navigate);
+  }, [navigate]);
 
   useEffect(() => {
     const keydownEvent = (e: KeyboardEvent) => {
@@ -340,7 +345,6 @@ export function Settings() {
         navigate(Path.Home);
       }
     };
-
     document.addEventListener("keydown", keydownEvent);
     return () => {
       document.removeEventListener("keydown", keydownEvent);
@@ -374,24 +378,6 @@ export function Settings() {
       </div>
 
       <div className={styles["settings"]}>
-        <List>
-          <ListItem
-            title={Locale.Settings.Access.AccessCode.Title}
-            subTitle={Locale.Settings.Access.AccessCode.SubTitle}
-          >
-            <PasswordInput
-              value={chatStore.accessCode}
-              type="text"
-              placeholder={Locale.Settings.Access.AccessCode.Placeholder}
-              onChange={(e) => {
-                chatStore.update(
-                  (chat) => (chat.accessCode = e.currentTarget.value),
-                );
-              }}
-            />
-          </ListItem>
-        </List>
-
         <SyncItems />
       </div>
     </ErrorBoundary>

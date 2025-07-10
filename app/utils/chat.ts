@@ -382,6 +382,14 @@ export async function stream(
 
           if (res.status === 401) {
             responseTexts.push(Locale.Error.Unauthorized);
+
+            // 处理未授权响应：清空 accessCode 并跳转到 auth 页面
+            if (
+              typeof window !== "undefined" &&
+              (window as any).__handleUnauthorized
+            ) {
+              (window as any).__handleUnauthorized();
+            }
           }
 
           if (extraInfo) {
@@ -613,6 +621,14 @@ export function streamWithThink(
 
           if (res.status === 401) {
             responseTexts.push(Locale.Error.Unauthorized);
+
+            // 处理未授权响应：清空 accessCode 并跳转到 auth 页面
+            if (
+              typeof window !== "undefined" &&
+              (window as any).__handleUnauthorized
+            ) {
+              (window as any).__handleUnauthorized();
+            }
           }
 
           if (extraInfo) {

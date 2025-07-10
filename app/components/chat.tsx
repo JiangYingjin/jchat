@@ -101,6 +101,7 @@ import clsx from "clsx";
 import { ThinkingContent } from "./thinking-content";
 import { MessageContentEditPanel } from "./message-content-edit-panel";
 import { MessageListEditor } from "./message-list-editor";
+import { handleUnauthorizedResponse } from "../utils/auth";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
@@ -1116,6 +1117,21 @@ function _Chat() {
   const [uploading, setUploading] = useState(false);
 
   const isLoadingFromStorageRef = useRef(false);
+
+  // 设置全局未授权处理函数
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      (window as any).__handleUnauthorized = () => {
+        handleUnauthorizedResponse(navigate);
+      };
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        delete (window as any).__handleUnauthorized;
+      }
+    };
+  }, [navigate]);
 
   // 移动端默认开启长输入模式
   useEffect(() => {

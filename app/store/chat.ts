@@ -14,6 +14,7 @@ import { chatInputStorage } from "./input";
 import { systemMessageStorage } from "./system";
 // 导入新的 messageStorage
 import { messageStorage } from "./message";
+import { handleUnauthorizedResponse } from "../utils/auth";
 
 // 导入session工具函数
 import {
@@ -439,6 +440,18 @@ export const useChatStore = createPersistStore(
               modelMessage.date = new Date().toLocaleString();
               if (responseRes && responseRes.status !== 200) {
                 modelMessage.isError = true;
+
+                // 如果返回 401 未授权，清空 accessCode 并跳转到 auth 页面
+                if (responseRes.status === 401) {
+                  // 需要通过某种方式获取 navigate 函数
+                  // 这里我们先在 window 对象上设置一个全局的处理函数
+                  if (
+                    typeof window !== "undefined" &&
+                    (window as any).__handleUnauthorized
+                  ) {
+                    (window as any).__handleUnauthorized();
+                  }
+                }
               }
 
               get().onNewMessage(modelMessage, session, usage);
