@@ -12,6 +12,7 @@ import { useMobileScreen } from "../utils";
 import dynamic from "next/dynamic";
 import { Path, SlotID, DEFAULT_THEME } from "../constant";
 import { ErrorBoundary } from "./error";
+import { FileDropZone } from "./file-drop-zone";
 
 import {
   HashRouter as Router,
@@ -164,9 +165,11 @@ export function Home() {
 
   return (
     <ErrorBoundary>
-      <Router>
-        <Screen />
-      </Router>
+      <FileDropZone>
+        <Router>
+          <Screen />
+        </Router>
+      </FileDropZone>
     </ErrorBoundary>
   );
 }

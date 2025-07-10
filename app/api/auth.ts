@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getServerSideConfig } from "../config/server";
+import { getServerSideConfig } from "../utils/config";
 import md5 from "spark-md5";
 
 function getIP(req: NextRequest) {

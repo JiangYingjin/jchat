@@ -1,0 +1,411 @@
+.container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+/* 拖拽覆盖层 */
+.dragOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(59, 130, 246, 0.1);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.dragContent {
+  text-align: center;
+  padding: 2rem;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 16px;
+  border: 2px dashed #3b82f6;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  animation: scaleIn 0.3s ease-out;
+}
+
+.dragIcon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  animation: bounce 1s infinite;
+}
+
+.dragTitle {
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+}
+
+.dragSubtitle {
+  font-size: 1rem;
+  color: #6b7280;
+}
+
+/* 文件模态框 */
+.fileModal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: fadeIn 0.3s ease-out;
+  padding: 1rem;
+}
+
+.fileModalContent {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  max-width: 600px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease-out;
+}
+
+.fileModalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 1.5rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.fileModalTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #1f2937;
+  margin: 0;
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: #f3f4f6;
+    color: #374151;
+  }
+}
+
+.fileList {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 1.5rem;
+  max-height: 400px;
+}
+
+.fileItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid #f3f4f6;
+  animation: fadeInUp 0.3s ease-out;
+  animation-fill-mode: both;
+
+  &:last-child {
+    border-bottom: none;
+  }
+
+  &:nth-child(1) {
+    animation-delay: 0.1s;
+  }
+  &:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  &:nth-child(3) {
+    animation-delay: 0.2s;
+  }
+  &:nth-child(4) {
+    animation-delay: 0.25s;
+  }
+  &:nth-child(5) {
+    animation-delay: 0.3s;
+  }
+  &:nth-child(n + 6) {
+    animation-delay: 0.35s;
+  }
+}
+
+.fileIcon {
+  font-size: 2rem;
+  flex-shrink: 0;
+  width: 48px;
+  text-align: center;
+}
+
+.fileInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.fileName {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+  word-break: break-all;
+  line-height: 1.4;
+}
+
+.fileDetails {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.fileSize {
+  font-size: 0.875rem;
+  color: #059669;
+  background: #ecfdf5;
+  padding: 0.125rem 0.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.fileType {
+  font-size: 0.875rem;
+  color: #7c3aed;
+  background: #f3e8ff;
+  padding: 0.125rem 0.5rem;
+  border-radius: 6px;
+  font-weight: 500;
+}
+
+.fileDate {
+  font-size: 0.875rem;
+  color: #6b7280;
+  background: #f9fafb;
+  padding: 0.125rem 0.5rem;
+  border-radius: 6px;
+}
+
+.filePath {
+  font-size: 0.75rem;
+  color: #6b7280;
+  background: #f9fafb;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  margin-top: 0.25rem;
+  word-break: break-all;
+}
+
+.fileModalFooter {
+  padding: 1rem 1.5rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.fileStats {
+  font-size: 0.875rem;
+  color: #6b7280;
+  text-align: center;
+  background: #f9fafb;
+  padding: 0.75rem;
+  border-radius: 8px;
+}
+
+/* 动画效果 */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes bounce {
+  0%,
+  20%,
+  53%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  40%,
+  43% {
+    transform: translateY(-8px);
+  }
+  70% {
+    transform: translateY(-4px);
+  }
+  90% {
+    transform: translateY(-2px);
+  }
+}
+
+/* 深色模式支持 */
+@media (prefers-color-scheme: dark) {
+  .dragContent {
+    background: rgba(31, 41, 55, 0.95);
+    border-color: #3b82f6;
+  }
+
+  .dragTitle {
+    color: #f9fafb;
+  }
+
+  .dragSubtitle {
+    color: #d1d5db;
+  }
+
+  .fileModalContent {
+    background: #1f2937;
+  }
+
+  .fileModalHeader {
+    border-bottom-color: #374151;
+  }
+
+  .fileModalTitle {
+    color: #f9fafb;
+  }
+
+  .closeButton {
+    color: #d1d5db;
+
+    &:hover {
+      background: #374151;
+      color: #f9fafb;
+    }
+  }
+
+  .fileItem {
+    border-bottom-color: #374151;
+  }
+
+  .fileName {
+    color: #f9fafb;
+  }
+
+  .fileSize {
+    color: #10b981;
+    background: #064e3b;
+  }
+
+  .fileType {
+    color: #8b5cf6;
+    background: #581c87;
+  }
+
+  .fileDate {
+    color: #d1d5db;
+    background: #374151;
+  }
+
+  .filePath {
+    color: #d1d5db;
+    background: #374151;
+  }
+
+  .fileModalFooter {
+    border-top-color: #374151;
+  }
+
+  .fileStats {
+    color: #d1d5db;
+    background: #374151;
+  }
+}
+
+/* 响应式设计 */
+@media (max-width: 640px) {
+  .fileModal {
+    padding: 0.5rem;
+  }
+
+  .fileModalContent {
+    max-height: 90vh;
+  }
+
+  .dragContent {
+    padding: 1.5rem;
+  }
+
+  .dragIcon {
+    font-size: 3rem;
+  }
+
+  .dragTitle {
+    font-size: 1.25rem;
+  }
+
+  .dragSubtitle {
+    font-size: 0.875rem;
+  }
+
+  .fileItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .fileIcon {
+    align-self: flex-start;
+  }
+
+  .fileDetails {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+}
