@@ -256,7 +256,7 @@ export async function stream(
     if ((finished || controller.signal.aborted) && contentQueue.length === 0) {
       multimodalTextContent.text += remainText;
       options.onUpdate?.(multimodalContent, "");
-      console.log("[Response Animation] finished");
+      // console.log("[Response Animation] finished");
       if (
         responseText?.length === 0 &&
         multimodalContent.at(0)?.text?.length == 0 &&
@@ -300,7 +300,7 @@ export async function stream(
       async onopen(res) {
         clearTimeout(requestTimeoutId);
         const contentType = res.headers.get("content-type");
-        console.log("[Request] response content type: ", contentType);
+        // console.log("[Request] response content type: ", contentType);
 
         if (contentType?.startsWith("text/plain")) {
           responseText = await res.clone().text();
@@ -411,7 +411,7 @@ export function streamWithThink(
   function animateResponseText() {
     if (finished || controller.signal.aborted) {
       responseText += remainText;
-      console.log("[Response Animation] finished");
+      // console.log("[Response Animation] finished");
       if (responseText?.length === 0) {
         options.onError?.(new Error("empty response from server"));
       }
@@ -488,7 +488,7 @@ export function streamWithThink(
       async onopen(res) {
         clearTimeout(requestTimeoutId);
         const contentType = res.headers.get("content-type");
-        console.log("[Request] response content type: ", contentType);
+        // console.log("[Request] response content type: ", contentType);
         responseRes = res;
 
         if (contentType?.startsWith("text/plain")) {

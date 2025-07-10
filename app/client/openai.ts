@@ -17,10 +17,17 @@ export interface RequestPayload {
 
 export class OpenAIApi implements LLMApi {
   path(path: string): string {
-    let baseUrl = (ApiPath.OpenAI as string).replace(/\/$/, ""); // 移除末尾的斜杠
-    if (!baseUrl.startsWith("http")) {
-      baseUrl = "https://" + baseUrl;
+    const apiPath = ApiPath.OpenAI as string; // "/api/openai"
+    let baseUrl: string;
+
+    if (typeof window !== "undefined") {
+      // 客户端环境：使用当前域名构建完整URL
+      baseUrl = `${window.location.protocol}//${window.location.host}${apiPath}`;
+    } else {
+      // 服务端环境：使用相对路径
+      baseUrl = apiPath;
     }
+
     // console.log("[Proxy Endpoint] ", baseUrl, path);
     return `${baseUrl}/${path}`;
   }
