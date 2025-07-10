@@ -1380,8 +1380,27 @@ function _Chat() {
   const handleBranch = async (message: ChatMessage, messageIndex: number) => {
     try {
       // 复制会话标题并标注分支
-      const originalTopic = session.title || DEFAULT_TOPIC;
-      const branchTopic = `${originalTopic} (分支)`;
+      const originalTitle = session.title || DEFAULT_TOPIC;
+
+      // 生成分支标题，支持递增数字
+      const getBranchTitle = (title: string): string => {
+        // 匹配 (分支) 或 (分支数字) 的正则表达式
+        const branchRegex = /\(分支(\d*)\)$/;
+        const match = title.match(branchRegex);
+
+        if (!match) {
+          // 没有匹配到分支标记，直接添加 (分支)
+          return `${title} (分支)`;
+        } else {
+          // 匹配到分支标记，递增数字
+          const currentNumber = match[1] ? parseInt(match[1]) : 1;
+          const nextNumber = currentNumber + 1;
+          const baseTitle = title.replace(branchRegex, "");
+          return `${baseTitle} (分支${nextNumber})`;
+        }
+      };
+
+      const branchTitle = getBranchTitle(originalTitle);
 
       // 复制系统提示词
       const systemMessageData = await loadSystemMessageContentFromStorage(
@@ -1408,33 +1427,15 @@ function _Chat() {
         id: nanoid(), // 只更新ID，保持其他属性不变
       }));
 
-      // 使用新的branchSession方法，完全避免使用newSession()
+      // 使用新的branchSession方法，系统提示词会在内部自动保存
       const newSession = await chatStore.branchSession(
         session,
         messagesToCopy,
         systemMessageData,
-        branchTopic,
+        branchTitle,
       );
 
-      // 如果有系统提示词，保存到新会话的独立存储
-      if (
-        systemMessageData.text.trim() ||
-        systemMessageData.images.length > 0
-      ) {
-        // 保存系统消息到新会话的存储
-        await saveSystemMessageContentToStorage(
-          newSession.id,
-          systemMessageData.text,
-          systemMessageData.images,
-          systemMessageData.scrollTop,
-          systemMessageData.selection,
-        );
-
-        // 注意：不在 messages 中创建 system 消息，因为系统提示词独立存储
-        // prepareMessagesForApi 会在需要时动态加载和合并
-      }
-
-      chatStore.selectSession(0);
+      // branchSession 已经自动切换到新会话，无需再次调用 selectSession
     } catch (error) {
       console.error("分支会话失败:", error);
       showToast(Locale.Chat.Actions.BranchFailed);

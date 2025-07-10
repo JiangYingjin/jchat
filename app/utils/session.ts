@@ -137,6 +137,7 @@ export async function prepareMessagesForApi(
       const storedData = await systemMessageStorage.getSystemMessage(
         session.id,
       );
+
       // 只有当有有效内容时才创建 system 消息
       if (
         storedData &&
@@ -167,7 +168,9 @@ export async function prepareMessagesForApi(
   );
 
   // 合并所有消息，包含动态加载的 system message
-  return [...systemPrompt, ...recentMessages];
+  const finalMessages = [...systemPrompt, ...recentMessages];
+
+  return finalMessages;
 }
 
 /**
@@ -235,12 +238,27 @@ export function prepareSendMessages(
   userMessage: ChatMessage,
   messageIdx?: number,
 ): ChatMessage[] {
+  // **修复：分离系统消息和普通消息**
+  const systemMessages = recentMessages.filter((m) => m.role === "system");
+  const nonSystemMessages = recentMessages.filter((m) => m.role !== "system");
+
+  let finalNonSystemMessages: ChatMessage[];
+
   if (typeof messageIdx === "number" && messageIdx >= 0) {
-    // 只取到 messageIdx（含）为止的消息
-    return recentMessages.slice(0, messageIdx).concat(userMessage);
+    // messageIdx 只影响非系统消息的截取
+    finalNonSystemMessages = nonSystemMessages.slice(0, messageIdx);
   } else {
-    return recentMessages.concat(userMessage);
+    finalNonSystemMessages = nonSystemMessages;
   }
+
+  // **关键修复：系统消息总是包含在最前面**
+  const finalMessages = [
+    ...systemMessages,
+    ...finalNonSystemMessages,
+    userMessage,
+  ];
+
+  return finalMessages;
 }
 
 /**

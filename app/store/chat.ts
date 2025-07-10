@@ -210,10 +210,31 @@ export const useChatStore = createPersistStore(
         // 为新分支会话保存消息
         await get().saveSessionMessages(newSession);
 
+        // **修复：在状态更新前先保存系统提示词**
+        if (
+          systemMessageData &&
+          (systemMessageData.text.trim() || systemMessageData.images.length > 0)
+        ) {
+          try {
+            const success = await systemMessageStorage.saveSystemMessage(
+              newSession.id,
+              systemMessageData,
+            );
+            if (!success) {
+              console.error("保存系统提示词到新分支会话失败");
+            }
+          } catch (error) {
+            console.error("保存系统提示词到新分支会话失败:", error);
+          }
+        }
+
         set((state) => ({
           sessions: [newSession, ...state.sessions],
           currentSessionIndex: 0, // 切换到新创建的分支会话
         }));
+
+        // 确保新会话的消息已正确加载（虽然是新创建的，但为了保险起见）
+        await get().loadSessionMessages(0);
 
         return newSession;
       },
@@ -379,11 +400,13 @@ export const useChatStore = createPersistStore(
 
         // get recent messages
         let recentMessages = await get().prepareMessagesForApi();
+
         let sendMessages = prepareSendMessages(
           recentMessages,
           userMessage,
           messageIdx,
         );
+
         const messageIndex = session.messages.length + 1;
 
         // save user's and bot's message

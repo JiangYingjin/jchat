@@ -6,65 +6,40 @@ import { auth } from "./auth";
 
 const serverConfig = getServerSideConfig();
 
-export async function requestOpenai(req: NextRequest) {
+async function requestOpenai(req: NextRequest) {
   const controller = new AbortController();
-
-  const authValue = req.headers.get("Authorization") ?? "";
-  const authHeaderName = "Authorization";
-
-  let path = `${req.nextUrl.pathname}`.replaceAll("/api/openai/", "");
-
-  let baseUrl = serverConfig.baseUrl || OPENAI_BASE_URL;
-
-  if (!baseUrl.startsWith("http")) {
-    baseUrl = `https://${baseUrl}`;
-  }
-
-  if (baseUrl.endsWith("/")) {
-    baseUrl = baseUrl.slice(0, -1);
-  }
-
-  console.log("[Proxy] ", path);
-  console.log("[Base Url]", baseUrl);
-
-  const timeoutId = setTimeout(
-    () => {
-      controller.abort();
-    },
-    10 * 60 * 1000,
-  );
-
-  const fetchUrl = `${baseUrl}/${path}`;
-  // console.log("fetchUrl", fetchUrl);
-  const fetchOptions: RequestInit = {
-    headers: {
-      "Content-Type": "application/json",
-      "Cache-Control": "no-store",
-      [authHeaderName]: authValue,
-    },
-    method: req.method,
-    body: req.body,
-    // to fix #2485: https://stackoverflow.com/questions/55920957/cloudflare-worker-typeerror-one-time-use-body
-    redirect: "manual",
-    // @ts-ignore
-    duplex: "half",
-    signal: controller.signal,
-  };
+  const timeoutId = setTimeout(() => controller.abort(), 10 * 60 * 1000);
 
   try {
+    const path = req.nextUrl.pathname.replace("/api/openai/", "");
+    const base = serverConfig.baseUrl || OPENAI_BASE_URL;
+    const baseUrl = base.startsWith("http") ? base : `https://${base}`;
+
+    const fetchUrl = new URL(path, baseUrl);
+    console.log("[Proxy] ", path);
+    console.log("[Base Url]", baseUrl);
+
+    const fetchOptions: RequestInit = {
+      headers: {
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store",
+        Authorization: req.headers.get("Authorization") ?? "",
+      },
+      method: req.method,
+      body: req.body,
+      redirect: "manual",
+      // @ts-ignore
+      duplex: "half",
+      signal: controller.signal,
+    };
+
     const res = await fetch(fetchUrl, fetchOptions);
 
-    // to prevent browser prompt for credentials
+    // 复制并修改响应头
     const newHeaders = new Headers(res.headers);
     newHeaders.delete("www-authenticate");
-    // to disable nginx buffering
-    newHeaders.set("X-Accel-Buffering", "no");
-
-    // The latest version of the OpenAI API forced the content-encoding to be "br" in json response
-    // So if the streaming is disabled, we need to remove the content-encoding header
-    // Because Vercel uses gzip to compress the response, if we don't remove the content-encoding header
-    // The browser will try to decode the response with brotli and fail
-    newHeaders.delete("content-encoding");
+    newHeaders.delete("content-encoding"); // 解决Vercel的gzip和OpenAI的br编码冲突
+    newHeaders.set("X-Accel-Buffering", "no"); // 禁用nginx缓冲
 
     return new Response(res.body, {
       status: res.status,
@@ -76,44 +51,35 @@ export async function requestOpenai(req: NextRequest) {
   }
 }
 
+// 路由处理逻辑保持不变，因为它已经很清晰
 const ALLOWED_PATH = new Set(Object.values(OpenaiPath));
 
 export async function handle(
   req: NextRequest,
   { params }: { params: { path: string[] } },
 ) {
-  // console.log("[OpenAI Route] params ", params);
-
   if (req.method === "OPTIONS") {
-    return NextResponse.json({ body: "OK" }, { status: 200 });
+    return NextResponse.json({ body: "OK" });
   }
 
   const subpath = params.path.join("/");
 
   if (!ALLOWED_PATH.has(subpath)) {
-    // console.log("[OpenAI Route] forbidden path ", subpath);
     return NextResponse.json(
-      {
-        error: true,
-        msg: "you are not allowed to request " + subpath,
-      },
-      {
-        status: 403,
-      },
+      { error: true, msg: `You are not allowed to request ${subpath}` },
+      { status: 403 },
     );
   }
 
   const authResult = auth(req);
   if (authResult.error) {
-    return NextResponse.json(authResult, {
-      status: 401,
-    });
+    return NextResponse.json(authResult, { status: 401 });
   }
 
   try {
     return await requestOpenai(req);
   } catch (e) {
-    // console.error("[OpenAI] ", e);
-    return NextResponse.json(prettyObject(e));
+    console.error("[OpenAI Proxy Error]", e);
+    return NextResponse.json(prettyObject(e), { status: 500 });
   }
 }
