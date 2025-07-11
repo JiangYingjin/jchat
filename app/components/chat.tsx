@@ -100,12 +100,12 @@ import { isEmpty } from "lodash-es";
 
 import clsx from "clsx";
 
-import { ThinkingContent } from "./thinking-content";
 import { MessageContentEditPanel } from "./message-content-edit-panel";
 import { MessageListEditor } from "./message-list-editor";
 import { handleUnauthorizedResponse } from "../utils/auth";
 import { ChatInputPanel } from "./chat-input-panel";
 import { ChatHeader } from "./chat-header";
+import { ChatMessageItem } from "./chat-message-item";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
@@ -822,7 +822,7 @@ function usePasteImageUpload(
 }
 
 // 新增：消息操作按钮组件
-function MessageActions(props: {
+export function MessageActions(props: {
   message: ChatMessage;
   onResend: (message: ChatMessage) => void;
   onDelete: (msgId: string) => void;
@@ -1913,197 +1913,24 @@ function Chat() {
                 }
 
                 return (
-                  <Fragment key={message.id}>
-                    <div
-                      className={
-                        isUser
-                          ? styles["chat-message-user"]
-                          : styles["chat-message"]
-                      }
-                    >
-                      <div
-                        className={
-                          styles["chat-message-container"] +
-                          " " +
-                          (isUser
-                            ? styles["chat-message-container-user"]
-                            : styles["chat-message-container-assistant"])
-                        }
-                      >
-                        <div className={styles["chat-message-header"]}>
-                          {!isUser && (
-                            <div className={styles["chat-model-name"]}>
-                              {message.model}
-                            </div>
-                          )}
-
-                          {showActions && (
-                            <div className={styles["chat-message-actions"]}>
-                              <MessageActions
-                                message={message}
-                                onResend={onResend}
-                                onDelete={onDelete}
-                                onUserStop={onUserStop}
-                                onBranch={handleBranch}
-                                index={i}
-                              />
-                            </div>
-                          )}
-                        </div>
-                        {!isUser && message.reasoningContent && (
-                          <ThinkingContent
-                            message={message}
-                            onDoubleClick={(e) =>
-                              handleTripleClick(e, (select) => {
-                                handleEditMessage(
-                                  message,
-                                  "reasoningContent",
-                                  select,
-                                );
-                              })
-                            }
-                          />
-                        )}
-                        <div
-                          className={styles["chat-message-item"]}
-                          ref={(el) => {
-                            if (message.id) {
-                              messageRefs.current[message.id] = el;
-                            }
-                          }}
-                          onDoubleClick={async (e) => {
-                            if (message.streaming) return;
-                            // 用户消息保持双击编辑
-                            if (isUser) {
-                              handleEditMessage(message, "content");
-                            }
-                          }}
-                          onClick={(e) => {
-                            // 非用户消息使用三击编辑
-                            if (!isUser) {
-                              handleTripleClick(e, (select) => {
-                                handleEditMessage(message, "content", select);
-                              });
-                            }
-                          }}
-                        >
-                          {Array.isArray(message.content) ? (
-                            message.content.map((content, index) => (
-                              <Fragment key={index}>
-                                {content.type === "text" && (
-                                  <Markdown
-                                    key={
-                                      message.streaming
-                                        ? "loading"
-                                        : `text-${index}`
-                                    }
-                                    content={content.text || ""}
-                                    loading={
-                                      (message.preview || message.streaming) &&
-                                      !content.text &&
-                                      !isUser &&
-                                      (
-                                        message.content as MultimodalContent[]
-                                      ).every((c) => c.type === "text")
-                                    }
-                                    onDoubleClickCapture={() => {
-                                      if (!isMobileScreen) return;
-                                      setUserInput(content.text || "");
-                                    }}
-                                    parentRef={scrollRef}
-                                    defaultShow={i >= messages.length - 6}
-                                  />
-                                )}
-                                {content.type === "image_url" &&
-                                  content.image_url?.url && (
-                                    <img
-                                      className={
-                                        styles["chat-message-item-image"]
-                                      }
-                                      src={content.image_url.url}
-                                      alt=""
-                                    />
-                                  )}
-                              </Fragment>
-                            ))
-                          ) : (
-                            <>
-                              <Markdown
-                                key={message.streaming ? "loading" : "done"}
-                                content={getMessageTextContent(message)}
-                                loading={
-                                  (message.preview || message.streaming) &&
-                                  message.content.length === 0 &&
-                                  !isUser
-                                }
-                                onDoubleClickCapture={() => {
-                                  if (!isMobileScreen) return;
-                                  setUserInput(getMessageTextContent(message));
-                                }}
-                                parentRef={scrollRef}
-                                defaultShow={i >= messages.length - 6}
-                              />
-                              {getMessageImages(message).length == 1 && (
-                                <img
-                                  className={styles["chat-message-item-image"]}
-                                  src={getMessageImages(message)[0]}
-                                  alt=""
-                                />
-                              )}
-                              {getMessageImages(message).length > 1 && (
-                                <div
-                                  className={styles["chat-message-item-images"]}
-                                  style={
-                                    {
-                                      "--image-count":
-                                        getMessageImages(message).length,
-                                    } as React.CSSProperties
-                                  }
-                                >
-                                  {getMessageImages(message).map(
-                                    (image, index) => (
-                                      <img
-                                        className={
-                                          styles[
-                                            "chat-message-item-image-multi"
-                                          ]
-                                        }
-                                        key={index}
-                                        src={image}
-                                        alt=""
-                                      />
-                                    ),
-                                  )}
-                                </div>
-                              )}
-                            </>
-                          )}
-                        </div>
-
-                        {/* 将底部操作按钮组移到这里，只在非用户消息时显示 */}
-                        {!isUser &&
-                          messageHeights[message.id ?? ""] >
-                            window.innerHeight * 0.1 && (
-                            <div
-                              className={styles["chat-message-bottom-actions"]}
-                            >
-                              <MessageActions
-                                message={message}
-                                onResend={onResend}
-                                onDelete={onDelete}
-                                onUserStop={onUserStop}
-                                onBranch={handleBranch}
-                                index={i}
-                              />
-                            </div>
-                          )}
-
-                        <div className={styles["chat-message-action-date"]}>
-                          {message.date.toLocaleString()}
-                        </div>
-                      </div>
-                    </div>
-                  </Fragment>
+                  <ChatMessageItem
+                    key={message.id}
+                    message={message}
+                    index={i}
+                    isUser={isUser}
+                    showActions={showActions}
+                    messageRefs={messageRefs}
+                    scrollRef={scrollRef}
+                    messageHeights={messageHeights}
+                    isMobileScreen={isMobileScreen}
+                    onResend={onResend}
+                    onDelete={onDelete}
+                    onUserStop={onUserStop}
+                    onBranch={handleBranch}
+                    onEditMessage={handleEditMessage}
+                    handleTripleClick={handleTripleClick}
+                    setUserInput={setUserInput}
+                  />
                 );
               })}
             </div>
