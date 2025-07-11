@@ -48,7 +48,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
   const isMobileScreen = useMobileScreen();
 
   // 调试开关 - 可以通过这个开关控制调试信息输出
-  const DEBUG_ENABLED = true; // 设为 false 可关闭所有调试信息
+  const DEBUG_ENABLED = false; // 关闭调试信息
 
   // 添加调试信息
   const debugLog = (action: string, value?: any) => {
@@ -57,32 +57,43 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
     }
   };
 
-  // 临时调试：监控函数调用频率，处理 React StrictMode 双重调用
+  // 调试：监控函数调用频率，处理 React StrictMode 双重调用
   const callCountRef = useRef(0);
   const lastCallTimeRef = useRef(0);
   const sessionRef = useRef(sessionId);
+  const strictModeCallRef = useRef(false);
 
   const debugCallFrequency = (action: string) => {
     if (!DEBUG_ENABLED) return;
 
     const now = Date.now();
 
-    // 如果 sessionId 变化，重置计数器
+    // 如果 sessionId 变化，重置计数器 (sessionRef 在 useEffect 中更新)
     if (sessionRef.current !== sessionId) {
       callCountRef.current = 0;
-      sessionRef.current = sessionId;
+      strictModeCallRef.current = false;
     }
 
     callCountRef.current++;
     const timeSinceLastCall = now - lastCallTimeRef.current;
 
-    // React StrictMode 会在开发环境双重调用，间隔很短是正常的
-    if (timeSinceLastCall < 100 && callCountRef.current > 2) {
+    // 检测 React StrictMode 双重调用模式
+    if (timeSinceLastCall < 50 && callCountRef.current === 2) {
+      strictModeCallRef.current = true;
+      console.info(
+        `[ChatInput][INFO] 检测到 React StrictMode 双重调用 - 这是开发模式下的正常行为`,
+        `sessionId: ${sessionId.substring(0, 8)}...`,
+      );
+    }
+
+    // 只有在非 StrictMode 情况下才警告频繁调用
+    if (
+      timeSinceLastCall < 100 &&
+      callCountRef.current > 2 &&
+      !strictModeCallRef.current
+    ) {
       console.warn(
         `[ChatInput][WARN] ${action} 调用过于频繁！间隔: ${timeSinceLastCall}ms, 总计: ${callCountRef.current}`,
-        process.env.NODE_ENV === "development"
-          ? "(可能是 React StrictMode 导致)"
-          : "",
       );
     }
 
@@ -164,14 +175,20 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
 
   // 移除了重复的 loadChatInputToState 函数，逻辑已移至 useEffect 中
 
-  // 会话切换时加载数据 - 使用更稳定的依赖管理
+  // 会话切换时加载数据 - 优化处理 React StrictMode 双重调用
   useEffect(() => {
     debugLog("SessionChange", sessionId);
     // 监控调用频率
     debugCallFrequency("LoadFromStorage");
 
-    // 重置加载状态，确保新会话能正常加载
-    isLoadingRef.current = false;
+    // 检查是否是同一个会话的重复调用（React StrictMode）
+    if (sessionRef.current === sessionId && isLoadingRef.current) {
+      debugLog("LoadFromStorage", "StrictMode 双重调用，跳过");
+      return;
+    }
+
+    // 更新会话引用
+    sessionRef.current = sessionId;
 
     // 创建一个本地的加载函数，避免依赖外部函数引用
     const loadDataForSession = async () => {
@@ -183,7 +200,10 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
       try {
         isLoadingRef.current = true;
         setIsLoadingFromStorage(true);
-        debugLog("LoadFromStorage", "starting");
+        debugLog(
+          "LoadFromStorage",
+          `starting for session: ${sessionId.substring(0, 8)}...`,
+        );
 
         const data = await chatInputStorage.getChatInput(sessionId);
 
@@ -193,6 +213,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
         setUserInput(textContent);
         debugLog("LoadFromStorage", {
           textContent: textContent.substring(0, 50) + "...",
+          hasData: !!data,
         });
 
         // 设置图片
@@ -226,10 +247,22 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
       } finally {
         isLoadingRef.current = false;
         setIsLoadingFromStorage(false);
+        debugLog("LoadFromStorage", "completed");
       }
     };
 
     loadDataForSession();
+
+    // 清理函数 - 在组件卸载或 sessionId 变化时执行
+    return () => {
+      debugLog("Cleanup", `for session: ${sessionId.substring(0, 8)}...`);
+      // 如果加载中途切换会话，重置加载状态
+      if (isLoadingRef.current) {
+        isLoadingRef.current = false;
+        setIsLoadingFromStorage(false);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]); // 只依赖 sessionId
 
   // auto grow input - 优化measure函数，减少频繁调用
@@ -259,6 +292,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
   // 只在userInput长度有显著变化或包含换行符时才触发measure
   useEffect(() => {
     measure();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userInput.length, userInput.includes("\n"), isMobileScreen]);
 
   // 修复onInput函数 - 始终更新userInput状态，确保受控组件正常工作
