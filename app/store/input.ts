@@ -78,6 +78,31 @@ class ChatInputStorage {
       return [];
     }
   }
+
+  // 保存图片数据
+  async saveChatInputImages(
+    sessionId: string,
+    images: string[],
+  ): Promise<boolean> {
+    try {
+      const currentData = (await this.getChatInput(sessionId)) || {
+        text: "",
+        images: [],
+        scrollTop: 0,
+        selection: { start: 0, end: 0 },
+        updateAt: Date.now(),
+      };
+
+      return await this.saveChatInput(sessionId, {
+        ...currentData,
+        images,
+        updateAt: Date.now(),
+      });
+    } catch (error) {
+      console.error("[ChatInput][Save] 保存图片失败:", error);
+      return false;
+    }
+  }
 }
 
 // 创建全局实例

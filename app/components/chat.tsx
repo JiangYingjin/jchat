@@ -62,7 +62,8 @@ import {
   getMessageImages,
 } from "../utils";
 
-import { uploadImage as uploadImageRemote } from "@/app/utils/chat";
+import { shouldAutoSwitchModel } from "../utils/model";
+import { capturePhoto, uploadImage } from "../utils/file-upload";
 
 import dynamic from "next/dynamic";
 
@@ -772,27 +773,6 @@ function Chat() {
     }
   }
 
-  // 保存图片数据
-  async function saveChatInputImages(images: string[]) {
-    try {
-      const currentData = (await chatInputStorage.getChatInput(session.id)) || {
-        text: "",
-        images: [],
-        scrollTop: 0,
-        selection: { start: 0, end: 0 },
-        updateAt: Date.now(),
-      };
-      await chatInputStorage.saveChatInput(session.id, {
-        ...currentData,
-        images,
-        updateAt: Date.now(),
-      });
-      // console.log("[ChatInput][Save] 保存图片到 IndexedDB:", images);
-    } catch (e) {
-      console.error("[ChatInput][Save] 保存图片失败:", e);
-    }
-  }
-
   // 加载聊天输入数据到组件状态
   const loadChatInputToState = useCallback(async () => {
     // 如果正在从存储加载，避免重复执行
@@ -1227,7 +1207,7 @@ function Chat() {
     attachImages,
     async (images) => {
       setAttachImages(images);
-      await saveChatInputImages(images);
+      await chatInputStorage.saveChatInputImages(session.id, images);
     },
     setUploading,
     (content) => {
@@ -1237,91 +1217,28 @@ function Chat() {
     },
   );
 
-  async function capturePhoto() {
-    const images: string[] = [];
-    images.push(...attachImages);
-
-    // 使用原生相机拍照
-    const newImages = await new Promise<string[]>((resolve, reject) => {
-      const fileInput = document.createElement("input");
-      fileInput.type = "file";
-      fileInput.accept = "image/*";
-      fileInput.capture = "environment"; // 调用后置摄像头
-      fileInput.multiple = false;
-
-      fileInput.onchange = async (event: any) => {
-        const file = event.target.files?.[0];
-        if (!file) {
-          resolve([]);
-          return;
-        }
-
-        try {
-          setUploading(true);
-          const dataUrl = await uploadImageRemote(file);
-          setUploading(false);
-          resolve([dataUrl]);
-        } catch (error) {
-          setUploading(false);
-          console.error("上传拍照图片失败:", error);
-          showToast("图片上传失败，请重试");
-          reject(error);
-        }
-      };
-
-      // 如果用户取消拍照，也需要处理
-      fileInput.oncancel = () => {
-        resolve([]);
-      };
-
-      fileInput.click();
-    });
-
-    if (newImages.length > 0) {
-      images.push(...newImages);
-      setAttachImages(images);
-      await saveChatInputImages(images);
-    }
-  }
-
-  async function uploadImage() {
-    const images: string[] = [];
-    images.push(...attachImages);
-
-    images.push(
-      ...(await new Promise<string[]>((res, rej) => {
-        const fileInput = document.createElement("input");
-        fileInput.type = "file";
-        fileInput.accept =
-          "image/png, image/jpeg, image/webp, image/heic, image/heif, image/gif";
-        fileInput.multiple = true;
-        fileInput.onchange = (event: any) => {
-          setUploading(true);
-          const files = event.target.files;
-          const imagesData: string[] = [];
-          for (let i = 0; i < files.length; i++) {
-            const file = event.target.files[i];
-            uploadImageRemote(file)
-              .then((dataUrl) => {
-                imagesData.push(dataUrl);
-                if (imagesData.length === files.length) {
-                  setUploading(false);
-                  res(imagesData);
-                }
-              })
-              .catch((e) => {
-                setUploading(false);
-                rej(e);
-              });
-          }
-        };
-        fileInput.click();
-      })),
+  // 包装函数，适配原有的接口
+  const handleCapturePhoto = async () => {
+    await capturePhoto(
+      attachImages,
+      setAttachImages,
+      setUploading,
+      async (images: string[]) => {
+        await chatInputStorage.saveChatInputImages(session.id, images);
+      },
     );
+  };
 
-    setAttachImages(images);
-    await saveChatInputImages(images); // 新增：保存图片
-  }
+  const handleUploadImage = async () => {
+    await uploadImage(
+      attachImages,
+      setAttachImages,
+      setUploading,
+      async (images: string[]) => {
+        await chatInputStorage.saveChatInputImages(session.id, images);
+      },
+    );
+  };
 
   const [showChatSidePanel, setShowChatSidePanel] = useState(false);
   const [showSystemPromptEdit, setShowSystemPromptEdit] = useState(false);
@@ -1334,37 +1251,6 @@ function Chat() {
   });
 
   const handleTripleClick = useTripleClick(messageEditRef);
-
-  // 检查是否应该自动切换模型的工具函数
-  const shouldAutoSwitchModel = (
-    systemPromptLength: number,
-    isManuallySelected: boolean,
-  ) => {
-    // 如果用户手动选择了模型，不自动切换
-    if (isManuallySelected) {
-      console.log("[AutoSwitch] 用户已手动选择模型，跳过自动切换");
-      return false;
-    }
-
-    // 如果系统提示词长度不超过512字符，不自动切换
-    if (systemPromptLength < 512) {
-      console.log(
-        `[AutoSwitch] 系统提示词长度 ${systemPromptLength} 字符，不需要自动切换`,
-      );
-      return false;
-    }
-
-    // 检查是否存在目标模型
-    const targetModel = allModels.find((m) => m === PRO_MODEL);
-    if (!targetModel) {
-      console.log(
-        `[AutoSwitch] 目标模型 ${PRO_MODEL} 不存在或不可用，跳过自动切换`,
-      );
-      return false;
-    }
-
-    return true;
-  };
 
   // 处理系统提示词保存
   const handleSystemPromptSave = (
@@ -1398,6 +1284,7 @@ function Chat() {
           shouldAutoSwitchModel(
             systemPromptLength,
             session.isModelManuallySelected ?? false,
+            allModels,
           )
         ) {
           // 检查是否存在 jyj.cx/pro 模型
@@ -1556,8 +1443,8 @@ function Chat() {
               inputRef={inputRef}
             />
             <ChatInputPanel
-              uploadImage={uploadImage}
-              capturePhoto={capturePhoto}
+              uploadImage={handleUploadImage}
+              capturePhoto={handleCapturePhoto}
               uploading={uploading}
               setAttachImages={setAttachImages}
               setUserInput={setUserInput}
@@ -1569,7 +1456,9 @@ function Chat() {
               inputRows={inputRows}
               autoFocus={autoFocus}
               attachImages={attachImages}
-              saveChatInputImages={saveChatInputImages}
+              saveChatInputImages={async (images: string[]) => {
+                await chatInputStorage.saveChatInputImages(session.id, images);
+              }}
               saveChatInputText={saveChatInputText}
               saveChatInputSelection={saveChatInputSelection}
               saveChatInputScrollTop={saveChatInputScrollTop}
