@@ -31,7 +31,6 @@ interface ChatMessageItemProps {
     e: React.MouseEvent,
     callback: (select: { anchorText: string; extendText: string }) => void,
   ) => void;
-  setUserInput: (input: string) => void;
 }
 
 export function ChatMessageItem({
@@ -49,7 +48,6 @@ export function ChatMessageItem({
   onBranch,
   onEditMessage,
   handleTripleClick,
-  setUserInput,
 }: ChatMessageItemProps) {
   return (
     <Fragment key={message.id}>
@@ -138,8 +136,9 @@ export function ChatMessageItem({
                         )
                       }
                       onDoubleClickCapture={() => {
-                        if (!isMobileScreen) return;
-                        setUserInput(content.text || "");
+                        // 移除移动端双击设置输入框的功能，因为输入逻辑已迁移到 ChatInputPanel
+                        // if (!isMobileScreen) return;
+                        // setUserInput(content.text || "");
                       }}
                       parentRef={scrollRef}
                       defaultShow={index >= 6}
@@ -165,8 +164,9 @@ export function ChatMessageItem({
                     !isUser
                   }
                   onDoubleClickCapture={() => {
-                    if (!isMobileScreen) return;
-                    setUserInput(getMessageTextContent(message));
+                    // 移除移动端双击设置输入框的功能，因为输入逻辑已迁移到 ChatInputPanel
+                    // if (!isMobileScreen) return;
+                    // setUserInput(getMessageTextContent(message));
                   }}
                   parentRef={scrollRef}
                   defaultShow={index >= 6}

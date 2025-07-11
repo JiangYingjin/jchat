@@ -7,15 +7,10 @@ import React, {
   useCallback,
 } from "react";
 
-import {
-  useSubmitHandler,
-  useTripleClick,
-  usePasteImageUpload,
-} from "../utils/hooks";
+import { useSubmitHandler, useTripleClick } from "../utils/hooks";
 import {
   ChatMessage,
   useChatStore,
-  chatInputStorage,
   SystemMessageData,
   saveSystemMessageContentToStorage,
   loadSystemMessageContentFromStorage,
@@ -24,7 +19,6 @@ import {
 import { updateSessionStats } from "../utils/session";
 
 import {
-  autoGrowTextArea,
   useMobileScreen,
   getMessageTextContent,
   getMessageTextReasoningContent,
@@ -32,7 +26,6 @@ import {
 } from "../utils";
 
 import { determineModelForSystemPrompt } from "../utils/model";
-import { capturePhoto, uploadImage } from "../utils/file-upload";
 
 import { ChatControllerPool } from "../client/controller";
 
@@ -41,7 +34,7 @@ import Locale from "../locales";
 import styles from "./chat.module.scss";
 import { showToast } from "./ui-lib";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { REQUEST_TIMEOUT_MS, PRO_MODEL } from "../constant";
+import { REQUEST_TIMEOUT_MS } from "../constant";
 import { prettyObject } from "../utils/format";
 import { ExportMessageModal } from "./exporter";
 import { isEmpty } from "lodash-es";
@@ -63,143 +56,9 @@ function Chat() {
   const session = chatStore.currentSession();
   const allModels = chatStore.models;
 
-  // 记住未完成输入的防抖保存函数，间隔放宽到 500ms
-  const saveChatInputText = useDebouncedCallback(async (value: string) => {
-    try {
-      // 双重检查：如果当前输入框已经为空，说明已经发送或清理，不应该保存旧值
-      const currentInputValue = inputRef.current?.value ?? "";
-      if (value.trim() !== "" && currentInputValue.trim() === "") {
-        return;
-      }
-      const currentData = (await chatInputStorage.getChatInput(session.id)) || {
-        text: "",
-        images: [],
-        scrollTop: 0,
-        selection: { start: 0, end: 0 },
-        updateAt: Date.now(),
-      };
-      const newData = {
-        ...currentData,
-        text: value,
-        updateAt: Date.now(),
-      };
-      await chatInputStorage.saveChatInput(session.id, newData);
-    } catch (e) {
-      console.error("[ChatInput][Save] 保存未完成输入失败:", e);
-    }
-  }, 500);
-
-  // 立即保存 scrollTop
-  async function saveChatInputScrollTop(scrollTop: number) {
-    try {
-      const currentData = (await chatInputStorage.getChatInput(session.id)) || {
-        text: "",
-        images: [],
-        scrollTop: 0,
-        selection: { start: 0, end: 0 },
-        updateAt: Date.now(),
-      };
-      await chatInputStorage.saveChatInput(session.id, {
-        ...currentData,
-        scrollTop,
-        updateAt: Date.now(),
-      });
-      // console.log("[ChatInput][Save] 保存 scrollTop 到 IndexedDB:", scrollTop);
-    } catch (e) {
-      console.error("[ChatInput][Save] 保存 scrollTop 失败:", e);
-    }
-  }
-
-  // 保存光标位置（立即保存，无防抖）
-  async function saveChatInputSelection(selection: {
-    start: number;
-    end: number;
-  }) {
-    try {
-      const currentData = (await chatInputStorage.getChatInput(session.id)) || {
-        text: "",
-        images: [],
-        scrollTop: 0,
-        selection: { start: 0, end: 0 },
-        updateAt: Date.now(),
-      };
-      const newData = {
-        ...currentData,
-        selection,
-        updateAt: Date.now(),
-      };
-      await chatInputStorage.saveChatInput(session.id, newData);
-    } catch (e) {
-      console.error("[ChatInput][Save] 保存光标位置失败:", e);
-    }
-  }
-
-  // 加载聊天输入数据到组件状态
-  const loadChatInputToState = useCallback(async () => {
-    // 如果正在从存储加载，避免重复执行
-    if (isLoadingFromStorageRef.current) return;
-
-    try {
-      isLoadingFromStorageRef.current = true;
-      // 直接在这里实现 loadChatInputData 的逻辑，避免依赖问题
-      const data = await chatInputStorage.getChatInput(session.id);
-
-      // 无论 data 是否存在，都要安全地设置状态
-      // 设置文本内容
-      const textContent =
-        data?.text && data.text.trim() !== "" ? data.text : "";
-      setUserInput(textContent);
-      // 使用 setTimeout 确保 DOM 已经渲染
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.value = textContent;
-        }
-      }, 0);
-
-      // 设置图片
-      const imageContent =
-        data?.images && data.images.length > 0 ? data.images : [];
-      setAttachImages(imageContent);
-
-      // 设置滚动位置和光标位置
-      setTimeout(() => {
-        if (inputRef.current) {
-          // 设置滚动位置
-          const scrollTop = data?.scrollTop || 0;
-          inputRef.current.scrollTop = scrollTop;
-
-          // 设置光标位置
-          const selection = data?.selection || { start: 0, end: 0 };
-          inputRef.current.setSelectionRange(selection.start, selection.end);
-        }
-      }, 0);
-    } catch (e) {
-      console.error("[ChatInput][Load] 加载聊天输入数据到状态失败:", e);
-      // 发生错误时也要清空状态
-      setUserInput("");
-      setAttachImages([]);
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.value = "";
-          inputRef.current.scrollTop = 0;
-          inputRef.current.setSelectionRange(0, 0);
-        }
-      }, 0);
-    } finally {
-      isLoadingFromStorageRef.current = false;
-    }
-  }, [session.id]); // 只依赖 session.id，避免无限循环
-
-  // 会话切换时加载数据
-  useEffect(() => {
-    loadChatInputToState();
-  }, [session.id, loadChatInputToState]);
-
   const [showExport, setShowExport] = useState(false);
 
-  const inputRef = useRef<HTMLTextAreaElement>(null);
   const messageEditRef = useRef<HTMLTextAreaElement>(null);
-  const [userInput, setUserInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const { shouldSubmit } = useSubmitHandler();
 
@@ -211,10 +70,6 @@ function Chat() {
   const [hitBottom, setHitBottom] = useState(true);
   const isMobileScreen = useMobileScreen();
   const navigate = useNavigate();
-  const [attachImages, setAttachImages] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
-
-  const isLoadingFromStorageRef = useRef(false);
 
   // 设置全局未授权处理函数
   useEffect(() => {
@@ -241,82 +96,13 @@ function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobileScreen, session.longInputMode, chatStore]);
 
-  // auto grow input
-  const [inputRows, setInputRows] = useState(2);
-  const measure = useDebouncedCallback(
-    () => {
-      const rows = inputRef.current ? autoGrowTextArea(inputRef.current) : 1;
-      const inputRows = Math.min(
-        20,
-        Math.max(2 + Number(!isMobileScreen), rows),
-      );
-      setInputRows(inputRows);
-    },
-    100,
-    {
-      leading: true,
-      trailing: true,
-    },
-  );
-
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(measure, [userInput]);
-
-  // onInput 只做本地保存，不 setUserInput
-  const onInput = (
-    text: string,
-    event?: React.FormEvent<HTMLTextAreaElement>,
-  ) => {
-    saveChatInputText(text); // 只防抖保存 text
-    // 立即保存光标位置（无防抖）
-    if (event?.currentTarget) {
-      const selectionStart = event.currentTarget.selectionStart;
-      const selectionEnd = event.currentTarget.selectionEnd;
-      saveChatInputSelection({ start: selectionStart, end: selectionEnd });
-    }
-    // 只要内容有换行或长度变化较大（如粘贴/多行输入），就 setUserInput
-    if (
-      text.includes("\n") ||
-      (userInput && Math.abs(text.length - userInput.length) > 1)
-    ) {
-      setUserInput(text);
-    }
-  };
-
-  const doSubmit = (input: string) => {
-    const value = inputRef.current?.value ?? input;
-    if (value.trim() === "" && isEmpty(attachImages)) return;
-
-    // 取消防抖的文本保存，避免延迟保存旧内容
-    saveChatInputText.cancel && saveChatInputText.cancel();
+  // 处理消息提交
+  const handleSubmit = (text: string, images: string[]) => {
+    if (text.trim() === "" && isEmpty(images)) return;
 
     setIsLoading(true);
-    chatStore
-      .onSendMessage(value, attachImages)
-      .then(() => setIsLoading(false));
-    setAttachImages([]);
+    chatStore.onSendMessage(text, images).then(() => setIsLoading(false));
 
-    setUserInput("");
-    if (inputRef.current) inputRef.current.value = "";
-
-    // 立即保存空数据到 IndexedDB，避免竞态条件
-    const clearChatInput = async () => {
-      try {
-        const emptyData = {
-          text: "",
-          images: [],
-          scrollTop: 0,
-          selection: { start: 0, end: 0 },
-          updateAt: Date.now(),
-        };
-        await chatInputStorage.saveChatInput(session.id, emptyData);
-      } catch (e) {
-        console.error("[ChatInput][Clear] 保存空聊天输入数据失败:", e);
-      }
-    };
-    clearChatInput();
-
-    if (!isMobileScreen) inputRef.current?.focus();
     setAutoScroll(true);
   };
 
@@ -364,24 +150,6 @@ function Chat() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
-
-  // check if should send message
-  const onInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // 如果是长输入模式，Enter 换行，Ctrl+Enter 发送
-    if (session.longInputMode) {
-      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-        doSubmit(userInput);
-        e.preventDefault();
-      }
-      // 仅 Enter 时不发送，交给浏览器默认行为（换行）
-      return;
-    }
-    // 普通模式
-    if (shouldSubmit(e)) {
-      doSubmit(userInput);
-      e.preventDefault();
-    }
-  };
 
   const deleteMessage = async (msgId?: string) => {
     chatStore.updateTargetSession(session, (session) => {
@@ -433,7 +201,6 @@ function Chat() {
     chatStore
       .onSendMessage(textContent, images, requestIndex)
       .then(() => setIsLoading(false));
-    inputRef.current?.focus();
   };
 
   // 分支到新会话
@@ -472,44 +239,6 @@ function Chat() {
 
   // edit / insert message modal
   const [isEditingMessage, setIsEditingMessage] = useState(false);
-
-  // 使用自定义 hook 处理粘贴上传图片
-  const handlePaste = usePasteImageUpload(
-    attachImages,
-    async (images) => {
-      setAttachImages(images);
-      await chatInputStorage.saveChatInputImages(session.id, images);
-    },
-    setUploading,
-    (content) => {
-      setUserInput(content);
-      saveChatInputText(content);
-      console.log("[ChatInput][Save][Paste] 粘贴后保存未完成输入:", content);
-    },
-  );
-
-  // 包装函数，适配原有的接口
-  const handleCapturePhoto = async () => {
-    await capturePhoto(
-      attachImages,
-      setAttachImages,
-      setUploading,
-      async (images: string[]) => {
-        await chatInputStorage.saveChatInputImages(session.id, images);
-      },
-    );
-  };
-
-  const handleUploadImage = async () => {
-    await uploadImage(
-      attachImages,
-      setAttachImages,
-      setUploading,
-      async (images: string[]) => {
-        await chatInputStorage.saveChatInputImages(session.id, images);
-      },
-    );
-  };
 
   const [showSystemPromptEdit, setShowSystemPromptEdit] = useState(false);
   const [systemPromptData, setSystemPromptData] = useState<SystemMessageData>({
@@ -692,33 +421,15 @@ function Chat() {
               onBranch={handleBranch}
               onEditMessage={handleEditMessage}
               handleTripleClick={handleTripleClick}
-              setUserInput={setUserInput}
               autoScroll={autoScroll}
               setAutoScroll={setAutoScroll}
               setHitBottom={setHitBottom}
-              inputRef={inputRef}
             />
             <ChatInputPanel
-              uploadImage={handleUploadImage}
-              capturePhoto={handleCapturePhoto}
-              uploading={uploading}
-              setAttachImages={setAttachImages}
-              setUserInput={setUserInput}
-              userInput={userInput}
-              inputRef={inputRef}
-              onInput={onInput}
-              onInputKeyDown={onInputKeyDown}
-              handlePaste={handlePaste}
-              inputRows={inputRows}
+              onSubmit={handleSubmit}
+              sessionId={session.id}
               autoFocus={autoFocus}
-              attachImages={attachImages}
-              saveChatInputImages={async (images: string[]) => {
-                await chatInputStorage.saveChatInputImages(session.id, images);
-              }}
-              saveChatInputText={saveChatInputText}
-              saveChatInputSelection={saveChatInputSelection}
-              saveChatInputScrollTop={saveChatInputScrollTop}
-              doSubmit={doSubmit}
+              longInputMode={session.longInputMode}
             />
           </div>
         </div>

@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useLayoutEffect } from "react";
 import clsx from "clsx";
 import styles from "./chat.module.scss";
 import LoadingIcon from "../icons/three-dots.svg";
@@ -51,10 +51,19 @@ export function ChatAction(props: {
         : props.style;
 
   // 保证 alwaysFullWidth 时宽度总是最新
-  useEffect(() => {
-    if (props.alwaysFullWidth) {
-      updateWidth();
+  useLayoutEffect(() => {
+    if (props.alwaysFullWidth && iconRef.current && textRef.current) {
+      // 只在依赖变化时测量一次
+      const getWidth = (dom: HTMLDivElement) =>
+        dom.getBoundingClientRect().width;
+      const textWidth = getWidth(textRef.current);
+      const iconWidth = getWidth(iconRef.current);
+      setWidth({
+        full: textWidth + iconWidth,
+        icon: iconWidth,
+      });
     }
+    // 依赖项不要加 width
   }, [props.text, props.icon, props.alwaysFullWidth]);
 
   return (
@@ -149,10 +158,19 @@ export function DoubleClickChatAction(props: {
         : props.style;
 
   // 保证 alwaysFullWidth 时宽度总是最新
-  useEffect(() => {
-    if (props.alwaysFullWidth) {
-      updateWidth();
+  useLayoutEffect(() => {
+    if (props.alwaysFullWidth && iconRef.current && textRef.current) {
+      // 只在依赖变化时测量一次
+      const getWidth = (dom: HTMLDivElement) =>
+        dom.getBoundingClientRect().width;
+      const textWidth = getWidth(textRef.current);
+      const iconWidth = getWidth(iconRef.current);
+      setWidth({
+        full: textWidth + iconWidth,
+        icon: iconWidth,
+      });
     }
+    // 依赖项不要加 width
   }, [props.text, props.icon, props.alwaysFullWidth]);
 
   const handleClick = () => {

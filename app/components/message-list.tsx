@@ -22,11 +22,9 @@ interface MessageListProps {
     e: React.MouseEvent,
     callback: (select: { anchorText: string; extendText: string }) => void,
   ) => void;
-  setUserInput: (input: string) => void;
   autoScroll: boolean;
   setAutoScroll: (autoScroll: boolean) => void;
   setHitBottom: (hitBottom: boolean) => void;
-  inputRef: React.RefObject<HTMLTextAreaElement>;
 }
 
 export function MessageList({
@@ -37,11 +35,9 @@ export function MessageList({
   onBranch,
   onEditMessage,
   handleTripleClick,
-  setUserInput,
   autoScroll,
   setAutoScroll,
   setHitBottom,
-  inputRef,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobileScreen = useMobileScreen();
@@ -151,9 +147,19 @@ export function MessageList({
       className={styles["chat-body"]}
       ref={scrollRef}
       onScroll={(e) => onChatBodyScroll(e.currentTarget)}
-      onMouseDown={() => inputRef.current?.blur()}
+      onMouseDown={() => {
+        // 移除对 inputRef 的依赖，改为通用的失焦处理
+        const activeElement = document.activeElement as HTMLElement;
+        if (activeElement && activeElement.tagName === "TEXTAREA") {
+          activeElement.blur();
+        }
+      }}
       onTouchStart={() => {
-        inputRef.current?.blur();
+        // 移除对 inputRef 的依赖，改为通用的失焦处理
+        const activeElement = document.activeElement as HTMLElement;
+        if (activeElement && activeElement.tagName === "TEXTAREA") {
+          activeElement.blur();
+        }
         setAutoScroll(false);
       }}
     >
@@ -184,7 +190,6 @@ export function MessageList({
             onBranch={onBranch}
             onEditMessage={onEditMessage}
             handleTripleClick={handleTripleClick}
-            setUserInput={setUserInput}
           />
         );
       })}
