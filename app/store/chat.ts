@@ -223,6 +223,13 @@ export const useChatStore = createPersistStore(
         await get().loadSessionMessages(0);
       },
 
+      newGroup(group: ChatGroup) {
+        set((state) => ({
+          currentGroupIndex: 0,
+          groups: [group].concat(state.groups),
+        }));
+      },
+
       // 分支会话：创建一个包含指定消息历史的新会话
       async branchSession(
         originalSession: ChatSession,
@@ -776,55 +783,55 @@ export const useChatStore = createPersistStore(
     },
 
     migrate(persistedState: any, version: number) {
-      // 从版本 5.3 迁移到 5.4：添加分组功能
-      if (version < 5.4) {
-        console.log("[Store] Migrating from version", version, "to 5.4");
+      // // 从版本 5.3 迁移到 5.4：添加分组功能
+      // if (version < 5.4) {
+      //   console.log("[Store] Migrating from version", version, "to 5.4");
 
-        const migratedState = { ...persistedState };
+      //   const migratedState = { ...persistedState };
 
-        // 1. 为所有 ChatSession 添加 groupId 字段
-        if (migratedState.sessions && Array.isArray(migratedState.sessions)) {
-          migratedState.sessions = migratedState.sessions.map(
-            (session: any) => {
-              if (session && typeof session === "object") {
-                return {
-                  ...session,
-                  groupId: null, // 默认所有会话都不属于任何分组
-                };
-              }
-              return session;
-            },
-          );
-        }
+      //   // 1. 为所有 ChatSession 添加 groupId 字段
+      //   if (migratedState.sessions && Array.isArray(migratedState.sessions)) {
+      //     migratedState.sessions = migratedState.sessions.map(
+      //       (session: any) => {
+      //         if (session && typeof session === "object") {
+      //           return {
+      //             ...session,
+      //             groupId: null, // 默认所有会话都不属于任何分组
+      //           };
+      //         }
+      //         return session;
+      //       },
+      //     );
+      //   }
 
-        // 2. 添加新的分组相关字段
-        migratedState.groups = [];
-        migratedState.groupSessions = {};
-        migratedState.currentGroupIndex = 0;
+      //   // 2. 添加新的分组相关字段
+      //   migratedState.groups = [];
+      //   migratedState.groupSessions = {};
+      //   migratedState.currentGroupIndex = 0;
 
-        // 3. 如果存在旧的 groups 数据，需要迁移格式
-        if (migratedState.groups && Array.isArray(migratedState.groups)) {
-          migratedState.groups = migratedState.groups.map((group: any) => {
-            if (group && typeof group === "object") {
-              return {
-                id: group.id || nanoid(),
-                title: group.title || DEFAULT_TITLE,
-                sessionIds: group.sessionIds || [],
-                messageCount: group.messageCount || 0,
-                status: group.status || "normal",
-                pendingCount: group.pendingCount || 0,
-                errorCount: group.errorCount || 0,
-                expanded: group.expanded !== undefined ? group.expanded : false,
-                currentSessionIndex: group.currentSessionIndex || 0,
-              };
-            }
-            return group;
-          });
-        }
+      //   // 3. 如果存在旧的 groups 数据，需要迁移格式
+      //   if (migratedState.groups && Array.isArray(migratedState.groups)) {
+      //     migratedState.groups = migratedState.groups.map((group: any) => {
+      //       if (group && typeof group === "object") {
+      //         return {
+      //           id: group.id || nanoid(),
+      //           title: group.title || DEFAULT_TITLE,
+      //           sessionIds: group.sessionIds || [],
+      //           messageCount: group.messageCount || 0,
+      //           status: group.status || "normal",
+      //           pendingCount: group.pendingCount || 0,
+      //           errorCount: group.errorCount || 0,
+      //           expanded: group.expanded !== undefined ? group.expanded : false,
+      //           currentSessionIndex: group.currentSessionIndex || 0,
+      //         };
+      //       }
+      //       return group;
+      //     });
+      //   }
 
-        console.log("[Store] Migration to 5.4 completed");
-        return migratedState;
-      }
+      //   console.log("[Store] Migration to 5.4 completed");
+      //   return migratedState;
+      // }
 
       return persistedState;
     },

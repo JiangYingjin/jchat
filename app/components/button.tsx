@@ -14,7 +14,6 @@ export function IconButton(props: {
   type?: ButtonType;
   text?: string;
   bordered?: boolean;
-  shadow?: boolean;
   className?: string;
   title?: string;
   disabled?: boolean;
@@ -28,9 +27,7 @@ export function IconButton(props: {
     <button
       className={
         styles["icon-button"] +
-        ` ${props.bordered && styles.border} ${props.shadow && styles.shadow} ${
-          props.className ?? ""
-        } clickable ${styles[props.type ?? ""]}`
+        ` ${props.bordered && styles.border} ${props.className ?? ""} shadow clickable ${styles[props.type ?? ""]}`
       }
       onClick={props.onClick}
       title={props.title}

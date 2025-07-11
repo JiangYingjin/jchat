@@ -396,7 +396,6 @@ export function PreviewActions(props: {
           <IconButton
             text={Locale.Export.Copy}
             bordered
-            shadow
             icon={<CopyIcon />}
             onClick={props.copy}
           ></IconButton>
@@ -404,7 +403,6 @@ export function PreviewActions(props: {
         <IconButton
           text={Locale.Export.Download}
           bordered
-          shadow
           icon={<DownloadIcon />}
           onClick={props.download}
         ></IconButton>

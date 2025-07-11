@@ -11,8 +11,6 @@ import Locale from "../locales";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Path } from "../constant";
 import { useRef, useMemo } from "react";
-import { showConfirm } from "./ui-lib";
-import { useMobileScreen } from "../utils";
 
 /**
  * 根据消息数量计算项目样式
@@ -67,7 +65,6 @@ export function ChatItem(props: {
   selected: boolean;
   id: string;
   index: number;
-  narrow?: boolean;
   status: "normal" | "error" | "pending";
 }) {
   const draggableRef = useRef<HTMLDivElement | null>(null);
@@ -125,26 +122,17 @@ export function ChatItem(props: {
           }}
           title={`${props.title}\n${Locale.ChatItem.ChatItemCount(props.count)}`}
         >
-          {props.narrow ? (
-            <div className={styles["chat-item-narrow"]}>
-              <div className={styles["chat-item-narrow-count"]}>
-                {props.count}
-              </div>
-              {statusDot}
-            </div>
-          ) : (
-            <>
-              <div className={styles["chat-item-title"]}>{props.title}</div>
-              {statusDot}
-            </>
-          )}
+          <>
+            <div className={styles["chat-item-title"]}>{props.title}</div>
+            {statusDot}
+          </>
         </div>
       )}
     </Draggable>
   );
 }
 
-export function ChatList(props: { narrow?: boolean }) {
+export function ChatList(props: {}) {
   const [sessions, selectedIndex, selectSession, moveSession] = useChatStore(
     (state) => [
       state.sessions,
@@ -155,7 +143,6 @@ export function ChatList(props: { narrow?: boolean }) {
   );
   const chatStore = useChatStore();
   const navigate = useNavigate();
-  const isMobileScreen = useMobileScreen();
 
   const onDragEnd: OnDragEndResponder = (result) => {
     const { destination, source } = result;
@@ -195,15 +182,8 @@ export function ChatList(props: { narrow?: boolean }) {
                   selectSession(i);
                 }}
                 onDelete={async () => {
-                  if (
-                    (!props.narrow && !isMobileScreen) ||
-                    true ||
-                    (await showConfirm(Locale.Home.DeleteChat))
-                  ) {
-                    await chatStore.deleteSession(i);
-                  }
+                  await chatStore.deleteSession(i);
                 }}
-                narrow={props.narrow}
                 status={item.status}
               />
             ))}

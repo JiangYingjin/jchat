@@ -66,7 +66,6 @@
 .list {
   border: var(--border-in-light);
   border-radius: 10px;
-  box-shadow: var(--card-shadow);
   margin-bottom: 20px;
   animation: slide-in ease 0.3s;
   background: var(--white);
@@ -77,7 +76,6 @@
 }
 
 .modal-container {
-  box-shadow: var(--card-shadow);
   background-color: var(--white);
   border-radius: 12px;
   width: 80vw;
@@ -142,7 +140,6 @@
     display: flex;
     justify-content: flex-end;
     border-top: var(--border-in-light);
-    box-shadow: var(--shadow);
 
     .modal-actions {
       display: flex;
@@ -207,7 +204,6 @@
     word-break: break-all;
     font-size: 14px;
     background-color: var(--white);
-    box-shadow: var(--card-shadow);
     border: var(--border-in-light);
     color: var(--black);
     padding: 10px 20px;

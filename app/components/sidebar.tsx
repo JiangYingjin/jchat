@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import styles from "./home.module.scss";
+import buttonStyles from "./button.module.scss";
 
 import { IconButton } from "./button";
 import SettingsIcon from "../icons/settings.svg";
@@ -11,10 +12,11 @@ import { useChatStore } from "../store";
 
 import { DEFAULT_SIDEBAR_WIDTH, Path } from "../constant";
 
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import { useMobileScreen } from "../utils";
 import dynamic from "next/dynamic";
 import { SearchBar, SearchInputRef } from "./search-bar";
+import { createEmptyGroup } from "../utils/group";
 
 const ChatList = dynamic(async () => (await import("./chat-list")).ChatList, {
   loading: () => null,
@@ -56,6 +58,7 @@ export function SideBar(props: { className?: string }) {
   useSideBar();
   const navigate = useNavigate();
   const isMobileScreen = useMobileScreen();
+  const location = useLocation(); // 新增这一行
 
   // search bar
   const searchBarRef = useRef<SearchInputRef>(null);
@@ -114,7 +117,7 @@ export function SideBar(props: { className?: string }) {
               </div>
             </div>
           ) : (
-            <ChatList narrow={false} />
+            <ChatList />
           )}
         </div>
       )}
@@ -122,19 +125,30 @@ export function SideBar(props: { className?: string }) {
       <div className={styles["sidebar-tail"]}>
         <div className={styles["sidebar-actions"]}>
           <div className={styles["sidebar-action"]}>
-            <Link to={Path.Settings}>
-              <IconButton icon={<SettingsIcon />} shadow />
-            </Link>
+            <IconButton
+              icon={<SettingsIcon />}
+              className={
+                location.pathname.includes(Path.Settings)
+                  ? buttonStyles["active"]
+                  : ""
+              }
+              onClick={() => {
+                if (location.pathname.includes(Path.Settings)) {
+                  navigate(Path.Chat);
+                } else {
+                  navigate(Path.Settings);
+                }
+              }}
+            />
           </div>
 
           <div className={styles["sidebar-action"]}>
             {!isMobileScreen && (
               <IconButton
-                icon={isGroupMode ? <AddIcon /> : <GroupIcon />}
+                icon={<GroupIcon />}
                 onClick={toggleGroupMode}
-                shadow={!isGroupMode}
-                type={isGroupMode ? "secondary" : undefined}
                 title="组会话"
+                className={isGroupMode ? buttonStyles["active"] : ""}
               />
             )}
           </div>
@@ -142,17 +156,21 @@ export function SideBar(props: { className?: string }) {
 
         <div>
           <IconButton
-            icon={isGroupMode ? <GroupIcon /> : <AddIcon />}
+            icon={<AddIcon />}
             onClick={async () => {
               if (isGroupMode) {
-                console.log("创建新组会话功能待实现");
+                const newGroup = createEmptyGroup();
+                chatStore.newGroup(newGroup);
+                // TODO: 考虑是否需要选择新创建的组。
+                // 因为 newGroup 方法会将新组放在 groups 数组的第一个，并设置 currentGroupIndex 为 0，
+                // 所以我们只需要导航到聊天页面即可。
+                navigate(Path.Chat);
               } else {
                 await chatStore.newSession();
                 navigate(Path.Chat);
               }
               stopSearch();
             }}
-            shadow
             title={isGroupMode ? "新建组会话" : "新建会话"}
           />
         </div>

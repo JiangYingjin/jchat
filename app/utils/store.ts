@@ -10,14 +10,12 @@ let jchatLocalForageInstance: LocalForage | null = null;
 // 延迟初始化 localforage 实例
 const getJchatLocalForage = (): LocalForage | null => {
   if (!isClient) return null;
-
   if (!jchatLocalForageInstance) {
     jchatLocalForageInstance = localforage.createInstance({
       name: "JChat",
       storeName: "default",
     });
   }
-
   return jchatLocalForageInstance;
 };
 
@@ -64,9 +62,6 @@ type SecondParam<T> = T extends (
   : never;
 
 type MakeUpdater<T> = {
-  lastUpdateTime: number;
-
-  markUpdate: () => void;
   update: Updater<T>;
 };
 
@@ -85,31 +80,16 @@ export function createPersistStore<T extends object, M>(
 ) {
   return create(
     persist(
-      combine(
-        {
-          ...state,
-          lastUpdateTime: 0,
-        },
-        (set, get) => {
-          return {
-            ...methods(set, get as any),
-
-            markUpdate() {
-              set({ lastUpdateTime: Date.now() } as Partial<
-                T & M & MakeUpdater<T>
-              >);
-            },
-            update(updater) {
-              const state = deepClone(get());
-              updater(state);
-              set({
-                ...state,
-                lastUpdateTime: Date.now(),
-              });
-            },
-          } as M & MakeUpdater<T>;
-        },
-      ),
+      combine(state, (set, get) => {
+        return {
+          ...methods(set, get as any),
+          update(updater) {
+            const currentState = deepClone(get());
+            updater(currentState);
+            set(currentState);
+          },
+        } as M & MakeUpdater<T>;
+      }),
       persistOptions as any,
     ),
   );
