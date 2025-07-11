@@ -119,6 +119,16 @@ export function Modal(props: ModalProps) {
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
+        // 优先关闭最上层 image-preview-modal
+        const modals = Array.from(document.querySelectorAll(".modal-mask"));
+        const topModal = modals[modals.length - 1] as HTMLElement | undefined;
+        if (topModal && topModal.classList.contains("image-preview-modal")) {
+          // 触发 image-preview-modal 内部的关闭逻辑（派发自定义事件）
+          const closeEvent = new CustomEvent("image-preview-close");
+          topModal.dispatchEvent(closeEvent);
+          return;
+        }
+        // 否则关闭当前 modal
         props.onClose?.();
       }
     };
@@ -468,10 +478,26 @@ export function showImageModal(
   style?: CSSProperties,
   boxStyle?: CSSProperties,
 ) {
-  showModal({
-    title: Locale.Export.Image.Modal,
-    defaultMax: defaultMax,
-    children: (
+  // 新增 image-preview-modal class
+  const div = document.createElement("div");
+  div.className = "modal-mask image-preview-modal";
+  document.body.appendChild(div);
+
+  const root = createRoot(div);
+  const closeModal = () => {
+    root.unmount();
+    div.remove();
+  };
+
+  // 监听自定义关闭事件
+  div.addEventListener("image-preview-close", closeModal);
+
+  root.render(
+    <Modal
+      title={Locale.Export.Image.Modal}
+      defaultMax={defaultMax}
+      onClose={closeModal}
+    >
       <div style={{ display: "flex", justifyContent: "center", ...boxStyle }}>
         <img
           src={img}
@@ -483,8 +509,8 @@ export function showImageModal(
           }
         ></img>
       </div>
-    ),
-  });
+    </Modal>,
+  );
 }
 export function SearchSelector<T>(props: {
   items: Array<{
