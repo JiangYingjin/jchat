@@ -22,11 +22,7 @@ import {
 import { useChatStore } from "../store";
 import { IconButton } from "./button";
 
-import {
-  DEFAULT_FONT_SIZE,
-  DEFAULT_FONT_FAMILY,
-  ENABLE_CODE_FOLD,
-} from "../constant";
+import { DEFAULT_FONT_SIZE, DEFAULT_FONT_FAMILY } from "../constant";
 
 export function Mermaid(props: { code: string }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -189,7 +185,6 @@ export function PreCode(props: React.ComponentPropsWithoutRef<"pre">) {
 
 function CustomCode(props: React.ComponentPropsWithoutRef<"code">) {
   const chatStore = useChatStore();
-  const enableCodeFold = ENABLE_CODE_FOLD;
 
   const ref = useRef<HTMLPreElement>(null);
   const [collapsed, setCollapsed] = useState(true);
@@ -207,7 +202,7 @@ function CustomCode(props: React.ComponentPropsWithoutRef<"code">) {
     setCollapsed((collapsed) => !collapsed);
   };
   const renderShowMoreButton = () => {
-    if (showToggle && enableCodeFold && collapsed) {
+    if (showToggle && collapsed) {
       return (
         <div
           className={`show-hide-button ${collapsed ? "collapsed" : "expanded"}`}
@@ -224,7 +219,7 @@ function CustomCode(props: React.ComponentPropsWithoutRef<"code">) {
         className={props?.className}
         ref={ref}
         style={{
-          maxHeight: enableCodeFold && collapsed ? "400px" : "none",
+          maxHeight: collapsed ? "400px" : "none",
           overflowY: "hidden",
         }}
       >

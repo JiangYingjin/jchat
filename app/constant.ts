@@ -23,10 +23,7 @@ export enum StoreKey {
   Chat = "chats",
 }
 
-export const MIN_SIDEBAR_WIDTH = 180;
-export const MAX_SIDEBAR_WIDTH = MIN_SIDEBAR_WIDTH;
-export const DEFAULT_SIDEBAR_WIDTH = MIN_SIDEBAR_WIDTH;
-export const NARROW_SIDEBAR_WIDTH = 80;
+export const DEFAULT_SIDEBAR_WIDTH = 180;
 
 export const STORAGE_KEY = "jchat";
 
@@ -40,7 +37,7 @@ export const OpenaiPath = {
   ImagePath: "v1/images/generations",
 };
 
-export const DEFAULT_MODELS = ["google/gemini-2.5-flash"] as const;
+export const PRO_MODEL = "jyj.cx/pro";
 
 export const CHAT_PAGE_SIZE = 15;
 export const MAX_RENDER_MSG_COUNT = 45;
@@ -53,5 +50,3 @@ export enum Theme {
   Dark = "dark",
 }
 export const DEFAULT_THEME = Theme.Auto;
-
-export const ENABLE_CODE_FOLD = true;

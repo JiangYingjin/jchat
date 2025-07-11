@@ -87,6 +87,7 @@ import {
   DEFAULT_FONT_SIZE,
   DEFAULT_FONT_FAMILY,
   DEFAULT_THEME,
+  PRO_MODEL,
 } from "../constant";
 import { prettyObject } from "../utils/format";
 import { ExportMessageModal } from "./exporter";
@@ -1670,10 +1671,10 @@ function Chat() {
     }
 
     // 检查是否存在目标模型
-    const targetModel = allModels.find((m) => m === "jyj.cx/pro");
+    const targetModel = allModels.find((m) => m === PRO_MODEL);
     if (!targetModel) {
       console.log(
-        "[AutoSwitch] 目标模型 jyj.cx/pro 不存在或不可用，跳过自动切换",
+        `[AutoSwitch] 目标模型 ${PRO_MODEL} 不存在或不可用，跳过自动切换`,
       );
       return false;
     }
@@ -1708,7 +1709,7 @@ function Chat() {
       // 自动切换模型逻辑
       if (!session.isModelManuallySelected) {
         const systemPromptLength = content.trim().length;
-        const proModelName = "jyj.cx/pro";
+        const proModelName = PRO_MODEL;
         if (
           shouldAutoSwitchModel(
             systemPromptLength,
@@ -1726,7 +1727,7 @@ function Chat() {
               // 标记用户手动选择了模型
               session.isModelManuallySelected = true;
               console.log(
-                `[AutoSwitch] 系统提示词长度 ${systemPromptLength} 字符，自动切换到 jyj.cx/pro 模型`,
+                `[AutoSwitch] 系统提示词长度 ${systemPromptLength} 字符，自动切换到 ${proModelName} 模型`,
               );
             }
           }
@@ -1901,9 +1902,6 @@ function Chat() {
       };
     }
   }
-  // ... existing code ...
-  // 编辑系统提示词逻辑，保存到 localStorage，只存 meta
-  // ... window-actions 编辑上下文按钮 ...
   return (
     <>
       <div className={styles.chat} key={session.id}>
