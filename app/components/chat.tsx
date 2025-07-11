@@ -12,7 +12,6 @@ import {
   useTripleClick,
   usePasteImageUpload,
 } from "../utils/hooks";
-import DeleteIcon from "../icons/clear.svg";
 import {
   ChatMessage,
   useChatStore,
@@ -32,7 +31,7 @@ import {
   getMessageImages,
 } from "../utils";
 
-import { shouldAutoSwitchModel } from "../utils/model";
+import { determineModelForSystemPrompt } from "../utils/model";
 import { capturePhoto, uploadImage } from "../utils/file-upload";
 
 import { ChatControllerPool } from "../client/controller";
@@ -55,6 +54,7 @@ import {
   EditMessageWithImageModal,
 } from "./message-edit-modals";
 import { SessionEditorModal } from "./session-editor-modal";
+import { findMessagePairForResend } from "../../utils/message";
 
 function Chat() {
   type RenderMessage = ChatMessage & { preview?: boolean };
@@ -417,53 +417,16 @@ function Chat() {
   };
 
   const onResend = (message: ChatMessage) => {
-    // when it is resending a message
-    // 1. for a user's message, find the next bot response
-    // 2. for a bot's message, find the last user's input
-    // 3. delete original user input and bot's message
-    // 4. resend the user's input
-
-    const resendingIndex = session.messages.findIndex(
-      (m) => m.id === message.id,
+    const { userMessage, botMessage, requestIndex } = findMessagePairForResend(
+      session.messages,
+      message.id,
     );
 
-    let requestIndex = resendingIndex;
-
-    if (resendingIndex < 0 || resendingIndex >= session.messages.length) {
-      console.error("[Chat] failed to find resending message", message);
-      return;
-    }
-
-    let userMessage: ChatMessage | undefined;
-    let botMessage: ChatMessage | undefined;
-
-    if (message.role === "assistant") {
-      // if it is resending a bot's message, find the user input for it
-      botMessage = message;
-      for (let i = resendingIndex; i >= 0; i -= 1) {
-        if (session.messages[i].role === "user") {
-          userMessage = session.messages[i];
-          requestIndex = i;
-          break;
-        }
-      }
-    } else if (message.role === "user") {
-      // if it is resending a user's input, find the bot's response
-      userMessage = message;
-      for (let i = resendingIndex; i < session.messages.length; i += 1) {
-        if (session.messages[i].role === "assistant") {
-          botMessage = session.messages[i];
-          break;
-        }
-      }
-    }
-
-    if (userMessage === undefined) {
+    if (!userMessage) {
       console.error("[Chat] failed to resend", message);
       return;
     }
 
-    // resend the message
     setIsLoading(true);
     const textContent = getMessageTextContent(userMessage);
     const images = getMessageImages(userMessage);
@@ -583,33 +546,19 @@ function Chat() {
         // prepareMessagesForApi 会在需要时动态加载和合并
       }
 
-      // 自动切换模型逻辑
-      if (!session.isModelManuallySelected) {
-        const systemPromptLength = content.trim().length;
-        const proModelName = PRO_MODEL;
-        if (
-          shouldAutoSwitchModel(
-            systemPromptLength,
-            session.isModelManuallySelected ?? false,
-            allModels,
-          )
-        ) {
-          // 检查是否存在 jyj.cx/pro 模型
-          const targetModel = allModels.find((m) => m === proModelName);
-          if (targetModel) {
-            const currentModel = session.model;
-
-            // 只有当前模型不是目标模型时才切换
-            if (currentModel !== proModelName) {
-              session.model = proModelName;
-              // 标记用户手动选择了模型
-              session.isModelManuallySelected = true;
-              console.log(
-                `[AutoSwitch] 系统提示词长度 ${systemPromptLength} 字符，自动切换到 ${proModelName} 模型`,
-              );
-            }
-          }
-        }
+      // 使用集中管理的模型切换策略
+      const newModel = determineModelForSystemPrompt(
+        content.trim(),
+        session.model,
+        allModels,
+        session.isModelManuallySelected ?? false,
+      );
+      if (newModel) {
+        session.model = newModel;
+        session.isModelManuallySelected = true;
+        console.log(
+          `[AutoSwitch] 系统提示词内容触发自动切换到 ${newModel} 模型`,
+        );
       }
     });
   };

@@ -37,3 +37,28 @@ export function shouldAutoSwitchModel(
 
   return true;
 }
+
+/**
+ * 根据系统提示词内容和当前模型状态，判断是否需要切换到 PRO_MODEL。
+ * @param promptContent 系统提示词内容
+ * @param currentModel 当前模型
+ * @param allModels 所有可用模型
+ * @param isManuallySelected 用户是否手动选择了模型
+ * @returns 新模型名或 null（不切换）
+ */
+export function determineModelForSystemPrompt(
+  promptContent: string,
+  currentModel: string,
+  allModels: string[],
+  isManuallySelected: boolean,
+): string | null {
+  if (
+    shouldAutoSwitchModel(promptContent.length, isManuallySelected, allModels)
+  ) {
+    const targetModel = allModels.find((m) => m === PRO_MODEL);
+    if (targetModel && currentModel !== targetModel) {
+      return targetModel;
+    }
+  }
+  return null;
+}
