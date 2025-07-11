@@ -3,12 +3,9 @@ import { useState, useRef, useEffect } from "react";
 import { ChatMessage } from "../store";
 import Locale from "../locales";
 import { Markdown } from "./markdown";
-
 import styles from "./thinking-content.module.scss";
 import MaxIcon from "../icons/max.svg";
 import MinIcon from "../icons/min.svg";
-import CopyIcon from "../icons/copy.svg";
-import { copyToClipboard } from "../utils";
 
 export function ThinkingContent({
   message,
@@ -38,12 +35,7 @@ export function ThinkingContent({
 
   useEffect(() => {
     if (isThinking && thinkingContentRef.current) {
-      requestAnimationFrame(() => {
-        // if (thinkingContentRef.current) {
-        //   thinkingContentRef.current.scrollTop =
-        //     thinkingContentRef.current.scrollHeight;
-        // }
-      });
+      requestAnimationFrame(() => {});
     }
   }, [thinkingContent, isThinking, expanded]);
 
@@ -102,13 +94,6 @@ export function ThinkingContent({
           {Locale.Chat.Thinking.Title}
         </div>
         <div style={{ display: "flex", gap: 4 }}>
-          {/* <div
-            className={styles["thinking-toggle"]}
-            title={Locale.Copy.Success}
-            onClick={() => copyToClipboard(thinkingContent)}
-          >
-            <CopyIcon />
-          </div> */}
           <div
             className={styles["thinking-toggle"]}
             onClick={(e) => {

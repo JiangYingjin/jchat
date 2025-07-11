@@ -17,7 +17,6 @@ interface ChatMessageItemProps {
   messageRefs: React.MutableRefObject<{ [key: string]: HTMLDivElement | null }>;
   scrollRef: RefObject<HTMLDivElement>;
   messageHeights: { [key: string]: number };
-  isMobileScreen: boolean;
   onResend: (message: ChatMessage) => void;
   onDelete: (msgId: string) => void;
   onUserStop: (messageId: string) => void;
@@ -41,7 +40,6 @@ export function ChatMessageItem({
   messageRefs,
   scrollRef,
   messageHeights,
-  isMobileScreen,
   onResend,
   onDelete,
   onUserStop,

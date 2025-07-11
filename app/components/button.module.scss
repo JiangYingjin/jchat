@@ -100,3 +100,15 @@
     margin-left: 5px;
   }
 }
+
+.delete-image {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 5px;
+  float: right;
+  background-color: var(--white);
+}

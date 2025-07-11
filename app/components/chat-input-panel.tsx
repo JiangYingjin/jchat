@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect, useCallback } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import clsx from "clsx";
 import { useDebouncedCallback } from "use-debounce";
 import { isEmpty } from "lodash-es";
@@ -6,7 +6,7 @@ import { isEmpty } from "lodash-es";
 import SendWhiteIcon from "../icons/send-white.svg";
 
 import { ChatActions } from "./chat-actions";
-import { DeleteImageButton } from "./ui-lib";
+import { DeleteImageButton } from "./button";
 import { IconButton } from "./button";
 import { showImageModal } from "./ui-lib";
 import { copyImageToClipboard } from "../utils/image";

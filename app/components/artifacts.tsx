@@ -6,12 +6,9 @@ import {
   forwardRef,
   useImperativeHandle,
 } from "react";
-import { useParams } from "react-router";
 import { IconButton } from "./button";
 import { nanoid } from "nanoid";
 import DownloadIcon from "../icons/download.svg";
-import GithubIcon from "../icons/github.svg";
-import ReloadButtonIcon from "../icons/reload.svg";
 import Locale from "../locales";
 import { downloadAs } from "../utils";
 import styles from "./artifacts.module.scss";

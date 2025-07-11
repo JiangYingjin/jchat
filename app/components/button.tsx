@@ -6,6 +6,7 @@ import { CSSProperties } from "react";
 export type ButtonType = "primary" | "secondary" | "danger" | null;
 
 import LoadingIcon from "../icons/three-dots-white.svg";
+import DeleteIcon from "../icons/clear.svg";
 
 export function IconButton(props: {
   onClick?: () => void;
@@ -70,5 +71,20 @@ export function IconButton(props: {
         </div>
       ) : null}
     </button>
+  );
+}
+
+export function DeleteImageButton(props: { deleteImage: () => void }) {
+  return (
+    <div
+      className={styles["delete-image"]}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        props.deleteImage();
+      }}
+    >
+      <DeleteIcon />
+    </div>
   );
 }

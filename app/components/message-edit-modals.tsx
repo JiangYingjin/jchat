@@ -107,8 +107,6 @@ export function SystemPromptEditModal(props: {
               setAttachImages(newImages);
             }}
             textareaRef={inputRef}
-            uploading={uploading}
-            setUploading={setUploading}
             handlePaste={handlePaste}
             onConfirm={handleSave}
           />
@@ -178,8 +176,6 @@ export function EditMessageWithImageModal(props: {
               setAttachImages(newImages);
             }}
             textareaRef={props.textareaRef}
-            uploading={uploading}
-            setUploading={setUploading}
             handlePaste={handlePaste}
             onConfirm={handleConfirm}
           />

@@ -183,7 +183,6 @@ export function MessageList({
             messageRefs={messageRefs}
             scrollRef={scrollRef}
             messageHeights={messageHeights}
-            isMobileScreen={isMobileScreen}
             onResend={onResend}
             onDelete={onDelete}
             onUserStop={onUserStop}

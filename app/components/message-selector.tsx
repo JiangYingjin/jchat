@@ -2,13 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { ChatMessage, useChatStore, systemMessageStorage } from "../store";
 import { Updater } from "../utils/store";
 import { IconButton } from "./button";
-
 import Locale from "../locales";
-
-// 导入角色图标
 import RobotIcon from "../icons/robot.svg";
 import SettingsIcon from "../icons/settings.svg";
-
+import UserIcon from "../icons/user.svg";
 import styles from "./message-selector.module.scss";
 import { getMessageTextContent } from "../utils";
 
@@ -19,27 +16,6 @@ interface SystemMessageData {
   scrollTop: number;
   selection: { start: number; end: number };
   updateAt: number;
-}
-
-// 用户图标组件 (自定义 SVG)
-function UserIcon() {
-  return (
-    <svg
-      width="16"
-      height="16"
-      viewBox="0 0 24 24"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle cx="12" cy="7" r="4" stroke="black" strokeWidth="2" />
-      <path
-        d="M5.5 20v-2a6 6 0 0 1 6-6h1a6 6 0 0 1 6 6v2"
-        stroke="black"
-        strokeWidth="2"
-        strokeLinecap="round"
-      />
-    </svg>
-  );
 }
 
 // 获取角色图标

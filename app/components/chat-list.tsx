@@ -1,6 +1,3 @@
-import DeleteIcon from "../icons/delete.svg";
-import BotIcon from "../icons/bot.svg";
-
 import styles from "./home.module.scss";
 import {
   DragDropContext,
@@ -10,11 +7,10 @@ import {
 } from "@hello-pangea/dnd";
 
 import { useChatStore } from "../store";
-
 import Locale from "../locales";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Path } from "../constant";
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useMemo } from "react";
 import { showConfirm } from "./ui-lib";
 import { useMobileScreen } from "../utils";
 

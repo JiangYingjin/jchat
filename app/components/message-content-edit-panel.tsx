@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import clsx from "clsx";
 import styles from "./chat.module.scss";
-import { DeleteImageButton } from "./ui-lib";
+import { DeleteImageButton } from "./button";
 import { copyImageToClipboard } from "../utils/image";
 import { showImageModal } from "./ui-lib";
 import { DEFAULT_FONT_SIZE, DEFAULT_FONT_FAMILY } from "../constant";
@@ -11,24 +11,13 @@ interface MessageContentEditPanelProps {
   images: string[];
   onChange: (content: string, images: string[]) => void;
   textareaRef?: React.RefObject<HTMLTextAreaElement>;
-  uploading?: boolean;
-  setUploading?: (uploading: boolean) => void;
   handlePaste?: (event: React.ClipboardEvent<HTMLTextAreaElement>) => void;
   onConfirm?: () => void;
 }
 
 export const MessageContentEditPanel: React.FC<
   MessageContentEditPanelProps
-> = ({
-  value,
-  images,
-  onChange,
-  textareaRef,
-  uploading,
-  setUploading,
-  handlePaste,
-  onConfirm,
-}) => {
+> = ({ value, images, onChange, textareaRef, handlePaste, onConfirm }) => {
   const localTextareaRef = useRef<HTMLTextAreaElement>(null);
   const ref = textareaRef || localTextareaRef;
 
