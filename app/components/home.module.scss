@@ -19,6 +19,113 @@
 
 .container {
   @include container();
+  /* 新增最大宽高限制和居中 */
+  max-width: 800px;
+  max-height: 900px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  margin: auto;
+
+  /* 顶级UI/UX设计效果 - 无悬浮版本 */
+  border-radius: 20px;
+  border: 2px solid transparent;
+  background:
+    linear-gradient(var(--white), var(--white)) padding-box,
+    linear-gradient(
+        135deg,
+        rgba(59, 130, 246, 0.3) 0%,
+        rgba(147, 51, 234, 0.3) 25%,
+        rgba(236, 72, 153, 0.3) 50%,
+        rgba(59, 130, 246, 0.3) 100%
+      )
+      border-box;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.8),
+    0 8px 32px rgba(0, 0, 0, 0.08),
+    0 4px 16px rgba(0, 0, 0, 0.04),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+
+  /* 添加微妙的光晕效果 */
+  &::before {
+    content: "";
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    border-radius: 22px;
+    background: linear-gradient(
+      135deg,
+      rgba(59, 130, 246, 0.1) 0%,
+      rgba(147, 51, 234, 0.1) 25%,
+      rgba(236, 72, 153, 0.1) 50%,
+      rgba(59, 130, 246, 0.1) 100%
+    );
+    z-index: -1;
+    filter: blur(8px);
+    opacity: 0.6;
+  }
+
+  /* 确保内容在装饰层之上 */
+  & > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* 平滑过渡效果 */
+  transition: all 0.3s ease;
+
+  /* 悬停时增强边框效果 */
+  &:hover {
+    border-width: 3px;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.9),
+      0 12px 40px rgba(0, 0, 0, 0.12),
+      0 6px 20px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+
+    &::before {
+      opacity: 0.8;
+      filter: blur(12px);
+    }
+  }
+
+  /* 修复：当容器内有输入框获得焦点时，保持 hover 效果 */
+  &:has(:focus):hover {
+    border-width: 3px;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.9),
+      0 12px 40px rgba(0, 0, 0, 0.12),
+      0 6px 20px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+
+    &::before {
+      opacity: 0.8;
+      filter: blur(12px);
+    }
+  }
+
+  /* 修复：当容器内有输入框获得焦点且鼠标在容器上时，保持增强效果 */
+  &:has(:focus):hover {
+    border-width: 3px;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.9),
+      0 12px 40px rgba(0, 0, 0, 0.12),
+      0 6px 20px rgba(0, 0, 0, 0.06),
+      inset 0 1px 0 rgba(255, 255, 255, 1),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+
+    &::before {
+      opacity: 0.8;
+      filter: blur(12px);
+    }
+  }
 }
 
 @media only screen and (min-width: 600px) {
@@ -29,8 +136,113 @@
 
     @include container();
 
-    max-width: 100vw;
-    max-height: var(--full-height);
+    /* 新增最大宽高限制和居中 */
+    max-width: 800px;
+    max-height: 900px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    margin: auto;
+
+    /* 顶级UI/UX设计效果 - 无悬浮版本 */
+    border-radius: 20px;
+    border: 2px solid transparent;
+    background:
+      linear-gradient(var(--white), var(--white)) padding-box,
+      linear-gradient(
+          135deg,
+          rgba(59, 130, 246, 0.3) 0%,
+          rgba(147, 51, 234, 0.3) 25%,
+          rgba(236, 72, 153, 0.3) 50%,
+          rgba(59, 130, 246, 0.3) 100%
+        )
+        border-box;
+    box-shadow:
+      0 0 0 1px rgba(255, 255, 255, 0.8),
+      0 8px 32px rgba(0, 0, 0, 0.08),
+      0 4px 16px rgba(0, 0, 0, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.9),
+      inset 0 -1px 0 rgba(0, 0, 0, 0.05);
+
+    /* 添加微妙的光晕效果 */
+    &::before {
+      content: "";
+      position: absolute;
+      top: -2px;
+      left: -2px;
+      right: -2px;
+      bottom: -2px;
+      border-radius: 22px;
+      background: linear-gradient(
+        135deg,
+        rgba(59, 130, 246, 0.1) 0%,
+        rgba(147, 51, 234, 0.1) 25%,
+        rgba(236, 72, 153, 0.1) 50%,
+        rgba(59, 130, 246, 0.1) 100%
+      );
+      z-index: -1;
+      filter: blur(8px);
+      opacity: 0.6;
+    }
+
+    /* 确保内容在装饰层之上 */
+    & > * {
+      position: relative;
+      z-index: 2;
+    }
+
+    /* 平滑过渡效果 */
+    transition: all 0.3s ease;
+
+    /* 悬停时增强边框效果 */
+    &:hover {
+      border-width: 3px;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.9),
+        0 12px 40px rgba(0, 0, 0, 0.12),
+        0 6px 20px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 1),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+
+      &::before {
+        opacity: 0.8;
+        filter: blur(12px);
+      }
+    }
+
+    /* 修复：当容器内有输入框获得焦点时，保持 hover 效果 */
+    &:has(:focus):hover {
+      border-width: 3px;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.9),
+        0 12px 40px rgba(0, 0, 0, 0.12),
+        0 6px 20px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 1),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+
+      &::before {
+        opacity: 0.8;
+        filter: blur(12px);
+      }
+    }
+
+    /* 修复：当容器内有输入框获得焦点且鼠标在容器上时，保持增强效果 */
+    &:has(:focus):hover {
+      border-width: 3px;
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.9),
+        0 12px 40px rgba(0, 0, 0, 0.12),
+        0 6px 20px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 1),
+        inset 0 -1px 0 rgba(0, 0, 0, 0.08);
+
+      &::before {
+        opacity: 0.8;
+        filter: blur(12px);
+      }
+    }
 
     border-radius: 0;
     border: 0;

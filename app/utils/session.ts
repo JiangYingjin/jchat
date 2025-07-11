@@ -63,17 +63,13 @@ export function createMessage(override: Partial<ChatMessage>): ChatMessage {
  * 创建空的会话对象
  */
 export function createEmptySession(): ChatSession {
-  // 延迟获取 models，避免在模块初始化时访问 store
   const getDefaultModel = () => {
     try {
-      const models = useChatStore.getState().models;
-      return models && models.length > 0 ? models[0] : "jyj.cx/flash";
+      return useChatStore.getState().models[0];
     } catch (error) {
-      // 如果获取失败，返回默认模型
       return "jyj.cx/flash";
     }
   };
-
   return {
     id: nanoid(),
     title: DEFAULT_TOPIC,
@@ -106,16 +102,13 @@ export function createBranchSession(
   branchTopic: string,
 ): ChatSession {
   const newSession = createEmptySession();
-
   newSession.title = branchTopic;
   newSession.messages = [...messagesToCopy];
   newSession.longInputMode = originalSession.longInputMode;
   newSession.isModelManuallySelected = originalSession.isModelManuallySelected;
   newSession.model = originalSession.model;
-
   // 更新消息计数和状态
   updateSessionStats(newSession);
-
   return newSession;
 }
 
@@ -134,9 +127,7 @@ export async function prepareMessagesForApi(
   // 直接从 systemMessageStorage 加载系统提示词，不依赖 messages 中的 system 消息
   if (systemMessageStorage) {
     try {
-      const storedData = await systemMessageStorage.getSystemMessage(
-        session.id,
-      );
+      const storedData = await systemMessageStorage.get(session.id);
 
       // 只有当有有效内容时才创建 system 消息
       if (
