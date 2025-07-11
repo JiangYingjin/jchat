@@ -51,9 +51,6 @@ async function requestOpenai(req: NextRequest) {
   }
 }
 
-// 路由处理逻辑保持不变，因为它已经很清晰
-const ALLOWED_PATH = new Set(Object.values(OpenaiPath));
-
 export async function handle(
   req: NextRequest,
   { params }: { params: Promise<{ path: string[]; provider: string }> },

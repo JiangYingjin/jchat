@@ -5,7 +5,6 @@ export async function POST(req: NextRequest) {
   try {
     // 使用现有的 auth 函数进行验证
     const authResult = auth(req);
-
     if (authResult.error) {
       return NextResponse.json(
         {
@@ -15,7 +14,6 @@ export async function POST(req: NextRequest) {
         { status: 401 },
       );
     }
-
     return NextResponse.json(
       {
         error: false,
