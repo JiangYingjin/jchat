@@ -5,6 +5,7 @@ import styles from "./home.module.scss";
 import { IconButton } from "./button";
 import SettingsIcon from "../icons/settings.svg";
 import AddIcon from "../icons/add.svg";
+import GroupIcon from "../icons/group.svg";
 
 import { useChatStore } from "../store";
 
@@ -63,10 +64,20 @@ export function SideBar(props: { className?: string }) {
   // search bar
   const searchBarRef = useRef<SearchInputRef>(null);
   const [isSearching, setIsSearching] = useState(false);
+  const [isGroupMode, setIsGroupMode] = useState(false);
 
   const stopSearch = () => {
     setIsSearching(false);
     searchBarRef.current?.clearInput();
+  };
+
+  const toggleGroupMode = () => {
+    setIsGroupMode(!isGroupMode);
+    if (!isGroupMode) {
+      // 进入组会话模式时隐藏搜索栏
+      setIsSearching(false);
+      searchBarRef.current?.clearInput();
+    }
   };
 
   useHotKey();
@@ -85,6 +96,7 @@ export function SideBar(props: { className?: string }) {
           " " +
           (isSearching ? styles["sidebar-search-bar-isSearching"] : "")
         }
+        style={{ display: isGroupMode ? "none" : "block" }}
       >
         <SearchBar ref={searchBarRef} setIsSearching={setIsSearching} />
       </div>
@@ -98,7 +110,16 @@ export function SideBar(props: { className?: string }) {
             }
           }}
         >
-          <ChatList narrow={false} />
+          {isGroupMode ? (
+            <div className={styles["group-chat-list"]}>
+              {/* 组会话列表 - 暂时用空列表替代 */}
+              <div className={styles["empty-group-list"]}>
+                <p>组会话功能开发中...</p>
+              </div>
+            </div>
+          ) : (
+            <ChatList narrow={false} />
+          )}
         </div>
       )}
 
@@ -109,16 +130,31 @@ export function SideBar(props: { className?: string }) {
               <IconButton icon={<SettingsIcon />} shadow />
             </Link>
           </div>
+          <div className={styles["sidebar-action"]}>
+            <IconButton
+              icon={isGroupMode ? <AddIcon /> : <GroupIcon />}
+              onClick={toggleGroupMode}
+              shadow={!isGroupMode}
+              type={isGroupMode ? "secondary" : undefined}
+              title="组会话"
+            />
+          </div>
         </div>
+
         <div>
           <IconButton
-            icon={<AddIcon />}
+            icon={isGroupMode ? <GroupIcon /> : <AddIcon />}
             onClick={async () => {
-              await chatStore.newSession();
-              navigate(Path.Chat);
+              if (isGroupMode) {
+                console.log("创建新组会话功能待实现");
+              } else {
+                await chatStore.newSession();
+                navigate(Path.Chat);
+              }
               stopSearch();
             }}
             shadow
+            title={isGroupMode ? "新建组会话" : "新建会话"}
           />
         </div>
       </div>

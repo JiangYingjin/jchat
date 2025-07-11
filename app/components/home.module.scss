@@ -505,6 +505,27 @@
   margin-right: 15px;
 }
 
+.group-chat-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .empty-group-list {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: var(--text-secondary);
+    font-size: 14px;
+
+    p {
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+  }
+}
+
 .loading-content {
   display: flex;
   flex-direction: column;
