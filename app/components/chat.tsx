@@ -113,10 +113,10 @@ import { ChatInputPanel } from "./chat-input-panel";
 import { ChatHeader } from "./chat-header";
 import { ChatMessageItem } from "./chat-message-item";
 import { MessageList } from "./message-list";
-
-const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
-  loading: () => <LoadingIcon />,
-});
+import {
+  SystemPromptEditModal,
+  EditMessageWithImageModal,
+} from "./message-edit-modals";
 
 function ChatAction(props: {
   text: string;
@@ -538,110 +538,6 @@ export function DeleteImageButton(props: { deleteImage: () => void }) {
   );
 }
 
-export function SystemPromptEditModal(props: {
-  onClose: () => void;
-  sessionId: string;
-  onSave: (
-    content: string,
-    images: string[],
-    scrollTop?: number,
-    selection?: { start: number; end: number },
-  ) => void;
-  initialContent: string;
-  initialImages: string[];
-  initialScrollTop?: number;
-  initialSelection?: { start: number; end: number };
-}) {
-  const [content, setContent] = useState(props.initialContent);
-  const [attachImages, setAttachImages] = useState<string[]>(
-    props.initialImages,
-  );
-  const [uploading, setUploading] = useState(false);
-  const [scrollTop, setScrollTop] = useState(props.initialScrollTop || 0);
-  const [selection, setSelection] = useState(
-    props.initialSelection || { start: 0, end: 0 },
-  );
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-
-  // 自动聚焦并定位到保存的位置
-  useEffect(() => {
-    setTimeout(() => {
-      if (inputRef.current) {
-        // 设置滚动位置
-        inputRef.current.scrollTop = scrollTop;
-        // 设置光标位置
-        if (selection.start !== selection.end) {
-          inputRef.current.setSelectionRange(selection.start, selection.end);
-        } else {
-          inputRef.current.setSelectionRange(selection.start, selection.start);
-        }
-        inputRef.current.focus();
-      }
-    }, 100);
-  }, [scrollTop, selection]);
-
-  // 使用自定义 hook 处理粘贴上传图片
-  const handlePaste = usePasteImageUpload(
-    attachImages,
-    setAttachImages,
-    setUploading,
-    setContent,
-  );
-
-  const handleSave = () => {
-    // 获取当前的滚动位置和光标位置
-    const currentScrollTop = inputRef.current?.scrollTop || 0;
-    const currentSelectionStart = inputRef.current?.selectionStart || 0;
-    const currentSelectionEnd = inputRef.current?.selectionEnd || 0;
-
-    props.onSave(content.trim(), attachImages, currentScrollTop, {
-      start: currentSelectionStart,
-      end: currentSelectionEnd,
-    });
-    props.onClose();
-  };
-
-  return (
-    <div className="modal-mask">
-      <Modal
-        title="编辑系统提示词"
-        onClose={props.onClose}
-        actions={[
-          <IconButton
-            text={Locale.UI.Cancel}
-            icon={<CancelIcon />}
-            key="cancel"
-            onClick={props.onClose}
-          />,
-          <IconButton
-            type="primary"
-            text={Locale.UI.Confirm}
-            icon={<ConfirmIcon />}
-            key="ok"
-            onClick={handleSave}
-          />,
-        ]}
-      >
-        <div className={styles["system-prompt-edit-container"]}>
-          <MessageContentEditPanel
-            value={content}
-            images={attachImages}
-            onChange={(newContent, newImages) => {
-              setContent(newContent);
-              setAttachImages(newImages);
-            }}
-            textareaRef={inputRef}
-            uploading={uploading}
-            setUploading={setUploading}
-            handlePaste={handlePaste}
-            onConfirm={handleSave}
-          />
-        </div>
-      </Modal>
-    </div>
-  );
-}
-
 // 新增：消息操作按钮组件
 export function MessageActions(props: {
   message: ChatMessage;
@@ -833,44 +729,6 @@ function Chat() {
   useEffect(() => {
     loadChatInputToState();
   }, [session.id, loadChatInputToState]);
-
-  // // 自动修正模型配置
-  // useEffect(() => {
-  //   // 获取当前模型
-  //   const model = chatStore.models[0];
-  //   // 检查主模型是否有效
-  //   const isModelValid = allModels.some((m) => m === model);
-  //   // console.log("[updateConfig] isModelValid", isModelValid);
-  //   // 如果主模型无效，自动 fetch 并更新为 defaultModel
-  //   if (!isModelValid) {
-  //     // 拉取服务器配置
-  //     chatStore.fetchModels();
-  //     // 从 allModels 中获取默认模型
-  //     const defaultModel = allModels[0];
-  //     if (defaultModel) {
-  //       config.update((cfg) => {
-  //         // 主模型无效时修正
-  //         if (!isModelValid) {
-  //           cfg.modelConfig.model = defaultModel;
-  //           console.log(
-  //             "[updateConfig] cfg.modelConfig.model",
-  //             cfg.modelConfig.model,
-  //           );
-  //         }
-  //       });
-
-  //       // 如果当前会话的模型无效且用户没有手动选择模型，则更新会话的模型配置
-  //       if (!isModelValid && !session.isModelManuallySelected) {
-  //         chatStore.updateTargetSession(session, (session) => {
-  //           session.model = defaultModel;
-  //           // 标记用户手动选择了模型
-  //           session.isModelManuallySelected = true;
-  //           console.log("[updateConfig] session.model", session.model);
-  //         });
-  //       }
-  //     }
-  //   }
-  // }, [accessStore, allModels, session.isModelManuallySelected ?? false]);
 
   const [showExport, setShowExport] = useState(false);
 
@@ -1541,78 +1399,5 @@ function Chat() {
 }
 
 export function ChatPage() {
-  const chatStore = useChatStore();
-  const sessionIndex = chatStore.currentSessionIndex;
-  return <Chat key={sessionIndex} />;
-}
-
-export function EditMessageWithImageModal(props: {
-  onClose: () => void;
-  initialContent: string;
-  initialImages: string[];
-  onSave: (content: string, images: string[], retryOnConfirm?: boolean) => void;
-  title?: string;
-  textareaRef?: React.RefObject<HTMLTextAreaElement>;
-  message?: ChatMessage;
-}) {
-  const [content, setContent] = useState(props.initialContent);
-  const [attachImages, setAttachImages] = useState<string[]>(
-    props.initialImages,
-  );
-  const [uploading, setUploading] = useState(false);
-  const handlePaste = usePasteImageUpload(
-    attachImages,
-    setAttachImages,
-    setUploading,
-    setContent,
-  );
-  // ctrl+enter 触发 retry
-  const handleConfirm = () => {
-    props.onSave(content.trim(), attachImages, true);
-    props.onClose();
-  };
-  // 鼠标点击按钮不触发 retry
-  const handleSave = () => {
-    props.onSave(content.trim(), attachImages, false);
-    props.onClose();
-  };
-  return (
-    <div className="modal-mask">
-      <Modal
-        title={props.title || "编辑消息"}
-        onClose={props.onClose}
-        actions={[
-          <IconButton
-            text={Locale.UI.Cancel}
-            icon={<CancelIcon />}
-            key="cancel"
-            onClick={props.onClose}
-          />,
-          <IconButton
-            type="primary"
-            text={Locale.UI.Confirm}
-            icon={<ConfirmIcon />}
-            key="ok"
-            onClick={handleSave}
-          />,
-        ]}
-      >
-        <div className={styles["system-prompt-edit-container"]}>
-          <MessageContentEditPanel
-            value={content}
-            images={attachImages}
-            onChange={(newContent, newImages) => {
-              setContent(newContent);
-              setAttachImages(newImages);
-            }}
-            textareaRef={props.textareaRef}
-            uploading={uploading}
-            setUploading={setUploading}
-            handlePaste={handlePaste}
-            onConfirm={handleConfirm}
-          />
-        </div>
-      </Modal>
-    </div>
-  );
+  return <Chat key={useChatStore().currentSessionIndex} />;
 }
