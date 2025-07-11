@@ -876,7 +876,7 @@ function MessageActions(props: {
   );
 }
 
-function _Chat() {
+function Chat() {
   type RenderMessage = ChatMessage & { preview?: boolean };
 
   const chatStore = useChatStore();
@@ -2428,10 +2428,10 @@ function _Chat() {
   );
 }
 
-export function Chat() {
+export function ChatPage() {
   const chatStore = useChatStore();
   const sessionIndex = chatStore.currentSessionIndex;
-  return <_Chat key={sessionIndex}></_Chat>;
+  return <Chat key={sessionIndex} />;
 }
 
 export function EditMessageWithImageModal(props: {

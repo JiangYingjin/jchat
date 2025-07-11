@@ -4,7 +4,7 @@
 START_TIME=$(date +%s)
 
 PROJ_DIR="/root/proj/jchat"
-TMP_BUILD_DIR="$PROJ_DIR/build/tmp"
+TMP_BUILD_DIR="/tmp/jchat/build"
 SERVE_DIR="/www/jchat"
 PM2_CONF_PATH="$SERVE_DIR/jchat.json"
 
@@ -18,7 +18,7 @@ mkdir -p "$TMP_BUILD_DIR"
 echo "📁 复制代码至临时构建目录 ..."
 
 # 复制所有文件到临时目录，排除 .next 和 node_modules
-rsync -az --exclude='.next' --exclude='node_modules' --exclude='build/tmp' "$PROJ_DIR/" "$TMP_BUILD_DIR/"
+rsync -az --exclude='.next' --exclude='node_modules' "$PROJ_DIR/" "$TMP_BUILD_DIR/"
 
 # 创建 node_modules 软链接以提升效率
 if [ -d "$PROJ_DIR/node_modules" ]; then
@@ -71,4 +71,4 @@ else
 fi
 
 # 清理临时构建目录
-rm -rf "$PROJ_DIR/build"
+rm -rf "$TMP_BUILD_DIR"

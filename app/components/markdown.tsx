@@ -271,7 +271,7 @@ function tryWrapHtmlCode(text: string) {
     );
 }
 
-function _MarkDownContent(props: { content: string }) {
+function MarkDownContent(props: { content: string }) {
   const escapedContent = useMemo(() => {
     let content = tryWrapHtmlCode(escapeBrackets(props.content));
     return content;
@@ -321,7 +321,7 @@ function _MarkDownContent(props: { content: string }) {
   );
 }
 
-export const MarkdownContent = React.memo(_MarkDownContent);
+export const MarkdownContent = React.memo(MarkDownContent);
 
 export function Markdown(
   props: {
