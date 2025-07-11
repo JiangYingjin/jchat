@@ -1,46 +1,98 @@
+// --- 1. Imports ---
+// Grouped by type for clarity and better organization.
+
+// React and Hooks
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 
-import styles from "./settings.module.scss";
-
-import ResetIcon from "../icons/reload.svg";
-import AddIcon from "../icons/add.svg";
-import CloseIcon from "../icons/close.svg";
-import CopyIcon from "../icons/copy.svg";
-import ClearIcon from "../icons/clear.svg";
-import LoadingIcon from "../icons/three-dots.svg";
-import EditIcon from "../icons/edit.svg";
-import FireIcon from "../icons/fire.svg";
-import EyeIcon from "../icons/eye.svg";
-import DownloadIcon from "../icons/download.svg";
-import UploadIcon from "../icons/upload.svg";
-import ConfigIcon from "../icons/config.svg";
-import ConfirmIcon from "../icons/confirm.svg";
-
-import ConnectionIcon from "../icons/connection.svg";
-import {
-  Input,
-  List,
-  ListItem,
-  Modal,
-  PasswordInput,
-  Popover,
-  Select,
-  showConfirm,
-  showToast,
-} from "./ui-lib";
-import { IconButton } from "./button";
+// State Management
 import { useChatStore } from "../store";
 
-import Locale from "../locales";
-import { copyToClipboard } from "../utils";
-import { OPENAI_BASE_URL, Path } from "../constant";
-
+// UI Components
+import { List, ListItem, showToast } from "./ui-lib";
+import { IconButton } from "./button";
 import { ErrorBoundary } from "./error";
-import { InputRange } from "./input-range";
-import { useNavigate } from "react-router-dom";
-import { nanoid } from "nanoid";
+
+// Icons and Styles
+import styles from "./settings.module.scss";
+import CloseIcon from "../icons/close.svg";
+import DownloadIcon from "../icons/download.svg";
+import UploadIcon from "../icons/upload.svg";
+
+// Utilities and Constants
+import Locale from "../locales";
+import { Path } from "../constant";
 import { checkAndHandleAuth } from "../utils/auth";
 
+// --- 2. Main Exported Component ---
+// The primary component of this file, placed at the top for easy discoverability.
+
+/**
+ * The main Settings page component.
+ * It serves as the container for all settings sections and handles
+ * page-level logic like navigation and authentication checks.
+ */
+export function Settings() {
+  const navigate = useNavigate();
+
+  // Effect for checking authentication when the component mounts.
+  useEffect(() => {
+    checkAndHandleAuth(navigate);
+  }, [navigate]);
+
+  // Effect for handling the 'Escape' key to close the settings page.
+  useEffect(() => {
+    const keydownEvent = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        navigate(Path.Home);
+      }
+    };
+    document.addEventListener("keydown", keydownEvent);
+    return () => {
+      document.removeEventListener("keydown", keydownEvent);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <ErrorBoundary>
+      <div className="window-header">
+        <div className="window-header-title">
+          <div className="window-header-main-title">
+            {Locale.Settings.Title}
+          </div>
+          <div className="window-header-sub-title">
+            {Locale.Settings.SubTitle}
+          </div>
+        </div>
+        <div className="window-actions">
+          <div className="window-action-button"></div>
+          <div className="window-action-button"></div>
+          <div className="window-action-button">
+            <IconButton
+              aria={Locale.UI.Close}
+              icon={<CloseIcon />}
+              onClick={() => navigate(Path.Home)}
+              bordered
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className={styles["settings"]}>
+        <LocalDataItems />
+      </div>
+    </ErrorBoundary>
+  );
+}
+
+// --- 3. Helper Sub-components ---
+// Internal components used only within this file.
+
+/**
+ * A component responsible for displaying local data statistics
+ * and providing options to import/export chat data.
+ */
 function LocalDataItems() {
   const chatStore = useChatStore();
   const [databaseStats, setDatabaseStats] = useState({
@@ -50,7 +102,7 @@ function LocalDataItems() {
     chatInputs: 0,
   });
 
-  // 异步加载真实的数据库统计信息
+  // Asynchronously load real database statistics on component mount.
   useEffect(() => {
     const loadDatabaseStats = async () => {
       try {
@@ -65,9 +117,10 @@ function LocalDataItems() {
     loadDatabaseStats();
   }, []);
 
+  // Memoize the overview statistics to avoid recalculation on every render.
   const stateOverview = useMemo(() => {
-    // 使用真实的数据库统计，同时保持向后兼容
     const sessions = chatStore.sessions;
+    // Provide a fallback for message count for backward compatibility.
     const fallbackMessageCount = sessions.reduce(
       (p, c) => p + c.messageCount,
       0,
@@ -129,58 +182,5 @@ function LocalDataItems() {
         </div>
       </ListItem>
     </List>
-  );
-}
-
-export function Settings() {
-  const navigate = useNavigate();
-
-  // 打开 settings 页面时检查权限
-  useEffect(() => {
-    checkAndHandleAuth(navigate);
-  }, [navigate]);
-
-  useEffect(() => {
-    const keydownEvent = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        navigate(Path.Home);
-      }
-    };
-    document.addEventListener("keydown", keydownEvent);
-    return () => {
-      document.removeEventListener("keydown", keydownEvent);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <ErrorBoundary>
-      <div className="window-header">
-        <div className="window-header-title">
-          <div className="window-header-main-title">
-            {Locale.Settings.Title}
-          </div>
-          <div className="window-header-sub-title">
-            {Locale.Settings.SubTitle}
-          </div>
-        </div>
-        <div className="window-actions">
-          <div className="window-action-button"></div>
-          <div className="window-action-button"></div>
-          <div className="window-action-button">
-            <IconButton
-              aria={Locale.UI.Close}
-              icon={<CloseIcon />}
-              onClick={() => navigate(Path.Home)}
-              bordered
-            />
-          </div>
-        </div>
-      </div>
-
-      <div className={styles["settings"]}>
-        <LocalDataItems />
-      </div>
-    </ErrorBoundary>
   );
 }
