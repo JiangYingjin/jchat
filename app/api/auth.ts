@@ -2,14 +2,14 @@ import { NextRequest } from "next/server";
 import { getServerSideConfig } from "../utils/config";
 import md5 from "spark-md5";
 
-function getIP(req: NextRequest) {
-  let ip = req.ip ?? req.headers.get("x-real-ip");
-  const forwardedFor = req.headers.get("x-forwarded-for");
-  if (!ip && forwardedFor) {
-    ip = forwardedFor.split(",").at(0) ?? "";
-  }
-  return ip;
-}
+// function getIP(req: NextRequest) {
+//   let ip = req.headers.get("x-real-ip");
+//   const forwardedFor = req.headers.get("x-forwarded-for");
+//   if (!ip && forwardedFor) {
+//     ip = forwardedFor.split(",").at(0) ?? "";
+//   }
+//   return ip;
+// }
 
 function parseAccessCode(bearToken: string): string {
   return bearToken.trim().replaceAll("Bearer ", "").trim();

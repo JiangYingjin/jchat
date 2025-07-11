@@ -56,26 +56,15 @@ const ALLOWED_PATH = new Set(Object.values(OpenaiPath));
 
 export async function handle(
   req: NextRequest,
-  { params }: { params: { path: string[] } },
+  { params }: { params: Promise<{ path: string[]; provider: string }> },
 ) {
   if (req.method === "OPTIONS") {
     return NextResponse.json({ body: "OK" });
   }
-
-  const subpath = params.path.join("/");
-
-  if (!ALLOWED_PATH.has(subpath)) {
-    return NextResponse.json(
-      { error: true, msg: `You are not allowed to request ${subpath}` },
-      { status: 403 },
-    );
-  }
-
   const authResult = auth(req);
   if (authResult.error) {
     return NextResponse.json(authResult, { status: 401 });
   }
-
   try {
     return await requestOpenai(req);
   } catch (e) {

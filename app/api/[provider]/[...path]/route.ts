@@ -2,15 +2,19 @@ import { ApiPath } from "@/app/constant";
 import { NextRequest } from "next/server";
 import { handle as openaiHandler } from "../../openai";
 
-async function handle(
-  req: NextRequest,
-  { params }: { params: { provider: string; path: string[] } },
-) {
-  const apiPath = `/api/${params.provider}`;
-  console.log(`[${params.provider} Route] params `, params);
+export async function GET(req: NextRequest) {
+  const pathname = req.nextUrl.pathname;
+  const parts = pathname.split("/").filter(Boolean);
+  const provider = parts[1]; // api/[provider]/...
+  const path = parts.slice(2); // [...path]
+
+  const apiPath = `/api/${provider}`;
+  console.log(`[${provider} Route] params `, { provider, path });
   switch (apiPath) {
     case ApiPath.OpenAI:
-      return openaiHandler(req, { params });
+      return openaiHandler(req, {
+        params: Promise.resolve({ path, provider }),
+      });
     default:
       return new Response(
         JSON.stringify({
@@ -24,5 +28,28 @@ async function handle(
   }
 }
 
-export const GET = handle;
-export const POST = handle;
+export async function POST(req: NextRequest) {
+  const pathname = req.nextUrl.pathname;
+  const parts = pathname.split("/").filter(Boolean);
+  const provider = parts[1]; // api/[provider]/...
+  const path = parts.slice(2); // [...path]
+
+  const apiPath = `/api/${provider}`;
+  console.log(`[${provider} Route] params `, { provider, path });
+  switch (apiPath) {
+    case ApiPath.OpenAI:
+      return openaiHandler(req, {
+        params: Promise.resolve({ path, provider }),
+      });
+    default:
+      return new Response(
+        JSON.stringify({
+          error: true,
+          msg: "unknown api path",
+        }),
+        {
+          status: 404,
+        },
+      );
+  }
+}
