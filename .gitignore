@@ -1,12 +1,7 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
 # dependencies
 /node_modules
 /.pnp
 .pnp.js
-
-# testing
-/coverage
 
 # next.js
 /.next/
@@ -25,26 +20,20 @@ yarn-error.log*
 # local env files
 .env*.local
 
-# vercel
-.vercel
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 dev
 
 .vscode
-.idea
 
 # docker-compose env files
 .env
 
-*.key
-*.key.pub
-
 /uploads
-.vercel
 
 certificates
 
 build/tmp
+
+.yarn

@@ -153,6 +153,9 @@ export const useChatStore = createPersistStore(
           sessions: [newSession],
           currentSessionIndex: 0,
         }));
+
+        // **修复：确保新会话的消息正确加载**
+        await get().loadSessionMessages(0);
       },
 
       selectSession(index: number) {
@@ -164,6 +167,8 @@ export const useChatStore = createPersistStore(
       },
 
       moveSession(from: number, to: number) {
+        const oldIndex = get().currentSessionIndex;
+
         set((state) => {
           const { sessions, currentSessionIndex: oldIndex } = state;
 
@@ -181,6 +186,12 @@ export const useChatStore = createPersistStore(
             sessions: newSessions,
           };
         });
+
+        // **修复：如果当前会话索引改变了，加载新当前会话的消息**
+        const newIndex = calculateMoveIndex(from, to, oldIndex);
+        if (newIndex !== oldIndex) {
+          get().loadSessionMessages(newIndex);
+        }
       },
 
       async newSession() {
@@ -192,6 +203,9 @@ export const useChatStore = createPersistStore(
           currentSessionIndex: 0,
           sessions: [session].concat(state.sessions),
         }));
+
+        // **修复：确保新会话的消息正确加载**
+        await get().loadSessionMessages(0);
       },
 
       // 分支会话：创建一个包含指定消息历史的新会话
@@ -283,6 +297,9 @@ export const useChatStore = createPersistStore(
           sessions,
         }));
 
+        // **修复：在切换到新session后，立即加载其消息**
+        await get().loadSessionMessages(nextIndex);
+
         // **延迟删除相关数据的定时器**
         let deleteTimer: NodeJS.Timeout | null = null;
 
@@ -346,6 +363,8 @@ export const useChatStore = createPersistStore(
         if (validIndex !== index) {
           set(() => ({ currentSessionIndex: validIndex }));
           index = validIndex;
+          // **修复：如果索引被纠正，异步加载新当前会话的消息**
+          get().loadSessionMessages(validIndex);
         }
 
         return sessions[index];
@@ -616,7 +635,7 @@ export const useChatStore = createPersistStore(
   },
   {
     name: StoreKey.Chat,
-    version: 4.6, // 增加版本号，因为增加了 topic 到 title 的重命名迁移
+    version: 5.3, // 增加版本号，因为增加了 topic 到 title 的重命名迁移
     storage: jchatStorage,
 
     /**
@@ -673,99 +692,6 @@ export const useChatStore = createPersistStore(
     },
 
     migrate(persistedState: any, version: number) {
-      // 从 v4.4 升级到 v4.5：清理持久化状态中无效或废弃的属性
-      if (version < 4.5 && persistedState) {
-        console.log(
-          "[Migrate] Migrating chat store from v4.4 to v4.5 - cleaning invalid properties",
-        );
-
-        const cleanedState: any = { ...DEFAULT_CHAT_STATE };
-
-        // 1. 复制顶层属性
-        Object.keys(DEFAULT_CHAT_STATE).forEach((key) => {
-          if (persistedState.hasOwnProperty(key)) {
-            (cleanedState as any)[key] = persistedState[key];
-          }
-        });
-
-        // 2. 清理和验证会话
-        if (persistedState.sessions && Array.isArray(persistedState.sessions)) {
-          const sessionTemplate = createEmptySession();
-          const allowedSessionKeys = new Set([
-            ...Object.keys(sessionTemplate),
-            "isModelManuallySelected",
-            "longInputMode",
-          ]);
-
-          cleanedState.sessions = persistedState.sessions
-            .map((pSession: any) => {
-              if (!pSession || typeof pSession !== "object" || !pSession.id) {
-                return null; // 过滤无效会话
-              }
-
-              const newSession: any = {};
-              allowedSessionKeys.forEach((key) => {
-                if (pSession.hasOwnProperty(key)) {
-                  newSession[key] = pSession[key];
-                }
-              });
-
-              // messages 属性总是被持久化为空数组 (自 v4.4)
-              newSession.messages = [];
-
-              // 补全会话模板中的必要字段
-              Object.keys(sessionTemplate).forEach((key) => {
-                if (!newSession.hasOwnProperty(key)) {
-                  newSession[key] = (sessionTemplate as any)[key];
-                }
-              });
-
-              return newSession;
-            })
-            .filter(Boolean); // 移除 null 值
-        }
-
-        // 3. 如果没有有效会话，则重置
-        if (!cleanedState.sessions || cleanedState.sessions.length === 0) {
-          cleanedState.sessions = [createEmptySession()];
-          cleanedState.currentSessionIndex = 0;
-        }
-
-        // 4. 验证 currentSessionIndex
-        if (cleanedState.currentSessionIndex >= cleanedState.sessions.length) {
-          cleanedState.currentSessionIndex = Math.max(
-            0,
-            cleanedState.sessions.length - 1,
-          );
-        }
-
-        return cleanedState as any;
-      }
-
-      // 从 v4.5 升级到 v4.6：将 ChatSession.topic 重命名为 ChatSession.title
-      if (version < 4.6 && persistedState && persistedState.sessions) {
-        console.log(
-          "[Migrate] Migrating chat store from v4.5 to v4.6 - renaming topic to title",
-        );
-
-        // 处理会话中的 topic 到 title 的重命名
-        persistedState.sessions.forEach((session: any) => {
-          if (session && typeof session === "object") {
-            // 如果存在 topic 属性，将其重命名为 title
-            if (
-              session.hasOwnProperty("topic") &&
-              !session.hasOwnProperty("title")
-            ) {
-              console.log(
-                `[Migrate] Renaming topic to title for session ${session.id}`,
-              );
-              session.title = session.topic;
-              delete session.topic;
-            }
-          }
-        });
-      }
-
       return persistedState as any;
     },
   },
