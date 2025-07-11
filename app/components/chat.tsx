@@ -46,7 +46,7 @@ import { REQUEST_TIMEOUT_MS, PRO_MODEL } from "../constant";
 import { prettyObject } from "../utils/format";
 import { ExportMessageModal } from "./exporter";
 import { isEmpty } from "lodash-es";
-import { handleUnauthorizedResponse } from "../utils/auth";
+import { handleUnauthorizedResponse, handleUrlAuthCode } from "../utils/auth";
 import { ChatInputPanel } from "./chat-input-panel";
 import { ChatHeader } from "./chat-header";
 import { MessageList } from "./message-list";
@@ -500,24 +500,12 @@ function Chat() {
 
   // Handle URL commands - simplified from useCommand logic
   const [searchParams, setSearchParams] = useSearchParams();
-  useEffect(() => {
-    let shouldUpdate = false;
-    searchParams.forEach((param, name) => {
-      if (name === "code") {
-        console.log("[Command] got code from url: ", param);
-        if (param) {
-          chatStore.update((chat) => (chat.accessCode = param));
-        }
-        searchParams.delete(name);
-        shouldUpdate = true;
-      }
-    });
 
-    if (shouldUpdate) {
-      setSearchParams(searchParams);
-    }
+  // 只在组件加载时执行一次URL认证码处理
+  useEffect(() => {
+    handleUrlAuthCode(searchParams, setSearchParams, navigate);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, setSearchParams]);
+  }, []);
 
   // edit / insert message modal
   const [isEditingMessage, setIsEditingMessage] = useState(false);

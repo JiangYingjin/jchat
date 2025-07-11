@@ -95,3 +95,43 @@ export function handleUnauthorizedResponse(
   });
   navigate("/auth");
 }
+
+// 处理URL中的认证码参数
+export async function handleUrlAuthCode(
+  searchParams: URLSearchParams,
+  setSearchParams: (params: URLSearchParams) => void,
+  navigate: (path: string) => void,
+): Promise<void> {
+  let shouldUpdate = false;
+  let foundCode: string | null = null;
+
+  searchParams.forEach((param, name) => {
+    if (name === "code") {
+      console.log("[Auth] got code from url: ", param);
+      if (param) {
+        foundCode = param;
+      }
+      searchParams.delete(name);
+      shouldUpdate = true;
+    }
+  });
+
+  if (shouldUpdate) {
+    setSearchParams(searchParams);
+  }
+
+  // 如果找到了code，立即验证权限
+  if (foundCode) {
+    const hasPermission = await checkAccessCodePermission(foundCode);
+    const chatStore = useChatStore.getState();
+
+    if (hasPermission) {
+      // 有权限，设置accessCode
+      chatStore.update((chat) => (chat.accessCode = foundCode!));
+    } else {
+      // 没有权限，清空accessCode并跳转到auth页面
+      chatStore.update((chat) => (chat.accessCode = ""));
+      navigate("/auth");
+    }
+  }
+}
