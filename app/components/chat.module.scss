@@ -1,4 +1,4 @@
-@import "../styles/animation.scss";
+@use "../styles/animation.scss" as *;
 
 .attach-files {
   position: absolute;
@@ -32,6 +32,7 @@
     word-wrap: break-word;
     word-break: break-all;
     -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     line-height: 1.5;
     overflow: hidden;
@@ -680,9 +681,6 @@
   outline: none;
   box-sizing: border-box;
   min-height: 68px;
-}
-
-.chat-input:focus {
 }
 
 .chat-input-send {

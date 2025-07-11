@@ -1,4 +1,4 @@
-@import "../styles/animation.scss";
+@use "../styles/animation.scss" as *;
 
 .card {
   background-color: var(--white);
@@ -292,7 +292,7 @@
   }
 
   &::-webkit-scrollbar-thumb {
-    background: rgba(0, 0, 0, 0.10);
+    background: rgba(0, 0, 0, 0.1);
     border-radius: 4px;
     cursor: default !important;
     transition: background-color 0.2s ease;
@@ -302,7 +302,7 @@
     }
 
     &:active {
-      background: rgba(0, 0, 0, 0.20);
+      background: rgba(0, 0, 0, 0.2);
     }
   }
 
