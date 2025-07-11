@@ -105,6 +105,7 @@ import { MessageContentEditPanel } from "./message-content-edit-panel";
 import { MessageListEditor } from "./message-list-editor";
 import { handleUnauthorizedResponse } from "../utils/auth";
 import { ChatInputPanel } from "./chat-input-panel";
+import { ChatHeader } from "./chat-header";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
@@ -1831,112 +1832,63 @@ function Chat() {
   return (
     <>
       <div className={styles.chat} key={session.id}>
-        <div className="window-header">
-          <div
-            className={clsx("window-header-title", styles["chat-body-title"])}
-          >
-            <div
-              className={clsx(
-                "window-header-main-title",
-                styles["chat-body-main-title"],
-              )}
-              onClickCapture={() => setIsEditingMessage(true)}
-            >
-              {!session.title ? DEFAULT_TOPIC : session.title}
-            </div>
-            {!isMobileScreen && (
-              <div className="window-header-sub-title">
-                {Locale.Chat.SubTitle(session.messages.length)}
-              </div>
-            )}
-          </div>
-          <div className="window-actions">
-            <div className="window-action-button">
-              <IconButton
-                icon={<EditIcon />}
-                bordered
-                title="编辑上下文"
-                onClick={async () => {
-                  // 获取当前 session 的 system 消息
-                  let systemMessage = session.messages.find(
-                    (m) => m.role === "system",
-                  );
-                  let systemData: SystemMessageData = {
-                    text: "",
-                    images: [],
-                    scrollTop: 0,
-                    selection: { start: 0, end: 0 },
-                    updateAt: Date.now(),
-                  };
+        <ChatHeader
+          sessionTitle={session.title}
+          messageCount={session.messages.length}
+          onEditContextClick={async () => {
+            let systemMessage = session.messages.find(
+              (m) => m.role === "system",
+            );
+            let systemData: SystemMessageData = {
+              text: "",
+              images: [],
+              scrollTop: 0,
+              selection: { start: 0, end: 0 },
+              updateAt: Date.now(),
+            };
 
-                  // 总是先尝试从独立存储中加载系统提示词（现在是独立存储的）
-                  systemData = await loadSystemMessageContentFromStorage(
-                    session.id,
-                  );
+            systemData = await loadSystemMessageContentFromStorage(session.id);
 
-                  // 如果独立存储中没有数据，且存在旧格式的 system 消息，则从旧格式中解析
-                  if (
-                    !systemData.text.trim() &&
-                    !systemData.images.length &&
-                    systemMessage?.content
-                  ) {
-                    // 兼容旧格式
-                    if (typeof systemMessage.content === "string") {
-                      systemData = {
-                        text: systemMessage.content,
-                        images: [],
-                        scrollTop: 0,
-                        selection: { start: 0, end: 0 },
-                        updateAt: Date.now(),
-                      };
-                    } else if (Array.isArray(systemMessage.content)) {
-                      const textContent = systemMessage.content
-                        .filter((c: any) => c.type === "text")
-                        .map((c: any) => c.text)
-                        .join("");
-                      const images = systemMessage.content
-                        .filter((c: any) => c.type === "image_url")
-                        .map((c: any) => c.image_url?.url)
-                        .filter(Boolean);
-                      systemData = {
-                        text: textContent,
-                        images,
-                        scrollTop: 0,
-                        selection: { start: 0, end: 0 },
-                        updateAt: Date.now(),
-                      };
-                    }
-                  }
-
-                  // 设置数据并显示编辑模态框
-                  setSystemPromptData(systemData);
-                  setShowSystemPromptEdit(true);
-                }}
-              />
-            </div>
-            <div className="window-action-button">
-              <IconButton
-                icon={<ExportIcon />}
-                bordered
-                title={Locale.Chat.Actions.Export}
-                onClick={() => {
-                  setShowExport(true);
-                }}
-              />
-            </div>
-            <div className="window-action-button">
-              <IconButton
-                icon={<DeleteIcon />}
-                bordered
-                title={Locale.Chat.Actions.Delete}
-                onClick={async () => {
-                  await chatStore.deleteSession(chatStore.currentSessionIndex);
-                  scrollToBottom();
-                }}
-              />
-            </div>
-          </div>
-        </div>
+            if (
+              !systemData.text.trim() &&
+              !systemData.images.length &&
+              systemMessage?.content
+            ) {
+              if (typeof systemMessage.content === "string") {
+                systemData = {
+                  text: systemMessage.content,
+                  images: [],
+                  scrollTop: 0,
+                  selection: { start: 0, end: 0 },
+                  updateAt: Date.now(),
+                };
+              } else if (Array.isArray(systemMessage.content)) {
+                const textContent = systemMessage.content
+                  .filter((c: any) => c.type === "text")
+                  .map((c: any) => c.text)
+                  .join("");
+                const images = systemMessage.content
+                  .filter((c: any) => c.type === "image_url")
+                  .map((c: any) => c.image_url?.url)
+                  .filter(Boolean);
+                systemData = {
+                  text: textContent,
+                  images,
+                  scrollTop: 0,
+                  selection: { start: 0, end: 0 },
+                  updateAt: Date.now(),
+                };
+              }
+            }
+            setSystemPromptData(systemData);
+            setShowSystemPromptEdit(true);
+          }}
+          onExportClick={() => setShowExport(true)}
+          onDeleteSessionClick={async () => {
+            await chatStore.deleteSession(chatStore.currentSessionIndex);
+            scrollToBottom();
+          }}
+        />
         <div className={styles["chat-main"]}>
           <div className={styles["chat-body-container"]}>
             <div
@@ -1955,8 +1907,6 @@ function Chat() {
                 const showActions = !(
                   message.preview || message.content.length === 0
                 );
-                // Clear context functionality has been removed
-
                 // 系统级提示词在会话界面中隐藏
                 if (isSystem) {
                   return null;
