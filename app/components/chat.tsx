@@ -1,12 +1,10 @@
 import { useDebouncedCallback } from "use-debounce";
-import { nanoid } from "nanoid";
 import React, {
   useState,
   useRef,
   useEffect,
   useMemo,
   useCallback,
-  Fragment,
 } from "react";
 
 import {
@@ -14,47 +12,19 @@ import {
   useTripleClick,
   usePasteImageUpload,
 } from "../utils/hooks";
-
-import SendWhiteIcon from "../icons/send-white.svg";
-
-import BrainIcon from "../icons/brain.svg";
-import ExportIcon from "../icons/share.svg";
-import CopyIcon from "../icons/copy.svg";
-import LoadingIcon from "../icons/three-dots.svg";
-import LoadingButtonIcon from "../icons/loading.svg";
-import ResetIcon from "../icons/reload.svg";
 import DeleteIcon from "../icons/clear.svg";
-import EditIcon from "../icons/edit.svg";
-import ConfirmIcon from "../icons/confirm.svg";
-import CloseIcon from "../icons/close.svg";
-import CancelIcon from "../icons/cancel.svg";
-import BranchIcon from "../icons/branch.svg";
-
-import UploadIcon from "../icons/upload.svg";
-import ImageIcon from "../icons/image.svg";
-import CameraIcon from "../icons/camera.svg";
-
-import StopIcon from "../icons/pause.svg";
-import RobotIcon from "../icons/robot.svg";
-import CheckmarkIcon from "../icons/checkmark.svg";
-
-import ReloadIcon from "../icons/reload.svg";
-
 import {
   ChatMessage,
   useChatStore,
-  DEFAULT_TOPIC,
-  systemMessageStorage,
   chatInputStorage,
   SystemMessageData,
   saveSystemMessageContentToStorage,
   loadSystemMessageContentFromStorage,
 } from "../store";
 
-import { createMessage, updateSessionStats } from "../utils/session";
+import { updateSessionStats } from "../utils/session";
 
 import {
-  copyToClipboard,
   autoGrowTextArea,
   useMobileScreen,
   getMessageTextContent,
@@ -65,530 +35,26 @@ import {
 import { shouldAutoSwitchModel } from "../utils/model";
 import { capturePhoto, uploadImage } from "../utils/file-upload";
 
-import dynamic from "next/dynamic";
-
 import { ChatControllerPool } from "../client/controller";
 
 import Locale from "../locales";
 
-import { IconButton } from "./button";
 import styles from "./chat.module.scss";
-
-import {
-  List,
-  ListItem,
-  Modal,
-  SearchSelector,
-  Selector,
-  showConfirm,
-  showPrompt,
-  showToast,
-  showImageModal,
-} from "./ui-lib";
-import { copyImageToClipboard } from "../utils/image";
+import { showToast } from "./ui-lib";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import {
-  CHAT_PAGE_SIZE,
-  Path,
-  REQUEST_TIMEOUT_MS,
-  DEFAULT_FONT_SIZE,
-  DEFAULT_FONT_FAMILY,
-  DEFAULT_THEME,
-  PRO_MODEL,
-} from "../constant";
+import { REQUEST_TIMEOUT_MS, PRO_MODEL } from "../constant";
 import { prettyObject } from "../utils/format";
 import { ExportMessageModal } from "./exporter";
-import { MultimodalContent } from "../client/api";
-
-import { ClientApi } from "../client/api";
-
 import { isEmpty } from "lodash-es";
-
-import clsx from "clsx";
-
-import { MessageContentEditPanel } from "./message-content-edit-panel";
-import { MessageListEditor } from "./message-list-editor";
 import { handleUnauthorizedResponse } from "../utils/auth";
 import { ChatInputPanel } from "./chat-input-panel";
 import { ChatHeader } from "./chat-header";
-import { ChatMessageItem } from "./chat-message-item";
 import { MessageList } from "./message-list";
 import {
   SystemPromptEditModal,
   EditMessageWithImageModal,
 } from "./message-edit-modals";
-
-function ChatAction(props: {
-  text: string;
-  icon?: JSX.Element;
-  loding?: boolean;
-  innerNode?: JSX.Element;
-  onClick: () => void;
-  style?: React.CSSProperties;
-  alwaysFullWidth?: boolean; // 新增参数，控制是否总是 full 宽度
-}) {
-  const iconRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState({
-    full: 16,
-    icon: 16,
-  });
-
-  function updateWidth() {
-    if (!iconRef.current || !textRef.current) return;
-    const getWidth = (dom: HTMLDivElement) => dom.getBoundingClientRect().width;
-    const textWidth = getWidth(textRef.current);
-    const iconWidth = getWidth(iconRef.current);
-    setWidth({
-      full: textWidth + iconWidth,
-      icon: iconWidth,
-    });
-  }
-
-  // 计算最终宽度
-  const iconWidthValue = width.icon;
-  const fullWidthValue = width.full;
-  const style =
-    props.icon && !props.loding
-      ? ({
-          "--icon-width": `${iconWidthValue}px`,
-          "--full-width": `${fullWidthValue}px`,
-          ...props.style,
-          ...(props.alwaysFullWidth ? { width: `${fullWidthValue}px` } : {}),
-        } as React.CSSProperties)
-      : props.loding
-        ? ({
-            "--icon-width": `30px`,
-            "--full-width": `30px`,
-            ...props.style,
-            ...(props.alwaysFullWidth ? { width: `30px` } : {}),
-          } as React.CSSProperties)
-        : props.style;
-
-  // 保证 alwaysFullWidth 时宽度总是最新
-  useEffect(() => {
-    if (props.alwaysFullWidth) {
-      updateWidth();
-    }
-  }, [props.text, props.icon, props.alwaysFullWidth]);
-
-  return (
-    <div
-      className={clsx(styles["chat-input-action"], "clickable")}
-      onClick={() => {
-        if (props.loding) return;
-        props.onClick();
-        iconRef ? setTimeout(updateWidth, 1) : undefined;
-      }}
-      onMouseEnter={props.icon ? updateWidth : undefined}
-      onTouchStart={props.icon ? updateWidth : undefined}
-      style={style}
-    >
-      {props.icon ? (
-        <div ref={iconRef} className={styles["icon"]}>
-          {props.loding ? <LoadingIcon /> : props.icon}
-        </div>
-      ) : null}
-      <div
-        className={
-          props.icon && !props.loding
-            ? `${styles["text"]}${props.alwaysFullWidth ? " " + styles["text-always-show"] : ""}`
-            : undefined
-        }
-        ref={textRef}
-      >
-        {!props.loding && props.text}
-      </div>
-      {props.innerNode}
-    </div>
-  );
-}
-
-// 新增：双击确认的 ChatAction 组件
-function DoubleClickChatAction(props: {
-  text: string;
-  icon?: JSX.Element;
-  loding?: boolean;
-  innerNode?: JSX.Element;
-  onClick: () => void;
-  style?: React.CSSProperties;
-  alwaysFullWidth?: boolean;
-  confirmText?: string; // 确认时的文本
-}) {
-  const iconRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState({
-    full: 16,
-    icon: 16,
-  });
-  const [clickCount, setClickCount] = useState(0);
-  const [isConfirmed, setIsConfirmed] = useState(false);
-
-  function updateWidth() {
-    if (!iconRef.current || !textRef.current) return;
-    const getWidth = (dom: HTMLDivElement) => dom.getBoundingClientRect().width;
-    const textWidth = getWidth(textRef.current);
-    const iconWidth = getWidth(iconRef.current);
-    setWidth({
-      full: textWidth + iconWidth,
-      icon: iconWidth,
-    });
-  }
-
-  // 计算最终宽度
-  const iconWidthValue = width.icon;
-  const fullWidthValue = width.full;
-  const style =
-    props.icon && !props.loding
-      ? ({
-          "--icon-width": `${iconWidthValue}px`,
-          "--full-width": `${fullWidthValue}px`,
-          ...props.style,
-          ...(props.alwaysFullWidth ? { width: `${fullWidthValue}px` } : {}),
-          // 当确认时改变样式
-          ...(isConfirmed
-            ? {
-                backgroundColor: "var(--primary-light, #e6f0fa)",
-                color: "var(--primary, #2196f3)",
-                border: "1.5px solid var(--primary)",
-              }
-            : {}),
-        } as React.CSSProperties)
-      : props.loding
-        ? ({
-            "--icon-width": `30px`,
-            "--full-width": `30px`,
-            ...props.style,
-            ...(props.alwaysFullWidth ? { width: `30px` } : {}),
-          } as React.CSSProperties)
-        : props.style;
-
-  // 保证 alwaysFullWidth 时宽度总是最新
-  useEffect(() => {
-    if (props.alwaysFullWidth) {
-      updateWidth();
-    }
-  }, [props.text, props.icon, props.alwaysFullWidth]);
-
-  const handleClick = () => {
-    if (props.loding) return;
-
-    const newClickCount = clickCount + 1;
-    setClickCount(newClickCount);
-
-    if (newClickCount === 1) {
-      // 第一次点击，显示确认状态
-      setIsConfirmed(true);
-      // 3秒后自动重置
-      setTimeout(() => {
-        setClickCount(0);
-        setIsConfirmed(false);
-      }, 3000);
-    } else if (newClickCount === 2) {
-      // 第二次点击，执行操作
-      props.onClick();
-      setClickCount(0);
-      setIsConfirmed(false);
-    }
-  };
-
-  const handleMouseLeave = () => {
-    // 鼠标移出时重置状态
-    setClickCount(0);
-    setIsConfirmed(false);
-  };
-
-  const displayText = isConfirmed ? props.confirmText || "重试" : props.text;
-
-  return (
-    <div
-      className={clsx(styles["chat-input-action"], "clickable")}
-      onClick={handleClick}
-      onMouseEnter={props.icon ? updateWidth : undefined}
-      onMouseLeave={handleMouseLeave}
-      onTouchStart={props.icon ? updateWidth : undefined}
-      style={style}
-    >
-      {props.icon ? (
-        <div ref={iconRef} className={styles["icon"]}>
-          {props.loding ? <LoadingIcon /> : props.icon}
-        </div>
-      ) : null}
-      <div
-        className={
-          props.icon && !props.loding
-            ? `${styles["text"]}${props.alwaysFullWidth ? " " + styles["text-always-show"] : ""}`
-            : undefined
-        }
-        ref={textRef}
-      >
-        {!props.loding && displayText}
-      </div>
-      {props.innerNode}
-    </div>
-  );
-}
-
-export function ChatActions(props: {
-  uploadImage: () => Promise<void>;
-  capturePhoto: () => Promise<void>;
-  uploading: boolean;
-}) {
-  const chatStore = useChatStore();
-  const session = chatStore.currentSession();
-
-  // stop all responses
-  const couldStop = ChatControllerPool.hasPending();
-  const stopAll = () => ChatControllerPool.stopAll();
-
-  // switch model
-  const currentModel = session.model;
-  const models = chatStore.models;
-
-  const [showModelSelector, setShowModelSelector] = useState(false);
-  const [showUploadImage, setShowUploadImage] = useState(false);
-
-  const isMobileScreen = useMobileScreen();
-
-  useEffect(() => {
-    // 所有模型都支持视觉功能
-    setShowUploadImage(isMobileScreen);
-  }, [isMobileScreen]);
-
-  return (
-    <div className={styles["chat-input-actions"]}>
-      <>
-        {showUploadImage && (
-          <ChatAction
-            onClick={props.capturePhoto}
-            text="拍照上传"
-            icon={props.uploading ? <LoadingButtonIcon /> : <CameraIcon />}
-            alwaysFullWidth={false}
-          />
-        )}
-        {showUploadImage && (
-          <ChatAction
-            onClick={props.uploadImage}
-            text={Locale.Chat.InputActions.UploadImage}
-            icon={props.uploading ? <LoadingButtonIcon /> : <ImageIcon />}
-            alwaysFullWidth={false}
-          />
-        )}
-
-        <ChatAction
-          onClick={() => setShowModelSelector(true)}
-          text={currentModel}
-          icon={<RobotIcon />}
-          alwaysFullWidth={true}
-        />
-        {!isMobileScreen && (
-          <ChatAction
-            onClick={() => {
-              chatStore.updateTargetSession(session, (s) => {
-                s.longInputMode = !s.longInputMode;
-              });
-            }}
-            text={"长输入模式"}
-            icon={<EditIcon />}
-            alwaysFullWidth={false}
-            style={{
-              backgroundColor: session.longInputMode
-                ? "var(--primary-light, #e6f0fa)"
-                : undefined,
-              color: session.longInputMode
-                ? "var(--primary, #2196f3)"
-                : undefined,
-              opacity: session.longInputMode ? 1 : 0.7,
-              border: session.longInputMode
-                ? "1.5px solid var(--primary)"
-                : undefined,
-            }}
-          />
-        )}
-
-        {showModelSelector && (
-          <SearchSelector
-            defaultSelectedValue={currentModel}
-            items={models.map((m) => ({
-              title: `${m}`,
-              value: m,
-            }))}
-            onClose={() => setShowModelSelector(false)}
-            onSelection={(s) => {
-              if (s.length === 0) return;
-              chatStore.updateTargetSession(session, (session) => {
-                session.model = s[0] as string;
-                // 标记用户手动选择了模型
-                session.isModelManuallySelected = true;
-              });
-            }}
-          />
-        )}
-
-        {couldStop && (
-          <ChatAction
-            onClick={stopAll}
-            text={Locale.Chat.InputActions.Stop}
-            icon={<StopIcon />}
-            alwaysFullWidth={false}
-          />
-        )}
-      </>
-      <div className={styles["chat-input-actions-end"]}></div>
-    </div>
-  );
-}
-
-export function EditMessageModal(props: { onClose: () => void }) {
-  const chatStore = useChatStore();
-  const session = chatStore.currentSession();
-  const [messages, setMessages] = useState(session.messages.slice());
-
-  return (
-    <div className="modal-mask">
-      <Modal
-        title={Locale.Chat.EditMessage.Title}
-        onClose={props.onClose}
-        actions={[
-          <IconButton
-            text={Locale.UI.Cancel}
-            icon={<CancelIcon />}
-            key="cancel"
-            onClick={() => {
-              props.onClose();
-            }}
-          />,
-          <IconButton
-            type="primary"
-            text={Locale.UI.Confirm}
-            icon={<ConfirmIcon />}
-            key="ok"
-            onClick={() => {
-              chatStore.updateTargetSession(
-                session,
-                (session) => (session.messages = messages),
-              );
-              props.onClose();
-            }}
-          />,
-        ]}
-      >
-        <List>
-          <ListItem
-            title={Locale.Chat.EditMessage.Topic.Title}
-            subTitle={Locale.Chat.EditMessage.Topic.SubTitle}
-          >
-            <input
-              type="text"
-              value={session.title}
-              onInput={(e) =>
-                chatStore.updateTargetSession(
-                  session,
-                  (session) => (session.title = e.currentTarget.value),
-                )
-              }
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && e.ctrlKey) {
-                  e.preventDefault();
-                  chatStore.updateTargetSession(
-                    session,
-                    (session) => (session.title = e.currentTarget.value),
-                  );
-                  props.onClose();
-                }
-              }}
-            ></input>
-            <IconButton
-              icon={<ReloadIcon />}
-              bordered
-              title={Locale.Chat.Actions.RefreshTitle}
-              onClick={() => {
-                showToast(Locale.Chat.Actions.RefreshToast);
-                chatStore.summarizeSession(true, session);
-              }}
-            />
-          </ListItem>
-        </List>
-        <MessageListEditor
-          context={messages}
-          updateContext={(updater) => {
-            const newMessages = messages.slice();
-            updater(newMessages);
-            setMessages(newMessages);
-          }}
-          onModalClose={props.onClose}
-        />
-      </Modal>
-    </div>
-  );
-}
-
-export function DeleteImageButton(props: { deleteImage: () => void }) {
-  return (
-    <div
-      className={styles["delete-image"]}
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        props.deleteImage();
-      }}
-    >
-      <DeleteIcon />
-    </div>
-  );
-}
-
-// 新增：消息操作按钮组件
-export function MessageActions(props: {
-  message: ChatMessage;
-  onResend: (message: ChatMessage) => void;
-  onDelete: (msgId: string) => void;
-  onUserStop: (messageId: string) => void;
-  onBranch: (message: ChatMessage, index: number) => void;
-  index: number;
-}) {
-  const { message, onResend, onDelete, onUserStop, onBranch, index } = props;
-
-  return (
-    <div className={styles["chat-input-actions"]}>
-      {message.streaming ? (
-        <ChatAction
-          text={Locale.Chat.Actions.Stop}
-          icon={<StopIcon />}
-          onClick={() => onUserStop(message.id ?? index.toString())}
-          alwaysFullWidth={false}
-        />
-      ) : (
-        <>
-          <DoubleClickChatAction
-            text={Locale.Chat.Actions.Retry}
-            icon={<ResetIcon />}
-            onClick={() => onResend(message)}
-            alwaysFullWidth={false}
-          />
-          <ChatAction
-            text={Locale.Chat.Actions.Copy}
-            icon={<CopyIcon />}
-            onClick={() => copyToClipboard(getMessageTextContent(message))}
-            alwaysFullWidth={false}
-          />
-          <ChatAction
-            text={Locale.Chat.Actions.Delete}
-            icon={<DeleteIcon />}
-            onClick={() => onDelete(message.id ?? index.toString())}
-            alwaysFullWidth={false}
-          />
-          <ChatAction
-            text={Locale.Chat.Actions.Branch}
-            icon={<BranchIcon />}
-            onClick={() => onBranch(message, index)}
-            alwaysFullWidth={false}
-          />
-        </>
-      )}
-    </div>
-  );
-}
+import { SessionEditorModal } from "./session-editor-modal";
 
 function Chat() {
   type RenderMessage = ChatMessage & { preview?: boolean };
@@ -605,7 +71,6 @@ function Chat() {
       if (value.trim() !== "" && currentInputValue.trim() === "") {
         return;
       }
-
       const currentData = (await chatInputStorage.getChatInput(session.id)) || {
         text: "",
         images: [],
@@ -733,13 +198,10 @@ function Chat() {
   const [showExport, setShowExport] = useState(false);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const messageItemRef = useRef<HTMLDivElement>(null);
   const messageEditRef = useRef<HTMLTextAreaElement>(null);
   const [userInput, setUserInput] = useState("");
-  const [isLargeInput, setIsLargeInput] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { shouldSubmit } = useSubmitHandler();
-  const isTyping = userInput !== "";
 
   // 滚动逻辑已经移到 MessageList 组件中，这里只需要提供 setAutoScroll 函数
   const [autoScroll, setAutoScroll] = useState(true);
@@ -1098,7 +560,6 @@ function Chat() {
     );
   };
 
-  const [showChatSidePanel, setShowChatSidePanel] = useState(false);
   const [showSystemPromptEdit, setShowSystemPromptEdit] = useState(false);
   const [systemPromptData, setSystemPromptData] = useState<SystemMessageData>({
     text: "",
@@ -1330,7 +791,7 @@ function Chat() {
       )}
 
       {isEditingMessage && (
-        <EditMessageModal
+        <SessionEditorModal
           onClose={() => {
             setIsEditingMessage(false);
           }}

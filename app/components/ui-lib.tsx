@@ -9,6 +9,7 @@ import ConfirmIcon from "../icons/confirm.svg";
 import CancelIcon from "../icons/cancel.svg";
 import MaxIcon from "../icons/max.svg";
 import MinIcon from "../icons/min.svg";
+import DeleteIcon from "../icons/clear.svg";
 
 import Locale from "../locales";
 
@@ -721,6 +722,21 @@ export function FullScreen(props: any) {
         />
       </div>
       {children}
+    </div>
+  );
+}
+
+export function DeleteImageButton(props: { deleteImage: () => void }) {
+  return (
+    <div
+      className={styles["delete-image"]}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        props.deleteImage();
+      }}
+    >
+      <DeleteIcon />
     </div>
   );
 }

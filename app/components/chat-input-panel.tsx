@@ -5,8 +5,8 @@ import { isEmpty } from "lodash-es";
 
 import SendWhiteIcon from "../icons/send-white.svg";
 
-import { ChatActions } from "./chat";
-import { DeleteImageButton } from "./chat";
+import { ChatActions } from "./chat-actions";
+import { DeleteImageButton } from "./ui-lib";
 import { IconButton } from "./button";
 import { showImageModal } from "./ui-lib";
 import { copyImageToClipboard } from "../utils/image";

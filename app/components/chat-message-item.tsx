@@ -1,14 +1,10 @@
 import React, { Fragment, RefObject } from "react";
 import { ChatMessage } from "../store";
-import {
-  getMessageTextContent,
-  getMessageTextReasoningContent,
-  getMessageImages,
-} from "../utils";
+import { getMessageTextContent, getMessageImages } from "../utils";
 import { MultimodalContent } from "../client/api";
 import { Markdown } from "./markdown";
 import { ThinkingContent } from "./thinking-content";
-import { MessageActions } from "./chat";
+import { MessageActions } from "./message-actions";
 import styles from "./chat.module.scss";
 
 type RenderMessage = ChatMessage & { preview?: boolean };
