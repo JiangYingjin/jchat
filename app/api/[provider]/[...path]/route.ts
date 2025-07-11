@@ -21,9 +21,7 @@ export async function GET(req: NextRequest) {
           error: true,
           msg: "unknown api path",
         }),
-        {
-          status: 404,
-        },
+        { status: 404 },
       );
   }
 }
@@ -47,9 +45,7 @@ export async function POST(req: NextRequest) {
           error: true,
           msg: "unknown api path",
         }),
-        {
-          status: 404,
-        },
+        { status: 404 },
       );
   }
 }
