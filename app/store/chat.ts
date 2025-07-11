@@ -635,7 +635,7 @@ export const useChatStore = createPersistStore(
   },
   {
     name: StoreKey.Chat,
-    version: 5.3, // 增加版本号，因为增加了 topic 到 title 的重命名迁移
+    version: 5.4,
     storage: jchatStorage,
 
     /**
@@ -692,6 +692,46 @@ export const useChatStore = createPersistStore(
     },
 
     migrate(persistedState: any, version: number) {
+      // 迁移逻辑：删除所有冗余属性
+      if (version < 5.4) {
+        console.log("[Store] Migrating from version", version, "to 5.4");
+        try {
+          const newSessions = persistedState.sessions.map((session: any) => {
+            // 只保留 ChatSession 接口中定义的属性
+            const newSession: ChatSession = {
+              id: session.id,
+              title: session.title,
+              model: session.model,
+              messageCount: session.messageCount,
+              status: session.status,
+              isModelManuallySelected: session.isModelManuallySelected,
+              longInputMode: session.longInputMode,
+              lastUpdate: session.lastUpdate,
+              // messages 属性通过 partialize 已经处理，这里初始化为空数组
+              messages: [],
+            };
+            return newSession;
+          });
+
+          // 同时删除根级别的冗余属性，只保留 DEFAULT_CHAT_STATE 中定义的
+          const newPersistedState = {
+            accessCode:
+              persistedState.accessCode || DEFAULT_CHAT_STATE.accessCode,
+            models: persistedState.models || DEFAULT_CHAT_STATE.models,
+            sessions: newSessions,
+            currentSessionIndex:
+              persistedState.currentSessionIndex ||
+              DEFAULT_CHAT_STATE.currentSessionIndex,
+          };
+
+          console.log("[Store] Migration to 5.4 successful.");
+          return newPersistedState;
+        } catch (e) {
+          console.error("[Store] Migration to 5.4 failed:", e);
+          // 如果迁移失败，返回原始状态，避免数据丢失
+          return persistedState as any;
+        }
+      }
       return persistedState as any;
     },
   },

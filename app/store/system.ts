@@ -1,10 +1,7 @@
 import localforage from "localforage";
+import { isClient } from "../utils";
 
-// 检查是否在客户端环境
-const isClient = typeof window !== "undefined";
-
-// 系统消息数据存储接口
-interface SystemMessageData {
+export interface SystemMessageData {
   text: string;
   images: string[];
   scrollTop: number;
@@ -117,5 +114,58 @@ class SystemMessageStorage {
 // 创建全局实例
 export const systemMessageStorage = new SystemMessageStorage();
 
-// 导出类型供其他地方使用
-export type { SystemMessageData };
+export async function saveSystemMessageContentToStorage(
+  sessionId: string,
+  content: string,
+  images: string[] = [],
+  scrollTop: number = 0,
+  selection: { start: number; end: number } = { start: 0, end: 0 },
+) {
+  try {
+    // 保存文本和图片数据
+    const data: SystemMessageData = {
+      text: content,
+      images,
+      scrollTop,
+      selection,
+      updateAt: Date.now(),
+    };
+    const success = await systemMessageStorage.saveSystemMessage(
+      sessionId,
+      data,
+    );
+    if (!success) {
+      throw new Error("保存到 IndexedDB 失败");
+    }
+  } catch (error) {
+    console.error("保存系统消息失败:", error);
+    alert("系统提示词保存失败，请重试。");
+  }
+}
+
+export async function loadSystemMessageContentFromStorage(
+  sessionId: string,
+): Promise<SystemMessageData> {
+  try {
+    const data = await systemMessageStorage.getSystemMessage(sessionId);
+    if (!data) {
+      return {
+        text: "",
+        images: [],
+        scrollTop: 0,
+        selection: { start: 0, end: 0 },
+        updateAt: Date.now(),
+      };
+    }
+    return data;
+  } catch (error) {
+    console.error("读取系统消息失败:", error);
+    return {
+      text: "",
+      images: [],
+      scrollTop: 0,
+      selection: { start: 0, end: 0 },
+      updateAt: Date.now(),
+    };
+  }
+}

@@ -9,7 +9,7 @@ function handle(req: NextRequest) {
   const path = parts.slice(2); // [...path]
 
   const apiPath = `/api/${provider}`;
-  console.log(`[${provider} Route] params `, { provider, path });
+  // console.log(`[${provider} Route] params `, { provider, path });
   switch (apiPath) {
     case ApiPath.OpenAI:
       return openaiHandler(req, {

@@ -7,6 +7,8 @@ import {
   REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION,
 } from "./constant";
 
+export const isClient = typeof window !== "undefined";
+
 export function trimTopic(topic: string) {
   // Fix an issue where double quotes still show in the Indonesian language
   // This will remove the specified punctuation from the end of the string

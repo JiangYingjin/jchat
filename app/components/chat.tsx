@@ -35,14 +35,15 @@ import CheckmarkIcon from "../icons/checkmark.svg";
 
 import ReloadIcon from "../icons/reload.svg";
 
-import EnableThinkingIcon from "../icons/thinking_enable.svg";
-import DisableThinkingIcon from "../icons/thinking_disable.svg";
 import {
   ChatMessage,
   useChatStore,
   DEFAULT_TOPIC,
   systemMessageStorage,
   chatInputStorage,
+  SystemMessageData,
+  saveSystemMessageContentToStorage,
+  loadSystemMessageContentFromStorage,
 } from "../store";
 
 import { createMessage, updateSessionStats } from "../utils/session";
@@ -395,7 +396,6 @@ export function ChatActions(props: {
   capturePhoto: () => Promise<void>;
   setAttachImages: (images: string[]) => void;
   setUploading: (uploading: boolean) => void;
-  showPromptModal: () => void;
   scrollToBottom: () => void;
   hitBottom: boolean;
   uploading: boolean;
@@ -1510,8 +1510,6 @@ function Chat() {
     scrollDomToBottom();
   }
 
-  const [showPromptModal, setShowPromptModal] = useState(false);
-
   const autoFocus = !isMobileScreen; // wont auto focus on mobile screen
 
   // Handle URL commands - simplified from useCommand logic
@@ -1835,73 +1833,6 @@ function Chat() {
     return cleanup;
   }, [session.messages.length]); // 只在消息列表长度变化时重新设置观察者
 
-  // ========== system message content 存储工具 ==========
-  // @ts-ignore
-  interface SystemMetaMessage extends ChatMessage {}
-
-  interface SystemMessageData {
-    text: string;
-    images: string[];
-    scrollTop: number;
-    selection: { start: number; end: number };
-    updateAt: number;
-  }
-
-  async function saveSystemMessageContentToStorage(
-    sessionId: string,
-    content: string,
-    images: string[] = [],
-    scrollTop: number = 0,
-    selection: { start: number; end: number } = { start: 0, end: 0 },
-  ) {
-    try {
-      // 保存文本和图片数据
-      const data: SystemMessageData = {
-        text: content,
-        images,
-        scrollTop,
-        selection,
-        updateAt: Date.now(),
-      };
-      const success = await systemMessageStorage.saveSystemMessage(
-        sessionId,
-        data,
-      );
-      if (!success) {
-        throw new Error("保存到 IndexedDB 失败");
-      }
-    } catch (error) {
-      console.error("保存系统消息失败:", error);
-      alert("系统提示词保存失败，请重试。");
-    }
-  }
-
-  async function loadSystemMessageContentFromStorage(
-    sessionId: string,
-  ): Promise<SystemMessageData> {
-    try {
-      const data = await systemMessageStorage.getSystemMessage(sessionId);
-      if (!data) {
-        return {
-          text: "",
-          images: [],
-          scrollTop: 0,
-          selection: { start: 0, end: 0 },
-          updateAt: Date.now(),
-        };
-      }
-      return data;
-    } catch (error) {
-      console.error("读取系统消息失败:", error);
-      return {
-        text: "",
-        images: [],
-        scrollTop: 0,
-        selection: { start: 0, end: 0 },
-        updateAt: Date.now(),
-      };
-    }
-  }
   return (
     <>
       <div className={styles.chat} key={session.id}>
@@ -1934,7 +1865,7 @@ function Chat() {
                   // 获取当前 session 的 system 消息
                   let systemMessage = session.messages.find(
                     (m) => m.role === "system",
-                  ) as SystemMetaMessage | undefined;
+                  );
                   let systemData: SystemMessageData = {
                     text: "",
                     images: [],
@@ -2237,7 +2168,6 @@ function Chat() {
                 capturePhoto={capturePhoto}
                 setAttachImages={setAttachImages}
                 setUploading={setUploading}
-                showPromptModal={() => setShowPromptModal(true)}
                 scrollToBottom={scrollToBottom}
                 hitBottom={hitBottom}
                 uploading={uploading}

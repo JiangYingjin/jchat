@@ -1,7 +1,5 @@
 import localforage from "localforage";
-
-// 检查是否在客户端环境
-const isClient = typeof window !== "undefined";
+import { isClient } from "../utils";
 
 // 聊天输入数据存储接口
 interface ChatInputData {

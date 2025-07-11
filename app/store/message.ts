@@ -1,5 +1,6 @@
 import localforage from "localforage";
 import type { RequestMessage } from "../client/api";
+import { isClient } from "../utils";
 
 export type ChatMessage = RequestMessage & {
   id: string;
@@ -8,9 +9,6 @@ export type ChatMessage = RequestMessage & {
   streaming?: boolean;
   isError?: boolean;
 };
-
-// 检查是否在客户端环境
-const isClient = typeof window !== "undefined";
 
 // 创建一个专用于存储消息的 localforage 实例
 // 这会在 'JChat' 数据库中创建一个名为 'messages' 的新对象存储（表）

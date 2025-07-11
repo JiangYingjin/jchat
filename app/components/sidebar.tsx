@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import styles from "./home.module.scss";
 
@@ -12,7 +12,7 @@ import { useChatStore } from "../store";
 import { DEFAULT_SIDEBAR_WIDTH, Path } from "../constant";
 
 import { Link, useNavigate } from "react-router-dom";
-import { isIOS, useMobileScreen } from "../utils";
+import { useMobileScreen } from "../utils";
 import dynamic from "next/dynamic";
 import { SearchBar, SearchInputRef } from "./search-bar";
 
@@ -56,10 +56,6 @@ export function SideBar(props: { className?: string }) {
   useSideBar();
   const navigate = useNavigate();
   const isMobileScreen = useMobileScreen();
-  const isIOSMobile = useMemo(
-    () => isIOS() && isMobileScreen,
-    [isMobileScreen],
-  );
 
   // search bar
   const searchBarRef = useRef<SearchInputRef>(null);
@@ -87,7 +83,7 @@ export function SideBar(props: { className?: string }) {
       className={`${styles.sidebar} ${props.className}`}
       style={{
         // #3016 disable transition on ios mobile screen
-        transition: isMobileScreen && isIOSMobile ? "none" : undefined,
+        transition: isMobileScreen ? "none" : undefined,
       }}
     >
       <div
@@ -130,14 +126,17 @@ export function SideBar(props: { className?: string }) {
               <IconButton icon={<SettingsIcon />} shadow />
             </Link>
           </div>
+
           <div className={styles["sidebar-action"]}>
-            <IconButton
-              icon={isGroupMode ? <AddIcon /> : <GroupIcon />}
-              onClick={toggleGroupMode}
-              shadow={!isGroupMode}
-              type={isGroupMode ? "secondary" : undefined}
-              title="组会话"
-            />
+            {!isMobileScreen && (
+              <IconButton
+                icon={isGroupMode ? <AddIcon /> : <GroupIcon />}
+                onClick={toggleGroupMode}
+                shadow={!isGroupMode}
+                type={isGroupMode ? "secondary" : undefined}
+                title="组会话"
+              />
+            )}
           </div>
         </div>
 
