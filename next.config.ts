@@ -8,14 +8,9 @@ const nextConfig: NextConfig = {
             test: /\.svg$/,
             use: ["@svgr/webpack"], // 将 SVG 文件转换为 React 组件
         });
-        // 仅在客户端构建时才需要设置 fallback
-        if (!isServer) {
+        if (!isServer) { // 仅在客户端构建时才需要设置 fallback
             config.resolve.fallback = {
                 child_process: false,
-                // 如果还有其他需要 polyfill 的模块，可以继续添加
-                // fs: false,
-                // net: false,
-                // tls: false,
             };
         }
         return config;
