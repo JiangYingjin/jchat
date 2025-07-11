@@ -2,7 +2,7 @@ import localforage from "localforage";
 import { isClient } from "../utils";
 
 // 聊天输入数据存储接口
-interface ChatInputData {
+export interface ChatInputData {
   text: string;
   images: string[];
   scrollTop: number;
@@ -27,10 +27,7 @@ class ChatInputStorage {
     return this.storage;
   }
 
-  async saveChatInput(
-    sessionId: string,
-    data: ChatInputData,
-  ): Promise<boolean> {
+  async save(sessionId: string, data: ChatInputData): Promise<boolean> {
     try {
       const storage = this.getStorage();
       if (!storage) return false; // 服务器端直接返回false
@@ -42,7 +39,7 @@ class ChatInputStorage {
     }
   }
 
-  async getChatInput(sessionId: string): Promise<ChatInputData | null> {
+  async get(sessionId: string): Promise<ChatInputData | null> {
     try {
       const storage = this.getStorage();
       if (!storage) return null; // 服务器端直接返回null
@@ -54,7 +51,7 @@ class ChatInputStorage {
     }
   }
 
-  async deleteChatInput(sessionId: string): Promise<boolean> {
+  async delete(sessionId: string): Promise<boolean> {
     try {
       const storage = this.getStorage();
       if (!storage) return false; // 服务器端直接返回false
@@ -66,26 +63,10 @@ class ChatInputStorage {
     }
   }
 
-  // 获取所有会话ID
-  async getAllSessionIds(): Promise<string[]> {
-    try {
-      const storage = this.getStorage();
-      if (!storage) return []; // 服务器端直接返回空数组
-      const keys = await storage.keys();
-      return keys;
-    } catch (error) {
-      console.error("获取所有会话ID失败:", error);
-      return [];
-    }
-  }
-
   // 保存图片数据
-  async saveChatInputImages(
-    sessionId: string,
-    images: string[],
-  ): Promise<boolean> {
+  async saveImages(sessionId: string, images: string[]): Promise<boolean> {
     try {
-      const currentData = (await this.getChatInput(sessionId)) || {
+      const currentData = (await this.get(sessionId)) || {
         text: "",
         images: [],
         scrollTop: 0,
@@ -93,7 +74,7 @@ class ChatInputStorage {
         updateAt: Date.now(),
       };
 
-      return await this.saveChatInput(sessionId, {
+      return await this.save(sessionId, {
         ...currentData,
         images,
         updateAt: Date.now(),
@@ -107,6 +88,3 @@ class ChatInputStorage {
 
 // 创建全局实例
 export const chatInputStorage = new ChatInputStorage();
-
-// 导出类型供其他地方使用
-export type { ChatInputData };

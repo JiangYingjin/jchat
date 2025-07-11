@@ -178,7 +178,7 @@ export function MessageExporter() {
   useEffect(() => {
     async function loadSystemMessage() {
       try {
-        const data = await systemMessageStorage.getSystemMessage(session.id);
+        const data = await systemMessageStorage.get(session.id);
         setSystemMessageData(data);
       } catch (error) {
         console.error("Failed to load system message:", error);

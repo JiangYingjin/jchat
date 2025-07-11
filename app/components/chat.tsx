@@ -7,8 +7,7 @@ import {
   ChatMessage,
   useChatStore,
   SystemMessageData,
-  saveSystemMessageContentToStorage,
-  loadSystemMessageContentFromStorage,
+  systemMessageStorage,
 } from "../store";
 import { useSubmitHandler, useTripleClick } from "../utils/hooks";
 import { updateSessionStats } from "../utils/session";
@@ -172,13 +171,13 @@ function Chat() {
       session.messages = session.messages.filter((m) => m.role !== "system");
 
       if (content.trim() || images.length > 0) {
-        saveSystemMessageContentToStorage(
-          session.id,
-          content.trim(),
+        systemMessageStorage.save(session.id, {
+          text: content.trim(),
           images,
-          scrollTop || 0,
-          selection || { start: 0, end: 0 },
-        );
+          scrollTop: scrollTop || 0,
+          selection: selection || { start: 0, end: 0 },
+          updateAt: Date.now(),
+        });
       }
 
       const newModel = determineModelForSystemPrompt(
@@ -308,23 +307,7 @@ function Chat() {
           sessionTitle={session.title}
           messageCount={session.messages.length}
           onEditSystemMessageClick={async () => {
-            let systemData = await loadSystemMessageContentFromStorage(
-              session.id,
-            );
-            // Fallback to check legacy system message in session.messages
-            if (!systemData.text.trim() && !systemData.images.length) {
-              const systemMessage = session.messages.find(
-                (m) => m.role === "system",
-              );
-              if (systemMessage?.content) {
-                if (typeof systemMessage.content === "string") {
-                  systemData.text = systemMessage.content;
-                } else if (Array.isArray(systemMessage.content)) {
-                  systemData.text = getMessageTextContent(systemMessage);
-                  systemData.images = getMessageImages(systemMessage);
-                }
-              }
-            }
+            let systemData = await systemMessageStorage.get(session.id);
             setSystemPromptData(systemData);
             setShowSystemPromptEdit(true);
           }}

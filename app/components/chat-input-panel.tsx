@@ -111,7 +111,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
         debugLog("SaveText Skip", "input already cleared");
         return;
       }
-      const currentData = (await chatInputStorage.getChatInput(sessionId)) || {
+      const currentData = (await chatInputStorage.get(sessionId)) || {
         text: "",
         images: [],
         scrollTop: 0,
@@ -123,7 +123,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
         text: value,
         updateAt: Date.now(),
       };
-      await chatInputStorage.saveChatInput(sessionId, newData);
+      await chatInputStorage.save(sessionId, newData);
     } catch (e) {
       console.error("[ChatInput][Save] 保存未完成输入失败:", e);
     }
@@ -132,14 +132,14 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
   // 立即保存 scrollTop
   async function saveChatInputScrollTop(scrollTop: number) {
     try {
-      const currentData = (await chatInputStorage.getChatInput(sessionId)) || {
+      const currentData = (await chatInputStorage.get(sessionId)) || {
         text: "",
         images: [],
         scrollTop: 0,
         selection: { start: 0, end: 0 },
         updateAt: Date.now(),
       };
-      await chatInputStorage.saveChatInput(sessionId, {
+      await chatInputStorage.save(sessionId, {
         ...currentData,
         scrollTop,
         updateAt: Date.now(),
@@ -155,7 +155,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
     end: number;
   }) {
     try {
-      const currentData = (await chatInputStorage.getChatInput(sessionId)) || {
+      const currentData = (await chatInputStorage.get(sessionId)) || {
         text: "",
         images: [],
         scrollTop: 0,
@@ -167,7 +167,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
         selection,
         updateAt: Date.now(),
       };
-      await chatInputStorage.saveChatInput(sessionId, newData);
+      await chatInputStorage.save(sessionId, newData);
     } catch (e) {
       console.error("[ChatInput][Save] 保存光标位置失败:", e);
     }
@@ -205,7 +205,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
           `starting for session: ${sessionId.substring(0, 8)}...`,
         );
 
-        const data = await chatInputStorage.getChatInput(sessionId);
+        const data = await chatInputStorage.get(sessionId);
 
         // 设置文本内容
         const textContent =
@@ -349,7 +349,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
           selection: { start: 0, end: 0 },
           updateAt: Date.now(),
         };
-        await chatInputStorage.saveChatInput(sessionId, emptyData);
+        await chatInputStorage.save(sessionId, emptyData);
         debugLog("Submit", "cleared storage");
       } catch (e) {
         console.error("[ChatInput][Clear] 保存空聊天输入数据失败:", e);
@@ -383,7 +383,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
     attachImages,
     async (images) => {
       setAttachImages(images);
-      await chatInputStorage.saveChatInputImages(sessionId, images);
+      await chatInputStorage.saveImages(sessionId, images);
     },
     setUploading,
     (content) => {
@@ -400,7 +400,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
       setAttachImages,
       setUploading,
       async (images: string[]) => {
-        await chatInputStorage.saveChatInputImages(sessionId, images);
+        await chatInputStorage.saveImages(sessionId, images);
       },
     );
   };
@@ -411,7 +411,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
       setAttachImages,
       setUploading,
       async (images: string[]) => {
-        await chatInputStorage.saveChatInputImages(sessionId, images);
+        await chatInputStorage.saveImages(sessionId, images);
       },
     );
   };
@@ -503,10 +503,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
                           (_, i) => i !== index,
                         );
                         setAttachImages(newImages);
-                        await chatInputStorage.saveChatInputImages(
-                          sessionId,
-                          newImages,
-                        );
+                        await chatInputStorage.saveImages(sessionId, newImages);
                       }}
                     />
                   </div>

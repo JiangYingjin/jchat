@@ -7,10 +7,7 @@ import Locale from "../locales";
 import { prettyObject } from "../utils/format";
 import { createPersistStore, jchatStorage } from "../utils/store";
 import { chatInputStorage } from "./input";
-import {
-  systemMessageStorage,
-  loadSystemMessageContentFromStorage,
-} from "./system";
+import { systemMessageStorage } from "./system";
 import { messageStorage, type ChatMessage } from "./message";
 import { nanoid } from "nanoid";
 import {
@@ -87,7 +84,7 @@ export const useChatStore = createPersistStore(
 
         try {
           // 从 messageStorage 异步加载消息
-          const messages = await messageStorage.getMessages(session.id);
+          const messages = await messageStorage.get(session.id);
           get().updateTargetSession(session, (s) => {
             s.messages = messages;
             updateSessionStats(s); // 重新计算统计信息
@@ -103,7 +100,7 @@ export const useChatStore = createPersistStore(
       // 新增：保存会话消息到独立存储
       async saveSessionMessages(session: ChatSession): Promise<void> {
         try {
-          await messageStorage.saveMessages(session.id, session.messages || []);
+          await messageStorage.save(session.id, session.messages || []);
         } catch (error) {
           console.error(
             `[ChatStore] Failed to save messages for session ${session.id}`,
@@ -144,9 +141,7 @@ export const useChatStore = createPersistStore(
         // 删除所有会话的消息
         const currentSessions = get().sessions;
         await Promise.all(
-          currentSessions.map((session) =>
-            messageStorage.deleteMessages(session.id),
-          ),
+          currentSessions.map((session) => messageStorage.delete(session.id)),
         );
 
         const newSession = createEmptySession();
@@ -234,7 +229,7 @@ export const useChatStore = createPersistStore(
           (systemMessageData.text.trim() || systemMessageData.images.length > 0)
         ) {
           try {
-            const success = await systemMessageStorage.saveSystemMessage(
+            const success = await systemMessageStorage.save(
               newSession.id,
               systemMessageData,
             );
@@ -289,9 +284,7 @@ export const useChatStore = createPersistStore(
           const branchTitle = getBranchTitle(originalTitle);
 
           // 复制系统提示词
-          const systemMessageData = await loadSystemMessageContentFromStorage(
-            session.id,
-          );
+          const systemMessageData = await systemMessageStorage.get(session.id);
 
           // 获取完整的消息历史（不受分页限制）
           const fullMessages = session.messages.filter(
@@ -381,9 +374,9 @@ export const useChatStore = createPersistStore(
         const performActualDeletion = async () => {
           try {
             await Promise.all([
-              messageStorage.deleteMessages(deletedSession.id),
-              chatInputStorage.deleteChatInput(deletedSession.id),
-              systemMessageStorage.deleteSystemMessage(deletedSession.id),
+              messageStorage.delete(deletedSession.id),
+              chatInputStorage.delete(deletedSession.id),
+              systemMessageStorage.delete(deletedSession.id),
             ]);
             console.log(
               `[DeleteSession] 已删除会话 ${deletedSession.id} 的所有数据`,
