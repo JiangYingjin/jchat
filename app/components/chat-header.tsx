@@ -12,7 +12,8 @@ import React from "react";
 export function ChatHeader(props: {
   sessionTitle: string;
   messageCount: number;
-  onEditContextClick: () => void;
+  onEditSystemMessageClick: () => void;
+  onEditSessionClick: () => void;
   onExportClick: () => void;
   onDeleteSessionClick: () => void;
 }) {
@@ -26,7 +27,7 @@ export function ChatHeader(props: {
             "window-header-main-title",
             styles["chat-body-main-title"],
           )}
-          onClickCapture={props.onEditContextClick}
+          onClickCapture={props.onEditSessionClick}
         >
           {!props.sessionTitle ? DEFAULT_TOPIC : props.sessionTitle}
         </div>
@@ -42,7 +43,7 @@ export function ChatHeader(props: {
             icon={<EditIcon />}
             bordered
             title="编辑上下文"
-            onClick={props.onEditContextClick}
+            onClick={props.onEditSystemMessageClick}
           />
         </div>
         <div className="window-action-button">

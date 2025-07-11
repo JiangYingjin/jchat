@@ -1,13 +1,8 @@
-import { useDebouncedCallback } from "use-debounce";
-import React, {
-  useState,
-  useRef,
-  useEffect,
-  useMemo,
-  useCallback,
-} from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { isEmpty } from "lodash-es";
 
-import { useSubmitHandler, useTripleClick } from "../utils/hooks";
+// --- Local Imports ---
 import {
   ChatMessage,
   useChatStore,
@@ -15,30 +10,26 @@ import {
   saveSystemMessageContentToStorage,
   loadSystemMessageContentFromStorage,
 } from "../store";
-
+import { useSubmitHandler, useTripleClick } from "../utils/hooks";
 import { updateSessionStats } from "../utils/session";
-
 import {
   useMobileScreen,
   getMessageTextContent,
   getMessageTextReasoningContent,
   getMessageImages,
 } from "../utils";
-
 import { determineModelForSystemPrompt } from "../utils/model";
+import { prettyObject } from "../utils/format";
+import { handleUnauthorizedResponse, handleUrlAuthCode } from "../utils/auth";
+import { findMessagePairForResend } from "../../utils/message";
 
+// --- Client & Constants ---
 import { ChatControllerPool } from "../client/controller";
-
+import { REQUEST_TIMEOUT_MS } from "../constant";
 import Locale from "../locales";
 
-import styles from "./chat.module.scss";
+// --- Components ---
 import { showToast } from "./ui-lib";
-import { useNavigate, useSearchParams } from "react-router-dom";
-import { REQUEST_TIMEOUT_MS } from "../constant";
-import { prettyObject } from "../utils/format";
-import { ExportMessageModal } from "./exporter";
-import { isEmpty } from "lodash-es";
-import { handleUnauthorizedResponse, handleUrlAuthCode } from "../utils/auth";
 import { ChatInputPanel } from "./chat-input-panel";
 import { ChatHeader } from "./chat-header";
 import { MessageList } from "./message-list";
@@ -47,141 +38,75 @@ import {
   EditMessageWithImageModal,
 } from "./message-edit-modals";
 import { SessionEditorModal } from "./session-editor-modal";
-import { findMessagePairForResend } from "../../utils/message";
+import { ExportMessageModal } from "./exporter";
+
+// --- Styles ---
+import styles from "./chat.module.scss";
 
 function Chat() {
   type RenderMessage = ChatMessage & { preview?: boolean };
 
+  // --- State, Refs, and Hooks ---
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
   const allModels = chatStore.models;
 
-  const [showExport, setShowExport] = useState(false);
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const isMobileScreen = useMobileScreen();
 
   const messageEditRef = useRef<HTMLTextAreaElement>(null);
+
+  // Component State
   const [isLoading, setIsLoading] = useState(false);
-  const { shouldSubmit } = useSubmitHandler();
-
-  // 滚动逻辑已经移到 MessageList 组件中，这里只需要提供 setAutoScroll 函数
   const [autoScroll, setAutoScroll] = useState(true);
-  const scrollDomToBottom = () => {
-    // 这个函数现在由 MessageList 组件内部处理
-  };
-  const [hitBottom, setHitBottom] = useState(true);
-  const isMobileScreen = useMobileScreen();
-  const navigate = useNavigate();
+  const [hitBottom, setHitBottom] = useState(true); // Managed by MessageList, passed down
 
-  // 设置全局未授权处理函数
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      (window as any).__handleUnauthorized = () => {
-        handleUnauthorizedResponse(navigate);
-      };
-    }
+  // Modal Visibility State
+  const [showExport, setShowExport] = useState(false);
+  const [isEditingSession, setIsEditingSession] = useState(false);
+  const [showSystemPromptEdit, setShowSystemPromptEdit] = useState(false);
+  const [showEditMessageModal, setShowEditMessageModal] = useState(false);
 
-    return () => {
-      if (typeof window !== "undefined") {
-        delete (window as any).__handleUnauthorized;
-      }
-    };
-  }, [navigate]);
+  // Data for Modals
+  const [systemPromptData, setSystemPromptData] = useState<SystemMessageData>({
+    text: "",
+    images: [],
+    scrollTop: 0,
+    selection: { start: 0, end: 0 },
+    updateAt: Date.now(),
+  });
+  const [editMessageData, setEditMessageData] = useState<{
+    message: ChatMessage;
+    type: "content" | "reasoningContent";
+    select: { anchorText: string; extendText: string };
+  } | null>(null);
 
-  // 移动端默认开启长输入模式
-  useEffect(() => {
-    if (isMobileScreen && session.longInputMode === false) {
-      chatStore.updateTargetSession(session, (session) => {
-        session.longInputMode = true;
-      });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMobileScreen, session.longInputMode, chatStore]);
+  // Custom Hooks
+  useSubmitHandler();
+  const handleTripleClick = useTripleClick(messageEditRef);
 
-  // 处理消息提交
+  // --- Memoized and Derived Values ---
+  const messages = useMemo(() => {
+    // Filter out system messages for rendering
+    return (session.messages as RenderMessage[]).filter(
+      (m) => m.role !== "system",
+    );
+  }, [session.messages]);
+
+  const autoFocus = !isMobileScreen; // Wont auto focus on mobile screens
+
+  // --- Core Logic Handlers ---
+
   const handleSubmit = (text: string, images: string[]) => {
     if (text.trim() === "" && isEmpty(images)) return;
-
     setIsLoading(true);
     chatStore.onSendMessage(text, images).then(() => setIsLoading(false));
-
     setAutoScroll(true);
   };
 
-  // stop response
   const onUserStop = (messageId: string) => {
     ChatControllerPool.stop(session.id, messageId);
-  };
-
-  useEffect(() => {
-    chatStore.updateTargetSession(session, (session) => {
-      const stopTiming = Date.now() - REQUEST_TIMEOUT_MS;
-      session.messages.forEach((m) => {
-        // check if should stop all stale messages
-        if (m.isError || new Date(m.date).getTime() < stopTiming) {
-          if (m.streaming) {
-            m.streaming = false;
-          }
-
-          // 排除系统消息和已迁移的系统消息
-          if (m.content.length === 0 && m.role !== "system") {
-            m.isError = true;
-            m.content = prettyObject({
-              error: true,
-              message: "empty response",
-            });
-          }
-        }
-      });
-
-      // 只有在当前模型无效且用户没有手动选择时才自动更新模型
-      const currentModel = session.model;
-      const availableModels = chatStore.models;
-      const isCurrentModelValid = availableModels.includes(currentModel);
-
-      if (
-        !isCurrentModelValid &&
-        !session.isModelManuallySelected &&
-        availableModels.length > 0
-      ) {
-        session.model = availableModels[0];
-        console.log(
-          `[ModelUpdate] 自动更新无效模型 ${currentModel} 到 ${availableModels[0]}`,
-        );
-      }
-    });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
-
-  const deleteMessage = async (msgId?: string) => {
-    chatStore.updateTargetSession(session, (session) => {
-      session.messages = session.messages.filter((m) => m.id !== msgId);
-      updateSessionStats(session); // 重新计算会话状态
-    });
-    // 保存删除后的消息到存储
-    await chatStore.saveSessionMessages(session);
-  };
-
-  const onDelete = (msgId: string) => {
-    // 保存删除前的 messages 状态
-    const prevMessages = session.messages.slice();
-
-    deleteMessage(msgId);
-
-    // 显示 Toast，提供撤销按钮
-    showToast(
-      Locale.Home.DeleteToast, // 你可以在 Locale 里加一个类似 "消息已删除"
-      {
-        text: Locale.Home.Revert, // 你可以在 Locale 里加一个 "撤销"
-        async onClick() {
-          chatStore.updateTargetSession(session, (session) => {
-            session.messages = prevMessages;
-            updateSessionStats(session); // 重新计算会话状态
-          });
-          // 撤销删除后也需要保存到存储
-          await chatStore.saveSessionMessages(session);
-        },
-      },
-      5000,
-    );
   };
 
   const onResend = (message: ChatMessage) => {
@@ -189,12 +114,10 @@ function Chat() {
       session.messages,
       message.id,
     );
-
     if (!userMessage) {
       console.error("[Chat] failed to resend", message);
       return;
     }
-
     setIsLoading(true);
     const textContent = getMessageTextContent(userMessage);
     const images = getMessageImages(userMessage);
@@ -203,66 +126,51 @@ function Chat() {
       .then(() => setIsLoading(false));
   };
 
-  // 分支到新会话
+  const deleteMessage = async (msgId?: string) => {
+    chatStore.updateTargetSession(session, (session) => {
+      session.messages = session.messages.filter((m) => m.id !== msgId);
+      updateSessionStats(session);
+    });
+    await chatStore.saveSessionMessages(session);
+  };
+
+  const onDelete = (msgId: string) => {
+    const prevMessages = session.messages.slice();
+    deleteMessage(msgId);
+    showToast(
+      Locale.Home.DeleteToast,
+      {
+        text: Locale.Home.Revert,
+        async onClick() {
+          chatStore.updateTargetSession(session, (session) => {
+            session.messages = prevMessages;
+            updateSessionStats(session);
+          });
+          await chatStore.saveSessionMessages(session);
+        },
+      },
+      5000,
+    );
+  };
+
   const handleBranch = async (message: ChatMessage, messageIndex: number) => {
     try {
-      // 使用新的 store action 处理分支逻辑
       await chatStore.branchSessionFrom(message, messageIndex);
     } catch (error) {
-      console.error("分支会话失败:", error);
+      console.error("Failed to branch session:", error);
       showToast(Locale.Chat.Actions.BranchFailed);
     }
   };
 
-  // 优化点2：渲染消息时彻底过滤 system message
-  // 只在渲染时过滤，不影响原始 session.messages
-  const messages = useMemo(() => {
-    return (session.messages as RenderMessage[]).filter(
-      (m) => m.role !== "system",
-    );
-  }, [session.messages]);
-
-  function scrollToBottom() {
-    scrollDomToBottom();
-  }
-
-  const autoFocus = !isMobileScreen; // wont auto focus on mobile screen
-
-  // Handle URL commands - simplified from useCommand logic
-  const [searchParams, setSearchParams] = useSearchParams();
-
-  // 只在组件加载时执行一次URL认证码处理
-  useEffect(() => {
-    handleUrlAuthCode(searchParams, setSearchParams, navigate);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // edit / insert message modal
-  const [isEditingMessage, setIsEditingMessage] = useState(false);
-
-  const [showSystemPromptEdit, setShowSystemPromptEdit] = useState(false);
-  const [systemPromptData, setSystemPromptData] = useState<SystemMessageData>({
-    text: "",
-    images: [],
-    scrollTop: 0,
-    selection: { start: 0, end: 0 },
-    updateAt: Date.now(),
-  });
-
-  const handleTripleClick = useTripleClick(messageEditRef);
-
-  // 处理系统提示词保存
   const handleSystemPromptSave = (
     content: string,
     images: string[],
     scrollTop?: number,
-    selection?: { start: number; end: number },
+    selection?: { start: number; end: number }, // 修改这里 end: 0 => end: number
   ) => {
     chatStore.updateTargetSession(session, (session) => {
-      // 移除现有的 system 消息
       session.messages = session.messages.filter((m) => m.role !== "system");
 
-      // 只保存到独立存储，不在 messages 中创建 system 消息
       if (content.trim() || images.length > 0) {
         saveSystemMessageContentToStorage(
           session.id,
@@ -271,11 +179,8 @@ function Chat() {
           scrollTop || 0,
           selection || { start: 0, end: 0 },
         );
-        // 注意：不在 messages 中创建 system 消息，因为系统提示词独立存储
-        // prepareMessagesForApi 会在需要时动态加载和合并
       }
 
-      // 使用集中管理的模型切换策略
       const newModel = determineModelForSystemPrompt(
         content.trim(),
         session.model,
@@ -286,19 +191,11 @@ function Chat() {
         session.model = newModel;
         session.isModelManuallySelected = true;
         console.log(
-          `[AutoSwitch] 系统提示词内容触发自动切换到 ${newModel} 模型`,
+          `[AutoSwitch] Switched to ${newModel} due to system prompt.`,
         );
       }
     });
   };
-
-  // 修改编辑消息处理函数
-  const [showEditMessageModal, setShowEditMessageModal] = useState(false);
-  const [editMessageData, setEditMessageData] = useState<{
-    message: ChatMessage;
-    type: "content" | "reasoningContent";
-    select: { anchorText: string; extendText: string };
-  } | null>(null);
 
   const handleEditMessage = async (
     message: ChatMessage,
@@ -312,104 +209,130 @@ function Chat() {
     setEditMessageData({ message, type, select });
     setShowEditMessageModal(true);
 
-    // 用户消息或系统提示词，光标定位到最后
-    if (message.role === "user" || message.role === "system") {
-      setTimeout(() => {
-        if (messageEditRef.current) {
-          const textarea = messageEditRef.current;
-          textarea.selectionStart = textarea.value.length;
-          textarea.selectionEnd = textarea.value.length;
-          textarea.focus();
-        }
-      }, 100);
-      return;
-    }
-    // 模型消息才执行三击定位
-    if (select.anchorText || select.extendText) {
-      setTimeout(() => {
-        if (messageEditRef.current) {
-          const textarea = messageEditRef.current;
-          let searchText = select.anchorText || select.extendText;
-          if (!searchText) return;
-          let textContent =
-            type === "content"
-              ? getMessageTextContent(message)
-              : getMessageTextReasoningContent(message);
-          const searchIndex = textContent.indexOf(searchText);
-          if (searchIndex === -1) return;
-          const contentBeforeSearch = textContent.substring(0, searchIndex);
-          const lineNumber = contentBeforeSearch.split("\n").length;
-          const style = window.getComputedStyle(textarea);
-          const lineHeight = parseInt(style.lineHeight);
-          const position = (lineNumber - 1) * (lineHeight || 21);
-          textarea.scrollTo({
-            top: Math.max(0, position),
-            behavior: "smooth",
-          });
-        }
-      }, 100);
-    }
+    setTimeout(() => {
+      const textarea = messageEditRef.current;
+      if (!textarea) return;
+
+      if (message.role === "user" || message.role === "system") {
+        textarea.selectionStart = textarea.value.length;
+        textarea.selectionEnd = textarea.value.length;
+        textarea.focus();
+        return;
+      }
+
+      if (select.anchorText || select.extendText) {
+        let searchText = select.anchorText || select.extendText;
+        if (!searchText) return;
+        let textContent =
+          type === "content"
+            ? getMessageTextContent(message)
+            : getMessageTextReasoningContent(message);
+        const searchIndex = textContent.indexOf(searchText);
+        if (searchIndex === -1) return;
+
+        const contentBeforeSearch = textContent.substring(0, searchIndex);
+        const lineNumber = contentBeforeSearch.split("\n").length;
+        const style = window.getComputedStyle(textarea);
+        const lineHeight = parseInt(style.lineHeight, 10) || 21;
+        const position = (lineNumber - 1) * lineHeight;
+        textarea.scrollTo({ top: Math.max(0, position), behavior: "smooth" });
+      }
+    }, 100);
   };
 
+  // --- Side Effects ---
+
+  // Handle URL authentication code on initial load
+  useEffect(() => {
+    handleUrlAuthCode(searchParams, setSearchParams, navigate);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Set up global handler for unauthorized API responses
+  useEffect(() => {
+    (window as any).__handleUnauthorized = () =>
+      handleUnauthorizedResponse(navigate);
+    return () => {
+      delete (window as any).__handleUnauthorized;
+    };
+  }, [navigate]);
+
+  // Default to long input mode on mobile devices
+  useEffect(() => {
+    if (isMobileScreen && session.longInputMode === false) {
+      chatStore.updateTargetSession(session, (session) => {
+        session.longInputMode = true;
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobileScreen, session.id]);
+
+  // Clean up stale messages and update model if necessary
+  useEffect(() => {
+    chatStore.updateTargetSession(session, (session) => {
+      const stopTiming = Date.now() - REQUEST_TIMEOUT_MS;
+      session.messages.forEach((m) => {
+        if (m.isError || new Date(m.date).getTime() < stopTiming) {
+          if (m.streaming) m.streaming = false;
+          if (m.content.length === 0 && m.role !== "system") {
+            m.isError = true;
+            m.content = prettyObject({
+              error: true,
+              message: "empty response",
+            });
+          }
+        }
+      });
+
+      const currentModel = session.model;
+      const isCurrentModelValid = allModels.includes(currentModel);
+      if (
+        !isCurrentModelValid &&
+        !session.isModelManuallySelected &&
+        allModels.length > 0
+      ) {
+        session.model = allModels[0];
+        console.log(
+          `[ModelUpdate] Auto-updated invalid model ${currentModel} to ${allModels[0]}`,
+        );
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id]);
+
+  // --- Render Logic ---
   return (
     <>
       <div className={styles.chat} key={session.id}>
         <ChatHeader
           sessionTitle={session.title}
           messageCount={session.messages.length}
-          onEditContextClick={async () => {
-            let systemMessage = session.messages.find(
-              (m) => m.role === "system",
+          onEditSystemMessageClick={async () => {
+            let systemData = await loadSystemMessageContentFromStorage(
+              session.id,
             );
-            let systemData: SystemMessageData = {
-              text: "",
-              images: [],
-              scrollTop: 0,
-              selection: { start: 0, end: 0 },
-              updateAt: Date.now(),
-            };
-
-            systemData = await loadSystemMessageContentFromStorage(session.id);
-
-            if (
-              !systemData.text.trim() &&
-              !systemData.images.length &&
-              systemMessage?.content
-            ) {
-              if (typeof systemMessage.content === "string") {
-                systemData = {
-                  text: systemMessage.content,
-                  images: [],
-                  scrollTop: 0,
-                  selection: { start: 0, end: 0 },
-                  updateAt: Date.now(),
-                };
-              } else if (Array.isArray(systemMessage.content)) {
-                const textContent = systemMessage.content
-                  .filter((c: any) => c.type === "text")
-                  .map((c: any) => c.text)
-                  .join("");
-                const images = systemMessage.content
-                  .filter((c: any) => c.type === "image_url")
-                  .map((c: any) => c.image_url?.url)
-                  .filter(Boolean);
-                systemData = {
-                  text: textContent,
-                  images,
-                  scrollTop: 0,
-                  selection: { start: 0, end: 0 },
-                  updateAt: Date.now(),
-                };
+            // Fallback to check legacy system message in session.messages
+            if (!systemData.text.trim() && !systemData.images.length) {
+              const systemMessage = session.messages.find(
+                (m) => m.role === "system",
+              );
+              if (systemMessage?.content) {
+                if (typeof systemMessage.content === "string") {
+                  systemData.text = systemMessage.content;
+                } else if (Array.isArray(systemMessage.content)) {
+                  systemData.text = getMessageTextContent(systemMessage);
+                  systemData.images = getMessageImages(systemMessage);
+                }
               }
             }
             setSystemPromptData(systemData);
             setShowSystemPromptEdit(true);
           }}
+          onEditSessionClick={() => setIsEditingSession(true)}
           onExportClick={() => setShowExport(true)}
-          onDeleteSessionClick={async () => {
-            await chatStore.deleteSession(chatStore.currentSessionIndex);
-            scrollToBottom();
-          }}
+          onDeleteSessionClick={() =>
+            chatStore.deleteSession(chatStore.currentSessionIndex)
+          }
         />
         <div className={styles["chat-main"]}>
           <div className={styles["chat-body-container"]}>
@@ -434,18 +357,11 @@ function Chat() {
           </div>
         </div>
       </div>
-      {showExport && (
-        <ExportMessageModal onClose={() => setShowExport(false)} />
-      )}
 
-      {isEditingMessage && (
-        <SessionEditorModal
-          onClose={() => {
-            setIsEditingMessage(false);
-          }}
-        />
+      {/* --- Modals --- */}
+      {isEditingSession && (
+        <SessionEditorModal onClose={() => setIsEditingSession(false)} />
       )}
-
       {showSystemPromptEdit && (
         <SystemPromptEditModal
           onClose={() => setShowSystemPromptEdit(false)}
@@ -457,6 +373,9 @@ function Chat() {
           initialSelection={systemPromptData.selection}
         />
       )}
+      {showExport && (
+        <ExportMessageModal onClose={() => setShowExport(false)} />
+      )}
       {showEditMessageModal && editMessageData && (
         <EditMessageWithImageModal
           onClose={() => setShowEditMessageModal(false)}
@@ -466,11 +385,7 @@ function Chat() {
               : getMessageTextReasoningContent(editMessageData.message)
           }
           initialImages={getMessageImages(editMessageData.message)}
-          onSave={(
-            newContent: string,
-            newImages: string[],
-            retryOnConfirm?: boolean,
-          ) => {
+          onSave={(newContent, newImages, retryOnConfirm) => {
             chatStore.updateTargetSession(session, (session) => {
               const m = session.messages.find(
                 (m) => m.id === editMessageData.message.id,
@@ -479,17 +394,16 @@ function Chat() {
                 if (editMessageData.type === "content") {
                   if (newImages.length > 0) {
                     m.content = [
-                      { type: "text" as const, text: newContent },
-                      ...newImages.map((url: string) => ({
+                      { type: "text", text: newContent },
+                      ...newImages.map((url) => ({
                         type: "image_url" as const,
                         image_url: { url },
                       })),
-                    ] as import("../client/api").MultimodalContent[];
+                    ] as any; // Type assertion to match MultimodalContent
                   } else {
                     m.content = newContent;
                   }
-                }
-                if (editMessageData.type === "reasoningContent") {
+                } else if (editMessageData.type === "reasoningContent") {
                   m.reasoningContent = newContent;
                 }
               }
@@ -507,6 +421,10 @@ function Chat() {
   );
 }
 
+/**
+ * A wrapper component that forces the Chat component to re-mount when the session changes.
+ * This is a clean way to reset all component state when switching conversations.
+ */
 export function ChatPage() {
   return <Chat key={useChatStore().currentSessionIndex} />;
 }
