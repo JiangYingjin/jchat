@@ -64,7 +64,6 @@ export function ChatItem(props: {
   onDelete?: () => void;
   title: string;
   count: number;
-  time: string;
   selected: boolean;
   id: string;
   index: number;
@@ -186,7 +185,6 @@ export function ChatList(props: { narrow?: boolean }) {
             {sessions.map((item, i) => (
               <ChatItem
                 title={item.title}
-                time={new Date(item.lastUpdate).toLocaleString()}
                 count={item.messageCount}
                 key={item.id}
                 id={item.id}

@@ -400,7 +400,7 @@ const cn = {
     },
   },
   Store: {
-    DefaultTopic: "新的对话",
+    DefaultTitle: "新的对话",
     BotHello: "有什么可以帮你的吗",
     Error: "出错了，稍后重试吧",
     Prompt: {

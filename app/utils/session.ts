@@ -8,9 +8,10 @@ import { estimateTokenLength } from "./token";
 import { useChatStore } from "../store/chat";
 import Locale from "../locales";
 import { buildMultimodalContent } from "./chat";
+import { FALLBACK_MODEL } from "../constant";
 
 // 定义默认主题，避免循环依赖
-const DEFAULT_TOPIC = Locale.Store.DefaultTopic;
+const DEFAULT_TOPIC = Locale.Store.DefaultTitle;
 
 /**
  * 计算会话状态
@@ -67,7 +68,7 @@ export function createEmptySession(): ChatSession {
     try {
       return useChatStore.getState().models[0];
     } catch (error) {
-      return "jyj.cx/flash";
+      return FALLBACK_MODEL;
     }
   };
   return {
@@ -80,6 +81,7 @@ export function createEmptySession(): ChatSession {
     model: getDefaultModel(),
     longInputMode: false,
     isModelManuallySelected: false,
+    groupId: null,
   };
 }
 

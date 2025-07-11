@@ -49,25 +49,38 @@ export interface ChatSession {
   status: "normal" | "error" | "pending"; // 会话状态：正常、错误、用户消息结尾
   isModelManuallySelected?: boolean; // 用户是否手动选择了模型（用于自动切换逻辑）
   longInputMode?: boolean; // 是否为长输入模式（Enter 换行，Ctrl+Enter 发送）
+  groupId: string | null;
   lastUpdate: number;
   messages: ChatMessage[];
 }
 
 export interface ChatGroup {
   id: string;
-
   title: string;
   sessionIds: string[];
+  messageCount: number;
+  status: "normal" | "error" | "pending";
+  pendingCount: number;
+  errorCount: number;
+  expanded: boolean;
+  currentSessionIndex: number;
+}
+
+export interface GroupSession {
+  [sessionId: string]: ChatSession;
 }
 
 const DEFAULT_CHAT_STATE = {
-  sessions: [createEmptySession()],
+  sessions: [createEmptySession()] as ChatSession[],
+  groups: [] as ChatGroup[],
+  groupSessions: {} as GroupSession,
   currentSessionIndex: 0,
+  currentGroupIndex: 0,
   models: [] as string[],
   accessCode: "",
 };
 
-export const DEFAULT_TOPIC = Locale.Store.DefaultTopic;
+export const DEFAULT_TITLE = Locale.Store.DefaultTitle;
 
 export const useChatStore = createPersistStore(
   DEFAULT_CHAT_STATE,
@@ -264,7 +277,7 @@ export const useChatStore = createPersistStore(
 
         try {
           // 复制会话标题并标注分支
-          const originalTitle = session.title || DEFAULT_TOPIC;
+          const originalTitle = session.title || DEFAULT_TITLE;
 
           // 生成分支标题，支持递增数字
           const getBranchTitle = (title: string): string => {
@@ -763,47 +776,57 @@ export const useChatStore = createPersistStore(
     },
 
     migrate(persistedState: any, version: number) {
-      // 迁移逻辑：删除所有冗余属性
+      // 从版本 5.3 迁移到 5.4：添加分组功能
       if (version < 5.4) {
         console.log("[Store] Migrating from version", version, "to 5.4");
-        try {
-          const newSessions = persistedState.sessions.map((session: any) => {
-            // 只保留 ChatSession 接口中定义的属性
-            const newSession: ChatSession = {
-              id: session.id,
-              title: session.title,
-              model: session.model,
-              messageCount: session.messageCount,
-              status: session.status,
-              isModelManuallySelected: session.isModelManuallySelected,
-              longInputMode: session.longInputMode,
-              lastUpdate: session.lastUpdate,
-              // messages 属性通过 partialize 已经处理，这里初始化为空数组
-              messages: [],
-            };
-            return newSession;
-          });
 
-          // 同时删除根级别的冗余属性，只保留 DEFAULT_CHAT_STATE 中定义的
-          const newPersistedState = {
-            accessCode:
-              persistedState.accessCode || DEFAULT_CHAT_STATE.accessCode,
-            models: persistedState.models || DEFAULT_CHAT_STATE.models,
-            sessions: newSessions,
-            currentSessionIndex:
-              persistedState.currentSessionIndex ||
-              DEFAULT_CHAT_STATE.currentSessionIndex,
-          };
+        const migratedState = { ...persistedState };
 
-          console.log("[Store] Migration to 5.4 successful.");
-          return newPersistedState;
-        } catch (e) {
-          console.error("[Store] Migration to 5.4 failed:", e);
-          // 如果迁移失败，返回原始状态，避免数据丢失
-          return persistedState as any;
+        // 1. 为所有 ChatSession 添加 groupId 字段
+        if (migratedState.sessions && Array.isArray(migratedState.sessions)) {
+          migratedState.sessions = migratedState.sessions.map(
+            (session: any) => {
+              if (session && typeof session === "object") {
+                return {
+                  ...session,
+                  groupId: null, // 默认所有会话都不属于任何分组
+                };
+              }
+              return session;
+            },
+          );
         }
+
+        // 2. 添加新的分组相关字段
+        migratedState.groups = [];
+        migratedState.groupSessions = {};
+        migratedState.currentGroupIndex = 0;
+
+        // 3. 如果存在旧的 groups 数据，需要迁移格式
+        if (migratedState.groups && Array.isArray(migratedState.groups)) {
+          migratedState.groups = migratedState.groups.map((group: any) => {
+            if (group && typeof group === "object") {
+              return {
+                id: group.id || nanoid(),
+                title: group.title || DEFAULT_TITLE,
+                sessionIds: group.sessionIds || [],
+                messageCount: group.messageCount || 0,
+                status: group.status || "normal",
+                pendingCount: group.pendingCount || 0,
+                errorCount: group.errorCount || 0,
+                expanded: group.expanded !== undefined ? group.expanded : false,
+                currentSessionIndex: group.currentSessionIndex || 0,
+              };
+            }
+            return group;
+          });
+        }
+
+        console.log("[Store] Migration to 5.4 completed");
+        return migratedState;
       }
-      return persistedState as any;
+
+      return persistedState;
     },
   },
 );

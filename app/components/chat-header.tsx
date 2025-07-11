@@ -1,5 +1,5 @@
 import { IconButton } from "./button";
-import { DEFAULT_TOPIC } from "../store";
+import { DEFAULT_TITLE } from "../store";
 import EditIcon from "../icons/edit.svg";
 import ExportIcon from "../icons/share.svg";
 import DeleteIcon from "../icons/clear.svg";
@@ -29,7 +29,7 @@ export function ChatHeader(props: {
           )}
           onClickCapture={props.onEditSessionClick}
         >
-          {!props.sessionTitle ? DEFAULT_TOPIC : props.sessionTitle}
+          {!props.sessionTitle ? DEFAULT_TITLE : props.sessionTitle}
         </div>
         {!isMobileScreen && (
           <div className="window-header-sub-title">

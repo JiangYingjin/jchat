@@ -1,5 +1,4 @@
-export const OPENAI_BASE_URL = "https://api.openai.com";
-
+export const STORAGE_KEY = "jchat";
 export const CACHE_URL_PREFIX = "/api/cache";
 export const UPLOAD_URL = `${CACHE_URL_PREFIX}/upload`;
 
@@ -14,9 +13,13 @@ export enum ApiPath {
   OpenAI = "/api/openai",
 }
 
+export const OpenaiPath = {
+  ChatPath: "v1/chat/completions",
+  ImagePath: "v1/images/generations",
+};
+
 export enum SlotID {
   AppBody = "app-body",
-  CustomModel = "custom-model",
 }
 
 export enum StoreKey {
@@ -25,18 +28,13 @@ export enum StoreKey {
 
 export const DEFAULT_SIDEBAR_WIDTH = 180;
 
-export const STORAGE_KEY = "jchat";
-
 export const REQUEST_TIMEOUT_MS = 60000;
 export const REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION = REQUEST_TIMEOUT_MS * 5;
 
 export const EXPORT_MESSAGE_CLASS_NAME = "export-markdown";
 
-export const OpenaiPath = {
-  ChatPath: "v1/chat/completions",
-  ImagePath: "v1/images/generations",
-};
-
+export const FALLBACK_BASE_URL = "oneapi.jyj.cx";
+export const FALLBACK_MODEL = "jyj.cx/flash";
 export const PRO_MODEL = "jyj.cx/pro";
 
 export const CHAT_PAGE_SIZE = 15;

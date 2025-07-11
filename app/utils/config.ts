@@ -1,4 +1,5 @@
 import md5 from "spark-md5";
+import { FALLBACK_BASE_URL, FALLBACK_MODEL } from "../constant";
 
 declare global {
   namespace NodeJS {
@@ -24,7 +25,7 @@ export const getServerSideConfig = () => {
       .map((v) => v.trim())
       .filter((v) => !!v && v.length > 0) || [];
   if (models.length === 0) {
-    models = ["jyj.cx/flash"];
+    models = [FALLBACK_MODEL];
   }
 
   const ACCESS_CODES = (function getAccessCodes(): Set<string> {
@@ -40,7 +41,7 @@ export const getServerSideConfig = () => {
   })();
 
   return {
-    baseUrl: process.env.BASE_URL,
+    baseUrl: process.env.BASE_URL || FALLBACK_BASE_URL,
     apiKey: process.env.API_KEY?.trim(),
     code: process.env.CODE,
     codes: ACCESS_CODES,

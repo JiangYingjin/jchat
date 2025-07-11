@@ -1,5 +1,4 @@
 import { getServerSideConfig } from "@/app/utils/config";
-import { OPENAI_BASE_URL, OpenaiPath } from "@/app/constant";
 import { prettyObject } from "@/app/utils/format";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "./auth";
@@ -12,7 +11,7 @@ async function requestOpenai(req: NextRequest) {
 
   try {
     const path = req.nextUrl.pathname.replace("/api/openai/", "");
-    const base = serverConfig.baseUrl || OPENAI_BASE_URL;
+    const base = serverConfig.baseUrl;
     const baseUrl = base.startsWith("http") ? base : `https://${base}`;
 
     const fetchUrl = new URL(path, baseUrl);

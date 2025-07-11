@@ -120,9 +120,6 @@ function SearchResultItem({
         ))}
       </div>
       <div className={styles["search-item-info"]}>
-        {/* <div className={styles["search-item-count"]}>
-          {result.message.length} messages found
-        </div> */}
         <div className={styles["search-item-date"]}>
           {new Date(result.lastUpdate).toLocaleString()}
         </div>
