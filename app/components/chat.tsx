@@ -1176,63 +1176,8 @@ function Chat() {
   // 分支到新会话
   const handleBranch = async (message: ChatMessage, messageIndex: number) => {
     try {
-      // 复制会话标题并标注分支
-      const originalTitle = session.title || DEFAULT_TOPIC;
-
-      // 生成分支标题，支持递增数字
-      const getBranchTitle = (title: string): string => {
-        // 匹配 (分支) 或 (分支数字) 的正则表达式
-        const branchRegex = /\(分支(\d*)\)$/;
-        const match = title.match(branchRegex);
-
-        if (!match) {
-          // 没有匹配到分支标记，直接添加 (分支)
-          return `${title} (分支)`;
-        } else {
-          // 匹配到分支标记，递增数字
-          const currentNumber = match[1] ? parseInt(match[1]) : 1;
-          const nextNumber = currentNumber + 1;
-          const baseTitle = title.replace(branchRegex, "");
-          return `${baseTitle} (分支${nextNumber})`;
-        }
-      };
-
-      const branchTitle = getBranchTitle(originalTitle);
-
-      // 复制系统提示词
-      const systemMessageData = await loadSystemMessageContentFromStorage(
-        session.id,
-      );
-
-      // 获取完整的消息历史（不受分页限制）
-      const fullMessages = session.messages.filter((m) => m.role !== "system");
-
-      // 通过message.id在完整历史中找到真实位置（不依赖分页后的索引）
-      const realIndex = fullMessages.findIndex((m) => m.id === message.id);
-      if (realIndex === -1) {
-        console.error("分支失败：无法在完整历史中找到目标消息", message.id);
-        showToast(Locale.Chat.Actions.BranchFailed);
-        return;
-      }
-
-      // 复制消息历史（包含该消息及之前的所有消息）
-      const originalMessages = fullMessages.slice(0, realIndex + 1);
-
-      // 为每条消息重新生成ID，确保唯一性，保持其他属性不变
-      const messagesToCopy = originalMessages.map((message) => ({
-        ...message,
-        id: nanoid(), // 只更新ID，保持其他属性不变
-      }));
-
-      // 使用新的branchSession方法，系统提示词会在内部自动保存
-      const newSession = await chatStore.branchSession(
-        session,
-        messagesToCopy,
-        systemMessageData,
-        branchTitle,
-      );
-
-      // branchSession 已经自动切换到新会话，无需再次调用 selectSession
+      // 使用新的 store action 处理分支逻辑
+      await chatStore.branchSessionFrom(message, messageIndex);
     } catch (error) {
       console.error("分支会话失败:", error);
       showToast(Locale.Chat.Actions.BranchFailed);

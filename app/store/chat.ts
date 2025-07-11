@@ -7,8 +7,12 @@ import Locale from "../locales";
 import { prettyObject } from "../utils/format";
 import { createPersistStore, jchatStorage } from "../utils/store";
 import { chatInputStorage } from "./input";
-import { systemMessageStorage } from "./system";
+import {
+  systemMessageStorage,
+  loadSystemMessageContentFromStorage,
+} from "./system";
 import { messageStorage, type ChatMessage } from "./message";
+import { nanoid } from "nanoid";
 import {
   createMessage,
   createEmptySession,
@@ -251,6 +255,77 @@ export const useChatStore = createPersistStore(
         await get().loadSessionMessages(0);
 
         return newSession;
+      },
+
+      // 从指定消息创建分支会话
+      async branchSessionFrom(message: ChatMessage, messageIndex: number) {
+        const session = get().currentSession();
+        if (!session) {
+          throw new Error("当前会话不存在");
+        }
+
+        try {
+          // 复制会话标题并标注分支
+          const originalTitle = session.title || DEFAULT_TOPIC;
+
+          // 生成分支标题，支持递增数字
+          const getBranchTitle = (title: string): string => {
+            // 匹配 (分支) 或 (分支数字) 的正则表达式
+            const branchRegex = /\(分支(\d*)\)$/;
+            const match = title.match(branchRegex);
+
+            if (!match) {
+              // 没有匹配到分支标记，直接添加 (分支)
+              return `${title} (分支)`;
+            } else {
+              // 匹配到分支标记，递增数字
+              const currentNumber = match[1] ? parseInt(match[1]) : 1;
+              const nextNumber = currentNumber + 1;
+              const baseTitle = title.replace(branchRegex, "");
+              return `${baseTitle} (分支${nextNumber})`;
+            }
+          };
+
+          const branchTitle = getBranchTitle(originalTitle);
+
+          // 复制系统提示词
+          const systemMessageData = await loadSystemMessageContentFromStorage(
+            session.id,
+          );
+
+          // 获取完整的消息历史（不受分页限制）
+          const fullMessages = session.messages.filter(
+            (m) => m.role !== "system",
+          );
+
+          // 通过message.id在完整历史中找到真实位置（不依赖分页后的索引）
+          const realIndex = fullMessages.findIndex((m) => m.id === message.id);
+          if (realIndex === -1) {
+            throw new Error("无法在完整历史中找到目标消息");
+          }
+
+          // 复制消息历史（包含该消息及之前的所有消息）
+          const originalMessages = fullMessages.slice(0, realIndex + 1);
+
+          // 为每条消息重新生成ID，确保唯一性，保持其他属性不变
+          const messagesToCopy = originalMessages.map((message) => ({
+            ...message,
+            id: nanoid(), // 只更新ID，保持其他属性不变
+          }));
+
+          // 使用现有的branchSession方法，系统提示词会在内部自动保存
+          const newSession = await get().branchSession(
+            session,
+            messagesToCopy,
+            systemMessageData,
+            branchTitle,
+          );
+
+          return newSession;
+        } catch (error) {
+          console.error("分支会话失败:", error);
+          throw error;
+        }
       },
 
       nextSession(delta: number) {
