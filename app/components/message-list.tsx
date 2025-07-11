@@ -1,0 +1,193 @@
+import React, { useRef, useEffect, useMemo, useState } from "react";
+import { ChatMessage } from "../store";
+import { ChatMessageItem } from "./chat-message-item";
+import { useMobileScreen } from "../utils";
+import { CHAT_PAGE_SIZE } from "../constant";
+import styles from "./chat.module.scss";
+
+type RenderMessage = ChatMessage & { preview?: boolean };
+
+interface MessageListProps {
+  messages: RenderMessage[];
+  onResend: (message: ChatMessage) => void;
+  onDelete: (msgId: string) => void;
+  onUserStop: (messageId: string) => void;
+  onBranch: (message: ChatMessage, index: number) => void;
+  onEditMessage: (
+    message: ChatMessage,
+    type?: "content" | "reasoningContent",
+    select?: { anchorText: string; extendText: string },
+  ) => void;
+  handleTripleClick: (
+    e: React.MouseEvent,
+    callback: (select: { anchorText: string; extendText: string }) => void,
+  ) => void;
+  setUserInput: (input: string) => void;
+  autoScroll: boolean;
+  setAutoScroll: (autoScroll: boolean) => void;
+  setHitBottom: (hitBottom: boolean) => void;
+  inputRef: React.RefObject<HTMLTextAreaElement>;
+}
+
+export function MessageList({
+  messages,
+  onResend,
+  onDelete,
+  onUserStop,
+  onBranch,
+  onEditMessage,
+  handleTripleClick,
+  setUserInput,
+  autoScroll,
+  setAutoScroll,
+  setHitBottom,
+  inputRef,
+}: MessageListProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isMobileScreen = useMobileScreen();
+  const [msgRenderIndex, setMsgRenderIndex] = useState(
+    Math.max(0, messages.length - CHAT_PAGE_SIZE),
+  );
+  const [messageHeights, setMessageHeights] = useState<{
+    [key: string]: number;
+  }>({});
+  const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+
+  // 只在消息数量增加时重置到最后一页（新消息到达）
+  const prevMessageLength = useRef(messages.length);
+  useEffect(() => {
+    if (messages.length > prevMessageLength.current) {
+      // 只有消息增加时才重置到最后一页
+      const newIndex = Math.max(0, messages.length - CHAT_PAGE_SIZE);
+      setMsgRenderIndex(newIndex);
+    }
+    prevMessageLength.current = messages.length;
+  }, [messages.length]);
+
+  function updateMsgRenderIndex(newIndex: number) {
+    newIndex = Math.min(messages.length - CHAT_PAGE_SIZE, newIndex);
+    newIndex = Math.max(0, newIndex);
+    setMsgRenderIndex(newIndex);
+  }
+
+  const renderMessages = useMemo(() => {
+    const endRenderIndex = Math.min(
+      msgRenderIndex + 3 * CHAT_PAGE_SIZE,
+      messages.length,
+    );
+    return messages.slice(msgRenderIndex, endRenderIndex);
+  }, [msgRenderIndex, messages]);
+
+  const onChatBodyScroll = (e: HTMLElement) => {
+    const bottomHeight = e.scrollTop + e.clientHeight;
+    const edgeThreshold = e.clientHeight;
+
+    const isTouchTopEdge = e.scrollTop <= edgeThreshold;
+    const isTouchBottomEdge = bottomHeight >= e.scrollHeight - edgeThreshold;
+    const isHitBottom =
+      bottomHeight >= e.scrollHeight - (isMobileScreen ? 4 : 10);
+
+    const prevPageMsgIndex = msgRenderIndex - CHAT_PAGE_SIZE;
+    const nextPageMsgIndex = msgRenderIndex + CHAT_PAGE_SIZE;
+
+    if (isTouchTopEdge && !isTouchBottomEdge) {
+      updateMsgRenderIndex(prevPageMsgIndex);
+    } else if (isTouchBottomEdge) {
+      updateMsgRenderIndex(nextPageMsgIndex);
+    }
+
+    setHitBottom(isHitBottom);
+    setAutoScroll(isHitBottom);
+  };
+
+  // 自动滚动到底部
+  useEffect(() => {
+    if (autoScroll) {
+      requestAnimationFrame(() => {
+        if (scrollRef.current) {
+          scrollRef.current.scrollTo(0, scrollRef.current.scrollHeight);
+        }
+      });
+    }
+  });
+
+  // 使用 useEffect 和 ResizeObserver 来监听消息高度变化
+  useEffect(() => {
+    const observers = new Map<string, ResizeObserver>();
+
+    // 清理函数
+    const cleanup = () => {
+      observers.forEach((observer) => observer.disconnect());
+      observers.clear();
+    };
+
+    // 为每个消息创建 ResizeObserver
+    Object.entries(messageRefs.current).forEach(([messageId, element]) => {
+      if (!element) return;
+
+      const observer = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const height = entry.contentRect.height;
+          setMessageHeights((prev) => {
+            // 只有当高度真正改变时才更新状态
+            if (prev[messageId] === height) return prev;
+            return {
+              ...prev,
+              [messageId]: height,
+            };
+          });
+        }
+      });
+
+      observer.observe(element);
+      observers.set(messageId, observer);
+    });
+
+    return cleanup;
+  }, [messages.length]); // 只在消息列表长度变化时重新设置观察者
+
+  return (
+    <div
+      className={styles["chat-body"]}
+      ref={scrollRef}
+      onScroll={(e) => onChatBodyScroll(e.currentTarget)}
+      onMouseDown={() => inputRef.current?.blur()}
+      onTouchStart={() => {
+        inputRef.current?.blur();
+        setAutoScroll(false);
+      }}
+    >
+      {renderMessages.map((message, i) => {
+        const isUser = message.role === "user";
+        const isSystem = message.role === "system";
+        const showActions = !(message.preview || message.content.length === 0);
+
+        // 系统级提示词在会话界面中隐藏
+        if (isSystem) {
+          return null;
+        }
+
+        return (
+          <ChatMessageItem
+            key={message.id}
+            message={message}
+            index={i}
+            isUser={isUser}
+            showActions={showActions}
+            messageRefs={messageRefs}
+            scrollRef={scrollRef}
+            messageHeights={messageHeights}
+            isMobileScreen={isMobileScreen}
+            onResend={onResend}
+            onDelete={onDelete}
+            onUserStop={onUserStop}
+            onBranch={onBranch}
+            onEditMessage={onEditMessage}
+            handleTripleClick={handleTripleClick}
+            setUserInput={setUserInput}
+          />
+        );
+      })}
+    </div>
+  );
+}

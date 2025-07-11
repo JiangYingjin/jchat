@@ -106,6 +106,7 @@ import { handleUnauthorizedResponse } from "../utils/auth";
 import { ChatInputPanel } from "./chat-input-panel";
 import { ChatHeader } from "./chat-header";
 import { ChatMessageItem } from "./chat-message-item";
+import { MessageList } from "./message-list";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
@@ -1081,33 +1082,13 @@ function Chat() {
   const [isLargeInput, setIsLargeInput] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { shouldSubmit } = useSubmitHandler();
-  const scrollRef = useRef<HTMLDivElement>(null);
-  const isScrolledToBottom = scrollRef?.current
-    ? Math.abs(
-        scrollRef.current.scrollHeight -
-          (scrollRef.current.scrollTop + scrollRef.current.clientHeight),
-      ) <= 1
-    : false;
-  const isAttachWithTop = useMemo(() => {
-    const lastMessage = scrollRef.current?.lastElementChild as HTMLElement;
-    // if scrolllRef is not ready or no message, return false
-    if (!scrollRef?.current || !lastMessage) return false;
-    const topDistance =
-      lastMessage!.getBoundingClientRect().top -
-      scrollRef.current.getBoundingClientRect().top;
-    // leave some space for user question
-    return topDistance < 100;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scrollRef?.current?.scrollHeight]);
-
   const isTyping = userInput !== "";
 
-  // if user is typing, should auto scroll to bottom
-  // if user is not typing, should auto scroll to bottom only if already at bottom
-  const { setAutoScroll, scrollDomToBottom } = useScrollToBottom(
-    scrollRef,
-    (isScrolledToBottom || isAttachWithTop) && !isTyping,
-  );
+  // 滚动逻辑已经移到 MessageList 组件中，这里只需要提供 setAutoScroll 函数
+  const [autoScroll, setAutoScroll] = useState(true);
+  const scrollDomToBottom = () => {
+    // 这个函数现在由 MessageList 组件内部处理
+  };
   const [hitBottom, setHitBottom] = useState(true);
   const isMobileScreen = useMobileScreen();
   const navigate = useNavigate();
@@ -1441,68 +1422,13 @@ function Chat() {
 
   // 优化点2：渲染消息时彻底过滤 system message
   // 只在渲染时过滤，不影响原始 session.messages
-  const filteredSessionMessages = useMemo(() => {
+  const messages = useMemo(() => {
     return (session.messages as RenderMessage[]).filter(
       (m) => m.role !== "system",
     );
   }, [session.messages]);
 
-  const renderMessages = useMemo(() => {
-    return filteredSessionMessages;
-  }, [filteredSessionMessages]);
-
-  const [msgRenderIndex, _setMsgRenderIndex] = useState(
-    Math.max(0, renderMessages.length - CHAT_PAGE_SIZE),
-  );
-
-  // 只在消息数量增加时重置到最后一页（新消息到达）
-  const prevMessageLength = useRef(renderMessages.length);
-  useEffect(() => {
-    if (renderMessages.length > prevMessageLength.current) {
-      // 只有消息增加时才重置到最后一页
-      const newIndex = Math.max(0, renderMessages.length - CHAT_PAGE_SIZE);
-      _setMsgRenderIndex(newIndex);
-    }
-    prevMessageLength.current = renderMessages.length;
-  }, [renderMessages.length]);
-
-  function setMsgRenderIndex(newIndex: number) {
-    newIndex = Math.min(renderMessages.length - CHAT_PAGE_SIZE, newIndex);
-    newIndex = Math.max(0, newIndex);
-    _setMsgRenderIndex(newIndex);
-  }
-
-  const messages = useMemo(() => {
-    const endRenderIndex = Math.min(
-      msgRenderIndex + 3 * CHAT_PAGE_SIZE,
-      renderMessages.length,
-    );
-    return renderMessages.slice(msgRenderIndex, endRenderIndex);
-  }, [msgRenderIndex, renderMessages]);
-
-  const onChatBodyScroll = (e: HTMLElement) => {
-    const bottomHeight = e.scrollTop + e.clientHeight;
-    const edgeThreshold = e.clientHeight;
-
-    const isTouchTopEdge = e.scrollTop <= edgeThreshold;
-    const isTouchBottomEdge = bottomHeight >= e.scrollHeight - edgeThreshold;
-    const isHitBottom =
-      bottomHeight >= e.scrollHeight - (isMobileScreen ? 4 : 10);
-
-    const prevPageMsgIndex = msgRenderIndex - CHAT_PAGE_SIZE;
-    const nextPageMsgIndex = msgRenderIndex + CHAT_PAGE_SIZE;
-
-    if (isTouchTopEdge && !isTouchBottomEdge) {
-      setMsgRenderIndex(prevPageMsgIndex);
-    } else if (isTouchBottomEdge) {
-      setMsgRenderIndex(nextPageMsgIndex);
-    }
-
-    setHitBottom(isHitBottom);
-    setAutoScroll(isHitBottom);
-  };
   function scrollToBottom() {
-    setMsgRenderIndex(renderMessages.length - CHAT_PAGE_SIZE);
     scrollDomToBottom();
   }
 
@@ -1789,46 +1715,6 @@ function Chat() {
     }
   };
 
-  const [messageHeights, setMessageHeights] = useState<{
-    [key: string]: number;
-  }>({});
-  const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-
-  // 使用 useEffect 和 ResizeObserver 来监听消息高度变化
-  useEffect(() => {
-    const observers = new Map<string, ResizeObserver>();
-
-    // 清理函数
-    const cleanup = () => {
-      observers.forEach((observer) => observer.disconnect());
-      observers.clear();
-    };
-
-    // 为每个消息创建 ResizeObserver
-    Object.entries(messageRefs.current).forEach(([messageId, element]) => {
-      if (!element) return;
-
-      const observer = new ResizeObserver((entries) => {
-        for (const entry of entries) {
-          const height = entry.contentRect.height;
-          setMessageHeights((prev) => {
-            // 只有当高度真正改变时才更新状态
-            if (prev[messageId] === height) return prev;
-            return {
-              ...prev,
-              [messageId]: height,
-            };
-          });
-        }
-      });
-
-      observer.observe(element);
-      observers.set(messageId, observer);
-    });
-
-    return cleanup;
-  }, [session.messages.length]); // 只在消息列表长度变化时重新设置观察者
-
   return (
     <>
       <div className={styles.chat} key={session.id}>
@@ -1891,49 +1777,20 @@ function Chat() {
         />
         <div className={styles["chat-main"]}>
           <div className={styles["chat-body-container"]}>
-            <div
-              className={styles["chat-body"]}
-              ref={scrollRef}
-              onScroll={(e) => onChatBodyScroll(e.currentTarget)}
-              onMouseDown={() => inputRef.current?.blur()}
-              onTouchStart={() => {
-                inputRef.current?.blur();
-                setAutoScroll(false);
-              }}
-            >
-              {messages.map((message, i) => {
-                const isUser = message.role === "user";
-                const isSystem = message.role === "system";
-                const showActions = !(
-                  message.preview || message.content.length === 0
-                );
-                // 系统级提示词在会话界面中隐藏
-                if (isSystem) {
-                  return null;
-                }
-
-                return (
-                  <ChatMessageItem
-                    key={message.id}
-                    message={message}
-                    index={i}
-                    isUser={isUser}
-                    showActions={showActions}
-                    messageRefs={messageRefs}
-                    scrollRef={scrollRef}
-                    messageHeights={messageHeights}
-                    isMobileScreen={isMobileScreen}
-                    onResend={onResend}
-                    onDelete={onDelete}
-                    onUserStop={onUserStop}
-                    onBranch={handleBranch}
-                    onEditMessage={handleEditMessage}
-                    handleTripleClick={handleTripleClick}
-                    setUserInput={setUserInput}
-                  />
-                );
-              })}
-            </div>
+            <MessageList
+              messages={messages}
+              onResend={onResend}
+              onDelete={onDelete}
+              onUserStop={onUserStop}
+              onBranch={handleBranch}
+              onEditMessage={handleEditMessage}
+              handleTripleClick={handleTripleClick}
+              setUserInput={setUserInput}
+              autoScroll={autoScroll}
+              setAutoScroll={setAutoScroll}
+              setHitBottom={setHitBottom}
+              inputRef={inputRef}
+            />
             <ChatInputPanel
               uploadImage={uploadImage}
               capturePhoto={capturePhoto}
