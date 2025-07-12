@@ -30,7 +30,6 @@ import {
 // 组项目组件
 function GroupItem(props: {
   onClick?: () => void;
-  onDoubleClick?: () => void;
   title: string;
   count: number;
   selected: boolean;
@@ -90,7 +89,6 @@ function GroupItem(props: {
         (props.selected ? " " + styles["chat-item-selected"] : "")
       }
       onClick={props.onClick}
-      onDoubleClick={props.onDoubleClick}
       style={style}
       title={`${props.title}\n组内会话数: ${props.count}`}
       {...attributes}
@@ -128,33 +126,23 @@ export function GroupList() {
     }),
   );
 
-  // 处理组的单击 - 切换到该组并显示组内第一个会话
+  // 处理组的点击 - 根据是否已选中决定行为
   const handleGroupClick = (groupIndex: number) => {
     const group = groups[groupIndex];
     if (!group || group.sessionIds.length === 0) return;
 
-    // 获取组内第一个会话
-    const firstSessionId = group.sessionIds[0];
-    const firstSession = chatStore.groupSessions[firstSessionId];
-
-    if (firstSession) {
-      // 切换到该组
+    // 判断是否是第一次点击该组（当前组索引不是这个组）
+    if (currentGroupIndex !== groupIndex) {
+      // 第一次点击：切换到该组并显示组内第一个会话
       chatStore.selectGroup(groupIndex);
-      // 切换到组内第一个会话
-      chatStore.selectGroupSession(0);
+      // 切换到组内第一个会话，但不切换视图
+      chatStore.selectGroupSession(0, false);
       // 导航到聊天页面
       navigate(Path.Chat);
+    } else {
+      // 第二次点击：切换到组内会话视图
+      chatStore.selectGroup(groupIndex); // 这会触发第二次点击逻辑
     }
-  };
-
-  // 处理组的双击 - 展开组内会话列表
-  const handleGroupDoubleClick = (groupIndex: number) => {
-    const group = groups[groupIndex];
-    if (!group) return;
-
-    // 选择组并切换到组内会话模式
-    chatStore.selectGroup(groupIndex);
-    chatStore.setchatListView("group-sessions");
   };
 
   // 返回到组列表
@@ -164,8 +152,8 @@ export function GroupList() {
 
   // 处理组内会话的点击
   const handleGroupSessionClick = (sessionIndex: number) => {
-    // 选择该会话
-    chatStore.selectGroupSession(sessionIndex);
+    // 选择该会话，保持在当前组内会话视图
+    chatStore.selectGroupSession(sessionIndex, false);
     // 导航到聊天页面
     navigate(Path.Chat);
   };
@@ -213,7 +201,6 @@ export function GroupList() {
                 selected={i === currentGroupIndex}
                 status={group.status}
                 onClick={() => handleGroupClick(i)}
-                onDoubleClick={() => handleGroupDoubleClick(i)}
               />
             ))}
           </div>

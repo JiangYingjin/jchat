@@ -254,6 +254,47 @@ export const useChatStore = createPersistStore(
         }
       },
 
+      // 新建组内会话
+      async newGroupSession() {
+        const { groups, currentGroupIndex, groupSessions } = get();
+        const currentGroup = groups[currentGroupIndex];
+
+        if (!currentGroup) {
+          console.error("当前没有选中的组");
+          return;
+        }
+
+        // 创建新的组内会话
+        const newSession = createEmptySession();
+        newSession.groupId = currentGroup.id;
+        newSession.title = DEFAULT_TITLE;
+
+        // 保存会话消息
+        await get().saveSessionMessages(newSession);
+
+        // 更新组和组内会话
+        set((state) => {
+          const newGroups = [...state.groups];
+          const updatedGroup = {
+            ...currentGroup,
+            sessionIds: [...currentGroup.sessionIds, newSession.id],
+            currentSessionIndex: currentGroup.sessionIds.length, // 设置为新会话的索引
+          };
+          newGroups[currentGroupIndex] = updatedGroup;
+
+          return {
+            groups: newGroups,
+            groupSessions: {
+              ...state.groupSessions,
+              [newSession.id]: newSession,
+            },
+          };
+        });
+
+        // 加载新会话的消息
+        await get().loadGroupSessionMessages(newSession.id);
+      },
+
       // 设置聊天列表模式
       setchatListView(mode: "sessions" | "groups" | "group-sessions") {
         set({ chatListView: mode });
@@ -261,14 +302,41 @@ export const useChatStore = createPersistStore(
 
       // 选择指定的组
       selectGroup(index: number) {
-        set({
-          currentGroupIndex: index,
-          chatListView: "groups",
-        });
+        const { groups, currentGroupIndex, groupSessions } = get();
+        const targetGroup = groups[index];
+
+        if (!targetGroup || targetGroup.sessionIds.length === 0) return;
+
+        // 判断是否是第一次点击该组（当前组索引不是这个组）
+        if (currentGroupIndex !== index) {
+          // 第一次点击：切换到该组并加载第一个会话，但不切换视图
+          const firstSessionId = targetGroup.sessionIds[0];
+          const firstSession = groupSessions[firstSessionId];
+
+          if (firstSession) {
+            // 切换到该组
+            set({
+              currentGroupIndex: index,
+            });
+
+            // 加载第一个会话的消息（如果还没加载）
+            if (!firstSession.messages || firstSession.messages.length === 0) {
+              get().loadGroupSessionMessages(firstSessionId);
+            }
+          }
+        } else {
+          // 第二次点击：切换到组内会话视图
+          set({
+            chatListView: "group-sessions",
+          });
+        }
       },
 
       // 选择组内的指定会话
-      selectGroupSession(sessionIndex: number) {
+      selectGroupSession(
+        sessionIndex: number,
+        switchToGroupSessionsView: boolean = false,
+      ) {
         const { groups, currentGroupIndex } = get();
         const currentGroup = groups[currentGroupIndex];
         if (!currentGroup) return;
@@ -280,7 +348,12 @@ export const useChatStore = createPersistStore(
             ...currentGroup,
             currentSessionIndex: sessionIndex,
           };
-          return { groups: newGroups, chatListView: "group-sessions" };
+          return {
+            groups: newGroups,
+            ...(switchToGroupSessionsView
+              ? { chatListView: "group-sessions" }
+              : {}),
+          };
         });
 
         // 加载组内会话的消息
@@ -790,9 +863,16 @@ export const useChatStore = createPersistStore(
         targetSession: ChatSession,
       ) {
         await summarizeSession(targetSession, refreshTitle, (newTopic) => {
-          get().updateTargetSession(targetSession, (session) => {
-            session.title = newTopic;
-          });
+          // 根据会话类型选择更新方法
+          if (targetSession.groupId) {
+            get().updateGroupSession(targetSession, (session) => {
+              session.title = newTopic;
+            });
+          } else {
+            get().updateTargetSession(targetSession, (session) => {
+              session.title = newTopic;
+            });
+          }
         });
       },
 
@@ -805,6 +885,47 @@ export const useChatStore = createPersistStore(
         if (index < 0) return;
         updater(sessions[index]);
         set(() => ({ sessions }));
+      },
+
+      // 更新组内会话并同步组标题
+      updateGroupSession(
+        targetSession: ChatSession,
+        updater: (session: ChatSession) => void,
+      ) {
+        set((state) => {
+          // 先更新 groupSessions
+          const updatedSession = { ...targetSession };
+          updater(updatedSession);
+          const newGroupSessions = {
+            ...state.groupSessions,
+            [targetSession.id]: updatedSession,
+          };
+
+          // 判断是否为组内第一个会话
+          let newGroups = state.groups;
+          if (targetSession.groupId) {
+            const groupIndex = state.groups.findIndex(
+              (g) => g.id === targetSession.groupId,
+            );
+            if (groupIndex !== -1) {
+              const group = state.groups[groupIndex];
+              const firstSessionId = group.sessionIds[0];
+              if (firstSessionId === targetSession.id) {
+                // 同步组标题
+                newGroups = [...state.groups];
+                newGroups[groupIndex] = {
+                  ...group,
+                  title: updatedSession.title,
+                };
+              }
+            }
+          }
+
+          return {
+            groupSessions: newGroupSessions,
+            groups: newGroups,
+          };
+        });
       },
 
       fetchModels() {

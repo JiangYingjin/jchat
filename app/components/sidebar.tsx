@@ -163,20 +163,29 @@ export function SideBar(props: { className?: string }) {
           <IconButton
             icon={<AddIcon />}
             onClick={async () => {
-              if (chatListView !== "sessions") {
+              if (chatListView === "sessions") {
+                // 普通会话模式：新建会话
+                await chatStore.newSession();
+                navigate(Path.Chat);
+              } else if (chatListView === "groups") {
+                // 组列表模式：新建组
                 const newGroup = createEmptyGroup();
                 await chatStore.newGroup(newGroup);
-                // TODO: 考虑是否需要选择新创建的组。
-                // 因为 newGroup 方法会将新组放在 groups 数组的第一个，并设置 currentGroupIndex 为 0，
-                // 所以我们只需要导航到聊天页面即可。
                 navigate(Path.Chat);
-              } else {
-                await chatStore.newSession();
+              } else if (chatListView === "group-sessions") {
+                // 组内会话模式：新建组内会话
+                await chatStore.newGroupSession();
                 navigate(Path.Chat);
               }
               stopSearch();
             }}
-            title={chatListView !== "sessions" ? "新建组会话" : "新建会话"}
+            title={
+              chatListView === "sessions"
+                ? "新建会话"
+                : chatListView === "groups"
+                  ? "新建组"
+                  : "新建组内会话"
+            }
           />
         </div>
       </div>

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useChatStore } from "../store";
+import { useChatStore, type ChatSession } from "../store";
 import { showToast } from "./ui-lib";
 import { IconButton } from "./button";
 import { List, ListItem, Modal } from "./ui-lib";
@@ -13,6 +13,18 @@ export function SessionEditorModal(props: { onClose: () => void }) {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
   const [messages, setMessages] = useState(session.messages.slice());
+
+  // 判断是否为组内会话
+  const isGroupSession = session.groupId !== null;
+
+  // 根据会话类型选择更新方法
+  const updateSession = (updater: (session: ChatSession) => void) => {
+    if (isGroupSession) {
+      chatStore.updateGroupSession(session, updater);
+    } else {
+      chatStore.updateTargetSession(session, updater);
+    }
+  };
 
   return (
     <div className="modal-mask">
@@ -34,10 +46,7 @@ export function SessionEditorModal(props: { onClose: () => void }) {
             icon={<ConfirmIcon />}
             key="ok"
             onClick={() => {
-              chatStore.updateTargetSession(
-                session,
-                (session) => (session.messages = messages),
-              );
+              updateSession((session) => (session.messages = messages));
               props.onClose();
             }}
           />,
@@ -52,16 +61,14 @@ export function SessionEditorModal(props: { onClose: () => void }) {
               type="text"
               value={session.title}
               onInput={(e) =>
-                chatStore.updateTargetSession(
-                  session,
+                updateSession(
                   (session) => (session.title = e.currentTarget.value),
                 )
               }
               onKeyDown={(e) => {
                 if (e.key === "Enter" && e.ctrlKey) {
                   e.preventDefault();
-                  chatStore.updateTargetSession(
-                    session,
+                  updateSession(
                     (session) => (session.title = e.currentTarget.value),
                   );
                   props.onClose();
