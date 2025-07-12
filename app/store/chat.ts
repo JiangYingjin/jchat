@@ -123,18 +123,11 @@ export const useChatStore = createPersistStore(
             const groupSession = currentState.groupSessions[session.id];
             if (groupSession && groupSession.messages) {
               messagesToSave = groupSession.messages;
-              console.log(
-                `[ChatStore] Saving group session messages: ${session.id}, count: ${messagesToSave.length}`,
-              );
             } else {
               console.warn(
                 `[ChatStore] Group session ${session.id} not found in groupSessions or has no messages`,
               );
             }
-          } else {
-            console.log(
-              `[ChatStore] Saving regular session messages: ${session.id}, count: ${messagesToSave.length}`,
-            );
           }
 
           await messageStorage.save(session.id, messagesToSave || []);
@@ -429,21 +422,12 @@ export const useChatStore = createPersistStore(
 
         // 如果消息已经加载（非空），则不重复加载
         if (session.messages && session.messages.length > 0) {
-          console.log(
-            `[ChatStore] Group session ${sessionId} messages already loaded`,
-          );
           return;
         }
 
         try {
-          console.log(
-            `[ChatStore] Loading messages for group session ${sessionId}`,
-          );
           // 从 messageStorage 异步加载消息
           const messages = await messageStorage.get(sessionId);
-          console.log(
-            `[ChatStore] Retrieved ${messages.length} messages from storage for group session ${sessionId}`,
-          );
 
           set((state) => {
             const updatedSession = {
@@ -451,9 +435,6 @@ export const useChatStore = createPersistStore(
               messages: messages,
               messageCount: messages.length,
             };
-            console.log(
-              `[ChatStore] Updating groupSessions with ${messages.length} messages for session ${sessionId}`,
-            );
             return {
               groupSessions: {
                 ...state.groupSessions,
@@ -461,9 +442,6 @@ export const useChatStore = createPersistStore(
               },
             };
           });
-          console.log(
-            `[ChatStore] Successfully loaded ${messages.length} messages for group session ${sessionId}`,
-          );
         } catch (error) {
           console.error(
             `[ChatStore] Failed to load messages for group session ${sessionId}`,
@@ -867,9 +845,6 @@ export const useChatStore = createPersistStore(
           get().loadSessionMessages(validIndex);
         }
 
-        console.log(
-          `[ChatStore] Returning regular session: ${sessions[index].id}, title: ${sessions[index].title}`,
-        );
         return sessions[index];
       },
 
@@ -979,9 +954,6 @@ export const useChatStore = createPersistStore(
         }
 
         // 立即保存消息到独立存储
-        console.log(
-          `[ChatStore] onSendMessage: Saving messages for session ${session.id}, groupId: ${session.groupId}, current message count: ${session.messages.length}`,
-        );
         await get().saveSessionMessages(session);
 
         const api: ClientApi = getClientApi();
@@ -1054,9 +1026,6 @@ export const useChatStore = createPersistStore(
             }
             // 保存最终消息状态 - 重新获取最新的会话状态
             const currentSession = get().currentSession();
-            console.log(
-              `[ChatStore] onFinish: Saving final messages for session ${currentSession.id}, groupId: ${currentSession.groupId}, final message count: ${currentSession.messages.length}`,
-            );
             get().saveSessionMessages(currentSession);
             ChatControllerPool.remove(session.id, modelMessage.id);
           },
@@ -1085,9 +1054,6 @@ export const useChatStore = createPersistStore(
             }
             // 保存错误状态的消息 - 重新获取最新的会话状态
             const currentSession = get().currentSession();
-            console.log(
-              `[ChatStore] onError: Saving error messages for session ${currentSession.id}, groupId: ${currentSession.groupId}, error message count: ${currentSession.messages.length}`,
-            );
             get().saveSessionMessages(currentSession);
             ChatControllerPool.remove(
               session.id,
@@ -1109,15 +1075,9 @@ export const useChatStore = createPersistStore(
 
       async prepareMessagesForApi() {
         const session = get().currentSession();
-        console.log(
-          `[ChatStore] prepareMessagesForApi: session ${session.id}, groupId: ${session.groupId}, message count: ${session.messages?.length || 0}`,
-        );
 
         // **核心改动：如果消息未加载，先加载它们**
         if (session && (!session.messages || session.messages.length === 0)) {
-          console.log(
-            `[ChatStore] prepareMessagesForApi: Loading messages for session ${session.id}`,
-          );
           if (session.groupId) {
             await get().loadGroupSessionMessages(session.id);
           } else {
@@ -1126,9 +1086,6 @@ export const useChatStore = createPersistStore(
         }
         // get() 会获取最新状态，此时 messages 应该已加载
         const finalSession = get().currentSession();
-        console.log(
-          `[ChatStore] prepareMessagesForApi: Final session ${finalSession.id}, message count: ${finalSession.messages?.length || 0}`,
-        );
 
         return await prepareMessagesForApi(finalSession, systemMessageStorage);
       },
@@ -1215,14 +1172,7 @@ export const useChatStore = createPersistStore(
           const baseSession =
             state.groupSessions[targetSession.id] || targetSession;
           const updatedSession = { ...baseSession };
-          const beforeMessageCount = updatedSession.messages?.length || 0;
-          const beforeTargetMsgCount = targetSession.messages?.length || 0;
           updater(updatedSession);
-          const afterMessageCount = updatedSession.messages?.length || 0;
-
-          console.log(
-            `[ChatStore] updateGroupSession: ${targetSession.id}, baseMsg: ${beforeMessageCount}, targetMsg: ${beforeTargetMsgCount} -> ${afterMessageCount}`,
-          );
 
           const newGroupSessions = {
             ...state.groupSessions,
