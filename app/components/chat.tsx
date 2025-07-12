@@ -309,6 +309,20 @@ function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session.id]);
 
+  // 确保会话切换时自动加载消息
+  useEffect(() => {
+    if (session && (!session.messages || session.messages.length === 0)) {
+      if (session.groupId) {
+        // 组内会话：加载组内会话消息
+        chatStore.loadGroupSessionMessages(session.id);
+      } else {
+        // 普通会话：加载普通会话消息
+        chatStore.loadSessionMessages(chatStore.currentSessionIndex);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id]);
+
   // --- Render Logic ---
   return (
     <>

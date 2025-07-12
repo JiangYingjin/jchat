@@ -331,11 +331,37 @@ export const useChatStore = createPersistStore(
       // 设置聊天列表模式
       setchatListView(mode: "sessions" | "groups") {
         set({ chatListView: mode });
+
+        // 切换模式后，确保当前会话的消息已加载
+        setTimeout(() => {
+          const session = get().currentSession();
+          if (session && (!session.messages || session.messages.length === 0)) {
+            if (session.groupId) {
+              // 组内会话：加载组内会话消息
+              get().loadGroupSessionMessages(session.id);
+            } else {
+              // 普通会话：加载普通会话消息
+              get().loadSessionMessages(get().currentSessionIndex);
+            }
+          }
+        }, 0);
       },
 
       // 设置组内视图模式
       setchatListGroupView(mode: "groups" | "group-sessions") {
         set({ chatListGroupView: mode });
+
+        // 切换组内视图后，确保当前会话的消息已加载
+        setTimeout(() => {
+          const session = get().currentSession();
+          if (
+            session &&
+            session.groupId &&
+            (!session.messages || session.messages.length === 0)
+          ) {
+            get().loadGroupSessionMessages(session.id);
+          }
+        }, 0);
       },
 
       // 选择指定的组
@@ -1028,6 +1054,10 @@ export const useChatStore = createPersistStore(
                 currentGroup.sessionIds[currentGroup.currentSessionIndex];
               const session = groupSessions[currentSessionId];
               if (session) {
+                // 确保组内会话的消息已加载
+                if (!session.messages || session.messages.length === 0) {
+                  get().loadGroupSessionMessages(currentSessionId);
+                }
                 return session;
               } else {
                 console.warn(
@@ -1049,6 +1079,10 @@ export const useChatStore = createPersistStore(
               const firstSessionId = currentGroup.sessionIds[0];
               const session = groupSessions[firstSessionId];
               if (session) {
+                // 确保组内会话的消息已加载
+                if (!session.messages || session.messages.length === 0) {
+                  get().loadGroupSessionMessages(firstSessionId);
+                }
                 return session;
               } else {
                 console.warn(
