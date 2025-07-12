@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import styles from "./file-drop-zone.module.scss";
+import styles from "../styles/file-drop-zone.module.scss";
 import {
   validateDropEvent,
   extractFilesFromDrop,

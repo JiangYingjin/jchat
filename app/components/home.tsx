@@ -30,7 +30,7 @@ import { checkAndHandleAuth } from "../utils/auth";
 // 静态资源
 import BotIcon from "../icons/bot.svg";
 import LoadingIcon from "../icons/three-dots.svg";
-import styles from "./home.module.scss";
+import styles from "../styles/home.module.scss";
 
 // 2. 动态组件导入 (Code Splitting)
 // -----------------------------------------------------------------------------

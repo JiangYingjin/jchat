@@ -1,4 +1,4 @@
-import styles from "./auth.module.scss";
+import styles from "../styles/auth.module.scss";
 import { IconButton } from "./button";
 import { useRef, useEffect } from "react";
 

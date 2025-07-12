@@ -11,7 +11,7 @@ import { nanoid } from "nanoid";
 import DownloadIcon from "../icons/download.svg";
 import Locale from "../locales";
 import { downloadAs } from "../utils";
-import styles from "./artifacts.module.scss";
+import styles from "../styles/artifacts.module.scss";
 
 type HTMLPreviewProps = {
   code: string;

@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useChatStore, ChatGroup } from "../store";
 import { Path } from "../constant";
 import { ChatItem } from "./chat-list";
-import styles from "./home.module.scss";
-import { IconButton } from "./button";
+import styles from "../styles/home.module.scss";
 import BackIcon from "../icons/left.svg";
 import {
   DndContext,
@@ -26,7 +25,6 @@ import {
   restrictToVerticalAxis,
   restrictToFirstScrollableAncestor,
 } from "@dnd-kit/modifiers";
-import { flatMap } from "lodash-es";
 
 // 组项目组件
 function GroupItem(props: {

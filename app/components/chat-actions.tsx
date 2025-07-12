@@ -11,7 +11,7 @@ import RobotIcon from "../icons/robot.svg";
 import EditIcon from "../icons/edit.svg";
 import StopIcon from "../icons/pause.svg";
 import CameraIcon from "../icons/camera.svg";
-import styles from "./chat.module.scss";
+import styles from "../styles/chat.module.scss";
 
 export function ChatActions(props: {
   uploadImage: () => Promise<void>;

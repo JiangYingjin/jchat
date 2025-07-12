@@ -3,7 +3,7 @@ import { ChatMessage } from "../store";
 import { ChatMessageItem } from "./chat-message-item";
 import { useMobileScreen } from "../utils";
 import { CHAT_PAGE_SIZE } from "../constant";
-import styles from "./chat.module.scss";
+import styles from "../styles/chat.module.scss";
 
 type RenderMessage = ChatMessage & { preview?: boolean };
 

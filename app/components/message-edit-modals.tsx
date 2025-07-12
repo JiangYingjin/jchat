@@ -12,7 +12,7 @@ import CancelIcon from "../icons/cancel.svg";
 import ConfirmIcon from "../icons/confirm.svg";
 import { MessageContentEditPanel } from "./message-content-edit-panel";
 import Locale from "../locales";
-import styles from "./chat.module.scss";
+import styles from "../styles/chat.module.scss";
 
 export function SystemPromptEditModal(props: {
   onClose: () => void;

@@ -1,15 +1,8 @@
 /* eslint-disable @next/next/no-img-element */
 import { ChatMessage, useChatStore, systemMessageStorage } from "../store";
 import Locale from "../locales";
-import styles from "./exporter.module.scss";
-import {
-  List,
-  ListItem,
-  Modal,
-  Select,
-  showImageModal,
-  showToast,
-} from "./ui-lib";
+import styles from "../styles/exporter.module.scss";
+import { List, ListItem, Modal, Select, showToast } from "./ui-lib";
 import { IconButton } from "./button";
 import {
   copyToClipboard,

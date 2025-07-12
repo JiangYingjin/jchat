@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { ChatMessage } from "../store";
 import Locale from "../locales";
 import { Markdown } from "./markdown";
-import styles from "./thinking-content.module.scss";
+import styles from "../styles/thinking-content.module.scss";
 import MaxIcon from "../icons/max.svg";
 import MinIcon from "../icons/min.svg";
 

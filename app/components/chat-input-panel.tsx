@@ -15,7 +15,7 @@ import { usePasteImageUpload } from "../utils/hooks";
 import { capturePhoto, uploadImage } from "../utils/file-upload";
 import { chatInputStorage } from "../store/input";
 
-import styles from "./chat.module.scss";
+import styles from "../styles/chat.module.scss";
 
 export interface ChatInputPanelProps {
   // 核心回调函数

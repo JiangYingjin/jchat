@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { ChatMessage, useChatStore } from "../store";
-import styles from "./home.module.scss";
+import styles from "../styles/home.module.scss";
 import SearchIcon from "../icons/search.svg";
 import { IconButton } from "./button";
 import CloseIcon from "../icons/close.svg";

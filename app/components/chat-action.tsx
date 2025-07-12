@@ -1,6 +1,6 @@
 import React, { useRef, useState, useLayoutEffect } from "react";
 import clsx from "clsx";
-import styles from "./chat.module.scss";
+import styles from "../styles/chat.module.scss";
 import LoadingIcon from "../icons/three-dots.svg";
 
 export function ChatAction(props: {

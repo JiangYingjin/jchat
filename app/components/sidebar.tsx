@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
-import styles from "./home.module.scss";
-import buttonStyles from "./button.module.scss";
+import styles from "../styles/home.module.scss";
+import buttonStyles from "../styles/button.module.scss";
 
 import { IconButton } from "./button";
 import SettingsIcon from "../icons/settings.svg";

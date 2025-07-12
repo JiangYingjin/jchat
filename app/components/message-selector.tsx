@@ -6,7 +6,7 @@ import Locale from "../locales";
 import RobotIcon from "../icons/robot.svg";
 import SettingsIcon from "../icons/settings.svg";
 import UserIcon from "../icons/user.svg";
-import styles from "./message-selector.module.scss";
+import styles from "../styles/message-selector.module.scss";
 import { getMessageTextContent } from "../utils";
 
 // 系统消息数据接口

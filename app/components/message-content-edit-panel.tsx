@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from "react";
 import clsx from "clsx";
-import styles from "./chat.module.scss";
+import styles from "../styles/chat.module.scss";
 import { DeleteImageButton } from "./button";
 import { copyImageToClipboard } from "../utils/image";
 import { showImageModal } from "./ui-lib";

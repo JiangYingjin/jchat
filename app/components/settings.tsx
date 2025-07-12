@@ -14,7 +14,7 @@ import { IconButton } from "./button";
 import { ErrorBoundary } from "./error";
 
 // Icons and Styles
-import styles from "./settings.module.scss";
+import styles from "../styles/settings.module.scss";
 import CloseIcon from "../icons/close.svg";
 import DownloadIcon from "../icons/download.svg";
 import UploadIcon from "../icons/upload.svg";

@@ -5,7 +5,7 @@ import { MultimodalContent } from "../client/api";
 import { Markdown } from "./markdown";
 import { ThinkingContent } from "./thinking-content";
 import { MessageActions } from "./message-actions";
-import styles from "./chat.module.scss";
+import styles from "../styles/chat.module.scss";
 
 type RenderMessage = ChatMessage & { preview?: boolean };
 

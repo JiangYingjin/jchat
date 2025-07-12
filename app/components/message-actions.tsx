@@ -3,7 +3,7 @@ import { ChatMessage } from "../store";
 import { copyToClipboard, getMessageTextContent } from "../utils";
 import { ChatAction, DoubleClickChatAction } from "./chat-action";
 import { IconButton } from "./button";
-import styles from "./chat.module.scss";
+import styles from "../styles/chat.module.scss";
 
 import CopyIcon from "../icons/copy.svg";
 import DeleteIcon from "../icons/clear.svg";

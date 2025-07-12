@@ -4,7 +4,7 @@ import EditIcon from "../icons/edit.svg";
 import ExportIcon from "../icons/share.svg";
 import DeleteIcon from "../icons/clear.svg";
 import Locale from "../locales";
-import styles from "./chat.module.scss";
+import styles from "../styles/chat.module.scss";
 import clsx from "clsx";
 import { useMobileScreen } from "../utils";
 import React from "react";

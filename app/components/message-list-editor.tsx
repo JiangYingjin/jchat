@@ -5,7 +5,7 @@ import { createMessage } from "../utils/session";
 import { MultimodalContent, ROLES } from "../client/api";
 import { Input, Select } from "./ui-lib";
 import Locale from "../locales";
-import chatStyle from "./chat.module.scss";
+import chatStyle from "../styles/chat.module.scss";
 import { getMessageTextContent, getMessageImages } from "../utils";
 
 import AddIcon from "../icons/add.svg";
