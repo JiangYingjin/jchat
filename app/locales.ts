@@ -80,6 +80,7 @@ const cn = {
       showShortcutKey: "显示快捷方式",
     },
     DeleteMessageToast: "消息已删除",
+    DeleteGroupToast: "组已删除",
     Revert: "撤销",
   },
   Export: {

@@ -10,6 +10,7 @@ import DeleteIcon from "../icons/clear.svg";
 
 export function IconButton(props: {
   onClick?: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void;
   icon?: JSX.Element;
   type?: ButtonType;
   text?: string;
@@ -30,6 +31,7 @@ export function IconButton(props: {
         ` ${props.bordered && styles.border} ${props.className ?? ""} shadow clickable ${styles[props.type ?? ""]}`
       }
       onClick={props.onClick}
+      onContextMenu={props.onContextMenu}
       title={props.title}
       disabled={props.disabled}
       role="button"

@@ -331,6 +331,13 @@ function Chat() {
               chatStore.deleteSession(chatStore.currentSessionIndex);
             }
           }}
+          onDeleteGroupClick={async () => {
+            // 删除整个组
+            if (session.groupId) {
+              await chatStore.deleteGroup(session.groupId);
+            }
+          }}
+          hasGroupId={!!session.groupId}
         />
         <div className={styles["chat-main"]}>
           <div className={styles["chat-body-container"]}>

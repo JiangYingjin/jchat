@@ -477,6 +477,12 @@ export const useChatStore = createPersistStore(
           groups: get().groups,
           groupSessions: get().groupSessions,
           currentGroupIndex: get().currentGroupIndex,
+          // 确保包含所有必要的状态字段
+          sessions: get().sessions,
+          currentSessionIndex: get().currentSessionIndex,
+          chatListView: get().chatListView,
+          models: get().models,
+          accessCode: get().accessCode,
         };
 
         // 计算删除后的当前会话索引
@@ -552,7 +558,10 @@ export const useChatStore = createPersistStore(
           set(() => restoreState);
 
           // 确保恢复的会话消息已加载
-          await get().loadGroupSessionMessages(sessionId);
+          // 注意：这里需要等待状态更新完成后再加载消息
+          setTimeout(async () => {
+            await get().loadGroupSessionMessages(sessionId);
+          }, 0);
 
           console.log(`[ChatStore] Group session ${sessionId} deletion undone`);
         };
@@ -569,6 +578,132 @@ export const useChatStore = createPersistStore(
           {
             text: Locale.Chat.Revert,
             onClick: restoreGroupSession,
+          },
+          8000,
+        );
+      },
+
+      // 删除整个组及其所有会话
+      async deleteGroup(groupId: string): Promise<void> {
+        const { groups, currentGroupIndex, groupSessions } = get();
+        const targetGroup = groups.find((g) => g.id === groupId);
+
+        if (!targetGroup) {
+          console.warn(`[ChatStore] Group ${groupId} not found`);
+          return;
+        }
+
+        // **保存删除前的完整状态用于撤销**
+        const restoreState = {
+          groups: get().groups,
+          groupSessions: get().groupSessions,
+          currentGroupIndex: get().currentGroupIndex,
+          chatListView: get().chatListView,
+          // 确保包含所有必要的状态字段
+          sessions: get().sessions,
+          currentSessionIndex: get().currentSessionIndex,
+          models: get().models,
+          accessCode: get().accessCode,
+        };
+
+        // 获取组内所有会话ID
+        const sessionIds = [...targetGroup.sessionIds];
+
+        // 计算删除后的当前组索引
+        const groupIndex = groups.findIndex((g) => g.id === groupId);
+        let newCurrentGroupIndex = currentGroupIndex;
+        if (groupIndex < currentGroupIndex) {
+          newCurrentGroupIndex--;
+        } else if (groupIndex === currentGroupIndex) {
+          // 如果删除的是当前组，选择前一个组，如果没有则选择下一个
+          newCurrentGroupIndex = Math.max(0, groupIndex - 1);
+        }
+
+        // 立即更新UI状态（从组列表中移除）
+        set((state) => {
+          const newGroups = state.groups.filter((g) => g.id !== groupId);
+          const newGroupSessions = { ...state.groupSessions };
+
+          // 从 groupSessions 中移除所有相关会话
+          sessionIds.forEach((sessionId) => {
+            delete newGroupSessions[sessionId];
+          });
+
+          return {
+            groups: newGroups,
+            groupSessions: newGroupSessions,
+            currentGroupIndex: newCurrentGroupIndex,
+            // 如果删除的是当前组，切换到组列表视图
+            ...(groupIndex === currentGroupIndex
+              ? { chatListView: "groups" as const }
+              : {}),
+          };
+        });
+
+        console.log(
+          `[ChatStore] Group ${groupId} and all its sessions removed from UI`,
+        );
+
+        // **延迟删除相关数据的定时器**
+        let deleteTimer: NodeJS.Timeout | null = null;
+
+        const performActualDeletion = async () => {
+          try {
+            // 删除所有会话的相关数据
+            const deletePromises = sessionIds.map(async (sessionId) => {
+              await Promise.all([
+                messageStorage.delete(sessionId),
+                chatInputStorage.delete(sessionId),
+                systemMessageStorage.delete(sessionId),
+              ]);
+            });
+
+            await Promise.all(deletePromises);
+            console.log(
+              `[ChatStore] Group ${groupId} and all its sessions data deleted permanently`,
+            );
+          } catch (error) {
+            console.error(
+              `[ChatStore] Failed to delete group ${groupId} data:`,
+              error,
+            );
+          }
+        };
+
+        // **撤销删除的功能**
+        const restoreGroup = async () => {
+          // 取消延迟删除定时器
+          if (deleteTimer) {
+            clearTimeout(deleteTimer);
+            deleteTimer = null;
+          }
+
+          // 恢复组状态
+          set(() => restoreState);
+
+          // 确保恢复的组内会话消息已加载
+          // 注意：这里需要等待状态更新完成后再加载消息
+          setTimeout(async () => {
+            for (const sessionId of sessionIds) {
+              await get().loadGroupSessionMessages(sessionId);
+            }
+          }, 0);
+
+          console.log(`[ChatStore] Group ${groupId} deletion undone`);
+        };
+
+        // 设置8秒后的延迟删除
+        deleteTimer = setTimeout(() => {
+          performActualDeletion();
+          deleteTimer = null;
+        }, 8000);
+
+        // **显示带撤销选项的Toast**
+        showToast(
+          Locale.Chat.DeleteGroupToast,
+          {
+            text: Locale.Chat.Revert,
+            onClick: restoreGroup,
           },
           8000,
         );
@@ -705,6 +840,13 @@ export const useChatStore = createPersistStore(
         const restoreState = {
           sessions: get().sessions,
           currentSessionIndex: get().currentSessionIndex,
+          // 确保包含所有必要的状态字段
+          groups: get().groups,
+          groupSessions: get().groupSessions,
+          currentGroupIndex: get().currentGroupIndex,
+          chatListView: get().chatListView,
+          models: get().models,
+          accessCode: get().accessCode,
         };
         const deletedSessionIndex = index;
 
@@ -768,7 +910,10 @@ export const useChatStore = createPersistStore(
           set(() => restoreState);
 
           // 确保恢复的会话消息已加载
-          await get().loadSessionMessages(deletedSessionIndex);
+          // 注意：这里需要等待状态更新完成后再加载消息
+          setTimeout(async () => {
+            await get().loadSessionMessages(deletedSessionIndex);
+          }, 0);
 
           console.log(`[DeleteSession] 已撤销删除会话 ${deletedSession.id}`);
         };

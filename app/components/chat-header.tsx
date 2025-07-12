@@ -8,6 +8,7 @@ import styles from "./chat.module.scss";
 import clsx from "clsx";
 import { useMobileScreen } from "../utils";
 import React from "react";
+import { showConfirm } from "./ui-lib";
 
 export function ChatHeader(props: {
   sessionTitle: string;
@@ -16,8 +17,74 @@ export function ChatHeader(props: {
   onEditSessionClick: () => void;
   onExportClick: () => void;
   onDeleteSessionClick: () => void;
+  onDeleteGroupClick?: () => void; // 新增：删除整个组的回调
+  hasGroupId?: boolean; // 新增：是否有 groupId
 }) {
   const isMobileScreen = useMobileScreen();
+
+  // 处理右键单击删除按钮
+  const handleDeleteButtonContextMenu = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    // 如果没有 groupId 或者没有删除组的回调，则不执行任何操作
+    if (!props.hasGroupId || !props.onDeleteGroupClick) {
+      return;
+    }
+
+    // 显示确认删除整个组的模态框
+    const confirmed = await showConfirm(
+      <div style={{ padding: "8px 24px" }}>
+        {/* <p
+          style={{
+            fontSize: "16px",
+            fontWeight: "bold",
+            marginBottom: "16px",
+            textAlign: "center",
+          }}
+        >
+          🗑️ 删除整个组
+        </p> */}
+        <p style={{ fontSize: "14px", color: "#333", marginBottom: "12px" }}>
+          即将删除组 <strong>&ldquo;{props.sessionTitle}&rdquo;</strong>{" "}
+          及其所有内容：
+        </p>
+        <ul
+          style={{
+            fontSize: "14px",
+            color: "#666",
+            margin: "8px 0 16px 0",
+            paddingLeft: "20px",
+            lineHeight: "1.6",
+          }}
+        >
+          <li>组内所有会话（{props.messageCount} 条消息）</li>
+          <li>所有聊天记录和对话内容</li>
+          <li>组内所有系统提示词</li>
+          <li>组内所有未发送输入状态</li>
+        </ul>
+        <div
+          style={{
+            fontSize: "14px",
+            color: "#d32f2f",
+            marginTop: "16px",
+            padding: "12px 16px",
+            backgroundColor: "#ffebee",
+            border: "1px solid #ffcdd2",
+            borderRadius: "8px",
+            textAlign: "center",
+            fontWeight: "500",
+          }}
+        >
+          ⚠️ 此操作将在 8 秒后永久删除所有数据
+        </div>
+      </div>,
+    );
+
+    if (confirmed) {
+      props.onDeleteGroupClick();
+    }
+  };
 
   return (
     <div className="window-header">
@@ -58,8 +125,13 @@ export function ChatHeader(props: {
           <IconButton
             icon={<DeleteIcon />}
             bordered
-            title={Locale.Chat.Actions.Delete}
+            title={
+              props.hasGroupId
+                ? "左键删除会话，右键删除整个组"
+                : Locale.Chat.Actions.Delete
+            }
             onClick={props.onDeleteSessionClick}
+            onContextMenu={handleDeleteButtonContextMenu}
           />
         </div>
       </div>
