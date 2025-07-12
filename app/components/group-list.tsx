@@ -26,6 +26,7 @@ import {
   restrictToVerticalAxis,
   restrictToFirstScrollableAncestor,
 } from "@dnd-kit/modifiers";
+import { flatMap } from "lodash-es";
 
 // 组项目组件
 function GroupItem(props: {
@@ -135,7 +136,7 @@ export function GroupList() {
     if (currentGroupIndex !== groupIndex) {
       // 第一次点击：切换到该组，选择第一个会话，并切换到组内会话视图
       chatStore.selectGroup(groupIndex);
-      chatStore.selectGroupSession(0, true);
+      chatStore.selectGroupSession(0, false);
       // 导航到聊天页面
       navigate(Path.Chat);
     } else {
