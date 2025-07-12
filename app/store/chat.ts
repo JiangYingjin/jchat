@@ -22,6 +22,7 @@ import {
   validateSessionIndex,
   updateSessionStats,
 } from "../utils/session";
+import { calculateGroupStatus } from "../utils/group";
 
 let fetchState = 0; // 0 not fetch, 1 fetching, 2 done
 
@@ -308,6 +309,10 @@ export const useChatStore = createPersistStore(
             sessionIds: [...currentGroup.sessionIds, newSession.id],
             currentSessionIndex: currentGroup.sessionIds.length, // 设置为新会话的索引
           };
+
+          // 确保组状态与计数保持一致
+          updatedGroup.status = calculateGroupStatus(updatedGroup);
+
           newGroups[currentGroupIndex] = updatedGroup;
 
           return {
@@ -446,6 +451,8 @@ export const useChatStore = createPersistStore(
                   newGroups[groupIndex] = {
                     ...group,
                     messageCount: messages.length,
+                    // 确保组状态与计数保持一致
+                    status: calculateGroupStatus(group),
                   };
                 }
               }
@@ -536,6 +543,19 @@ export const useChatStore = createPersistStore(
             sessionIds: newSessionIds,
             currentSessionIndex: newCurrentSessionIndex,
           };
+
+          // 更新父组的状态计数：减少被删除会话的状态计数
+          if (deletedSession.status === "error") {
+            updatedGroup.errorCount = Math.max(0, updatedGroup.errorCount - 1);
+          } else if (deletedSession.status === "pending") {
+            updatedGroup.pendingCount = Math.max(
+              0,
+              updatedGroup.pendingCount - 1,
+            );
+          }
+
+          // 重新计算组状态
+          updatedGroup.status = calculateGroupStatus(updatedGroup);
 
           if (sessionIndex === 0 && newSessionIds.length > 0) {
             // 删除的是第一个会话，更新组的 messageCount 为新的第一个会话的 messageCount
@@ -1376,14 +1396,23 @@ export const useChatStore = createPersistStore(
           const baseSession =
             state.groupSessions[targetSession.id] || targetSession;
           const updatedSession = { ...baseSession };
+
+          // 保存更新前的状态，用于计算状态变化
+          const oldStatus = updatedSession.status;
+
+          // 应用更新器
           updater(updatedSession);
+
+          // 如果状态发生了变化，需要更新父组的计数
+          const newStatus = updatedSession.status;
+          const statusChanged = oldStatus !== newStatus;
 
           const newGroupSessions = {
             ...state.groupSessions,
             [targetSession.id]: updatedSession,
           };
 
-          // 判断是否为组内第一个会话
+          // 更新组状态
           let newGroups = state.groups;
           if (targetSession.groupId) {
             const groupIndex = state.groups.findIndex(
@@ -1391,16 +1420,43 @@ export const useChatStore = createPersistStore(
             );
             if (groupIndex !== -1) {
               const group = state.groups[groupIndex];
+              const updatedGroup = { ...group };
+
+              // 如果状态发生了变化，安全地更新计数
+              if (statusChanged) {
+                // 减少旧状态的计数
+                if (oldStatus === "error") {
+                  updatedGroup.errorCount = Math.max(
+                    0,
+                    updatedGroup.errorCount - 1,
+                  );
+                } else if (oldStatus === "pending") {
+                  updatedGroup.pendingCount = Math.max(
+                    0,
+                    updatedGroup.pendingCount - 1,
+                  );
+                }
+
+                // 增加新状态的计数
+                if (newStatus === "error") {
+                  updatedGroup.errorCount += 1;
+                } else if (newStatus === "pending") {
+                  updatedGroup.pendingCount += 1;
+                }
+
+                // 重新计算组状态
+                updatedGroup.status = calculateGroupStatus(updatedGroup);
+              }
+
+              // 如果是第一个会话，同步组标题和消息数量
               const firstSessionId = group.sessionIds[0];
               if (firstSessionId === targetSession.id) {
-                // 同步组标题和消息数量（只有第一个会话可以这样）
-                newGroups = [...state.groups];
-                newGroups[groupIndex] = {
-                  ...group,
-                  title: updatedSession.title,
-                  messageCount: updatedSession.messageCount,
-                };
+                updatedGroup.title = updatedSession.title;
+                updatedGroup.messageCount = updatedSession.messageCount;
               }
+
+              newGroups = [...state.groups];
+              newGroups[groupIndex] = updatedGroup;
             }
           }
 
@@ -1521,56 +1577,6 @@ export const useChatStore = createPersistStore(
     },
 
     migrate(persistedState: any, version: number) {
-      // // 从版本 5.3 迁移到 5.4：添加分组功能
-      // if (version < 5.4) {
-      //   console.log("[Store] Migrating from version", version, "to 5.4");
-
-      //   const migratedState = { ...persistedState };
-
-      //   // 1. 为所有 ChatSession 添加 groupId 字段
-      //   if (migratedState.sessions && Array.isArray(migratedState.sessions)) {
-      //     migratedState.sessions = migratedState.sessions.map(
-      //       (session: any) => {
-      //         if (session && typeof session === "object") {
-      //           return {
-      //             ...session,
-      //             groupId: null, // 默认所有会话都不属于任何分组
-      //           };
-      //         }
-      //         return session;
-      //       },
-      //     );
-      //   }
-
-      //   // 2. 添加新的分组相关字段
-      //   migratedState.groups = [];
-      //   migratedState.groupSessions = {};
-      //   migratedState.currentGroupIndex = 0;
-
-      //   // 3. 如果存在旧的 groups 数据，需要迁移格式
-      //   if (migratedState.groups && Array.isArray(migratedState.groups)) {
-      //     migratedState.groups = migratedState.groups.map((group: any) => {
-      //       if (group && typeof group === "object") {
-      //         return {
-      //           id: group.id || nanoid(),
-      //           title: group.title || DEFAULT_TITLE,
-      //           sessionIds: group.sessionIds || [],
-      //           messageCount: group.messageCount || 0,
-      //           status: group.status || "normal",
-      //           pendingCount: group.pendingCount || 0,
-      //           errorCount: group.errorCount || 0,
-      //           expanded: group.expanded !== undefined ? group.expanded : false,
-      //           currentSessionIndex: group.currentSessionIndex || 0,
-      //         };
-      //       }
-      //       return group;
-      //     });
-      //   }
-
-      //   console.log("[Store] Migration to 5.4 completed");
-      //   return migratedState;
-      // }
-
       return persistedState;
     },
   },
