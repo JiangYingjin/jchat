@@ -8,6 +8,7 @@ import {
   useChatStore,
   SystemMessageData,
   systemMessageStorage,
+  ChatSession,
 } from "../store";
 import { useSubmitHandler, useTripleClick } from "../utils/hooks";
 import { updateSessionStats } from "../utils/session";
@@ -97,6 +98,15 @@ function Chat() {
 
   // --- Core Logic Handlers ---
 
+  // 根据会话类型选择正确的更新方法
+  const updateSession = (updater: (session: ChatSession) => void) => {
+    if (session.groupId) {
+      chatStore.updateGroupSession(session, updater);
+    } else {
+      chatStore.updateTargetSession(session, updater);
+    }
+  };
+
   const handleSubmit = (text: string, images: string[]) => {
     if (text.trim() === "" && isEmpty(images)) return;
     setIsLoading(true);
@@ -126,7 +136,7 @@ function Chat() {
   };
 
   const deleteMessage = async (msgId?: string) => {
-    chatStore.updateTargetSession(session, (session) => {
+    updateSession((session) => {
       session.messages = session.messages.filter((m) => m.id !== msgId);
       updateSessionStats(session);
     });
@@ -141,7 +151,7 @@ function Chat() {
       {
         text: Locale.Home.Revert,
         async onClick() {
-          chatStore.updateTargetSession(session, (session) => {
+          updateSession((session) => {
             session.messages = prevMessages;
             updateSessionStats(session);
           });
@@ -167,7 +177,7 @@ function Chat() {
     scrollTop?: number,
     selection?: { start: number; end: number }, // 修改这里 end: 0 => end: number
   ) => {
-    chatStore.updateTargetSession(session, (session) => {
+    updateSession((session) => {
       session.messages = session.messages.filter((m) => m.role !== "system");
 
       if (content.trim() || images.length > 0) {
@@ -259,7 +269,7 @@ function Chat() {
   // Default to long input mode on mobile devices
   useEffect(() => {
     if (isMobileScreen && session.longInputMode === false) {
-      chatStore.updateTargetSession(session, (session) => {
+      updateSession((session) => {
         session.longInputMode = true;
       });
     }
@@ -268,7 +278,7 @@ function Chat() {
 
   // Clean up stale messages and update model if necessary
   useEffect(() => {
-    chatStore.updateTargetSession(session, (session) => {
+    updateSession((session) => {
       const stopTiming = Date.now() - REQUEST_TIMEOUT_MS;
       session.messages.forEach((m) => {
         if (m.isError || new Date(m.date).getTime() < stopTiming) {
@@ -313,9 +323,14 @@ function Chat() {
           }}
           onEditSessionClick={() => setIsEditingSession(true)}
           onExportClick={() => setShowExport(true)}
-          onDeleteSessionClick={() =>
-            chatStore.deleteSession(chatStore.currentSessionIndex)
-          }
+          onDeleteSessionClick={async () => {
+            // 对于组内会话，需要特殊处理删除逻辑
+            if (session.groupId) {
+              await chatStore.deleteGroupSession(session.id);
+            } else {
+              chatStore.deleteSession(chatStore.currentSessionIndex);
+            }
+          }}
         />
         <div className={styles["chat-main"]}>
           <div className={styles["chat-body-container"]}>
@@ -369,7 +384,7 @@ function Chat() {
           }
           initialImages={getMessageImages(editMessageData.message)}
           onSave={(newContent, newImages, retryOnConfirm) => {
-            chatStore.updateTargetSession(session, (session) => {
+            updateSession((session) => {
               const m = session.messages.find(
                 (m) => m.id === editMessageData.message.id,
               );
@@ -409,5 +424,9 @@ function Chat() {
  * This is a clean way to reset all component state when switching conversations.
  */
 export function ChatPage() {
-  return <Chat key={useChatStore().currentSessionIndex} />;
+  const chatStore = useChatStore();
+  const session = chatStore.currentSession();
+
+  // 统一使用会话ID作为key，确保会话切换的可靠性
+  return <Chat key={session.id} />;
 }

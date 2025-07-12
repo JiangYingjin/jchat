@@ -133,15 +133,14 @@ export function GroupList() {
 
     // 判断是否是第一次点击该组（当前组索引不是这个组）
     if (currentGroupIndex !== groupIndex) {
-      // 第一次点击：切换到该组并显示组内第一个会话
+      // 第一次点击：切换到该组，选择第一个会话，并切换到组内会话视图
       chatStore.selectGroup(groupIndex);
-      // 切换到组内第一个会话，但不切换视图
-      chatStore.selectGroupSession(0, false);
+      chatStore.selectGroupSession(0, true);
       // 导航到聊天页面
       navigate(Path.Chat);
     } else {
       // 第二次点击：切换到组内会话视图
-      chatStore.selectGroup(groupIndex); // 这会触发第二次点击逻辑
+      chatStore.setchatListView("group-sessions");
     }
   };
 
@@ -248,9 +247,8 @@ export function GroupList() {
               selected={i === currentGroup.currentSessionIndex}
               status={session.status}
               onClick={() => handleGroupSessionClick(i)}
-              onDelete={() => {
-                // TODO: 实现删除组内会话的功能
-                console.log("删除组内会话:", session.id);
+              onDelete={async () => {
+                await chatStore.deleteGroupSession(session.id);
               }}
             />
           ))}
