@@ -72,6 +72,31 @@ function getChatItemStyle(messageCount: number) {
   } as React.CSSProperties;
 }
 
+// StatusDot 组件
+interface StatusDotProps {
+  status: "normal" | "error" | "pending";
+  title?: string; // 可选的提示文本
+}
+
+function StatusDot({ status, title }: StatusDotProps) {
+  if (status === "normal") {
+    return null;
+  }
+
+  let className = chatItemStyles["chat-item-status-dot"];
+  let defaultTitle = "";
+
+  if (status === "pending") {
+    className += " " + chatItemStyles["chat-item-status-dot-yellow"];
+    defaultTitle = "用户消息待回复";
+  } else if (status === "error") {
+    className += " " + chatItemStyles["chat-item-status-dot-red"];
+    defaultTitle = "会话出现错误";
+  }
+
+  return <span className={className} title={title || defaultTitle} />;
+}
+
 export function ChatItem(props: {
   onClick?: () => void;
   onDelete?: () => void;
@@ -111,31 +136,6 @@ export function ChatItem(props: {
   // 选中状态加粗字体
   const isActive =
     props.selected && (currentPath === Path.Chat || currentPath === Path.Home);
-  // 标记点逻辑
-  let statusDot: JSX.Element | null = null;
-  if (props.status === "pending") {
-    statusDot = (
-      <span
-        className={
-          chatItemStyles["chat-item-status-dot"] +
-          " " +
-          chatItemStyles["chat-item-status-dot-yellow"]
-        }
-        title="用户消息待回复"
-      />
-    );
-  } else if (props.status === "error") {
-    statusDot = (
-      <span
-        className={
-          chatItemStyles["chat-item-status-dot"] +
-          " " +
-          chatItemStyles["chat-item-status-dot-red"]
-        }
-        title="会话出现错误"
-      />
-    );
-  }
 
   return (
     <div
@@ -167,7 +167,7 @@ export function ChatItem(props: {
           <span>{props.title}</span>
         )}
       </div>
-      {statusDot}
+      <StatusDot status={props.status} />
     </div>
   );
 }

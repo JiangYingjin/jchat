@@ -431,11 +431,32 @@ export const useChatStore = createPersistStore(
               messages: messages,
               messageCount: messages.length,
             };
+
+            // 如果是第一个会话，同时更新组的 messageCount
+            let newGroups = state.groups;
+            if (session.groupId) {
+              const groupIndex = state.groups.findIndex(
+                (g) => g.id === session.groupId,
+              );
+              if (groupIndex !== -1) {
+                const group = state.groups[groupIndex];
+                const firstSessionId = group.sessionIds[0];
+                if (firstSessionId === sessionId) {
+                  newGroups = [...state.groups];
+                  newGroups[groupIndex] = {
+                    ...group,
+                    messageCount: messages.length,
+                  };
+                }
+              }
+            }
+
             return {
               groupSessions: {
                 ...state.groupSessions,
                 [sessionId]: updatedSession,
               },
+              groups: newGroups,
             };
           });
         } catch (error) {
@@ -509,11 +530,23 @@ export const useChatStore = createPersistStore(
         set((state) => {
           const newGroups = [...state.groups];
 
-          newGroups[currentGroupIndex] = {
+          // 如果删除的是第一个会话，需要更新组的 messageCount
+          let updatedGroup = {
             ...currentGroup,
             sessionIds: newSessionIds,
             currentSessionIndex: newCurrentSessionIndex,
           };
+
+          if (sessionIndex === 0 && newSessionIds.length > 0) {
+            // 删除的是第一个会话，更新组的 messageCount 为新的第一个会话的 messageCount
+            const newFirstSessionId = newSessionIds[0];
+            const newFirstSession = state.groupSessions[newFirstSessionId];
+            if (newFirstSession) {
+              updatedGroup.messageCount = newFirstSession.messageCount;
+            }
+          }
+
+          newGroups[currentGroupIndex] = updatedGroup;
 
           const newGroupSessions = { ...state.groupSessions };
           delete newGroupSessions[sessionId];
@@ -1333,7 +1366,7 @@ export const useChatStore = createPersistStore(
         });
       },
 
-      // 更新组内会话并同步组标题
+      // 更新组内会话并同步组标题和消息数量
       updateGroupSession(
         targetSession: ChatSession,
         updater: (session: ChatSession) => void,
@@ -1360,11 +1393,12 @@ export const useChatStore = createPersistStore(
               const group = state.groups[groupIndex];
               const firstSessionId = group.sessionIds[0];
               if (firstSessionId === targetSession.id) {
-                // 同步组标题
+                // 同步组标题和消息数量（只有第一个会话可以这样）
                 newGroups = [...state.groups];
                 newGroups[groupIndex] = {
                   ...group,
                   title: updatedSession.title,
+                  messageCount: updatedSession.messageCount,
                 };
               }
             }
