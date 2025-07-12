@@ -10,9 +10,9 @@
 .group-sessions-header {
   display: flex;
   align-items: center;
-  padding: 8px 4px;
+  min-height: 36px;
+  padding: 0 10px;
   margin-bottom: 12px;
-  border-bottom: 1px solid var(--border-color);
 }
 
 .back-button {
