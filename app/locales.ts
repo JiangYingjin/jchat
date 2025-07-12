@@ -100,6 +100,7 @@ const cn = {
   },
   Store: {
     DefaultTitle: "新的会话",
+    DefaultGroupTitle: "新的组会话",
     Prompt: {
       History: (content: string) => "这是历史聊天总结作为前情提要：" + content,
       Topic:

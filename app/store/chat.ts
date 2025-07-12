@@ -252,7 +252,7 @@ export const useChatStore = createPersistStore(
           const emptySession = createEmptySession();
           emptySession.id = firstSessionId;
           emptySession.groupId = group.id;
-          emptySession.title = group.title;
+          emptySession.title = Locale.Store.DefaultGroupTitle;
 
           console.log(
             `[ChatStore] Created group session: ${emptySession.id}, groupId: ${emptySession.groupId}`,
@@ -294,7 +294,7 @@ export const useChatStore = createPersistStore(
         // 创建新的组内会话
         const newSession = createEmptySession();
         newSession.groupId = currentGroup.id;
-        newSession.title = DEFAULT_TITLE;
+        newSession.title = Locale.Store.DefaultGroupTitle;
 
         // 保存会话消息
         await get().saveSessionMessages(newSession);

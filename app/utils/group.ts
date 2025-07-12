@@ -1,7 +1,7 @@
 import { nanoid } from "nanoid";
 import type { ChatGroup } from "../store/chat";
 import { createEmptySession } from "./session";
-import { useChatStore } from "../store/chat";
+import Locale from "../locales";
 
 /**
  * 创建空的组对象
@@ -11,7 +11,7 @@ export function createEmptyGroup(): ChatGroup {
   const emptySession = createEmptySession();
   const group: ChatGroup = {
     id: nanoid(),
-    title: emptySession.title,
+    title: Locale.Store.DefaultGroupTitle,
     sessionIds: [emptySession.id],
     messageCount: emptySession.messageCount,
     status: "normal",
