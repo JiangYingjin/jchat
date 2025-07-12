@@ -185,32 +185,49 @@ export function GroupList() {
   // 渲染组列表视图
   if (chatListGroupView === "groups") {
     return (
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragEnd={onDragEnd}
-        modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
-      >
-        <SortableContext
-          items={groups.map((group) => `group-${group.id}`)}
-          strategy={verticalListSortingStrategy}
-        >
-          <div className={styles["chat-list"]}>
-            {groups.map((group, i) => (
-              <GroupItem
-                key={group.id}
-                id={group.id}
-                index={i}
-                title={group.title}
-                count={group.sessionIds.length}
-                selected={i === currentGroupIndex}
-                status={group.status}
-                onClick={() => handleGroupClick(i)}
-              />
-            ))}
+      <div className={styles["group-sessions-view"]}>
+        {/* 在 groups view 中也显示 header，但返回按钮不可用 */}
+        <div className={styles["group-sessions-header"]}>
+          <div
+            className={
+              styles["back-button"] + " " + styles["back-button-disabled"]
+            }
+          >
+            <BackIcon />
           </div>
-        </SortableContext>
-      </DndContext>
+          <span className={styles["group-sessions-title"]}>组会话模式</span>
+        </div>
+
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={onDragEnd}
+          modifiers={[
+            restrictToVerticalAxis,
+            restrictToFirstScrollableAncestor,
+          ]}
+        >
+          <SortableContext
+            items={groups.map((group) => `group-${group.id}`)}
+            strategy={verticalListSortingStrategy}
+          >
+            <div className={styles["chat-list"]}>
+              {groups.map((group, i) => (
+                <GroupItem
+                  key={group.id}
+                  id={group.id}
+                  index={i}
+                  title={group.title}
+                  count={group.sessionIds.length}
+                  selected={i === currentGroupIndex}
+                  status={group.status}
+                  onClick={() => handleGroupClick(i)}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
+      </div>
     );
   }
 
@@ -230,14 +247,15 @@ export function GroupList() {
       <div className={styles["group-sessions-view"]}>
         {/* 返回按钮 */}
         <div className={styles["group-sessions-header"]}>
-          <IconButton
-            icon={<BackIcon />}
+          <div
+            className={styles["back-button"]}
             onClick={handleBackToGroups}
             title="返回组列表"
-            className={styles["back-button"]}
-          />
+          >
+            <BackIcon />
+          </div>
           <span className={styles["group-sessions-title"]}>
-            {currentGroup.title}
+            组内会话 ({groupSessions.length})
           </span>
         </div>
 
