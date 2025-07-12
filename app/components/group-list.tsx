@@ -277,6 +277,8 @@ export function GroupList() {
               onDelete={async () => {
                 await chatStore.deleteGroupSession(session.id);
               }}
+              showIndex={true}
+              totalCount={groupSessions.length}
             />
           ))}
         </div>
