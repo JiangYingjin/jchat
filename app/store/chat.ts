@@ -75,7 +75,8 @@ const DEFAULT_CHAT_STATE = {
   groupSessions: {} as GroupSession, // 组内会话列表
   currentSessionIndex: 0,
   currentGroupIndex: 0,
-  chatListView: "sessions" as "sessions" | "groups" | "group-sessions",
+  chatListView: "sessions" as "sessions" | "groups",
+  chatListGroupView: "groups" as "groups" | "group-sessions",
   models: [] as string[],
   accessCode: "",
 };
@@ -323,8 +324,13 @@ export const useChatStore = createPersistStore(
       },
 
       // 设置聊天列表模式
-      setchatListView(mode: "sessions" | "groups" | "group-sessions") {
+      setchatListView(mode: "sessions" | "groups") {
         set({ chatListView: mode });
+      },
+
+      // 设置组内视图模式
+      setchatListGroupView(mode: "groups" | "group-sessions") {
+        set({ chatListGroupView: mode });
       },
 
       // 选择指定的组
@@ -344,7 +350,7 @@ export const useChatStore = createPersistStore(
             // 切换到该组，保持在组列表视图
             set({
               currentGroupIndex: index,
-              chatListView: "groups", // 确保保持在组列表视图
+              chatListGroupView: "groups", // 确保保持在组列表视图
             });
 
             // 加载第一个会话的消息（如果还没加载）
@@ -355,7 +361,7 @@ export const useChatStore = createPersistStore(
         } else {
           // 第二次点击：切换到组内会话视图
           set({
-            chatListView: "group-sessions",
+            chatListGroupView: "group-sessions",
           });
         }
       },
@@ -382,7 +388,7 @@ export const useChatStore = createPersistStore(
           return {
             groups: newGroups,
             ...(switchToGroupSessionsView
-              ? { chatListView: "group-sessions" }
+              ? { chatListGroupView: "group-sessions" }
               : {}),
           };
         });
@@ -938,6 +944,7 @@ export const useChatStore = createPersistStore(
       currentSession() {
         const {
           chatListView: chatListView,
+          chatListGroupView,
           groups,
           currentGroupIndex,
           groupSessions,
@@ -945,45 +952,61 @@ export const useChatStore = createPersistStore(
           currentSessionIndex,
         } = get();
 
-        // 组内会话模式：返回当前组的当前会话
-        if (chatListView === "group-sessions") {
-          const currentGroup = groups[currentGroupIndex];
-          if (currentGroup && currentGroup.sessionIds.length > 0) {
-            const currentSessionId =
-              currentGroup.sessionIds[currentGroup.currentSessionIndex];
-            const session = groupSessions[currentSessionId];
-            if (session) {
-              return session;
-            } else {
-              console.warn(
-                `[ChatStore] Group session ${currentSessionId} not found in groupSessions`,
-              );
-            }
+        // 普通会话模式：返回当前普通会话
+        if (chatListView === "sessions") {
+          let index = currentSessionIndex;
+          const validIndex = validateSessionIndex(index, sessions.length);
+          if (validIndex !== index) {
+            set(() => ({ currentSessionIndex: validIndex }));
+            index = validIndex;
+            // **修复：如果索引被纠正，异步加载新当前会话的消息**
+            get().loadSessionMessages(validIndex);
           }
-          // 如果组内会话模式但没有找到会话，回退到组列表模式
-          console.log(
-            `[ChatStore] No group session found, falling back to groups view`,
-          );
-          set({ chatListView: "groups" });
+          return sessions[index];
         }
 
-        // 组列表模式：返回当前组的第一个会话
+        // 组会话模式：根据组内视图决定返回哪个会话
         if (chatListView === "groups") {
-          const currentGroup = groups[currentGroupIndex];
-          if (currentGroup && currentGroup.sessionIds.length > 0) {
-            const firstSessionId = currentGroup.sessionIds[0];
-            const session = groupSessions[firstSessionId];
-            if (session) {
-              return session;
-            } else {
-              console.warn(
-                `[ChatStore] Group session ${firstSessionId} not found in groupSessions`,
-              );
+          // 组内会话模式：返回当前组的当前会话
+          if (chatListGroupView === "group-sessions") {
+            const currentGroup = groups[currentGroupIndex];
+            if (currentGroup && currentGroup.sessionIds.length > 0) {
+              const currentSessionId =
+                currentGroup.sessionIds[currentGroup.currentSessionIndex];
+              const session = groupSessions[currentSessionId];
+              if (session) {
+                return session;
+              } else {
+                console.warn(
+                  `[ChatStore] Group session ${currentSessionId} not found in groupSessions`,
+                );
+              }
+            }
+            // 如果组内会话模式但没有找到会话，回退到组列表模式
+            console.log(
+              `[ChatStore] No group session found, falling back to groups view`,
+            );
+            set({ chatListGroupView: "groups" });
+          }
+
+          // 组列表模式：返回当前组的第一个会话
+          if (chatListGroupView === "groups") {
+            const currentGroup = groups[currentGroupIndex];
+            if (currentGroup && currentGroup.sessionIds.length > 0) {
+              const firstSessionId = currentGroup.sessionIds[0];
+              const session = groupSessions[firstSessionId];
+              if (session) {
+                return session;
+              } else {
+                console.warn(
+                  `[ChatStore] Group session ${firstSessionId} not found in groupSessions`,
+                );
+              }
             }
           }
         }
 
-        // 普通模式：返回当前普通会话
+        // 兜底：返回当前普通会话
         let index = currentSessionIndex;
         const validIndex = validateSessionIndex(index, sessions.length);
         if (validIndex !== index) {

@@ -152,7 +152,7 @@ export function SideBar(props: { className?: string }) {
                 onClick={toggleGroupMode}
                 title="组会话"
                 className={
-                  chatListView !== "sessions" ? buttonStyles["active"] : ""
+                  chatListView === "groups" ? buttonStyles["active"] : ""
                 }
               />
             )}
@@ -168,21 +168,25 @@ export function SideBar(props: { className?: string }) {
                 await chatStore.newSession();
                 navigate(Path.Chat);
               } else if (chatListView === "groups") {
-                // 组列表模式：新建组
-                const newGroup = createEmptyGroup();
-                await chatStore.newGroup(newGroup);
-                navigate(Path.Chat);
-              } else if (chatListView === "group-sessions") {
-                // 组内会话模式：新建组内会话
-                await chatStore.newGroupSession();
-                navigate(Path.Chat);
+                // 组模式：根据当前组内视图决定新建什么
+                const chatListGroupView = chatStore.chatListGroupView;
+                if (chatListGroupView === "groups") {
+                  // 组列表模式：新建组
+                  const newGroup = createEmptyGroup();
+                  await chatStore.newGroup(newGroup);
+                  navigate(Path.Chat);
+                } else {
+                  // 组内会话模式：新建组内会话
+                  await chatStore.newGroupSession();
+                  navigate(Path.Chat);
+                }
               }
               stopSearch();
             }}
             title={
               chatListView === "sessions"
                 ? "新建会话"
-                : chatListView === "groups"
+                : chatStore.chatListGroupView === "groups"
                   ? "新建组"
                   : "新建组内会话"
             }

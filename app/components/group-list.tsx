@@ -105,14 +105,19 @@ function GroupItem(props: {
 
 // 组会话列表组件
 export function GroupList() {
-  const [groups, currentGroupIndex, chatListView, chatStore] = useChatStore(
-    (state) => [
-      state.groups,
-      state.currentGroupIndex,
-      state.chatListView,
-      state,
-    ],
-  );
+  const [
+    groups,
+    currentGroupIndex,
+    chatListView,
+    chatListGroupView,
+    chatStore,
+  ] = useChatStore((state) => [
+    state.groups,
+    state.currentGroupIndex,
+    state.chatListView,
+    state.chatListGroupView,
+    state,
+  ]);
   const navigate = useNavigate();
 
   // 配置传感器
@@ -141,13 +146,13 @@ export function GroupList() {
       navigate(Path.Chat);
     } else {
       // 第二次点击：切换到组内会话视图
-      chatStore.setchatListView("group-sessions");
+      chatStore.setchatListGroupView("group-sessions");
     }
   };
 
   // 返回到组列表
   const handleBackToGroups = () => {
-    chatStore.setchatListView("groups");
+    chatStore.setchatListGroupView("groups");
   };
 
   // 处理组内会话的点击
@@ -178,7 +183,7 @@ export function GroupList() {
   };
 
   // 渲染组列表视图
-  if (chatListView === "groups") {
+  if (chatListGroupView === "groups") {
     return (
       <DndContext
         sensors={sensors}
@@ -210,7 +215,7 @@ export function GroupList() {
   }
 
   // 渲染组内会话列表视图
-  if (chatListView === "group-sessions") {
+  if (chatListGroupView === "group-sessions") {
     const currentGroup = groups[currentGroupIndex];
 
     if (!currentGroup) {
