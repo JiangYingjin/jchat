@@ -13,11 +13,25 @@ import DeleteIcon from "../icons/delete.svg";
 import DragIcon from "../icons/drag.svg";
 
 import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  OnDragEndResponder,
-} from "@hello-pangea/dnd";
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  restrictToVerticalAxis,
+  restrictToFirstScrollableAncestor,
+} from "@dnd-kit/modifiers";
 
 function MessageListItem(props: {
   index: number;
@@ -28,11 +42,35 @@ function MessageListItem(props: {
 }) {
   const [focusingInput, setFocusingInput] = useState(false);
 
+  // 使用 @dnd-kit 的 useSortable hook
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.message.id || props.index.toString() });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   return (
-    <div className={chatStyle["message-list-row"]}>
+    <div
+      ref={setNodeRef}
+      className={chatStyle["message-list-row"]}
+      style={style}
+    >
       {!focusingInput && (
         <>
-          <div className={chatStyle["message-drag"]}>
+          <div
+            className={chatStyle["message-drag"]}
+            {...attributes}
+            {...listeners}
+          >
             <DragIcon />
           </div>
           <Select
@@ -121,6 +159,18 @@ export function MessageListEditor(props: {
 
   const context = filteredMessages;
 
+  // 配置传感器
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 鼠标需要移动至少8像素才激活拖拽
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
+
   const addMessage = (message: ChatMessage, filteredIndex: number) => {
     // 将过滤后的索引转换为原始索引
     let originalIndex: number;
@@ -158,14 +208,28 @@ export function MessageListEditor(props: {
     });
   };
 
-  const onDragEnd: OnDragEndResponder = (result) => {
-    if (!result.destination) {
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over || active.id === over.id) {
+      return;
+    }
+
+    // 找到源和目标的过滤后索引
+    const sourceFilteredIndex = context.findIndex(
+      (item) => item.id === active.id,
+    );
+    const destinationFilteredIndex = context.findIndex(
+      (item) => item.id === over.id,
+    );
+
+    if (sourceFilteredIndex === -1 || destinationFilteredIndex === -1) {
       return;
     }
 
     // 获取源和目标的原始索引
-    const sourceOriginalIndex = indexMap[result.source.index];
-    const destinationOriginalIndex = indexMap[result.destination.index];
+    const sourceOriginalIndex = indexMap[sourceFilteredIndex];
+    const destinationOriginalIndex = indexMap[destinationFilteredIndex];
 
     props.updateContext((originalContext) => {
       // 在原始数组中执行重排序
@@ -180,53 +244,49 @@ export function MessageListEditor(props: {
         className={chatStyle["message-list-editor"]}
         style={{ marginBottom: 20 }}
       >
-        <DragDropContext onDragEnd={onDragEnd}>
-          <Droppable droppableId="message-list">
-            {(provided) => (
-              <div ref={provided.innerRef} {...provided.droppableProps}>
-                {context.map((c, i) => (
-                  <Draggable
-                    draggableId={c.id || i.toString()}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={onDragEnd}
+          modifiers={[
+            restrictToVerticalAxis,
+            restrictToFirstScrollableAncestor,
+          ]}
+        >
+          <SortableContext
+            items={context.map((c, i) => c.id || i.toString())}
+            strategy={verticalListSortingStrategy}
+          >
+            <div>
+              {context.map((c, i) => (
+                <div key={c.id || i.toString()}>
+                  <MessageListItem
                     index={i}
-                    key={c.id}
+                    message={c}
+                    update={(message) => updateMessage(i, message)}
+                    remove={() => removeMessage(i)}
+                    onModalClose={props.onModalClose}
+                  />
+                  <div
+                    className={chatStyle["message-list-insert"]}
+                    onClick={() => {
+                      addMessage(
+                        createMessage({
+                          role: "user",
+                          content: "",
+                          date: new Date().toLocaleString(),
+                        }),
+                        i + 1,
+                      );
+                    }}
                   >
-                    {(provided) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        {...provided.dragHandleProps}
-                      >
-                        <MessageListItem
-                          index={i}
-                          message={c}
-                          update={(message) => updateMessage(i, message)}
-                          remove={() => removeMessage(i)}
-                          onModalClose={props.onModalClose}
-                        />
-                        <div
-                          className={chatStyle["message-list-insert"]}
-                          onClick={() => {
-                            addMessage(
-                              createMessage({
-                                role: "user",
-                                content: "",
-                                date: new Date().toLocaleString(),
-                              }),
-                              i + 1,
-                            );
-                          }}
-                        >
-                          <AddIcon />
-                        </div>
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </div>
-            )}
-          </Droppable>
-        </DragDropContext>
+                    <AddIcon />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
 
         {props.context.length === 0 && (
           <div className={chatStyle["message-list-row"]}>

@@ -1,10 +1,25 @@
 import styles from "./home.module.scss";
 import {
-  DragDropContext,
-  Droppable,
-  Draggable,
-  OnDragEndResponder,
-} from "@hello-pangea/dnd";
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  restrictToVerticalAxis,
+  restrictToFirstScrollableAncestor,
+} from "@dnd-kit/modifiers";
 
 import { useChatStore } from "../store";
 import Locale from "../locales";
@@ -73,6 +88,24 @@ export function ChatItem(props: {
     () => getChatItemStyle(props.count),
     [props.count],
   );
+
+  // 使用 @dnd-kit 的 useSortable hook
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: props.id });
+
+  const style = {
+    ...dynamicStyle,
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
   // 选中状态加粗字体
   const isActive =
     props.selected && (currentPath === Path.Chat || currentPath === Path.Home);
@@ -101,34 +134,23 @@ export function ChatItem(props: {
       />
     );
   }
+
   return (
-    <Draggable draggableId={`${props.id}`} index={props.index}>
-      {(provided) => (
-        <div
-          className={
-            styles["chat-item"] +
-            (isActive ? " " + styles["chat-item-selected"] : "")
-          }
-          onClick={props.onClick}
-          ref={(ele) => {
-            draggableRef.current = ele;
-            provided.innerRef(ele);
-          }}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          style={{
-            ...dynamicStyle,
-            ...provided.draggableProps.style,
-          }}
-          title={`${props.title}\n${Locale.ChatItem.ChatItemCount(props.count)}`}
-        >
-          <>
-            <div className={styles["chat-item-title"]}>{props.title}</div>
-            {statusDot}
-          </>
-        </div>
-      )}
-    </Draggable>
+    <div
+      ref={setNodeRef}
+      className={
+        styles["chat-item"] +
+        (isActive ? " " + styles["chat-item-selected"] : "")
+      }
+      onClick={props.onClick}
+      style={style}
+      title={`${props.title}\n${Locale.ChatItem.ChatItemCount(props.count)}`}
+      {...attributes}
+      {...listeners}
+    >
+      <div className={styles["chat-item-title"]}>{props.title}</div>
+      {statusDot}
+    </div>
   );
 }
 
@@ -144,53 +166,66 @@ export function ChatList(props: {}) {
   const chatStore = useChatStore();
   const navigate = useNavigate();
 
-  const onDragEnd: OnDragEndResponder = (result) => {
-    const { destination, source } = result;
-    if (!destination) {
-      return;
-    }
+  // 配置传感器
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 鼠标需要移动至少8像素才激活拖拽
+        // delay: 250, // 或者按下250ms后才激活拖拽
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return;
-    }
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
 
-    moveSession(source.index, destination.index);
+    if (active.id !== over?.id) {
+      const oldIndex = sessions.findIndex(
+        (session) => session.id === active.id,
+      );
+      const newIndex = sessions.findIndex((session) => session.id === over?.id);
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        moveSession(oldIndex, newIndex);
+      }
+    }
   };
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <Droppable droppableId="chat-list">
-        {(provided) => (
-          <div
-            className={styles["chat-list"]}
-            ref={provided.innerRef}
-            {...provided.droppableProps}
-          >
-            {sessions.map((item, i) => (
-              <ChatItem
-                title={item.title}
-                count={item.messageCount}
-                key={item.id}
-                id={item.id}
-                index={i}
-                selected={i === selectedIndex}
-                onClick={() => {
-                  navigate(Path.Chat);
-                  selectSession(i);
-                }}
-                onDelete={async () => {
-                  await chatStore.deleteSession(i);
-                }}
-                status={item.status}
-              />
-            ))}
-            {provided.placeholder}
-          </div>
-        )}
-      </Droppable>
-    </DragDropContext>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragEnd={onDragEnd}
+      modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
+    >
+      <SortableContext
+        items={sessions.map((session) => session.id)}
+        strategy={verticalListSortingStrategy}
+      >
+        <div className={styles["chat-list"]}>
+          {sessions.map((item, i) => (
+            <ChatItem
+              title={item.title}
+              count={item.messageCount}
+              key={item.id}
+              id={item.id}
+              index={i}
+              selected={i === selectedIndex}
+              onClick={() => {
+                navigate(Path.Chat);
+                selectSession(i);
+              }}
+              onDelete={async () => {
+                await chatStore.deleteSession(i);
+              }}
+              status={item.status}
+            />
+          ))}
+        </div>
+      </SortableContext>
+    </DndContext>
   );
 }

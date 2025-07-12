@@ -6,7 +6,26 @@ import { ChatItem } from "./chat-list";
 import styles from "./home.module.scss";
 import { IconButton } from "./button";
 import BackIcon from "../icons/left.svg";
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import {
+  restrictToVerticalAxis,
+  restrictToFirstScrollableAncestor,
+} from "@dnd-kit/modifiers";
 
 // 组项目组件
 function GroupItem(props: {
@@ -20,6 +39,22 @@ function GroupItem(props: {
   status: "normal" | "error" | "pending";
 }) {
   const draggableRef = useRef<HTMLDivElement | null>(null);
+
+  // 使用 @dnd-kit 的 useSortable hook
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: `group-${props.id}` });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
 
   // 计算状态点
   let statusDot: JSX.Element | null = null;
@@ -48,33 +83,24 @@ function GroupItem(props: {
   }
 
   return (
-    <Draggable draggableId={`group-${props.id}`} index={props.index}>
-      {(provided) => (
-        <div
-          className={
-            styles["chat-item"] +
-            (props.selected ? " " + styles["chat-item-selected"] : "")
-          }
-          onClick={props.onClick}
-          onDoubleClick={props.onDoubleClick}
-          ref={(ele) => {
-            draggableRef.current = ele;
-            provided.innerRef(ele);
-          }}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          style={{
-            ...provided.draggableProps.style,
-          }}
-          title={`${props.title}\n组内会话数: ${props.count}`}
-        >
-          <>
-            <div className={styles["chat-item-title"]}>{props.title}</div>
-            {statusDot}
-          </>
-        </div>
-      )}
-    </Draggable>
+    <div
+      ref={setNodeRef}
+      className={
+        styles["chat-item"] +
+        (props.selected ? " " + styles["chat-item-selected"] : "")
+      }
+      onClick={props.onClick}
+      onDoubleClick={props.onDoubleClick}
+      style={style}
+      title={`${props.title}\n组内会话数: ${props.count}`}
+      {...attributes}
+      {...listeners}
+    >
+      <>
+        <div className={styles["chat-item-title"]}>{props.title}</div>
+        {statusDot}
+      </>
+    </div>
   );
 }
 
@@ -89,6 +115,18 @@ export function GroupList() {
     ],
   );
   const navigate = useNavigate();
+
+  // 配置传感器
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8, // 鼠标需要移动至少8像素才激活拖拽
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   // 处理组的单击 - 切换到该组并显示组内第一个会话
   const handleGroupClick = (groupIndex: number) => {
@@ -133,50 +171,54 @@ export function GroupList() {
   };
 
   // 拖拽处理
-  const onDragEnd = (result: any) => {
-    const { destination, source } = result;
-    if (!destination) return;
+  const onDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
 
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return;
+    if (active.id !== over?.id) {
+      const oldIndex = groups.findIndex(
+        (group) => `group-${group.id}` === active.id,
+      );
+      const newIndex = groups.findIndex(
+        (group) => `group-${group.id}` === over?.id,
+      );
+
+      if (oldIndex !== -1 && newIndex !== -1) {
+        // TODO: 实现组的拖拽重排序
+        // chatStore.moveGroup(oldIndex, newIndex);
+      }
     }
-
-    // TODO: 实现组的拖拽重排序
-    // chatStore.moveGroup(source.index, destination.index);
   };
 
   // 渲染组列表视图
   if (chatListView === "groups") {
     return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <Droppable droppableId="group-list">
-          {(provided) => (
-            <div
-              className={styles["chat-list"]}
-              ref={provided.innerRef}
-              {...provided.droppableProps}
-            >
-              {groups.map((group, i) => (
-                <GroupItem
-                  key={group.id}
-                  id={group.id}
-                  index={i}
-                  title={group.title}
-                  count={group.sessionIds.length}
-                  selected={i === currentGroupIndex}
-                  status={group.status}
-                  onClick={() => handleGroupClick(i)}
-                  onDoubleClick={() => handleGroupDoubleClick(i)}
-                />
-              ))}
-              {provided.placeholder}
-            </div>
-          )}
-        </Droppable>
-      </DragDropContext>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={onDragEnd}
+        modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
+      >
+        <SortableContext
+          items={groups.map((group) => `group-${group.id}`)}
+          strategy={verticalListSortingStrategy}
+        >
+          <div className={styles["chat-list"]}>
+            {groups.map((group, i) => (
+              <GroupItem
+                key={group.id}
+                id={group.id}
+                index={i}
+                title={group.title}
+                count={group.sessionIds.length}
+                selected={i === currentGroupIndex}
+                status={group.status}
+                onClick={() => handleGroupClick(i)}
+                onDoubleClick={() => handleGroupDoubleClick(i)}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
     );
   }
 
