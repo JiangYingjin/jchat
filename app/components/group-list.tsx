@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useChatStore, ChatGroup } from "../store";
 import { Path } from "../constant";
 import { ChatItem } from "./chat-list";
-import styles from "../styles/home.module.scss";
+import chatItemStyles from "../styles/chat-item.module.scss";
+import groupSessionsStyles from "../styles/group-sessions.module.scss";
 import BackIcon from "../icons/left.svg";
 import {
   DndContext,
@@ -60,9 +61,9 @@ function GroupItem(props: {
     statusDot = (
       <span
         className={
-          styles["chat-item-status-dot"] +
+          chatItemStyles["chat-item-status-dot"] +
           " " +
-          styles["chat-item-status-dot-yellow"]
+          chatItemStyles["chat-item-status-dot-yellow"]
         }
         title="组内有用户消息待回复"
       />
@@ -71,9 +72,9 @@ function GroupItem(props: {
     statusDot = (
       <span
         className={
-          styles["chat-item-status-dot"] +
+          chatItemStyles["chat-item-status-dot"] +
           " " +
-          styles["chat-item-status-dot-red"]
+          chatItemStyles["chat-item-status-dot-red"]
         }
         title="组内有会话出现错误"
       />
@@ -84,8 +85,8 @@ function GroupItem(props: {
     <div
       ref={setNodeRef}
       className={
-        styles["chat-item"] +
-        (props.selected ? " " + styles["chat-item-selected"] : "")
+        chatItemStyles["chat-item"] +
+        (props.selected ? " " + chatItemStyles["chat-item-selected"] : "")
       }
       onClick={props.onClick}
       style={style}
@@ -94,7 +95,7 @@ function GroupItem(props: {
       {...listeners}
     >
       <>
-        <div className={styles["chat-item-title"]}>{props.title}</div>
+        <div className={chatItemStyles["chat-item-title"]}>{props.title}</div>
         {statusDot}
       </>
     </div>
@@ -183,17 +184,21 @@ export function GroupList() {
   // 渲染组列表视图
   if (chatListGroupView === "groups") {
     return (
-      <div className={styles["group-sessions-view"]}>
+      <div className={groupSessionsStyles["group-sessions-view"]}>
         {/* 在 groups view 中也显示 header，但返回按钮不可用 */}
-        <div className={styles["group-sessions-header"]}>
+        <div className={groupSessionsStyles["group-sessions-header"]}>
           <div
             className={
-              styles["back-button"] + " " + styles["back-button-disabled"]
+              groupSessionsStyles["back-button"] +
+              " " +
+              groupSessionsStyles["back-button-disabled"]
             }
           >
             <BackIcon />
           </div>
-          <span className={styles["group-sessions-title"]}>组会话模式</span>
+          <span className={groupSessionsStyles["group-sessions-title"]}>
+            组会话模式
+          </span>
         </div>
 
         <DndContext
@@ -209,7 +214,7 @@ export function GroupList() {
             items={groups.map((group) => `group-${group.id}`)}
             strategy={verticalListSortingStrategy}
           >
-            <div className={styles["chat-list"]}>
+            <div className={chatItemStyles["chat-list"]}>
               {groups.map((group, i) => (
                 <GroupItem
                   key={group.id}
@@ -242,23 +247,23 @@ export function GroupList() {
       .filter(Boolean);
 
     return (
-      <div className={styles["group-sessions-view"]}>
+      <div className={groupSessionsStyles["group-sessions-view"]}>
         {/* 返回按钮 */}
-        <div className={styles["group-sessions-header"]}>
+        <div className={groupSessionsStyles["group-sessions-header"]}>
           <div
-            className={styles["back-button"]}
+            className={groupSessionsStyles["back-button"]}
             onClick={handleBackToGroups}
             title="返回组列表"
           >
             <BackIcon />
           </div>
-          <span className={styles["group-sessions-title"]}>
+          <span className={groupSessionsStyles["group-sessions-title"]}>
             组内会话 ({groupSessions.length})
           </span>
         </div>
 
         {/* 组内会话列表 */}
-        <div className={styles["chat-list"]}>
+        <div className={chatItemStyles["chat-list"]}>
           {groupSessions.map((session: any, i: number) => (
             <ChatItem
               key={session.id}

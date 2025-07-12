@@ -30,7 +30,9 @@ import { checkAndHandleAuth } from "../utils/auth";
 // 静态资源
 import BotIcon from "../icons/bot.svg";
 import LoadingIcon from "../icons/three-dots.svg";
-import styles from "../styles/home.module.scss";
+import containerStyles from "../styles/container.module.scss";
+import sidebarStyles from "../styles/sidebar.module.scss";
+import groupSessionsStyles from "../styles/group-sessions.module.scss";
 
 // 2. 动态组件导入 (Code Splitting)
 // -----------------------------------------------------------------------------
@@ -46,7 +48,7 @@ const Chat = dynamic(async () => (await import("./chat")).ChatPage, {
 // -----------------------------------------------------------------------------
 export function Loading(props: { noLogo?: boolean }) {
   return (
-    <div className={styles["loading-content"] + " no-dark"}>
+    <div className={groupSessionsStyles["loading-content"] + " no-dark"}>
       {!props.noLogo && <BotIcon />}
       <LoadingIcon />
     </div>
@@ -154,16 +156,19 @@ function Screen() {
   return (
     <div
       className={
-        styles.container +
-        ` ${shouldTightBorder ? styles["tight-container"] : styles.container}`
+        containerStyles.container +
+        ` ${shouldTightBorder ? containerStyles["tight-container"] : containerStyles.container}`
       }
     >
       {isAuth ? (
         <AuthPage />
       ) : (
         <>
-          <SideBar className={isHome ? styles["sidebar-show"] : ""} />
-          <div className={styles["window-content"]} id={SlotID.AppBody}>
+          <SideBar className={isHome ? sidebarStyles["sidebar-show"] : ""} />
+          <div
+            className={containerStyles["window-content"]}
+            id={SlotID.AppBody}
+          >
             <Routes>
               <Route path={Path.Home} element={<Chat />} />
               <Route path={Path.Chat} element={<Chat />} />

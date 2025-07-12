@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import { ChatMessage, useChatStore } from "../store";
-import styles from "../styles/home.module.scss";
+import sidebarStyles from "../styles/sidebar.module.scss";
 import SearchIcon from "../icons/search.svg";
 import { IconButton } from "./button";
 import CloseIcon from "../icons/close.svg";
@@ -77,7 +77,7 @@ function HighlightedMessage({
   const ref = useRef<HTMLDivElement>(null);
 
   return (
-    <div className={styles["search-item-text"]}>
+    <div className={sidebarStyles["search-item-text"]}>
       <Markdown
         content={highlightedMessage}
         loading={false}
@@ -103,14 +103,14 @@ function SearchResultItem({
 
   return (
     <div
-      className={styles["search-result-item"]}
+      className={sidebarStyles["search-result-item"]}
       onClick={() => {
         navigate(Path.Chat);
         selectSession(index);
       }}
     >
-      <div className={styles["search-item-title"]}>{result.topic}</div>
-      <div className={styles["search-item-text-container"]}>
+      <div className={sidebarStyles["search-item-title"]}>{result.topic}</div>
+      <div className={sidebarStyles["search-item-text-container"]}>
         {result.message.map((message) => (
           <HighlightedMessage
             key={message.id}
@@ -119,8 +119,8 @@ function SearchResultItem({
           />
         ))}
       </div>
-      <div className={styles["search-item-info"]}>
-        <div className={styles["search-item-date"]}>
+      <div className={sidebarStyles["search-item-info"]}>
+        <div className={sidebarStyles["search-item-date"]}>
           {new Date(result.lastUpdate).toLocaleString()}
         </div>
       </div>
@@ -216,10 +216,10 @@ function SearchBarComponent(
 
   return (
     <>
-      <div className={styles["sidebar-search-bar-input"]}>
-        <SearchIcon className={styles["search-icon"]} />
+      <div className={sidebarStyles["sidebar-search-bar-input"]}>
+        <SearchIcon className={sidebarStyles["search-icon"]} />
         <input
-          className={styles["search-input"]}
+          className={sidebarStyles["search-input"]}
           ref={inputRef}
           type="text"
           value={input}
@@ -230,18 +230,18 @@ function SearchBarComponent(
         />
         {input.trim().length > 0 && (
           <IconButton
-            className={styles["clear-icon"]}
+            className={sidebarStyles["clear-icon"]}
             icon={<CloseIcon />}
             onClick={handleClearInput}
           />
         )}
       </div>
       {input.trim().length > 0 && (
-        <div className={styles["search-item-total-count"]}>
+        <div className={sidebarStyles["search-item-total-count"]}>
           {displayedResults.length} chats found
         </div>
       )}
-      <div className={styles["search-result"]}>
+      <div className={sidebarStyles["search-result"]}>
         {displayedResults.map((result) => (
           <SearchResultItem
             key={result.sessionId}

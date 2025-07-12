@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import styles from "../styles/home.module.scss";
+import sidebarStyles from "../styles/sidebar.module.scss";
 import buttonStyles from "../styles/button.module.scss";
 
 import { IconButton } from "./button";
@@ -95,7 +95,7 @@ export function SideBar(props: { className?: string }) {
 
   return (
     <div
-      className={`${styles.sidebar} ${props.className}`}
+      className={`${sidebarStyles.sidebar} ${props.className}`}
       style={{
         // #3016 disable transition on ios mobile screen
         transition: isMobileScreen ? "none" : undefined,
@@ -103,9 +103,9 @@ export function SideBar(props: { className?: string }) {
     >
       <div
         className={
-          styles["sidebar-search-bar"] +
+          sidebarStyles["sidebar-search-bar"] +
           " " +
-          (isSearching ? styles["sidebar-search-bar-isSearching"] : "")
+          (isSearching ? sidebarStyles["sidebar-search-bar-isSearching"] : "")
         }
         style={{ display: chatListView !== "sessions" ? "none" : "block" }}
       >
@@ -114,7 +114,7 @@ export function SideBar(props: { className?: string }) {
 
       {!isSearching && (
         <div
-          className={styles["sidebar-body"]}
+          className={sidebarStyles["sidebar-body"]}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               navigate(Path.Home);
@@ -125,9 +125,9 @@ export function SideBar(props: { className?: string }) {
         </div>
       )}
 
-      <div className={styles["sidebar-tail"]}>
-        <div className={styles["sidebar-actions"]}>
-          <div className={styles["sidebar-action"]}>
+      <div className={sidebarStyles["sidebar-tail"]}>
+        <div className={sidebarStyles["sidebar-actions"]}>
+          <div className={sidebarStyles["sidebar-action"]}>
             <IconButton
               icon={<SettingsIcon />}
               className={
@@ -145,7 +145,7 @@ export function SideBar(props: { className?: string }) {
             />
           </div>
 
-          <div className={styles["sidebar-action"]}>
+          <div className={sidebarStyles["sidebar-action"]}>
             {!isMobileScreen && (
               <IconButton
                 icon={<GroupIcon />}

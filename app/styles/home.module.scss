@@ -1,8 +1,2 @@
-// 导入拆分后的样式文件
-// 注意：这里导入的样式会被合并到 home.module.scss 中
-// 保持向后兼容性，现有组件无需修改导入路径
-
-@import "./container.module.scss";
-@import "./sidebar.module.scss";
-@import "./chat-item.module.scss";
-@import "./group-sessions.module.scss";
+// 此文件现在为空，因为所有组件都已改为直接导入具体的样式文件
+// 保留此文件是为了向后兼容，避免破坏现有的构建流程

@@ -1,4 +1,4 @@
-import styles from "../styles/home.module.scss";
+import chatItemStyles from "../styles/chat-item.module.scss";
 import {
   DndContext,
   closestCenter,
@@ -115,9 +115,9 @@ export function ChatItem(props: {
     statusDot = (
       <span
         className={
-          styles["chat-item-status-dot"] +
+          chatItemStyles["chat-item-status-dot"] +
           " " +
-          styles["chat-item-status-dot-yellow"]
+          chatItemStyles["chat-item-status-dot-yellow"]
         }
         title="用户消息待回复"
       />
@@ -126,9 +126,9 @@ export function ChatItem(props: {
     statusDot = (
       <span
         className={
-          styles["chat-item-status-dot"] +
+          chatItemStyles["chat-item-status-dot"] +
           " " +
-          styles["chat-item-status-dot-red"]
+          chatItemStyles["chat-item-status-dot-red"]
         }
         title="会话出现错误"
       />
@@ -139,8 +139,8 @@ export function ChatItem(props: {
     <div
       ref={setNodeRef}
       className={
-        styles["chat-item"] +
-        (isActive ? " " + styles["chat-item-selected"] : "")
+        chatItemStyles["chat-item"] +
+        (isActive ? " " + chatItemStyles["chat-item-selected"] : "")
       }
       onClick={props.onClick}
       style={style}
@@ -148,7 +148,7 @@ export function ChatItem(props: {
       {...attributes}
       {...listeners}
     >
-      <div className={styles["chat-item-title"]}>{props.title}</div>
+      <div className={chatItemStyles["chat-item-title"]}>{props.title}</div>
       {statusDot}
     </div>
   );
@@ -205,7 +205,7 @@ export function ChatList(props: {}) {
         items={sessions.map((session) => session.id)}
         strategy={verticalListSortingStrategy}
       >
-        <div className={styles["chat-list"]}>
+        <div className={chatItemStyles["chat-list"]}>
           {sessions.map((item, i) => (
             <ChatItem
               title={item.title}
