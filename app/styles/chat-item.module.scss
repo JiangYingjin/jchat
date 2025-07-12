@@ -21,10 +21,71 @@
 .chat-item-title {
   font-size: 14px;
   font-weight: bolder;
-  display: block;
+  display: flex;
+  align-items: center;
   width: calc(100%);
-  @include text-truncate();
   @include slide-in-animation();
+
+  // 确保文本能够正确截断
+  > span:not(.chat-item-index-prefix) {
+    @include text-truncate();
+    flex: 1;
+  }
+}
+
+// 数字前缀样式 - 简洁优雅设计
+.chat-item-index-prefix {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family:
+    "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Source Code Pro",
+    monospace;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 1px 4px;
+  margin-right: 6px;
+  border-radius: 4px;
+  min-width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  background-color: rgba(59, 130, 246, 0.08);
+  color: var(--primary);
+  border: 1px solid rgba(59, 130, 246, 0.12);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+
+  // 悬停效果 - 微妙增强
+  .chat-item:hover & {
+    background-color: rgba(59, 130, 246, 0.12);
+    border-color: rgba(59, 130, 246, 0.18);
+  }
+
+  // 选中状态 - 温和突出
+  .chat-item-selected & {
+    background-color: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.25);
+  }
+}
+
+// 深色模式适配
+@media (prefers-color-scheme: dark) {
+  .chat-item-index-prefix {
+    background-color: rgba(59, 130, 246, 0.12);
+    color: #60a5fa;
+    border-color: rgba(59, 130, 246, 0.2);
+
+    .chat-item:hover & {
+      background-color: rgba(59, 130, 246, 0.18);
+      border-color: rgba(59, 130, 246, 0.3);
+    }
+
+    .chat-item-selected & {
+      background-color: rgba(59, 130, 246, 0.22);
+      border-color: rgba(59, 130, 246, 0.35);
+    }
+  }
 }
 
 .chat-item-delete {

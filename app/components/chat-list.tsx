@@ -72,21 +72,6 @@ function getChatItemStyle(messageCount: number) {
   } as React.CSSProperties;
 }
 
-/**
- * 计算右对齐的序号格式
- * @param index - 当前索引（从0开始）
- * @param totalCount - 总数量
- * @returns 格式化后的序号字符串
- */
-function formatIndexWithAlignment(index: number, totalCount: number): string {
-  const number = index + 1; // 转换为从1开始的序号
-  const maxDigits = Math.floor(Math.log10(totalCount)) + 1; // 计算最大数字的位数
-  const currentDigits = Math.floor(Math.log10(number)) + 1; // 计算当前数字的位数
-  const spacesNeeded = maxDigits - currentDigits; // 需要添加的空格数
-
-  return " ".repeat(spacesNeeded) + number + ". ";
-}
-
 export function ChatItem(props: {
   onClick?: () => void;
   onDelete?: () => void;
@@ -166,9 +151,21 @@ export function ChatItem(props: {
       {...listeners}
     >
       <div className={chatItemStyles["chat-item-title"]}>
-        {props.showIndex
-          ? `${formatIndexWithAlignment(props.index, props.totalCount || 1)}${props.title}`
-          : props.title}
+        {props.showIndex ? (
+          <>
+            <span
+              className={chatItemStyles["chat-item-index-prefix"]}
+              style={{
+                minWidth: `${Math.max(16, Math.floor(Math.log10(props.totalCount || 1) + 1) * 6)}px`,
+              }}
+            >
+              {props.index + 1}
+            </span>
+            <span>{props.title}</span>
+          </>
+        ) : (
+          <span>{props.title}</span>
+        )}
       </div>
       {statusDot}
     </div>
