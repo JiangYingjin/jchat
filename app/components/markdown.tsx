@@ -164,7 +164,6 @@ export function PreCode(props: React.ComponentPropsWithoutRef<"pre">) {
             style={{ position: "absolute", right: 120, top: 10 }}
             bordered
             icon={<ReloadButtonIcon />}
-            shadow
             onClick={() => previewRef.current?.reload()}
           />
           <HTMLPreview

@@ -951,4 +951,16 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+
+  /* 确保内容区域高度计算正确 */
+  .modal-content {
+    /* 使用CSS变量确保高度计算一致 */
+    max-height: calc(
+      92vh - var(--modal-header-height, 60px) - var(
+          --modal-footer-height,
+          60px
+        ) -
+        40px
+    ) !important;
+  }
 }

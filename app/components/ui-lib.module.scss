@@ -83,8 +83,12 @@
   min-width: 300px;
   max-height: 550px; /* 非全屏时最大高度550px */
   animation: slide-in ease 0.3s;
+  display: flex;
+  flex-direction: column;
 
   --modal-padding: 16px;
+  --modal-header-height: 60px; /* 头部高度 */
+  --modal-footer-height: 60px; /* 底部高度 */
 
   &-max {
     width: 95vw;
@@ -95,7 +99,10 @@
     flex-direction: column;
 
     .modal-content {
-      max-height: unset !important;
+      /* 全屏模式下的动态计算：95vh - 头部高度 - 底部高度 - 安全边距 */
+      max-height: calc(
+        95vh - var(--modal-header-height) - var(--modal-footer-height) - 40px
+      ) !important;
       flex-grow: 1;
     }
   }
@@ -106,6 +113,9 @@
     align-items: center;
     justify-content: space-between;
     border-bottom: var(--border-in-light);
+    flex-shrink: 0;
+    min-height: var(--modal-header-height);
+    box-sizing: border-box;
 
     .modal-title {
       font-weight: bolder;
@@ -130,9 +140,42 @@
   }
 
   .modal-content {
-    max-height: 60vh;
+    /* 动态计算最大高度：容器最大高度 - 头部高度 - 底部高度 - 安全边距 */
+    max-height: calc(
+      550px - var(--modal-header-height) - var(--modal-footer-height) - 32px
+    );
     padding: var(--modal-padding);
     overflow: auto;
+    flex-grow: 1;
+    min-height: 0; /* 允许内容收缩 */
+
+    /* 美化滚动条 */
+    &::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 4px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 4px;
+      transition: background-color 0.2s ease;
+
+      &:hover {
+        background: rgba(0, 0, 0, 0.3);
+      }
+
+      &:active {
+        background: rgba(0, 0, 0, 0.4);
+      }
+    }
+
+    &::-webkit-scrollbar-corner {
+      background: transparent;
+    }
   }
 
   .modal-footer {
@@ -140,6 +183,9 @@
     display: flex;
     justify-content: flex-end;
     border-top: var(--border-in-light);
+    flex-shrink: 0;
+    min-height: var(--modal-footer-height);
+    box-sizing: border-box;
 
     .modal-actions {
       display: flex;
@@ -163,7 +209,10 @@
     border-bottom-right-radius: 0;
 
     .modal-content {
-      max-height: 50vh;
+      /* 移动端动态计算最大高度：90vh - 头部高度 - 底部高度 - 安全边距 */
+      max-height: calc(
+        90vh - var(--modal-header-height) - var(--modal-footer-height) - 24px
+      );
     }
 
     &-max {

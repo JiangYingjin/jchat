@@ -70,14 +70,16 @@
     opacity: 0.6;
   }
 
+  /* 平滑过渡效果 */
+  & {
+    transition: all 0.3s ease;
+  }
+
   /* 确保内容在装饰层之上 */
   & > * {
     position: relative;
     z-index: 2;
   }
-
-  /* 平滑过渡效果 */
-  transition: all 0.3s ease;
 
   /* 悬停时增强边框效果 */
   &:hover {
@@ -187,14 +189,14 @@
       opacity: 0.6;
     }
 
+    /* 平滑过渡效果 */
+    transition: all 0.3s ease;
+
     /* 确保内容在装饰层之上 */
     & > * {
       position: relative;
       z-index: 2;
     }
-
-    /* 平滑过渡效果 */
-    transition: all 0.3s ease;
 
     /* 悬停时增强边框效果 */
     &:hover {
@@ -244,8 +246,10 @@
       }
     }
 
-    border-radius: 0;
-    border: 0;
+    & {
+      border-radius: 0;
+      border: 0;
+    }
   }
 }
 
