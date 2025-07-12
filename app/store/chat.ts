@@ -62,7 +62,6 @@ export interface ChatGroup {
   status: "normal" | "error" | "pending";
   pendingCount: number;
   errorCount: number;
-  expanded: boolean;
   currentSessionIndex: number;
 }
 
@@ -72,10 +71,11 @@ export interface GroupSession {
 
 const DEFAULT_CHAT_STATE = {
   sessions: [createEmptySession()] as ChatSession[],
-  groups: [] as ChatGroup[],
-  groupSessions: {} as GroupSession,
+  groups: [] as ChatGroup[], // 组列表
+  groupSessions: {} as GroupSession, // 组内会话列表
   currentSessionIndex: 0,
   currentGroupIndex: 0,
+  chatListView: "sessions" as "sessions" | "groups" | "group-sessions",
   models: [] as string[],
   accessCode: "",
 };
@@ -223,11 +223,104 @@ export const useChatStore = createPersistStore(
         await get().loadSessionMessages(0);
       },
 
-      newGroup(group: ChatGroup) {
-        set((state) => ({
-          currentGroupIndex: 0,
-          groups: [group].concat(state.groups),
-        }));
+      async newGroup(group: ChatGroup) {
+        // 为组内的第一个会话创建并保存消息
+        const firstSessionId = group.sessionIds[0];
+        if (firstSessionId) {
+          // 创建组内会话
+          const emptySession = createEmptySession();
+          emptySession.id = firstSessionId;
+          emptySession.groupId = group.id;
+          emptySession.title = group.title;
+
+          // 保存会话消息
+          await get().saveSessionMessages(emptySession);
+
+          // 将会话添加到 groupSessions 中
+          set((state) => ({
+            currentGroupIndex: 0,
+            groups: [group].concat(state.groups),
+            groupSessions: {
+              ...state.groupSessions,
+              [firstSessionId]: emptySession,
+            },
+          }));
+        } else {
+          // 如果没有会话ID，只添加组
+          set((state) => ({
+            currentGroupIndex: 0,
+            groups: [group].concat(state.groups),
+          }));
+        }
+      },
+
+      // 设置聊天列表模式
+      setchatListView(mode: "sessions" | "groups" | "group-sessions") {
+        set({ chatListView: mode });
+      },
+
+      // 选择指定的组
+      selectGroup(index: number) {
+        set({
+          currentGroupIndex: index,
+          chatListView: "groups",
+        });
+      },
+
+      // 选择组内的指定会话
+      selectGroupSession(sessionIndex: number) {
+        const { groups, currentGroupIndex } = get();
+        const currentGroup = groups[currentGroupIndex];
+        if (!currentGroup) return;
+
+        // 更新组内的当前会话索引
+        set((state) => {
+          const newGroups = [...state.groups];
+          newGroups[currentGroupIndex] = {
+            ...currentGroup,
+            currentSessionIndex: sessionIndex,
+          };
+          return { groups: newGroups, chatListView: "group-sessions" };
+        });
+
+        // 加载组内会话的消息
+        const sessionId = currentGroup.sessionIds[sessionIndex];
+        const session = get().groupSessions[sessionId];
+        if (session && (!session.messages || session.messages.length === 0)) {
+          // 只在消息未加载时才加载
+          get().loadGroupSessionMessages(sessionId);
+        }
+      },
+
+      // 新增：加载组内会话的消息
+      async loadGroupSessionMessages(sessionId: string): Promise<void> {
+        if (typeof window === "undefined") return;
+
+        const session = get().groupSessions[sessionId];
+        if (!session) return;
+
+        // 如果消息已经加载（非空），则不重复加载
+        if (session.messages && session.messages.length > 0) return;
+
+        try {
+          // 从 messageStorage 异步加载消息
+          const messages = await messageStorage.get(sessionId);
+          set((state) => ({
+            groupSessions: {
+              ...state.groupSessions,
+              [sessionId]: {
+                ...session,
+                messages: messages,
+                messageCount: messages.length,
+              },
+            },
+          }));
+        } catch (error) {
+          console.error(
+            `[ChatStore] Failed to load messages for group session ${sessionId}`,
+            error,
+          );
+        }
       },
 
       // 分支会话：创建一个包含指定消息历史的新会话
@@ -447,9 +540,32 @@ export const useChatStore = createPersistStore(
       },
 
       currentSession() {
-        let index = get().currentSessionIndex;
-        const sessions = get().sessions;
+        const {
+          chatListView: chatListView,
+          groups,
+          currentGroupIndex,
+          groupSessions,
+          sessions,
+          currentSessionIndex,
+        } = get();
 
+        if (chatListView === "group-sessions") {
+          // 组内会话模式：返回当前组的当前会话
+          const currentGroup = groups[currentGroupIndex];
+          if (currentGroup && currentGroup.sessionIds.length > 0) {
+            const currentSessionId =
+              currentGroup.sessionIds[currentGroup.currentSessionIndex];
+            const session = groupSessions[currentSessionId];
+            if (session) {
+              return session;
+            }
+          }
+          // 如果组内没有会话，回退到组列表模式
+          set({ chatListView: "groups" });
+        }
+
+        // 普通模式：返回当前普通会话
+        let index = currentSessionIndex;
         const validIndex = validateSessionIndex(index, sessions.length);
         if (validIndex !== index) {
           set(() => ({ currentSessionIndex: validIndex }));

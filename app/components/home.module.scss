@@ -629,6 +629,36 @@
   margin-right: 15px;
 }
 
+// 组内会话视图样式
+.group-sessions-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.group-sessions-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.back-button {
+  margin-right: 8px;
+  min-width: 32px;
+  height: 32px;
+}
+
+.group-sessions-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .group-chat-list {
   display: flex;
   flex-direction: column;

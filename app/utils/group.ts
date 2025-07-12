@@ -17,15 +17,10 @@ export function createEmptyGroup(): ChatGroup {
     status: "normal",
     pendingCount: 0,
     errorCount: 0,
-    expanded: false,
     currentSessionIndex: 0,
   };
   // 设置会话的 groupId
   emptySession.groupId = group.id;
-
-  // 将会话插入到 chatStore.groupSessions 中
-  const chatStore = useChatStore.getState();
-  chatStore.groupSessions[emptySession.id] = emptySession;
 
   return group;
 }

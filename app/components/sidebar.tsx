@@ -22,6 +22,13 @@ const ChatList = dynamic(async () => (await import("./chat-list")).ChatList, {
   loading: () => null,
 });
 
+const GroupList = dynamic(
+  async () => (await import("./group-list")).GroupList,
+  {
+    loading: () => null,
+  },
+);
+
 function useHotKey() {
   const chatStore = useChatStore();
 
@@ -63,7 +70,9 @@ export function SideBar(props: { className?: string }) {
   // search bar
   const searchBarRef = useRef<SearchInputRef>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [isGroupMode, setIsGroupMode] = useState(false);
+
+  // 获取当前列表模式
+  const chatListView = useChatStore((state) => state.chatListView);
 
   const stopSearch = () => {
     setIsSearching(false);
@@ -71,11 +80,14 @@ export function SideBar(props: { className?: string }) {
   };
 
   const toggleGroupMode = () => {
-    setIsGroupMode(!isGroupMode);
-    if (!isGroupMode) {
-      // 进入组会话模式时隐藏搜索栏
+    if (chatListView === "sessions") {
+      // 从普通会话模式切换到组模式
+      chatStore.setchatListView("groups");
       setIsSearching(false);
       searchBarRef.current?.clearInput();
+    } else {
+      // 从组模式切换回普通会话模式
+      chatStore.setchatListView("sessions");
     }
   };
 
@@ -95,7 +107,7 @@ export function SideBar(props: { className?: string }) {
           " " +
           (isSearching ? styles["sidebar-search-bar-isSearching"] : "")
         }
-        style={{ display: isGroupMode ? "none" : "block" }}
+        style={{ display: chatListView !== "sessions" ? "none" : "block" }}
       >
         <SearchBar ref={searchBarRef} setIsSearching={setIsSearching} />
       </div>
@@ -109,16 +121,7 @@ export function SideBar(props: { className?: string }) {
             }
           }}
         >
-          {isGroupMode ? (
-            <div className={styles["group-chat-list"]}>
-              {/* 组会话列表 - 暂时用空列表替代 */}
-              <div className={styles["empty-group-list"]}>
-                <p>组会话功能开发中...</p>
-              </div>
-            </div>
-          ) : (
-            <ChatList />
-          )}
+          {chatListView === "sessions" ? <ChatList /> : <GroupList />}
         </div>
       )}
 
@@ -148,7 +151,9 @@ export function SideBar(props: { className?: string }) {
                 icon={<GroupIcon />}
                 onClick={toggleGroupMode}
                 title="组会话"
-                className={isGroupMode ? buttonStyles["active"] : ""}
+                className={
+                  chatListView !== "sessions" ? buttonStyles["active"] : ""
+                }
               />
             )}
           </div>
@@ -158,9 +163,9 @@ export function SideBar(props: { className?: string }) {
           <IconButton
             icon={<AddIcon />}
             onClick={async () => {
-              if (isGroupMode) {
+              if (chatListView !== "sessions") {
                 const newGroup = createEmptyGroup();
-                chatStore.newGroup(newGroup);
+                await chatStore.newGroup(newGroup);
                 // TODO: 考虑是否需要选择新创建的组。
                 // 因为 newGroup 方法会将新组放在 groups 数组的第一个，并设置 currentGroupIndex 为 0，
                 // 所以我们只需要导航到聊天页面即可。
@@ -171,7 +176,7 @@ export function SideBar(props: { className?: string }) {
               }
               stopSearch();
             }}
-            title={isGroupMode ? "新建组会话" : "新建会话"}
+            title={chatListView !== "sessions" ? "新建组会话" : "新建会话"}
           />
         </div>
       </div>
