@@ -95,7 +95,17 @@ function GroupItem(props: {
       {...listeners}
     >
       <>
-        <div className={chatItemStyles["chat-item-title"]}>{props.title}</div>
+        <div className={chatItemStyles["chat-item-title"]}>
+          <span
+            className={chatItemStyles["group-item-count-prefix"]}
+            style={{
+              minWidth: `${Math.max(16, Math.floor(Math.log10(props.count || 1) + 1) * 6)}px`,
+            }}
+          >
+            {props.count}
+          </span>
+          <span>{props.title}</span>
+        </div>
         {statusDot}
       </>
     </div>

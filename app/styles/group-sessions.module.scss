@@ -1,4 +1,4 @@
-@import "./mixins.scss";
+@use "./mixins.scss" as *;
 
 // 组内会话视图样式
 .group-sessions-view {

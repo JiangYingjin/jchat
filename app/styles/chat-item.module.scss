@@ -1,4 +1,4 @@
-@import "./mixins.scss";
+@use "./mixins.scss" as *;
 
 .chat-item {
   padding: 6px 6px;
@@ -27,7 +27,7 @@
   @include slide-in-animation();
 
   // 确保文本能够正确截断
-  > span:not(.chat-item-index-prefix) {
+  > span:not(.chat-item-index-prefix):not(.group-item-count-prefix) {
     @include text-truncate();
     flex: 1;
   }
@@ -84,6 +84,61 @@
     .chat-item-selected & {
       background-color: rgba(59, 130, 246, 0.22);
       border-color: rgba(59, 130, 246, 0.35);
+    }
+  }
+}
+
+// 组项目数量前缀样式 - 与会话序号前缀样式统一，仅颜色不同
+.group-item-count-prefix {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family:
+    "SF Mono", "Monaco", "Inconsolata", "Roboto Mono", "Source Code Pro",
+    monospace;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 1px 4px;
+  margin-right: 6px;
+  border-radius: 4px;
+  min-width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  background-color: rgba(168, 85, 247, 0.08);
+  color: #a855f7;
+  border: 1px solid rgba(168, 85, 247, 0.12);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+
+  // 悬停效果 - 微妙增强
+  .chat-item:hover & {
+    background-color: rgba(168, 85, 247, 0.12);
+    border-color: rgba(168, 85, 247, 0.18);
+  }
+
+  // 选中状态 - 温和突出
+  .chat-item-selected & {
+    background-color: rgba(168, 85, 247, 0.15);
+    border-color: rgba(168, 85, 247, 0.25);
+  }
+}
+
+// 深色模式适配 - 组项目数量前缀
+@media (prefers-color-scheme: dark) {
+  .group-item-count-prefix {
+    background-color: rgba(168, 85, 247, 0.12);
+    color: #c084fc;
+    border-color: rgba(168, 85, 247, 0.2);
+
+    .chat-item:hover & {
+      background-color: rgba(168, 85, 247, 0.18);
+      border-color: rgba(168, 85, 247, 0.3);
+    }
+
+    .chat-item-selected & {
+      background-color: rgba(168, 85, 247, 0.22);
+      border-color: rgba(168, 85, 247, 0.35);
     }
   }
 }
