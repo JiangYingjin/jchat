@@ -561,11 +561,11 @@ export function MarkdownPreviewer(props: {
     props.messages
       .map((m) => {
         if (m.role === "user") {
-          return `## ${Locale.Export.MessageFromYou}\n\n${getMessageTextContent(m)}`;
+          return `## ${Locale.Export.MessageFromUser}\n\n${getMessageTextContent(m)}`;
         } else if (m.role === "system") {
           return `## ${Locale.Export.MessageFromSystem}\n\n${getMessageTextContent(m).trim()}`;
         } else {
-          return `## ${Locale.Export.MessageFromChatGPT}\n\n${getMessageTextContent(m).trim()}`;
+          return `## ${Locale.Export.MessageFromModel}\n\n${getMessageTextContent(m).trim()}`;
         }
       })
       .join("\n\n");

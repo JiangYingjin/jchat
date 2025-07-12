@@ -26,7 +26,6 @@ const cn = {
     },
     Actions: {
       ChatList: "查看消息列表",
-      CompressedHistory: "查看压缩后的历史 Prompt",
       Export: "导出聊天记录",
       Copy: "复制",
       Stop: "停止",
@@ -36,48 +35,13 @@ const cn = {
       Branch: "分支",
       BranchSuccess: "已分支到新会话",
       BranchFailed: "分支会话失败，请重试",
-      FullScreen: "全屏",
       RefreshTitle: "刷新标题",
       RefreshToast: "已发送刷新标题请求",
     },
-    Commands: {
-      new: "新建聊天",
-      newm: "从面具新建聊天",
-      next: "下一个聊天",
-      prev: "上一个聊天",
-      clear: "清除上下文",
-      fork: "复制聊天",
-      del: "删除聊天",
-    },
     InputActions: {
-      Stop: "停止响应",
-      ToBottom: "滚到最新",
-      Theme: {
-        auto: "自动主题",
-        light: "亮色模式",
-        dark: "深色模式",
-      },
-      Prompt: "快捷指令",
-
-      Clear: "清除聊天",
-      Settings: "对话设置",
-
       UploadImage: "上传图片",
       UploadFle: "上传文件",
-      EnableThinking: "开启思考",
-      DisableThinking: "关闭思考",
-    },
-    Config: {
-      Reset: "清除记忆",
-      SaveAs: "存为面具",
-    },
-    IsContext: "预设提示词",
-    ShortcutKey: {
-      Title: "键盘快捷方式",
-      focusInput: "聚焦输入框",
-      copyLastMessage: "复制最后一个回复",
-      copyLastCode: "复制最后一个代码块",
-      showShortcutKey: "显示快捷方式",
+      Stop: "停止",
     },
     DeleteMessageToast: "消息已删除",
     DeleteGroupToast: "组已删除",
@@ -87,9 +51,8 @@ const cn = {
     Title: "分享聊天记录",
     Copy: "复制",
     Download: "下载",
-
-    MessageFromYou: "用户",
-    MessageFromChatGPT: "模型",
+    MessageFromUser: "用户",
+    MessageFromModel: "模型",
     MessageFromSystem: "系统",
     Format: {
       Title: "导出格式",
@@ -115,16 +78,7 @@ const cn = {
   Select: {
     Search: "搜索消息",
     All: "选取全部",
-    Latest: "最近几条",
     Clear: "清除选中",
-  },
-  Memory: {
-    Title: "历史摘要",
-    EmptyContent: "对话内容过短，无需总结",
-    Send: "自动压缩聊天记录并作为上下文发送",
-    Copy: "复制摘要",
-    Reset: "[unused]",
-    ResetConfirm: "确认清空历史摘要？",
   },
   Home: {
     DeleteChat: "确认删除选中的对话？",
@@ -136,38 +90,6 @@ const cn = {
     Title: "设置",
     SubTitle: "所有设置选项",
     ShowPassword: "显示密码",
-
-    Danger: {
-      Reset: {
-        Title: "重置所有设置",
-        SubTitle: "重置所有设置项回默认值",
-        Action: "立即重置",
-        Confirm: "确认重置所有设置？",
-      },
-      Clear: {
-        Title: "清除所有数据",
-        SubTitle: "清除所有聊天、设置数据",
-        Action: "立即清除",
-        Confirm: "确认清除所有聊天、设置数据？",
-      },
-    },
-    FontSize: {
-      Title: "字体大小",
-      SubTitle: "聊天内容的字体大小",
-    },
-    FontFamily: {
-      Title: "聊天字体",
-      SubTitle: "聊天内容的字体，若置空则应用全局默认字体",
-      Placeholder: "字体名称",
-    },
-
-    SendKey: "发送键",
-    Theme: "主题",
-    AutoGenerateTitle: {
-      Title: "自动生成标题",
-      SubTitle: "根据对话内容生成合适的标题",
-    },
-
     LocalData: {
       LocalState: "本地数据",
       Overview: (overview: any) => {
@@ -175,242 +97,14 @@ const cn = {
       },
       ImportFailed: "导入失败",
     },
-
-    Prompt: {
-      Disable: {
-        Title: "禁用提示词自动补全",
-        SubTitle: "在输入框开头输入 / 即可触发自动补全",
-      },
-      List: "自定义提示词列表",
-      Edit: "编辑",
-      Modal: {
-        Title: "提示词列表",
-        Add: "新建",
-        Search: "搜索提示词",
-      },
-      EditModal: {
-        Title: "编辑提示词",
-      },
-    },
-
-    Access: {
-      AccessCode: {
-        Title: "访问密码",
-        SubTitle: "管理员已开启加密访问",
-        Placeholder: "请输入访问密码",
-      },
-      CustomEndpoint: {
-        Title: "自定义接口",
-        SubTitle: "是否使用自定义 Azure 或 OpenAI 服务",
-      },
-      Provider: {
-        Title: "模型服务商",
-        SubTitle: "切换不同的服务商",
-      },
-      OpenAI: {
-        ApiKey: {
-          Title: "API Key",
-          SubTitle: "使用自定义 OpenAI Key 绕过密码访问限制",
-          Placeholder: "OpenAI API Key",
-        },
-
-        Endpoint: {
-          Title: "接口地址",
-          SubTitle: "除默认地址外，必须包含 http(s)://",
-        },
-      },
-      Azure: {
-        ApiKey: {
-          Title: "接口密钥",
-          SubTitle: "使用自定义 Azure Key 绕过密码访问限制",
-          Placeholder: "Azure API Key",
-        },
-
-        Endpoint: {
-          Title: "接口地址",
-          SubTitle: "样例：",
-        },
-
-        ApiVerion: {
-          Title: "接口版本 (azure api version)",
-          SubTitle: "选择指定的部分版本",
-        },
-      },
-      Google: {
-        ApiKey: {
-          Title: "API 密钥",
-          SubTitle: "从 Google AI 获取您的 API 密钥",
-          Placeholder: "Google AI API KEY",
-        },
-
-        Endpoint: {
-          Title: "终端地址",
-          SubTitle: "示例：",
-        },
-
-        ApiVersion: {
-          Title: "API 版本（仅适用于 gemini-pro）",
-          SubTitle: "选择一个特定的 API 版本",
-        },
-        GoogleSafetySettings: {
-          Title: "Google 安全过滤级别",
-          SubTitle: "设置内容过滤级别",
-        },
-      },
-      Baidu: {
-        ApiKey: {
-          Title: "API Key",
-          SubTitle: "使用自定义 Baidu API Key",
-          Placeholder: "Baidu API Key",
-        },
-        SecretKey: {
-          Title: "Secret Key",
-          SubTitle: "使用自定义 Baidu Secret Key",
-          Placeholder: "Baidu Secret Key",
-        },
-        Endpoint: {
-          Title: "接口地址",
-          SubTitle: "不支持自定义前往.env配置",
-        },
-      },
-      Tencent: {
-        ApiKey: {
-          Title: "API Key",
-          SubTitle: "使用自定义腾讯云API Key",
-          Placeholder: "Tencent API Key",
-        },
-        SecretKey: {
-          Title: "Secret Key",
-          SubTitle: "使用自定义腾讯云Secret Key",
-          Placeholder: "Tencent Secret Key",
-        },
-        Endpoint: {
-          Title: "接口地址",
-          SubTitle: "不支持自定义前往.env配置",
-        },
-      },
-      ByteDance: {
-        ApiKey: {
-          Title: "接口密钥",
-          SubTitle: "使用自定义 ByteDance API Key",
-          Placeholder: "ByteDance API Key",
-        },
-        Endpoint: {
-          Title: "接口地址",
-          SubTitle: "样例：",
-        },
-      },
-      Alibaba: {
-        ApiKey: {
-          Title: "接口密钥",
-          SubTitle: "使用自定义阿里云API Key",
-          Placeholder: "Alibaba Cloud API Key",
-        },
-        Endpoint: {
-          Title: "接口地址",
-          SubTitle: "样例：",
-        },
-      },
-      Moonshot: {
-        ApiKey: {
-          Title: "接口密钥",
-          SubTitle: "使用自定义月之暗面API Key",
-          Placeholder: "Moonshot API Key",
-        },
-        Endpoint: {
-          Title: "接口地址",
-          SubTitle: "样例：",
-        },
-      },
-      DeepSeek: {
-        ApiKey: {
-          Title: "接口密钥",
-          SubTitle: "使用自定义DeepSeek API Key",
-          Placeholder: "DeepSeek API Key",
-        },
-        Endpoint: {
-          Title: "接口地址",
-          SubTitle: "样例：",
-        },
-      },
-      XAI: {
-        ApiKey: {
-          Title: "接口密钥",
-          SubTitle: "使用自定义XAI API Key",
-          Placeholder: "XAI API Key",
-        },
-        Endpoint: {
-          Title: "接口地址",
-          SubTitle: "样例：",
-        },
-      },
-      ChatGLM: {
-        ApiKey: {
-          Title: "接口密钥",
-          SubTitle: "使用自定义 ChatGLM API Key",
-          Placeholder: "ChatGLM API Key",
-        },
-        Endpoint: {
-          Title: "接口地址",
-          SubTitle: "样例：",
-        },
-      },
-      SiliconFlow: {
-        ApiKey: {
-          Title: "接口密钥",
-          SubTitle: "使用自定义硅基流动 API Key",
-          Placeholder: "硅基流动 API Key",
-        },
-        Endpoint: {
-          Title: "接口地址",
-          SubTitle: "样例：",
-        },
-      },
-
-      Iflytek: {
-        ApiKey: {
-          Title: "ApiKey",
-          SubTitle: "从讯飞星火控制台获取的 APIKey",
-          Placeholder: "APIKey",
-        },
-        ApiSecret: {
-          Title: "ApiSecret",
-          SubTitle: "从讯飞星火控制台获取的 APISecret",
-          Placeholder: "APISecret",
-        },
-        Endpoint: {
-          Title: "接口地址",
-          SubTitle: "样例：",
-        },
-      },
-      CustomModel: {
-        Title: "自定义模型名",
-        SubTitle: "增加自定义模型可选项，使用英文逗号隔开",
-      },
-    },
-
-    Model: "模型 (model)",
-
-    PresencePenalty: {
-      Title: "话题新鲜度 (presence_penalty)",
-      SubTitle: "值越大，越有可能扩展到新话题",
-    },
-    FrequencyPenalty: {
-      Title: "频率惩罚度 (frequency_penalty)",
-      SubTitle: "值越大，越有可能降低重复字词",
-    },
   },
   Store: {
-    DefaultTitle: "新的对话",
-    BotHello: "有什么可以帮你的吗",
-    Error: "出错了，稍后重试吧",
+    DefaultTitle: "新的会话",
     Prompt: {
       History: (content: string) => "这是历史聊天总结作为前情提要：" + content,
       Topic:
         "简要概述上述对话主题，字数5~7字以内，纯文本，不要解释、不要标点、不要语气词、不要多余文本、不要加粗",
       // "使用四到五个字直接返回这句话的简要主题，不要解释、不要标点、不要语气词、不要多余文本，不要加粗，如果没有主题，请直接返回"闲聊"",
-      Summarize:
-        "简要总结一下对话内容，用作后续的上下文提示 prompt，控制在 200 字以内",
     },
   },
   Copy: {
@@ -428,17 +122,6 @@ const cn = {
     Clear: "上下文已清除",
     Revert: "恢复上下文",
   },
-
-  FineTuned: {
-    // 移除系统消息相关文本
-    // Sysmessage: "你是一个助手",
-  },
-
-  URLCommand: {
-    Code: "检测到链接中已经包含访问码，是否自动填入？",
-    Settings: "检测到链接中包含了预制设置，是否自动填入？",
-  },
-
   UI: {
     Confirm: "确认",
     Cancel: "取消",
@@ -450,12 +133,7 @@ const cn = {
     Config: "配置",
   },
   Exporter: {
-    Description: {
-      Title: "只有清除上下文之后的消息会被展示",
-    },
     Model: "模型",
-    Messages: "消息",
-    Topic: "主题",
     Time: "时间",
   },
 };
