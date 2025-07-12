@@ -18,7 +18,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
   restrictToVerticalAxis,
-  restrictToFirstScrollableAncestor,
+  restrictToParentElement,
 } from "@dnd-kit/modifiers";
 
 import { useChatStore } from "../store";
@@ -253,7 +253,7 @@ export function ChatList(props: {}) {
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragEnd={onDragEnd}
-      modifiers={[restrictToVerticalAxis, restrictToFirstScrollableAncestor]}
+      modifiers={[restrictToVerticalAxis, restrictToParentElement]}
     >
       <SortableContext
         items={sessions.map((session) => session.id)}

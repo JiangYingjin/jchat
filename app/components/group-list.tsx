@@ -25,7 +25,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   restrictToVerticalAxis,
-  restrictToFirstScrollableAncestor,
+  restrictToParentElement,
 } from "@dnd-kit/modifiers";
 
 /**
@@ -201,10 +201,7 @@ export function GroupList() {
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={onDragEnd}
-          modifiers={[
-            restrictToVerticalAxis,
-            restrictToFirstScrollableAncestor,
-          ]}
+          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
         >
           <SortableContext
             items={groups.map((group) => `group-${group.id}`)}

@@ -30,7 +30,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   restrictToVerticalAxis,
-  restrictToFirstScrollableAncestor,
+  restrictToParentElement,
 } from "@dnd-kit/modifiers";
 
 function MessageListItem(props: {
@@ -248,10 +248,7 @@ export function MessageListEditor(props: {
           sensors={sensors}
           collisionDetection={closestCenter}
           onDragEnd={onDragEnd}
-          modifiers={[
-            restrictToVerticalAxis,
-            restrictToFirstScrollableAncestor,
-          ]}
+          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
         >
           <SortableContext
             items={context.map((c, i) => c.id || i.toString())}
