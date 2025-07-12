@@ -1,0 +1,82 @@
+@import "./mixins.scss";
+
+.chat-item {
+  padding: 6px 6px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  box-shadow: 2px 2px 2px 2px rgb(0, 0, 0, 0.1);
+  background-color: var(--dynamic-bg, var(--chat-item-bg-start));
+  color: var(--text-primary);
+  cursor: pointer;
+  user-select: none;
+  border: 2px solid transparent;
+  position: relative;
+  user-select: none;
+}
+
+.chat-item-selected {
+  border: 2px solid var(--primary);
+}
+
+.chat-item-title {
+  font-size: 14px;
+  font-weight: bolder;
+  display: block;
+  width: calc(100%);
+  @include text-truncate();
+  @include slide-in-animation();
+}
+
+.chat-item-delete {
+  position: absolute;
+  top: 0;
+  right: 0;
+  transition: all ease 0.3s;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.chat-item:hover > .chat-item-delete {
+  opacity: 0.5;
+  transform: translateX(-4px);
+}
+
+.chat-item:hover > .chat-item-delete:hover {
+  opacity: 1;
+}
+
+.chat-item-info {
+  display: flex;
+  justify-content: space-between;
+  color: rgb(166, 166, 166);
+  font-size: 12px;
+  margin-top: 8px;
+  @include slide-in-animation();
+}
+
+.chat-item-count,
+.chat-item-date {
+  @include text-truncate();
+}
+
+.chat-item-status-dot {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.1);
+  z-index: 2;
+}
+
+.chat-item-status-dot-yellow {
+  background: #ffe066;
+  border: 1.5px solid #fff7b2;
+}
+
+.chat-item-status-dot-red {
+  background: #ff8a8a;
+  border: 1.5px solid #ffd6d6;
+}

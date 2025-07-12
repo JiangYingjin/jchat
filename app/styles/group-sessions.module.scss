@@ -1,0 +1,119 @@
+@import "./mixins.scss";
+
+// 组内会话视图样式
+.group-sessions-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.group-sessions-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 4px;
+  margin-bottom: 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.back-button {
+  margin-right: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+
+  svg {
+    width: 16px;
+    height: 16px;
+    transition: all 0.2s ease;
+
+    path {
+      fill: var(--text-secondary);
+      transition: fill 0.2s ease;
+    }
+  }
+
+  &:hover {
+    opacity: 1;
+    background-color: rgba(29, 147, 171, 0.1);
+    border-color: rgba(29, 147, 171, 0.2);
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+
+    svg path {
+      fill: var(--primary);
+    }
+  }
+
+  &:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  &.back-button-disabled {
+    opacity: 0;
+    cursor: default;
+    pointer-events: none;
+    visibility: hidden;
+
+    &:hover {
+      opacity: 0;
+      background-color: transparent;
+      border-color: transparent;
+      transform: none;
+      box-shadow: none;
+
+      svg path {
+        fill: var(--text-secondary);
+      }
+    }
+  }
+}
+
+.group-sessions-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  @include text-truncate();
+}
+
+.group-chat-list {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .empty-group-list {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100%;
+    color: var(--text-secondary);
+    font-size: 14px;
+
+    p {
+      text-align: center;
+      margin: 0;
+      padding: 20px;
+    }
+  }
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  width: 100%;
+}
+
+.rtl-screen {
+  direction: rtl;
+}

@@ -1,0 +1,141 @@
+@import "./mixins.scss";
+
+.container {
+  @include container();
+  /* 新增最大宽高限制和居中 */
+  max-width: 800px;
+  max-height: 900px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  margin: auto;
+
+  /* 顶级UI/UX设计效果 - 无悬浮版本 */
+  border-radius: 20px;
+  @include gradient-border();
+  @include enhanced-shadow();
+  @include glow-effect();
+
+  /* 平滑过渡效果 */
+  & {
+    transition: all 0.3s ease;
+  }
+
+  /* 确保内容在装饰层之上 */
+  & > * {
+    position: relative;
+    z-index: 2;
+  }
+
+  /* 悬停时增强边框效果 */
+  &:hover {
+    border-width: 3px;
+    @include hover-shadow();
+
+    &::before {
+      opacity: 0.8;
+      filter: blur(12px);
+    }
+  }
+
+  /* 修复：当容器内有输入框获得焦点时，保持 hover 效果 */
+  &:has(:focus):hover {
+    border-width: 3px;
+    @include hover-shadow();
+
+    &::before {
+      opacity: 0.8;
+      filter: blur(12px);
+    }
+  }
+}
+
+@media only screen and (min-width: 600px) {
+  .tight-container {
+    --window-width: 100vw;
+    --window-height: var(--full-height);
+    --window-content-width: calc(100% - var(--sidebar-width));
+
+    @include container();
+
+    /* 新增最大宽高限制和居中 */
+    max-width: 800px;
+    max-height: 900px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    margin: auto;
+
+    /* 顶级UI/UX设计效果 - 无悬浮版本 */
+    border-radius: 20px;
+    @include gradient-border();
+    @include enhanced-shadow();
+    @include glow-effect();
+
+    /* 平滑过渡效果 */
+    transition: all 0.3s ease;
+
+    /* 确保内容在装饰层之上 */
+    & > * {
+      position: relative;
+      z-index: 2;
+    }
+
+    /* 悬停时增强边框效果 */
+    &:hover {
+      border-width: 3px;
+      @include hover-shadow();
+
+      &::before {
+        opacity: 0.8;
+        filter: blur(12px);
+      }
+    }
+
+    /* 修复：当容器内有输入框获得焦点时，保持 hover 效果 */
+    &:has(:focus):hover {
+      border-width: 3px;
+      @include hover-shadow();
+
+      &::before {
+        opacity: 0.8;
+        filter: blur(12px);
+      }
+    }
+
+    & {
+      border-radius: 0;
+      border: 0;
+    }
+  }
+}
+
+.window-content {
+  width: var(--window-content-width);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.mobile {
+  display: none;
+}
+
+@media only screen and (max-width: 600px) {
+  .container {
+    min-height: unset;
+    min-width: unset;
+    max-height: unset;
+    min-width: unset;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .mobile {
+    display: block;
+  }
+}
