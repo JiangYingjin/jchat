@@ -526,11 +526,8 @@ export const useChatStore = createPersistStore(
           return;
         }
 
-        // 如果是组内唯一的会话，不允许删除
-        if (currentGroup.sessionIds.length === 1) {
-          showToast("组内必须至少保留一个会话");
-          return;
-        }
+        // 检查是否是组内唯一的会话
+        const isLastSession = currentGroup.sessionIds.length === 1;
 
         // **保存删除前的完整状态用于撤销**
         const restoreState = {
@@ -584,10 +581,11 @@ export const useChatStore = createPersistStore(
           updatedGroup.status = calculateGroupStatus(updatedGroup);
 
           if (sessionIndex === 0 && newSessionIds.length > 0) {
-            // 删除的是第一个会话，更新组的 messageCount 为新的第一个会话的 messageCount
+            // 删除的是第一个会话，更新组的标题和 messageCount 为新的第一个会话的标题和 messageCount
             const newFirstSessionId = newSessionIds[0];
             const newFirstSession = state.groupSessions[newFirstSessionId];
             if (newFirstSession) {
+              updatedGroup.title = newFirstSession.title;
               updatedGroup.messageCount = newFirstSession.messageCount;
             }
           }
@@ -606,6 +604,55 @@ export const useChatStore = createPersistStore(
         // **在切换到新会话后，立即加载其消息**
         if (newCurrentSessionId) {
           await get().loadGroupSessionMessages(newCurrentSessionId);
+        }
+
+        // 如果删除的是最后一个会话，自动创建新的空会话
+        if (isLastSession) {
+          console.log(
+            `[ChatStore] Last session deleted, creating new empty session`,
+          );
+
+          // 创建新的组内会话
+          const newSession = createEmptySession();
+          newSession.groupId = currentGroup.id;
+          newSession.title = Locale.Store.DefaultGroupTitle;
+
+          // 保存会话消息
+          await get().saveSessionMessages(newSession);
+
+          // 更新组和组内会话
+          set((state) => {
+            const newGroups = [...state.groups];
+            const updatedGroup = {
+              ...currentGroup,
+              sessionIds: [newSession.id],
+              currentSessionIndex: 0, // 设置为新会话的索引
+              title: newSession.title, // 同步组标题为第一个会话的标题
+              messageCount: newSession.messageCount,
+              errorCount: 0,
+              pendingCount: 0,
+            };
+
+            // 确保组状态与计数保持一致
+            updatedGroup.status = calculateGroupStatus(updatedGroup);
+
+            newGroups[currentGroupIndex] = updatedGroup;
+
+            return {
+              groups: newGroups,
+              groupSessions: {
+                ...state.groupSessions,
+                [newSession.id]: newSession,
+              },
+            };
+          });
+
+          // 加载新会话的消息
+          await get().loadGroupSessionMessages(newSession.id);
+
+          console.log(
+            `[ChatStore] New empty session created: ${newSession.id}`,
+          );
         }
 
         console.log(`[ChatStore] Group session ${sessionId} removed from UI`);
