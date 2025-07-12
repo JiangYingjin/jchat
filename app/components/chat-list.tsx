@@ -97,6 +97,7 @@ function StatusDot({ status, title }: StatusDotProps) {
   return <span className={className} title={title || defaultTitle} />;
 }
 
+// 统一的聊天项目组件
 export function ChatItem(props: {
   onClick?: () => void;
   onDelete?: () => void;
@@ -108,12 +109,18 @@ export function ChatItem(props: {
   status: "normal" | "error" | "pending";
   showIndex?: boolean; // 是否显示序号前缀
   totalCount?: number; // 总数量，用于计算对齐
+  prefixType?: "index" | "count" | "none"; // 前缀类型：序号、数量、无前缀
+  prefixValue?: number; // 前缀值（当 prefixType 为 count 时使用）
+  styleCalculator?: (count: number) => React.CSSProperties; // 背景色计算函数
+  tooltipText?: string; // 自定义提示文本
 }) {
-  const draggableRef = useRef<HTMLDivElement | null>(null);
   const { pathname: currentPath } = useLocation();
+
+  // 使用传入的样式计算函数，默认为普通会话样式
+  const styleCalculator = props.styleCalculator || getChatItemStyle;
   const dynamicStyle = useMemo(
-    () => getChatItemStyle(props.count),
-    [props.count],
+    () => styleCalculator(props.count),
+    [styleCalculator, props.count],
   );
 
   // 使用 @dnd-kit 的 useSortable hook
@@ -137,6 +144,48 @@ export function ChatItem(props: {
   const isActive =
     props.selected && (currentPath === Path.Chat || currentPath === Path.Home);
 
+  // 渲染前缀
+  const renderPrefix = () => {
+    if (props.prefixType === "index" && props.showIndex) {
+      return (
+        <span
+          className={chatItemStyles["chat-item-index-prefix"]}
+          style={{
+            minWidth: `${Math.max(16, Math.floor(Math.log10(props.totalCount || 1) + 1) * 6)}px`,
+          }}
+        >
+          {props.index + 1}
+        </span>
+      );
+    } else if (
+      props.prefixType === "count" &&
+      props.prefixValue !== undefined
+    ) {
+      return (
+        <span
+          className={chatItemStyles["group-item-count-prefix"]}
+          style={{
+            minWidth: `${Math.max(16, Math.floor(Math.log10(props.prefixValue || 1) + 1) * 6)}px`,
+          }}
+        >
+          {props.prefixValue}
+        </span>
+      );
+    }
+    return null;
+  };
+
+  // 生成提示文本
+  const getTooltipText = () => {
+    if (props.tooltipText) {
+      return props.tooltipText;
+    }
+    if (props.prefixType === "count") {
+      return `${props.title}\n组内会话数: ${props.prefixValue}`;
+    }
+    return `${props.title}\n${Locale.ChatItem.ChatItemCount(props.count)}`;
+  };
+
   return (
     <div
       ref={setNodeRef}
@@ -146,26 +195,13 @@ export function ChatItem(props: {
       }
       onClick={props.onClick}
       style={style}
-      title={`${props.title}\n${Locale.ChatItem.ChatItemCount(props.count)}`}
+      title={getTooltipText()}
       {...attributes}
       {...listeners}
     >
       <div className={chatItemStyles["chat-item-title"]}>
-        {props.showIndex ? (
-          <>
-            <span
-              className={chatItemStyles["chat-item-index-prefix"]}
-              style={{
-                minWidth: `${Math.max(16, Math.floor(Math.log10(props.totalCount || 1) + 1) * 6)}px`,
-              }}
-            >
-              {props.index + 1}
-            </span>
-            <span>{props.title}</span>
-          </>
-        ) : (
-          <span>{props.title}</span>
-        )}
+        {renderPrefix()}
+        <span>{props.title}</span>
       </div>
       <StatusDot status={props.status} />
     </div>
@@ -240,6 +276,7 @@ export function ChatList(props: {}) {
                 await chatStore.deleteSession(i);
               }}
               status={item.status}
+              prefixType="none"
             />
           ))}
         </div>

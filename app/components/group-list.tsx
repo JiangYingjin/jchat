@@ -73,7 +73,7 @@ function getGroupChatItemStyle(messageCount: number) {
   } as React.CSSProperties;
 }
 
-// StatusDot 组件
+// StatusDot 组件（从 chat-list.tsx 复制）
 interface StatusDotProps {
   status: "normal" | "error" | "pending";
   title?: string; // 可选的提示文本
@@ -96,148 +96,6 @@ function StatusDot({ status, title }: StatusDotProps) {
   }
 
   return <span className={className} title={title || defaultTitle} />;
-}
-
-// 组项目组件
-function GroupItem(props: {
-  onClick?: () => void;
-  title: string;
-  count: number;
-  selected: boolean;
-  id: string;
-  index: number;
-  status: "normal" | "error" | "pending";
-  messageCount?: number; // 组的消息数量，用于背景色计算
-}) {
-  const draggableRef = useRef<HTMLDivElement | null>(null);
-
-  // 使用 @dnd-kit 的 useSortable hook
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: `group-${props.id}` });
-
-  // 计算动态背景色
-  const dynamicStyle = useMemo(
-    () => getGroupChatItemStyle(props.messageCount || 0),
-    [props.messageCount],
-  );
-
-  const style = {
-    ...dynamicStyle,
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={
-        chatItemStyles["chat-item"] +
-        (props.selected ? " " + chatItemStyles["chat-item-selected"] : "")
-      }
-      onClick={props.onClick}
-      style={style}
-      title={`${props.title}\n组内会话数: ${props.count}`}
-      {...attributes}
-      {...listeners}
-    >
-      <>
-        <div className={chatItemStyles["chat-item-title"]}>
-          <span
-            className={chatItemStyles["group-item-count-prefix"]}
-            style={{
-              minWidth: `${Math.max(16, Math.floor(Math.log10(props.count || 1) + 1) * 6)}px`,
-            }}
-          >
-            {props.count}
-          </span>
-          <span>{props.title}</span>
-        </div>
-        <StatusDot status={props.status} />
-      </>
-    </div>
-  );
-}
-
-// 组内会话项目组件（使用组会话的背景色计算）
-function GroupChatItem(props: {
-  onClick?: () => void;
-  onDelete?: () => void;
-  title: string;
-  count: number;
-  selected: boolean;
-  id: string;
-  index: number;
-  status: "normal" | "error" | "pending";
-  showIndex?: boolean; // 是否显示序号前缀
-  totalCount?: number; // 总数量，用于计算对齐
-}) {
-  const { pathname: currentPath } = useLocation();
-  const dynamicStyle = useMemo(
-    () => getGroupChatItemStyle(props.count),
-    [props.count],
-  );
-
-  // 使用 @dnd-kit 的 useSortable hook
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: props.id });
-
-  const style = {
-    ...dynamicStyle,
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
-
-  // 选中状态加粗字体
-  const isActive =
-    props.selected && (currentPath === Path.Chat || currentPath === Path.Home);
-
-  return (
-    <div
-      ref={setNodeRef}
-      className={
-        chatItemStyles["chat-item"] +
-        (isActive ? " " + chatItemStyles["chat-item-selected"] : "")
-      }
-      onClick={props.onClick}
-      style={style}
-      title={`${props.title}\n${Locale.ChatItem.ChatItemCount(props.count)}`}
-      {...attributes}
-      {...listeners}
-    >
-      <div className={chatItemStyles["chat-item-title"]}>
-        {props.showIndex ? (
-          <>
-            <span
-              className={chatItemStyles["chat-item-index-prefix"]}
-              style={{
-                minWidth: `${Math.max(16, Math.floor(Math.log10(props.totalCount || 1) + 1) * 6)}px`,
-              }}
-            >
-              {props.index + 1}
-            </span>
-            <span>{props.title}</span>
-          </>
-        ) : (
-          <span>{props.title}</span>
-        )}
-      </div>
-      <StatusDot status={props.status} />
-    </div>
-  );
 }
 
 // 组会话列表组件
@@ -354,16 +212,18 @@ export function GroupList() {
           >
             <div className={chatItemStyles["chat-list"]}>
               {groups.map((group, i) => (
-                <GroupItem
+                <ChatItem
                   key={group.id}
-                  id={group.id}
+                  id={`group-${group.id}`}
                   index={i}
                   title={group.title}
-                  count={group.sessionIds.length}
+                  count={group.messageCount}
                   selected={i === currentGroupIndex}
                   status={group.status}
-                  messageCount={group.messageCount}
                   onClick={() => handleGroupClick(i)}
+                  prefixType="count"
+                  prefixValue={group.sessionIds.length}
+                  styleCalculator={getGroupChatItemStyle}
                 />
               ))}
             </div>
@@ -404,7 +264,7 @@ export function GroupList() {
         {/* 组内会话列表 */}
         <div className={chatItemStyles["chat-list"]}>
           {groupSessions.map((session: any, i: number) => (
-            <GroupChatItem
+            <ChatItem
               key={session.id}
               id={session.id}
               index={i}
@@ -416,8 +276,10 @@ export function GroupList() {
               onDelete={async () => {
                 await chatStore.deleteGroupSession(session.id);
               }}
+              prefixType="index"
               showIndex={true}
               totalCount={groupSessions.length}
+              styleCalculator={getGroupChatItemStyle}
             />
           ))}
         </div>
