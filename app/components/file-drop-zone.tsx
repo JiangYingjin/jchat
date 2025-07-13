@@ -346,6 +346,16 @@ export function FileDropZone({ children }: FileDropZoneProps) {
     setRawFiles([]);
   }, []);
 
+  // 处理 ESC 键关闭
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Escape" && showFiles) {
+        handleCloseFiles();
+      }
+    },
+    [showFiles, handleCloseFiles],
+  );
+
   // 创建会话组
   const handleCreateGroup = useCallback(async () => {
     if (rawFiles.length === 0) return;
@@ -379,6 +389,7 @@ export function FileDropZone({ children }: FileDropZoneProps) {
     } finally {
       setIsProcessingFiles(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawFiles, handleCloseFiles]);
 
   // 升序附加至提示词
@@ -396,6 +407,7 @@ export function FileDropZone({ children }: FileDropZoneProps) {
     } finally {
       setIsProcessingFiles(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rawFiles, handleCloseFiles]);
 
   // 添加全局事件监听器
@@ -404,19 +416,28 @@ export function FileDropZone({ children }: FileDropZoneProps) {
     const dragLeave = (e: DragEvent) => handleDragLeave(e);
     const dragOver = (e: DragEvent) => handleDragOver(e);
     const drop = (e: DragEvent) => handleDrop(e);
+    const keyDown = (e: KeyboardEvent) => handleKeyDown(e);
 
     document.addEventListener("dragenter", dragEnter);
     document.addEventListener("dragleave", dragLeave);
     document.addEventListener("dragover", dragOver);
     document.addEventListener("drop", drop);
+    document.addEventListener("keydown", keyDown);
 
     return () => {
       document.removeEventListener("dragenter", dragEnter);
       document.removeEventListener("dragleave", dragLeave);
       document.removeEventListener("dragover", dragOver);
       document.removeEventListener("drop", drop);
+      document.removeEventListener("keydown", keyDown);
     };
-  }, [handleDragEnter, handleDragLeave, handleDragOver, handleDrop]);
+  }, [
+    handleDragEnter,
+    handleDragLeave,
+    handleDragOver,
+    handleDrop,
+    handleKeyDown,
+  ]);
 
   // 检查当前模式
   const inGroupSessionsView = isInGroupSessionsView();
