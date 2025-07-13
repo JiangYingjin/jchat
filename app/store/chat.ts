@@ -245,6 +245,29 @@ export const useChatStore = createPersistStore(
         }
       },
 
+      // 移动组的位置
+      moveGroup(from: number, to: number) {
+        const oldIndex = get().currentGroupIndex;
+
+        set((state) => {
+          const { groups, currentGroupIndex: oldIndex } = state;
+
+          // move the group
+          const newGroups = [...groups];
+          const group = newGroups[from];
+          newGroups.splice(from, 1);
+          newGroups.splice(to, 0, group);
+
+          // calculate new index using utility function
+          const newIndex = calculateMoveIndex(from, to, oldIndex);
+
+          return {
+            currentGroupIndex: newIndex,
+            groups: newGroups,
+          };
+        });
+      },
+
       async newSession() {
         const session = createEmptySession();
 

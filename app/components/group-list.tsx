@@ -171,8 +171,8 @@ export function GroupList() {
       );
 
       if (oldIndex !== -1 && newIndex !== -1) {
-        // TODO: 实现组的拖拽重排序
-        // chatStore.moveGroup(oldIndex, newIndex);
+        // 实现组的拖拽重排序
+        chatStore.moveGroup(oldIndex, newIndex);
       }
     }
   };
