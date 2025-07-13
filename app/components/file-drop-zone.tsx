@@ -465,7 +465,7 @@ export function FileDropZone({ children }: FileDropZoneProps) {
             </div>
             <div className={styles.dragSubtitle}>
               支持 jpg, jpeg, png, webp, md, txt 文件
-              {shouldShowAppendButtons && `，当前组有 ${sessionCount} 个会话`}
+              {shouldShowAppendButtons && `，当前组有 ${sessionCount} 会话`}
             </div>
           </div>
         </div>
@@ -477,7 +477,8 @@ export function FileDropZone({ children }: FileDropZoneProps) {
           <div className={styles.fileModalContent}>
             <div className={styles.fileModalHeader}>
               <h3 className={styles.fileModalTitle}>
-                📁 拖放的文件 ({droppedFiles.length})
+                <span>📁</span>
+                <span>拖放文件 ({droppedFiles.length})</span>
               </h3>
               <button
                 className={styles.closeButton}
@@ -509,7 +510,8 @@ export function FileDropZone({ children }: FileDropZoneProps) {
                     </div>
                     {file.webkitRelativePath && (
                       <div className={styles.filePath}>
-                        📂 {file.webkitRelativePath}
+                        <span>📂</span>
+                        <span>{file.webkitRelativePath}</span>
                       </div>
                     )}
                   </div>
@@ -525,9 +527,7 @@ export function FileDropZone({ children }: FileDropZoneProps) {
                   onClick={handleCreateGroup}
                   disabled={isCreatingGroup}
                 >
-                  {isCreatingGroup
-                    ? "创建中..."
-                    : `新建组会话 (${droppedFiles.length} 个文件)`}
+                  {isCreatingGroup ? "创建中..." : `新建组会话`}
                 </button>
 
                 {/* 组模式下的额外按钮 */}
@@ -540,9 +540,7 @@ export function FileDropZone({ children }: FileDropZoneProps) {
                         onClick={handleAppendByFileName}
                         disabled={isProcessingFiles}
                       >
-                        {isProcessingFiles
-                          ? "处理中..."
-                          : `按文件名附加 (${droppedFiles.length} 个文件)`}
+                        {isProcessingFiles ? "处理中..." : `按文件名附加`}
                       </button>
                     )}
 
@@ -554,18 +552,14 @@ export function FileDropZone({ children }: FileDropZoneProps) {
                           onClick={handleAppendInOrder}
                           disabled={isProcessingFiles}
                         >
-                          {isProcessingFiles
-                            ? "处理中..."
-                            : `升序附加 (${droppedFiles.length} 个文件)`}
+                          {isProcessingFiles ? "处理中..." : `升序附加`}
                         </button>
                         <button
                           className={styles.appendButton}
                           onClick={handleAppendByFileName}
                           disabled={isProcessingFiles}
                         >
-                          {isProcessingFiles
-                            ? "处理中..."
-                            : `按文件名附加 (${droppedFiles.length} 个文件)`}
+                          {isProcessingFiles ? "处理中..." : `按文件名附加`}
                         </button>
                       </>
                     )}
