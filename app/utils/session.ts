@@ -9,6 +9,7 @@ import { useChatStore } from "../store/chat";
 import Locale from "../locales";
 import { buildMultimodalContent } from "./chat";
 import { FALLBACK_MODEL } from "../constant";
+import { systemMessageStorage } from "../store/system";
 
 // 定义默认主题，避免循环依赖
 const DEFAULT_TOPIC = Locale.Session.Title.Default;
@@ -43,7 +44,42 @@ export function calculateSessionStatus(
  * 更新会话计数和状态
  */
 export function updateSessionStats(session: ChatSession): void {
-  session.messageCount = session.messages.length;
+  // 基础消息数量
+  const baseMessageCount = session.messages.length;
+
+  // 检查系统提示词是否存在且有效
+  // 由于这是同步函数，我们使用一个简单的检查方式
+  // 系统提示词存储在 IndexedDB 中，这里我们暂时只计算基础消息数量
+  // 实际的系统提示词检查将在异步场景中处理
+  session.messageCount = baseMessageCount;
+  session.status = calculateSessionStatus(session.messages);
+}
+
+/**
+ * 异步更新会话计数和状态（包含系统提示词检查）
+ */
+export async function updateSessionStatsAsync(
+  session: ChatSession,
+): Promise<void> {
+  // 基础消息数量
+  const baseMessageCount = session.messages.length;
+
+  // 检查系统提示词是否存在且有效
+  let hasSystemPrompt = false;
+  try {
+    const systemData = await systemMessageStorage.get(session.id);
+    hasSystemPrompt =
+      systemData &&
+      (systemData.text.trim() !== "" || systemData.images.length > 0);
+  } catch (error) {
+    console.error("[updateSessionStatsAsync] 检查系统提示词失败:", error);
+    hasSystemPrompt = false;
+  }
+
+  // 如果系统提示词不为空，则 +1，否则为消息列表长度
+  session.messageCount = hasSystemPrompt
+    ? baseMessageCount + 1
+    : baseMessageCount;
   session.status = calculateSessionStatus(session.messages);
 }
 

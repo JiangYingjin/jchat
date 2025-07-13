@@ -6,7 +6,7 @@ const cn = {
     Confirm: "确认",
   },
   ChatItem: {
-    ChatItemCount: (count: number) => `${count} 条对话消息`,
+    ChatItemCount: (count: number) => `${count} 条消息`,
   },
   Session: {
     Title: {
@@ -17,7 +17,7 @@ const cn = {
     },
   },
   Chat: {
-    SubTitle: (count: number) => `共 ${count} 条对话消息`,
+    SubTitle: (count: number) => `共 ${count} 条消息`,
     Thinking: {
       Title: "深度思考",
     },

@@ -21,6 +21,7 @@ import {
   calculateMoveIndex,
   validateSessionIndex,
   updateSessionStats,
+  updateSessionStatsAsync,
 } from "../utils/session";
 import { calculateGroupStatus } from "../utils/group";
 
@@ -105,8 +106,15 @@ export const useChatStore = createPersistStore(
           const messages = await messageStorage.get(session.id);
           get().updateTargetSession(session, (s) => {
             s.messages = messages;
-            updateSessionStats(s); // 重新计算统计信息
+            updateSessionStats(s); // 先同步更新基础统计信息
           });
+
+          // 异步更新包含系统提示词的完整统计信息
+          const updatedSession = get().sessions[sessionIndex];
+          if (updatedSession) {
+            await updateSessionStatsAsync(updatedSession);
+            get().updateTargetSession(updatedSession, () => {});
+          }
         } catch (error) {
           console.error(
             `[ChatStore] Failed to load messages for session ${session.id}`,
@@ -143,13 +151,21 @@ export const useChatStore = createPersistStore(
 
       // 新增：更新会话并同步保存消息
       async updateSessionAndSaveMessages(session: ChatSession): Promise<void> {
-        updateSessionStats(session);
+        updateSessionStats(session); // 先同步更新基础统计信息
         if (session.groupId) {
           get().updateGroupSession(session, () => {});
         } else {
           get().updateTargetSession(session, () => {});
         }
         await get().saveSessionMessages(session);
+
+        // 异步更新包含系统提示词的完整统计信息
+        await updateSessionStatsAsync(session);
+        if (session.groupId) {
+          get().updateGroupSession(session, () => {});
+        } else {
+          get().updateTargetSession(session, () => {});
+        }
       },
       async forkSession() {
         // 获取当前会话
@@ -472,7 +488,7 @@ export const useChatStore = createPersistStore(
             const updatedSession = {
               ...session,
               messages: messages,
-              messageCount: messages.length,
+              messageCount: messages.length, // 先设置基础消息数量
             };
 
             // 如果是第一个会话，同时更新组的 messageCount
@@ -488,7 +504,7 @@ export const useChatStore = createPersistStore(
                   newGroups = [...state.groups];
                   newGroups[groupIndex] = {
                     ...group,
-                    messageCount: messages.length,
+                    messageCount: messages.length, // 先设置基础消息数量
                     // 确保组状态与计数保持一致
                     status: calculateGroupStatus(group),
                   };
@@ -504,6 +520,45 @@ export const useChatStore = createPersistStore(
               groups: newGroups,
             };
           });
+
+          // 异步更新包含系统提示词的完整统计信息
+          const updatedSession = get().groupSessions[sessionId];
+          if (updatedSession) {
+            await updateSessionStatsAsync(updatedSession);
+
+            // 更新组内会话状态
+            set((state) => {
+              const newGroupSessions = {
+                ...state.groupSessions,
+                [sessionId]: updatedSession,
+              };
+
+              // 如果是第一个会话，同时更新组的 messageCount
+              let newGroups = state.groups;
+              if (updatedSession.groupId) {
+                const groupIndex = state.groups.findIndex(
+                  (g) => g.id === updatedSession.groupId,
+                );
+                if (groupIndex !== -1) {
+                  const group = state.groups[groupIndex];
+                  const firstSessionId = group.sessionIds[0];
+                  if (firstSessionId === sessionId) {
+                    newGroups = [...state.groups];
+                    newGroups[groupIndex] = {
+                      ...group,
+                      messageCount: updatedSession.messageCount, // 使用更新后的消息数量
+                      status: calculateGroupStatus(group),
+                    };
+                  }
+                }
+              }
+
+              return {
+                groupSessions: newGroupSessions,
+                groups: newGroups,
+              };
+            });
+          }
         } catch (error) {
           console.error(
             `[ChatStore] Failed to load messages for group session ${sessionId}`,
@@ -1243,7 +1298,7 @@ export const useChatStore = createPersistStore(
               modelMessage,
               messageIdx,
             );
-            updateSessionStats(session);
+            updateSessionStats(session); // 先同步更新基础统计信息
           });
         } else {
           get().updateTargetSession(session, (session) => {
@@ -1257,12 +1312,23 @@ export const useChatStore = createPersistStore(
               modelMessage,
               messageIdx,
             );
-            updateSessionStats(session);
+            updateSessionStats(session); // 先同步更新基础统计信息
           });
         }
 
         // 立即保存消息到独立存储
         await get().saveSessionMessages(session);
+
+        // 异步更新包含系统提示词的完整统计信息
+        const currentSession = get().currentSession();
+        await updateSessionStatsAsync(currentSession);
+
+        // 根据会话类型更新状态
+        if (currentSession.groupId) {
+          get().updateGroupSession(currentSession, () => {});
+        } else {
+          get().updateTargetSession(currentSession, () => {});
+        }
 
         const api: ClientApi = getClientApi();
         // make request
@@ -1277,17 +1343,26 @@ export const useChatStore = createPersistStore(
             if (session.groupId) {
               get().updateGroupSession(session, (session) => {
                 session.messages = session.messages.concat();
-                updateSessionStats(session);
+                updateSessionStats(session); // 先同步更新基础统计信息
               });
             } else {
               get().updateTargetSession(session, (session) => {
                 session.messages = session.messages.concat();
-                updateSessionStats(session);
+                updateSessionStats(session); // 先同步更新基础统计信息
               });
             }
             // 异步保存消息更新 - 重新获取最新的会话状态
             const currentSession = get().currentSession();
             get().saveSessionMessages(currentSession);
+
+            // 异步更新包含系统提示词的完整统计信息
+            updateSessionStatsAsync(currentSession).then(() => {
+              if (currentSession.groupId) {
+                get().updateGroupSession(currentSession, () => {});
+              } else {
+                get().updateTargetSession(currentSession, () => {});
+              }
+            });
           },
           onReasoningUpdate(message) {
             modelMessage.streaming = true;
@@ -1297,17 +1372,26 @@ export const useChatStore = createPersistStore(
             if (session.groupId) {
               get().updateGroupSession(session, (session) => {
                 session.messages = session.messages.concat();
-                updateSessionStats(session);
+                updateSessionStats(session); // 先同步更新基础统计信息
               });
             } else {
               get().updateTargetSession(session, (session) => {
                 session.messages = session.messages.concat();
-                updateSessionStats(session);
+                updateSessionStats(session); // 先同步更新基础统计信息
               });
             }
             // 异步保存消息更新 - 重新获取最新的会话状态
             const currentSession = get().currentSession();
             get().saveSessionMessages(currentSession);
+
+            // 异步更新包含系统提示词的完整统计信息
+            updateSessionStatsAsync(currentSession).then(() => {
+              if (currentSession.groupId) {
+                get().updateGroupSession(currentSession, () => {});
+              } else {
+                get().updateTargetSession(currentSession, () => {});
+              }
+            });
           },
           onFinish(message, responseRes, usage) {
             modelMessage.streaming = false;
@@ -1352,17 +1436,27 @@ export const useChatStore = createPersistStore(
             if (session.groupId) {
               get().updateGroupSession(session, (session) => {
                 session.messages = session.messages.concat();
-                updateSessionStats(session);
+                updateSessionStats(session); // 先同步更新基础统计信息
               });
             } else {
               get().updateTargetSession(session, (session) => {
                 session.messages = session.messages.concat();
-                updateSessionStats(session);
+                updateSessionStats(session); // 先同步更新基础统计信息
               });
             }
             // 保存错误状态的消息 - 重新获取最新的会话状态
             const currentSession = get().currentSession();
             get().saveSessionMessages(currentSession);
+
+            // 异步更新包含系统提示词的完整统计信息
+            updateSessionStatsAsync(currentSession).then(() => {
+              if (currentSession.groupId) {
+                get().updateGroupSession(currentSession, () => {});
+              } else {
+                get().updateTargetSession(currentSession, () => {});
+              }
+            });
+
             ChatControllerPool.remove(
               session.id,
               modelMessage.id ?? messageIndex,
@@ -1409,13 +1503,17 @@ export const useChatStore = createPersistStore(
           if (!session) return {};
           const messages = session.messages;
           updater(messages?.[messageIndex]);
-          updateSessionStats(session);
+          updateSessionStats(session); // 先同步更新基础统计信息
           return { sessions };
         });
         // 保存最新
         const session = get().sessions[sessionIndex];
         if (session) {
           await get().saveSessionMessages(session);
+
+          // 异步更新包含系统提示词的完整统计信息
+          await updateSessionStatsAsync(session);
+          get().updateTargetSession(session, () => {});
         }
       },
 
@@ -1423,15 +1521,23 @@ export const useChatStore = createPersistStore(
         if (session.groupId) {
           get().updateGroupSession(session, (session) => {
             session.messages = [];
-            updateSessionStats(session);
+            updateSessionStats(session); // 先同步更新基础统计信息
           });
         } else {
           get().updateTargetSession(session, (session) => {
             session.messages = [];
-            updateSessionStats(session);
+            updateSessionStats(session); // 先同步更新基础统计信息
           });
         }
         await get().saveSessionMessages(session);
+
+        // 异步更新包含系统提示词的完整统计信息
+        await updateSessionStatsAsync(session);
+        if (session.groupId) {
+          get().updateGroupSession(session, () => {});
+        } else {
+          get().updateTargetSession(session, () => {});
+        }
       },
 
       async summarizeSession(

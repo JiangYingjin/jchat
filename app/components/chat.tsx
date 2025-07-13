@@ -11,7 +11,7 @@ import {
   ChatSession,
 } from "../store";
 import { useSubmitHandler, useTripleClick } from "../utils/hooks";
-import { updateSessionStats } from "../utils/session";
+import { updateSessionStats, updateSessionStatsAsync } from "../utils/session";
 import {
   useMobileScreen,
   getMessageTextContent,
@@ -138,9 +138,20 @@ function Chat() {
   const deleteMessage = async (msgId?: string) => {
     updateSession((session) => {
       session.messages = session.messages.filter((m) => m.id !== msgId);
-      updateSessionStats(session);
+      updateSessionStats(session); // 先同步更新基础统计信息
     });
     await chatStore.saveSessionMessages(session);
+
+    // 异步更新包含系统提示词的完整统计信息
+    const currentSession = chatStore.currentSession();
+    await updateSessionStatsAsync(currentSession);
+
+    // 根据会话类型更新状态
+    if (currentSession.groupId) {
+      chatStore.updateGroupSession(currentSession, () => {});
+    } else {
+      chatStore.updateTargetSession(currentSession, () => {});
+    }
   };
 
   const onDelete = (msgId: string) => {
@@ -153,9 +164,20 @@ function Chat() {
         async onClick() {
           updateSession((session) => {
             session.messages = prevMessages;
-            updateSessionStats(session);
+            updateSessionStats(session); // 先同步更新基础统计信息
           });
           await chatStore.saveSessionMessages(session);
+
+          // 异步更新包含系统提示词的完整统计信息
+          const currentSession = chatStore.currentSession();
+          await updateSessionStatsAsync(currentSession);
+
+          // 根据会话类型更新状态
+          if (currentSession.groupId) {
+            chatStore.updateGroupSession(currentSession, () => {});
+          } else {
+            chatStore.updateTargetSession(currentSession, () => {});
+          }
         },
       },
       5000,
@@ -171,24 +193,28 @@ function Chat() {
     }
   };
 
-  const handleSystemPromptSave = (
+  const handleSystemPromptSave = async (
     content: string,
     images: string[],
     scrollTop?: number,
     selection?: { start: number; end: number }, // 修改这里 end: 0 => end: number
   ) => {
+    // 先保存系统提示词到存储
+    if (content.trim() || images.length > 0) {
+      await systemMessageStorage.save(session.id, {
+        text: content.trim(),
+        images,
+        scrollTop: scrollTop || 0,
+        selection: selection || { start: 0, end: 0 },
+        updateAt: Date.now(),
+      });
+    } else {
+      // 如果系统提示词被清空，删除存储的系统提示词
+      await systemMessageStorage.delete(session.id);
+    }
+
     updateSession((session) => {
       session.messages = session.messages.filter((m) => m.role !== "system");
-
-      if (content.trim() || images.length > 0) {
-        systemMessageStorage.save(session.id, {
-          text: content.trim(),
-          images,
-          scrollTop: scrollTop || 0,
-          selection: selection || { start: 0, end: 0 },
-          updateAt: Date.now(),
-        });
-      }
 
       const newModel = determineModelForSystemPrompt(
         content.trim(),
@@ -204,6 +230,17 @@ function Chat() {
         );
       }
     });
+
+    // 等待系统提示词保存完成后再更新会话统计信息
+    const currentSession = chatStore.currentSession();
+    await updateSessionStatsAsync(currentSession);
+
+    // 根据会话类型更新状态
+    if (currentSession.groupId) {
+      chatStore.updateGroupSession(currentSession, () => {});
+    } else {
+      chatStore.updateTargetSession(currentSession, () => {});
+    }
   };
 
   const handleEditMessage = async (
@@ -329,7 +366,7 @@ function Chat() {
       <div className={styles.chat} key={session.id}>
         <ChatHeader
           sessionTitle={session.title}
-          messageCount={session.messages.length}
+          messageCount={session.messageCount}
           onEditSystemMessageClick={async () => {
             let systemData = await systemMessageStorage.get(session.id);
             setSystemPromptData(systemData);
