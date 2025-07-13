@@ -494,13 +494,23 @@ export function showImageModal(
       defaultMax={defaultMax}
       onClose={closeModal}
     >
-      <div style={{ display: "flex", justifyContent: "center", ...boxStyle }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          minHeight: "100%",
+          ...boxStyle,
+        }}
+      >
         <img
           src={img}
           alt="preview"
           style={
             style ?? {
               maxWidth: "100%",
+              maxHeight: "100%",
+              objectFit: "contain",
             }
           }
         ></img>

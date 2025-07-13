@@ -464,8 +464,7 @@ export function FileDropZone({ children }: FileDropZoneProps) {
                 : "释放文件以创建会话组"}
             </div>
             <div className={styles.dragSubtitle}>
-              支持 jpg, jpeg, png, webp, md, txt 文件
-              {shouldShowAppendButtons && `，当前组有 ${sessionCount} 会话`}
+              支持 JPG、JPEG、PNG、WebP、MD、TXT 文件
             </div>
           </div>
         </div>

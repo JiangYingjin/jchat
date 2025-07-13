@@ -201,7 +201,7 @@ export function ChatMessageItem({
 
           {/* 将底部操作按钮组移到这里，只在非用户消息时显示 */}
           {!isUser &&
-            messageHeights[message.id ?? ""] > window.innerHeight * 0.1 && (
+            messageHeights[message.id ?? ""] > window.innerHeight * 0.65 && (
               <div className={styles["chat-message-bottom-actions"]}>
                 <MessageActions
                   message={message}
