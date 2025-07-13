@@ -15,7 +15,7 @@ import {
   createEmptySession,
   createBranchSession,
   prepareMessagesForApi,
-  summarizeSession,
+  generateSessionTitle,
   prepareSendMessages,
   insertMessage,
   calculateMoveIndex,
@@ -1246,7 +1246,7 @@ export const useChatStore = createPersistStore(
           get().updateGroupSession(latest, (session) => {
             session.lastUpdate = Date.now();
           });
-          get().summarizeSession(false, latest);
+          get().generateSessionTitle(false, latest);
         } else {
           const latest =
             get().sessions.find((s) => s.id === targetSession.id) ||
@@ -1254,7 +1254,7 @@ export const useChatStore = createPersistStore(
           get().updateTargetSession(latest, (session) => {
             session.lastUpdate = Date.now();
           });
-          get().summarizeSession(false, latest);
+          get().generateSessionTitle(false, latest);
         }
       },
 
@@ -1564,11 +1564,11 @@ export const useChatStore = createPersistStore(
         }
       },
 
-      async summarizeSession(
+      async generateSessionTitle(
         refreshTitle: boolean = false,
         targetSession: ChatSession,
       ) {
-        await summarizeSession(targetSession, refreshTitle, (newTopic) => {
+        await generateSessionTitle(targetSession, refreshTitle, (newTopic) => {
           // 根据会话类型选择更新方法
           if (targetSession.groupId) {
             get().updateGroupSession(targetSession, (session) => {

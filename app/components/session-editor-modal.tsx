@@ -81,7 +81,7 @@ export function SessionEditorModal(props: { onClose: () => void }) {
               title={Locale.Chat.Actions.RefreshTitle}
               onClick={() => {
                 showToast(Locale.Chat.Actions.RefreshTitleToast);
-                chatStore.summarizeSession(true, session);
+                chatStore.generateSessionTitle(true, session);
               }}
             />
           </ListItem>

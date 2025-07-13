@@ -206,7 +206,7 @@ export async function prepareMessagesForApi(
 /**
  * 会话摘要生成
  */
-export async function summarizeSession(
+export async function generateSessionTitle(
   session: ChatSession,
   refreshTitle: boolean = false,
   onTopicUpdate?: (topic: string) => void,
@@ -223,7 +223,8 @@ export async function summarizeSession(
   // should summarize topic after chating more than 50 words
   const SUMMARIZE_MIN_LEN = 50;
   if (
-    (session.title === DEFAULT_TOPIC &&
+    ((session.title === DEFAULT_TOPIC ||
+      session.title === Locale.Session.Title.DefaultGroup) &&
       countMessages(messages) >= SUMMARIZE_MIN_LEN) ||
     refreshTitle
   ) {
@@ -249,10 +250,16 @@ export async function summarizeSession(
       onFinish(message, responseRes, usage) {
         const finalMessage = message || topicContent;
         if (responseRes?.status === 200 && finalMessage) {
+          // 根据原始会话标题类型选择正确的默认标题
+          const fallbackTitle =
+            session.title === Locale.Session.Title.DefaultGroup
+              ? Locale.Session.Title.DefaultGroup
+              : DEFAULT_TOPIC;
+
           const newTopic =
             finalMessage.length > 0
               ? trimTopic(getTextContent(finalMessage))
-              : DEFAULT_TOPIC;
+              : fallbackTitle;
           onTopicUpdate?.(newTopic);
         }
       },
