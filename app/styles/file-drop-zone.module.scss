@@ -462,8 +462,18 @@
 /* 新增：文件模态框操作区域样式 */
 .fileModalActions {
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  gap: 0.75rem;
   margin-bottom: 1rem;
+  align-items: center;
+
+  /* 当有多个按钮时，改为水平布局 */
+  &:has(button + button) {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 1rem;
+  }
 }
 
 .createGroupButton {
@@ -503,6 +513,52 @@
 
     &:hover:not(:disabled) {
       box-shadow: 0 8px 25px rgba(79, 70, 229, 0.5);
+    }
+
+    &:disabled {
+      background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+      box-shadow: 0 2px 8px rgba(75, 85, 99, 0.4);
+    }
+  }
+}
+
+.appendButton {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  min-width: 200px;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(16, 185, 129, 0.4);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+  }
+
+  &:disabled {
+    background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 8px rgba(156, 163, 175, 0.3);
+  }
+
+  /* 深色模式支持 */
+  @media (prefers-color-scheme: dark) {
+    background: linear-gradient(135deg, #059669 0%, #047857 100%);
+    box-shadow: 0 4px 15px rgba(5, 150, 105, 0.4);
+
+    &:hover:not(:disabled) {
+      box-shadow: 0 8px 25px rgba(5, 150, 105, 0.5);
     }
 
     &:disabled {

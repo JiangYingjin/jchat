@@ -265,7 +265,7 @@ export function GroupList() {
               key={session.id}
               id={session.id}
               index={i}
-              title={session.title}
+              title={session.sourceName || session.title}
               count={session.messageCount}
               selected={i === currentGroup.currentSessionIndex}
               status={session.status}
