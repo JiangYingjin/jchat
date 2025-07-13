@@ -132,8 +132,20 @@ function Chat() {
     setIsLoading(true);
     const textContent = getMessageTextContent(userMessage);
     const images = getMessageImages(userMessage);
+
+    // 组内会话重试时，生成新的 batch id，避免模型回复消息和用户消息有相同的 batch id
+    let newBatchId: string | undefined;
+    if (session.groupId) {
+      // 解析用户消息的 batch id
+      const parsedId = parseGroupMessageId(userMessage.id);
+      if (parsedId.isValid) {
+        // 生成新的 batch id，确保模型回复消息有独立的 batch id
+        newBatchId = nanoid(12);
+      }
+    }
+
     chatStore
-      .onSendMessage(textContent, images, requestIndex)
+      .onSendMessage(textContent, images, requestIndex, undefined, newBatchId)
       .then(() => setIsLoading(false));
   };
 
@@ -229,6 +241,32 @@ function Chat() {
         return;
       }
 
+      // 首先检查当前会话是否有对应的模型回复消息
+      // 找到用户消息在消息列表中的位置
+      const userMessageIndex = session.messages.findIndex(
+        (m) => m.id === message.id,
+      );
+
+      if (userMessageIndex === -1) {
+        showToast("无法找到用户消息");
+        return;
+      }
+
+      // 检查用户消息的下一个消息是否是模型回复消息
+      const nextMessage = session.messages[userMessageIndex + 1];
+      const hasModelReply = nextMessage && nextMessage.role === "assistant";
+
+      if (!hasModelReply) {
+        showToast("请先重试该消息，核对模型回复内容无误后，再进行批量应用");
+        return;
+      }
+
+      // 获取模型回复消息的 batch id，用于在其他会话中创建相同的 batch id
+      const modelMessageParsedId = parseGroupMessageId(nextMessage.id);
+      const modelBatchId = modelMessageParsedId.isValid
+        ? modelMessageParsedId.batchId
+        : batchId;
+
       // 遍历组内所有会话
       for (const sessionId of currentGroup.sessionIds) {
         // 跳过当前会话
@@ -277,6 +315,7 @@ function Chat() {
           const images = getMessageImages(message);
 
           // 直接调用 onSendMessage，让它处理消息的添加和发送
+          // 使用模型回复消息的 batch id，确保其他会话的模型回复消息有相同的 batch id
           const updatedSession = chatStore.groupSessions[sessionId];
           if (updatedSession) {
             chatStore.onSendMessage(
@@ -284,7 +323,7 @@ function Chat() {
               images,
               undefined,
               sessionId,
-              batchId,
+              modelBatchId,
             );
           }
         }
