@@ -6,6 +6,7 @@ import {
   validateDropEvent,
   extractFilesFromDrop,
   extractFileInfo,
+  filterSupportedFiles,
   sortFilesByName,
   logFileInfo,
   formatFileSize,
@@ -75,7 +76,18 @@ export function FileDropZone({ children }: FileDropZoneProps) {
     const files = extractFilesFromDrop(e);
     if (files.length > 0) {
       const fileInfos = files.map(extractFileInfo);
-      const sortedFiles = sortFilesByName(fileInfos);
+
+      // 过滤：只保留支持的文件类型
+      const filteredFiles = filterSupportedFiles(fileInfos);
+
+      // 如果过滤后没有有效文件，则直接返回
+      if (filteredFiles.length === 0) {
+        console.log("❌ 没有找到支持的文件类型");
+        return;
+      }
+
+      // 排序：按文件名升序排列
+      const sortedFiles = sortFilesByName(filteredFiles);
 
       setDroppedFiles(sortedFiles);
       setShowFiles(true);
@@ -84,7 +96,7 @@ export function FileDropZone({ children }: FileDropZoneProps) {
       logFileInfo(sortedFiles);
 
       // 显示成功提示
-      console.log(`✅ 成功接收 ${sortedFiles.length} 个文件`);
+      console.log(`✅ 成功接收 ${sortedFiles.length} 个有效文件`);
     }
   }, []);
 
@@ -125,7 +137,7 @@ export function FileDropZone({ children }: FileDropZoneProps) {
             <div className={styles.dragIcon}>📁</div>
             <div className={styles.dragTitle}>释放文件以查看信息</div>
             <div className={styles.dragSubtitle}>
-              支持多文件拖放，将按文件名排序显示
+              支持 jpg, jpeg, png, webp, md, txt 文件，将按文件名排序显示
             </div>
           </div>
         </div>

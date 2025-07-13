@@ -7,6 +7,18 @@ export interface DroppedFileInfo {
 }
 
 /**
+ * 支持的文件扩展名列表
+ */
+export const SUPPORTED_EXTENSIONS = [
+  "jpg",
+  "jpeg",
+  "png",
+  "webp",
+  "md",
+  "txt",
+] as const;
+
+/**
  * 提取文件信息
  */
 export function extractFileInfo(file: File): DroppedFileInfo {
@@ -17,6 +29,15 @@ export function extractFileInfo(file: File): DroppedFileInfo {
     lastModified: file.lastModified,
     webkitRelativePath: file.webkitRelativePath,
   };
+}
+
+/**
+ * 过滤文件列表，只保留支持的文件类型
+ */
+export function filterSupportedFiles(
+  files: DroppedFileInfo[],
+): DroppedFileInfo[] {
+  return files.filter((file) => isSupportedFileType(file));
 }
 
 /**
@@ -100,11 +121,11 @@ export function extractFilesFromDrop(event: DragEvent): File[] {
 }
 
 /**
- * 检查文件类型是否被支持（可扩展）
+ * 检查文件类型是否被支持
  */
 export function isSupportedFileType(file: DroppedFileInfo): boolean {
-  // 目前支持所有文件类型，可根据需求修改
-  return true;
+  const ext = getFileExtension(file.name);
+  return SUPPORTED_EXTENSIONS.includes(ext as any);
 }
 
 /**
