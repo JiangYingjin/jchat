@@ -1269,8 +1269,20 @@ export const useChatStore = createPersistStore(
         content: string,
         attachImages?: string[],
         messageIdx?: number,
+        targetSessionId?: string, // 新增：指定目标会话ID
       ) {
-        const session = get().currentSession();
+        // 根据 targetSessionId 获取目标会话，如果没有指定则使用当前会话
+        let session: ChatSession;
+        if (targetSessionId) {
+          // 查找指定的会话
+          const groupSession = get().groupSessions[targetSessionId];
+          const normalSession = get().sessions.find(
+            (s) => s.id === targetSessionId,
+          );
+          session = groupSession || normalSession || get().currentSession();
+        } else {
+          session = get().currentSession();
+        }
 
         // 确保消息已加载
         if (!session.messages || session.messages.length === 0) {
@@ -1317,8 +1329,18 @@ export const useChatStore = createPersistStore(
           batchId,
         );
 
-        // get recent messages
-        let recentMessages = await get().prepareMessagesForApi();
+        // get recent messages for the target session
+        let recentMessages: ChatMessage[];
+        if (targetSessionId && targetSessionId !== get().currentSession().id) {
+          // 如果指定了目标会话且不是当前会话，使用目标会话的消息（包含系统提示词）
+          recentMessages = await prepareMessagesForApi(
+            session,
+            systemMessageStorage,
+          );
+        } else {
+          // 否则使用当前会话的消息（保持原有逻辑）
+          recentMessages = await get().prepareMessagesForApi();
+        }
 
         let sendMessages = prepareSendMessages(
           recentMessages,
@@ -1394,16 +1416,15 @@ export const useChatStore = createPersistStore(
                 updateSessionStats(session); // 先同步更新基础统计信息
               });
             }
-            // 异步保存消息更新 - 重新获取最新的会话状态
-            const currentSession = get().currentSession();
-            get().saveSessionMessages(currentSession);
+            // 异步保存消息更新 - 使用目标会话
+            get().saveSessionMessages(session);
 
             // 异步更新包含系统提示词的完整统计信息
-            updateSessionStatsAsync(currentSession).then(() => {
-              if (currentSession.groupId) {
-                get().updateGroupSession(currentSession, () => {});
+            updateSessionStatsAsync(session).then(() => {
+              if (session.groupId) {
+                get().updateGroupSession(session, () => {});
               } else {
-                get().updateTargetSession(currentSession, () => {});
+                get().updateTargetSession(session, () => {});
               }
             });
           },
@@ -1423,16 +1444,15 @@ export const useChatStore = createPersistStore(
                 updateSessionStats(session); // 先同步更新基础统计信息
               });
             }
-            // 异步保存消息更新 - 重新获取最新的会话状态
-            const currentSession = get().currentSession();
-            get().saveSessionMessages(currentSession);
+            // 异步保存消息更新 - 使用目标会话
+            get().saveSessionMessages(session);
 
             // 异步更新包含系统提示词的完整统计信息
-            updateSessionStatsAsync(currentSession).then(() => {
-              if (currentSession.groupId) {
-                get().updateGroupSession(currentSession, () => {});
+            updateSessionStatsAsync(session).then(() => {
+              if (session.groupId) {
+                get().updateGroupSession(session, () => {});
               } else {
-                get().updateTargetSession(currentSession, () => {});
+                get().updateTargetSession(session, () => {});
               }
             });
           },
@@ -1459,9 +1479,8 @@ export const useChatStore = createPersistStore(
 
               get().onNewMessage(modelMessage, session, usage);
             }
-            // 保存最终消息状态 - 重新获取最新的会话状态
-            const currentSession = get().currentSession();
-            get().saveSessionMessages(currentSession);
+            // 保存最终消息状态 - 使用目标会话
+            get().saveSessionMessages(session);
             ChatControllerPool.remove(session.id, modelMessage.id);
           },
 
@@ -1487,16 +1506,15 @@ export const useChatStore = createPersistStore(
                 updateSessionStats(session); // 先同步更新基础统计信息
               });
             }
-            // 保存错误状态的消息 - 重新获取最新的会话状态
-            const currentSession = get().currentSession();
-            get().saveSessionMessages(currentSession);
+            // 保存错误状态的消息 - 使用目标会话
+            get().saveSessionMessages(session);
 
             // 异步更新包含系统提示词的完整统计信息
-            updateSessionStatsAsync(currentSession).then(() => {
-              if (currentSession.groupId) {
-                get().updateGroupSession(currentSession, () => {});
+            updateSessionStatsAsync(session).then(() => {
+              if (session.groupId) {
+                get().updateGroupSession(session, () => {});
               } else {
-                get().updateTargetSession(currentSession, () => {});
+                get().updateTargetSession(session, () => {});
               }
             });
 

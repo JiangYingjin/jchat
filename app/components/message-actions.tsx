@@ -10,6 +10,7 @@ import DeleteIcon from "../icons/clear.svg";
 import ResetIcon from "../icons/reload.svg";
 import StopIcon from "../icons/pause.svg";
 import BranchIcon from "../icons/branch.svg";
+import GroupIcon from "../icons/group.svg";
 
 import Locale from "../locales";
 
@@ -19,8 +20,10 @@ export function MessageActions(props: {
   onDelete: (msgId: string) => void;
   onUserStop: (messageId: string) => void;
   onBranch: (message: ChatMessage, index: number) => void;
+  onBatchApply: (message: ChatMessage) => void; // 新增：批量应用回调
   index: number;
   showBranch?: boolean; // 新增：控制是否显示分支按钮
+  showBatchApply?: boolean; // 新增：控制是否显示批量应用按钮
 }) {
   const {
     message,
@@ -28,8 +31,10 @@ export function MessageActions(props: {
     onDelete,
     onUserStop,
     onBranch,
+    onBatchApply,
     index,
     showBranch = true,
+    showBatchApply = true,
   } = props;
 
   return (
@@ -66,6 +71,15 @@ export function MessageActions(props: {
               text={Locale.Chat.Actions.Branch}
               icon={<BranchIcon />}
               onClick={() => onBranch(message, index)}
+              alwaysFullWidth={false}
+            />
+          )}
+          {showBatchApply && (
+            <DoubleClickChatAction
+              text={Locale.Chat.Actions.BatchApply}
+              confirmText={Locale.Chat.Actions.BatchApplyConfirm}
+              icon={<GroupIcon />}
+              onClick={() => onBatchApply(message)}
               alwaysFullWidth={false}
             />
           )}
