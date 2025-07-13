@@ -40,7 +40,6 @@ const cn = {
       RefreshTitle: "刷新标题",
       RefreshTitleToast: "已发送刷新标题请求",
       BatchApply: "应用",
-      BatchApplyConfirm: "确认应用",
     },
     InputActions: {
       UploadImage: "上传图片",

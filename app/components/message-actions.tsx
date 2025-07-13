@@ -77,7 +77,6 @@ export function MessageActions(props: {
           {showBatchApply && (
             <DoubleClickChatAction
               text={Locale.Chat.Actions.BatchApply}
-              confirmText={Locale.Chat.Actions.BatchApplyConfirm}
               icon={<GroupIcon />}
               onClick={() => onBatchApply(message)}
               alwaysFullWidth={false}
