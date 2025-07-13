@@ -86,9 +86,39 @@ export async function updateSessionStatsAsync(
 /**
  * 创建消息对象
  */
-export function createMessage(override: Partial<ChatMessage>): ChatMessage {
+export function createMessage(
+  override: Partial<ChatMessage>,
+  batchId?: string,
+): ChatMessage {
+  // 检查是否为组内会话消息
+  let isGroupMessage = false;
+
+  try {
+    if (typeof window !== "undefined") {
+      const currentSession = useChatStore.getState().currentSession();
+      isGroupMessage =
+        currentSession?.groupId !== null &&
+        currentSession?.groupId !== undefined;
+    }
+  } catch (error) {
+    // 如果获取当前会话失败，默认为非组内会话
+    isGroupMessage = false;
+  }
+
+  let messageId: string;
+
+  if (isGroupMessage) {
+    // 组内会话使用格式：{12位batchId}_{21位messageId}
+    const finalBatchId = batchId || nanoid(12); // 使用传入的batchId或生成新的
+    const msgId = nanoid(21); // 21位messageId
+    messageId = `${finalBatchId}_${msgId}`;
+  } else {
+    // 普通会话使用原来的nanoid格式
+    messageId = nanoid();
+  }
+
   return {
-    id: nanoid(),
+    id: messageId,
     role: "user",
     content: "",
     date: new Date().toLocaleString(),

@@ -977,6 +977,11 @@ export const useChatStore = createPersistStore(
           throw new Error("当前会话不存在");
         }
 
+        // 组内会话不支持分支功能
+        if (session.groupId) {
+          throw new Error("组内会话不支持分支功能");
+        }
+
         try {
           // 复制会话标题并标注分支
           const originalTitle = session.title || DEFAULT_TITLE;
@@ -1019,10 +1024,12 @@ export const useChatStore = createPersistStore(
           const originalMessages = fullMessages.slice(0, realIndex + 1);
 
           // 为每条消息重新生成ID，确保唯一性，保持其他属性不变
-          const messagesToCopy = originalMessages.map((message) => ({
-            ...message,
-            id: nanoid(), // 只更新ID，保持其他属性不变
-          }));
+          const messagesToCopy = originalMessages.map((message) => {
+            return {
+              ...message,
+              id: nanoid(), // 使用普通nanoid格式
+            };
+          });
 
           // 使用现有的branchSession方法，系统提示词会在内部自动保存
           const newSession = await get().branchSession(
@@ -1286,17 +1293,29 @@ export const useChatStore = createPersistStore(
           ];
         }
 
-        let userMessage: ChatMessage = createMessage({
-          role: "user",
-          content: mContent,
-        });
+        // 为组内会话生成batchId，确保用户消息和模型回复使用相同的batchId
+        let batchId: string | undefined;
+        if (session.groupId) {
+          batchId = nanoid(12);
+        }
 
-        const modelMessage = createMessage({
-          role: "assistant",
-          content: "",
-          streaming: true,
-          model: session.model,
-        });
+        let userMessage: ChatMessage = createMessage(
+          {
+            role: "user",
+            content: mContent,
+          },
+          batchId,
+        );
+
+        const modelMessage = createMessage(
+          {
+            role: "assistant",
+            content: "",
+            streaming: true,
+            model: session.model,
+          },
+          batchId,
+        );
 
         // get recent messages
         let recentMessages = await get().prepareMessagesForApi();

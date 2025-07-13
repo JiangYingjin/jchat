@@ -4,6 +4,17 @@ import { createEmptySession } from "./session";
 import Locale from "../locales";
 
 /**
+ * 组内会话消息ID解析工具
+ * 格式：{12位batchId}_{21位messageId}
+ */
+
+export interface GroupMessageId {
+  batchId: string;
+  messageId: string;
+  isValid: boolean;
+}
+
+/**
  * 创建空的组对象
  * 会同时创建一个空的会话并插入到 chatStore.groupSessions 中
  */
@@ -42,4 +53,37 @@ export function calculateGroupStatus(
   } else {
     return "normal";
   }
+}
+
+/**
+ * 解析组内会话消息ID
+ * 使用正则表达式提取batchId和messageId
+ * @param id 消息ID字符串
+ * @returns GroupMessageId对象，包含解析结果和有效性标志
+ */
+export function parseGroupMessageId(id: string): GroupMessageId {
+  // 正则表达式：匹配12位batchId_21位messageId的格式
+  // ^ 开始
+  // ([A-Za-z0-9_-]{12}) 捕获12位的batchId，包含字母、数字、下划线、连字符
+  // _ 下划线分隔符
+  // ([A-Za-z0-9_-]{21}) 捕获21位的messageId，包含字母、数字、下划线、连字符
+  // $ 结束
+  const groupMessageIdRegex = /^([A-Za-z0-9_-]{12})_([A-Za-z0-9_-]{21})$/;
+
+  const match = id.match(groupMessageIdRegex);
+
+  if (match) {
+    return {
+      batchId: match[1],
+      messageId: match[2],
+      isValid: true,
+    };
+  }
+
+  // 如果不是组内会话格式，返回无效结果
+  return {
+    batchId: "",
+    messageId: "",
+    isValid: false,
+  };
 }
