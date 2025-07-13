@@ -110,6 +110,7 @@ export function createEmptySession(): ChatSession {
   return {
     id: nanoid(),
     title: DEFAULT_TOPIC,
+    sourceName: undefined, // 空会话没有源文件名
     messages: [],
     messageCount: 0,
     status: "normal",

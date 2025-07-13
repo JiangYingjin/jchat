@@ -409,3 +409,105 @@
     gap: 0.5rem;
   }
 }
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .fileModal {
+    padding: 0.5rem;
+  }
+
+  .fileModalContent {
+    max-width: 100%;
+    max-height: 90vh;
+  }
+
+  .fileModalHeader {
+    padding: 1rem 1rem 0.75rem;
+  }
+
+  .fileModalTitle {
+    font-size: 1.125rem;
+  }
+
+  .fileList {
+    padding: 0 1rem;
+    max-height: 300px;
+  }
+
+  .fileItem {
+    padding: 0.75rem 0;
+  }
+
+  .fileIcon {
+    font-size: 1.5rem;
+    width: 40px;
+  }
+
+  .fileDetails {
+    gap: 0.5rem;
+  }
+
+  .fileSize,
+  .fileType,
+  .fileDate {
+    font-size: 0.75rem;
+    padding: 0.125rem 0.375rem;
+  }
+
+  .fileModalFooter {
+    padding: 0.75rem 1rem 1rem;
+  }
+}
+
+/* 新增：文件模态框操作区域样式 */
+.fileModalActions {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.createGroupButton {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 0.875rem 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  min-width: 200px;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(102, 126, 234, 0.4);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+  }
+
+  &:disabled {
+    background: linear-gradient(135deg, #9ca3af 0%, #6b7280 100%);
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: 0 2px 8px rgba(156, 163, 175, 0.3);
+  }
+
+  /* 深色模式支持 */
+  @media (prefers-color-scheme: dark) {
+    background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+
+    &:hover:not(:disabled) {
+      box-shadow: 0 8px 25px rgba(79, 70, 229, 0.5);
+    }
+
+    &:disabled {
+      background: linear-gradient(135deg, #4b5563 0%, #374151 100%);
+      box-shadow: 0 2px 8px rgba(75, 85, 99, 0.4);
+    }
+  }
+}

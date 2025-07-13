@@ -46,6 +46,7 @@ export function onStoreHydrated(callback: () => void): void {
 export interface ChatSession {
   id: string;
   title: string;
+  sourceName?: string; // 表示生成该会话的源文件名，可选
   model: string; // 当前会话选择的模型
   messageCount: number; // 消息数量
   status: "normal" | "error" | "pending"; // 会话状态：正常、错误、用户消息结尾
@@ -1701,6 +1702,164 @@ export const useChatStore = createPersistStore(
           .finally(() => {
             fetchState = 2;
           });
+      },
+
+      // 新增：从多个文件创建会话组
+      async createGroupFromFiles(files: File[]): Promise<ChatGroup | null> {
+        try {
+          // 先进行 IndexedDB 健康检查
+          const isHealthy = await messageStorage.healthCheck();
+          if (!isHealthy) {
+            console.error(
+              "[ChatStore] IndexedDB 健康检查失败，请重启浏览器重试",
+            );
+            showToast("存储系统异常，请重启浏览器重试");
+            return null;
+          }
+
+          // 过滤支持的文件类型
+          const supportedFiles = files.filter((file) => {
+            const ext = file.name.split(".").pop()?.toLowerCase();
+            return ["jpg", "jpeg", "png", "webp", "md", "txt"].includes(
+              ext || "",
+            );
+          });
+
+          if (supportedFiles.length === 0) {
+            console.warn("[ChatStore] 没有找到支持的文件类型");
+            showToast(
+              "没有找到支持的文件类型（支持：jpg, jpeg, png, webp, md, txt）",
+            );
+            return null;
+          }
+
+          // 按文件名排序
+          const sortedFiles = supportedFiles.sort((a, b) =>
+            a.name.localeCompare(b.name),
+          );
+
+          // 创建组
+          const groupId = nanoid();
+          const groupTitle = `文件组 - ${new Date().toLocaleString("zh-CN")}`;
+
+          const newGroup: ChatGroup = {
+            id: groupId,
+            title: groupTitle,
+            sessionIds: [],
+            messageCount: 0,
+            status: "normal",
+            pendingCount: 0,
+            errorCount: 0,
+            currentSessionIndex: 0,
+          };
+
+          // 为每个文件创建一个会话
+          const groupSessions: GroupSession = {};
+          const sessionIds: string[] = [];
+
+          for (let i = 0; i < sortedFiles.length; i++) {
+            const file = sortedFiles[i];
+            const sessionId = nanoid();
+
+            // 创建会话
+            const session: ChatSession = {
+              id: sessionId,
+              title: Locale.Session.Title.DefaultGroup,
+              sourceName: file.name, // 记录源文件名
+              model: get().models[0], // 使用第一个可用模型
+              messageCount: 0,
+              status: "normal",
+              groupId: groupId,
+              lastUpdate: Date.now(),
+              messages: [],
+            };
+
+            // 处理文件内容并设置为系统提示词
+            let systemText = "";
+            let systemImages: string[] = [];
+
+            try {
+              const ext = file.name.split(".").pop()?.toLowerCase();
+
+              if (["jpg", "jpeg", "png", "webp"].includes(ext || "")) {
+                // 图片文件：上传图片并添加到系统提示词
+                const { uploadImage } = await import("../utils/chat");
+                const imageUrl = await uploadImage(file);
+                systemImages.push(imageUrl);
+              } else if (["md", "txt"].includes(ext || "")) {
+                // 文本文件：读取内容作为系统提示词
+                const text = await file.text();
+                systemText = text;
+              }
+
+              // 保存系统提示词
+              if (systemText.trim() || systemImages.length > 0) {
+                await systemMessageStorage.save(sessionId, {
+                  text: systemText,
+                  images: systemImages,
+                  scrollTop: 0,
+                  selection: { start: 0, end: 0 },
+                  updateAt: Date.now(),
+                });
+              }
+
+              // 保存会话消息（空消息）
+              await get().saveSessionMessages(session);
+
+              // 更新会话统计信息
+              await updateSessionStatsAsync(session);
+
+              // 添加到组内会话
+              groupSessions[sessionId] = session;
+              sessionIds.push(sessionId);
+            } catch (error) {
+              console.error(`[ChatStore] 处理文件 ${file.name} 失败:`, error);
+              // 即使处理失败，也创建会话，但标记为错误状态
+              session.status = "error";
+              groupSessions[sessionId] = session;
+              sessionIds.push(sessionId);
+            }
+          }
+
+          // 更新组信息
+          newGroup.sessionIds = sessionIds;
+          newGroup.messageCount = sessionIds.length;
+
+          // 计算组状态
+          const errorCount = sessionIds.filter(
+            (id) => groupSessions[id].status === "error",
+          ).length;
+          const pendingCount = sessionIds.filter(
+            (id) => groupSessions[id].status === "pending",
+          ).length;
+          newGroup.errorCount = errorCount;
+          newGroup.pendingCount = pendingCount;
+          newGroup.status = calculateGroupStatus(newGroup);
+
+          // 更新 store 状态
+          set((state) => ({
+            groups: [newGroup, ...state.groups],
+            groupSessions: {
+              ...state.groupSessions,
+              ...groupSessions,
+            },
+            currentGroupIndex: 0,
+            chatListView: "groups" as const,
+            chatListGroupView: "group-sessions" as const,
+          }));
+
+          console.log(
+            `[ChatStore] 成功从 ${sortedFiles.length} 个文件创建会话组:`,
+            newGroup.id,
+          );
+          showToast(`成功创建会话组，包含 ${sortedFiles.length} 个文件`);
+
+          return newGroup;
+        } catch (error) {
+          console.error("[ChatStore] 从文件创建会话组失败:", error);
+          showToast("创建会话组失败，请重试");
+          return null;
+        }
       },
     };
 

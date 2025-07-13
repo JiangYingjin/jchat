@@ -14,6 +14,7 @@ import {
   getFileIcon,
   type DroppedFileInfo,
 } from "../utils/file-drop";
+import { useChatStore } from "../store";
 
 interface FileDropZoneProps {
   children: React.ReactNode;
@@ -24,6 +25,10 @@ export function FileDropZone({ children }: FileDropZoneProps) {
   const [dragCounter, setDragCounter] = useState(0);
   const [droppedFiles, setDroppedFiles] = useState<DroppedFileInfo[]>([]);
   const [showFiles, setShowFiles] = useState(false);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [rawFiles, setRawFiles] = useState<File[]>([]);
+
+  const chatStore = useChatStore();
 
   // 处理拖拽进入
   const handleDragEnter = useCallback((e: DragEvent) => {
@@ -90,6 +95,7 @@ export function FileDropZone({ children }: FileDropZoneProps) {
       const sortedFiles = sortFilesByName(filteredFiles);
 
       setDroppedFiles(sortedFiles);
+      setRawFiles(files); // 保存原始文件对象
       setShowFiles(true);
 
       // 记录文件信息到控制台
@@ -104,7 +110,26 @@ export function FileDropZone({ children }: FileDropZoneProps) {
   const handleCloseFiles = useCallback(() => {
     setShowFiles(false);
     setDroppedFiles([]);
+    setRawFiles([]);
   }, []);
+
+  // 创建会话组
+  const handleCreateGroup = useCallback(async () => {
+    if (rawFiles.length === 0) return;
+
+    setIsCreatingGroup(true);
+    try {
+      const group = await chatStore.createGroupFromFiles(rawFiles);
+      if (group) {
+        // 创建成功后关闭文件列表
+        handleCloseFiles();
+      }
+    } catch (error) {
+      console.error("创建会话组失败:", error);
+    } finally {
+      setIsCreatingGroup(false);
+    }
+  }, [rawFiles, chatStore, handleCloseFiles]);
 
   // 添加全局事件监听器
   useEffect(() => {
@@ -135,9 +160,9 @@ export function FileDropZone({ children }: FileDropZoneProps) {
         <div className={styles.dragOverlay}>
           <div className={styles.dragContent}>
             <div className={styles.dragIcon}>📁</div>
-            <div className={styles.dragTitle}>释放文件以查看信息</div>
+            <div className={styles.dragTitle}>释放文件以创建会话组</div>
             <div className={styles.dragSubtitle}>
-              支持 jpg, jpeg, png, webp, md, txt 文件，将按文件名排序显示
+              支持 jpg, jpeg, png, webp, md, txt 文件，将按文件名排序创建会话组
             </div>
           </div>
         </div>
@@ -190,8 +215,19 @@ export function FileDropZone({ children }: FileDropZoneProps) {
             </div>
 
             <div className={styles.fileModalFooter}>
+              <div className={styles.fileModalActions}>
+                <button
+                  className={styles.createGroupButton}
+                  onClick={handleCreateGroup}
+                  disabled={isCreatingGroup}
+                >
+                  {isCreatingGroup
+                    ? "创建中..."
+                    : `创建会话组 (${droppedFiles.length} 个文件)`}
+                </button>
+              </div>
               <div className={styles.fileStats}>
-                文件信息已记录到控制台，可按 F12 查看详细日志
+                每个文件将创建一个独立的会话，文件内容将作为系统提示词
               </div>
             </div>
           </div>
