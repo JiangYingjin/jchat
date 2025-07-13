@@ -65,7 +65,7 @@ export function SideBar(props: { className?: string }) {
   useSideBar();
   const navigate = useNavigate();
   const isMobileScreen = useMobileScreen();
-  const location = useLocation(); // 新增这一行
+  const location = useLocation();
 
   // search bar
   const searchBarRef = useRef<SearchInputRef>(null);
@@ -73,6 +73,16 @@ export function SideBar(props: { className?: string }) {
 
   // 获取当前列表模式
   const chatListView = useChatStore((state) => state.chatListView);
+
+  // 移除可能导致无限循环的useEffect
+  // useEffect(() => {
+  //   console.log("[Sidebar] 状态变化:", {
+  //     chatListView,
+  //     isMobileScreen,
+  //     pathname: location.pathname,
+  //     chatListGroupView: chatStore.chatListGroupView,
+  //   });
+  // }, [chatListView, isMobileScreen, location.pathname, chatStore.chatListGroupView]);
 
   const stopSearch = () => {
     setIsSearching(false);
@@ -149,7 +159,9 @@ export function SideBar(props: { className?: string }) {
             {!isMobileScreen && (
               <IconButton
                 icon={<GroupIcon />}
-                onClick={toggleGroupMode}
+                onClick={() => {
+                  toggleGroupMode();
+                }}
                 title="组会话"
                 className={
                   chatListView === "groups" ? buttonStyles["active"] : ""
@@ -163,25 +175,26 @@ export function SideBar(props: { className?: string }) {
           <IconButton
             icon={<AddIcon />}
             onClick={async () => {
-              if (chatListView === "sessions") {
-                // 普通会话模式：新建会话
-                await chatStore.newSession();
-                navigate(Path.Chat);
-              } else if (chatListView === "groups") {
-                // 组模式：根据当前组内视图决定新建什么
-                const chatListGroupView = chatStore.chatListGroupView;
-                if (chatListGroupView === "groups") {
-                  // 组列表模式：新建组
-                  const newGroup = createEmptyGroup();
-                  await chatStore.newGroup(newGroup);
-                  navigate(Path.Chat);
-                } else {
-                  // 组内会话模式：新建组内会话
-                  await chatStore.newGroupSession();
+              try {
+                // 检查是否需要导航到聊天页面
+                if (!location.pathname.includes(Path.Chat)) {
                   navigate(Path.Chat);
                 }
+
+                // 判断当前模式并执行相应操作
+                if (chatListView === "sessions") {
+                  await chatStore.newSession();
+                } else if (chatStore.chatListGroupView === "groups") {
+                  const newGroup = createEmptyGroup();
+                  await chatStore.newGroup(newGroup);
+                } else {
+                  await chatStore.newGroupSession();
+                }
+
+                stopSearch();
+              } catch (error) {
+                console.error("[Sidebar] 新建按钮点击出错:", error);
               }
-              stopSearch();
             }}
             title={
               chatListView === "sessions"

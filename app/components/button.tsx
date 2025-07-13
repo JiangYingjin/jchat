@@ -24,13 +24,20 @@ export function IconButton(props: {
   style?: CSSProperties;
   aria?: string;
 }) {
+  const handleClick = () => {
+    if (props.disabled) return;
+    if (props.onClick) {
+      props.onClick();
+    }
+  };
+
   return (
     <button
       className={
         styles["icon-button"] +
         ` ${props.bordered && styles.border} ${props.className ?? ""} shadow clickable ${styles[props.type ?? ""]}`
       }
-      onClick={props.onClick}
+      onClick={handleClick}
       onContextMenu={props.onContextMenu}
       title={props.title}
       disabled={props.disabled}

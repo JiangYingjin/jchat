@@ -15,7 +15,9 @@ class MessageStorage {
   private storage: LocalForage | null = null;
 
   private getStorage(): LocalForage | null {
-    if (!isClient) return null;
+    if (!isClient) {
+      return null;
+    }
     if (!this.storage) {
       this.storage = localforage.createInstance({
         name: "JChat",
@@ -50,11 +52,60 @@ class MessageStorage {
   async save(sessionId: string, messages: ChatMessage[]): Promise<boolean> {
     try {
       const storage = this.getStorage();
-      if (!storage) return false;
-      await storage.setItem(sessionId, messages);
+      if (!storage) {
+        return false;
+      }
+
+      // 添加超时处理
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(
+          () => reject(new Error("IndexedDB operation timeout")),
+          5000,
+        );
+      });
+
+      const savePromise = storage.setItem(sessionId, messages);
+
+      await Promise.race([savePromise, timeoutPromise]);
       return true;
     } catch (error) {
       console.error(`[MessageStorage] 保存消息失败: ${sessionId}`, error);
+      console.error("[MessageStorage] 如果问题持续存在，请重启浏览器重试");
+      return false;
+    }
+  }
+
+  /**
+   * 检查 IndexedDB 是否正常工作
+   */
+  async healthCheck(): Promise<boolean> {
+    try {
+      const storage = this.getStorage();
+      if (!storage) return false;
+
+      const testKey = "__health_check__";
+      const testValue = { timestamp: Date.now() };
+
+      // 超时保护
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Health check timeout")), 3000);
+      });
+
+      // 测试写入
+      const writePromise = storage.setItem(testKey, testValue);
+      await Promise.race([writePromise, timeoutPromise]);
+
+      // 测试读取
+      const readPromise = storage.getItem(testKey);
+      const result = await Promise.race([readPromise, timeoutPromise]);
+
+      // 清理测试数据
+      await storage.removeItem(testKey);
+
+      return result !== null;
+    } catch (error) {
+      console.error("[MessageStorage] 健康检查失败", error);
+      console.error("[MessageStorage] 如果问题持续存在，请重启浏览器重试");
       return false;
     }
   }

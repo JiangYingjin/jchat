@@ -231,56 +231,63 @@ export const useChatStore = createPersistStore(
 
       async newSession() {
         const session = createEmptySession();
-        // 为新会话保存空的 message 数组
+
+        // 先进行 IndexedDB 健康检查
+        const isHealthy = await messageStorage.healthCheck();
+        if (!isHealthy) {
+          console.error("[ChatStore] IndexedDB 健康检查失败，请重启浏览器重试");
+          showToast("存储系统异常，请重启浏览器重试");
+          return;
+        }
+
         await get().saveSessionMessages(session);
 
-        set((state) => ({
-          currentSessionIndex: 0,
-          sessions: [session].concat(state.sessions),
-        }));
+        set((state) => {
+          return {
+            currentSessionIndex: 0,
+            sessions: [session].concat(state.sessions),
+          };
+        });
 
-        // **修复：确保新会话的消息正确加载**
+        // 确保新会话的消息正确加载
         await get().loadSessionMessages(0);
       },
 
       async newGroup(group: ChatGroup) {
-        console.log(
-          `[ChatStore] Creating new group: ${group.id}, title: ${group.title}`,
-        );
-        // 为组内的第一个会话创建并保存消息
-        const firstSessionId = group.sessionIds[0];
-        if (firstSessionId) {
-          // 创建组内会话
-          const emptySession = createEmptySession();
-          emptySession.id = firstSessionId;
-          emptySession.groupId = group.id;
-          emptySession.title = Locale.Store.DefaultGroupTitle;
+        const { groups, groupSessions } = get();
 
-          console.log(
-            `[ChatStore] Created group session: ${emptySession.id}, groupId: ${emptySession.groupId}`,
-          );
+        // 创建组内第一个会话
+        const firstSession = createEmptySession();
+        firstSession.groupId = group.id;
+        firstSession.title = group.title;
 
-          // 保存会话消息
-          await get().saveSessionMessages(emptySession);
+        // 保存会话消息
+        await get().saveSessionMessages(firstSession);
 
-          // 将会话添加到 groupSessions 中
-          set((state) => ({
-            currentGroupIndex: 0,
-            groups: [group].concat(state.groups),
+        // 更新组和组内会话
+        set((state) => {
+          const updatedGroup = {
+            ...group,
+            sessionIds: [firstSession.id],
+            currentSessionIndex: 0,
+            title: firstSession.title,
+            messageCount: firstSession.messageCount,
+            errorCount: 0,
+            pendingCount: 0,
+          };
+
+          // 确保组状态与计数保持一致
+          updatedGroup.status = calculateGroupStatus(updatedGroup);
+
+          return {
+            groups: [updatedGroup, ...state.groups],
             groupSessions: {
               ...state.groupSessions,
-              [firstSessionId]: emptySession,
+              [firstSession.id]: firstSession,
             },
-          }));
-          console.log(`[ChatStore] Group and session added to store`);
-        } else {
-          // 如果没有会话ID，只添加组
-          set((state) => ({
             currentGroupIndex: 0,
-            groups: [group].concat(state.groups),
-          }));
-          console.log(`[ChatStore] Group added without session`);
-        }
+          };
+        });
       },
 
       // 新建组内会话
@@ -289,7 +296,7 @@ export const useChatStore = createPersistStore(
         const currentGroup = groups[currentGroupIndex];
 
         if (!currentGroup) {
-          console.error("当前没有选中的组");
+          console.warn("[ChatStore] No current group found");
           return;
         }
 
@@ -303,16 +310,21 @@ export const useChatStore = createPersistStore(
 
         // 更新组和组内会话
         set((state) => {
-          const newGroups = [...state.groups];
           const updatedGroup = {
             ...currentGroup,
             sessionIds: [...currentGroup.sessionIds, newSession.id],
-            currentSessionIndex: currentGroup.sessionIds.length, // 设置为新会话的索引
+            currentSessionIndex: currentGroup.sessionIds.length,
+            title:
+              currentGroup.sessionIds.length === 0
+                ? newSession.title
+                : currentGroup.title,
+            messageCount: currentGroup.messageCount + newSession.messageCount,
           };
 
           // 确保组状态与计数保持一致
           updatedGroup.status = calculateGroupStatus(updatedGroup);
 
+          const newGroups = [...state.groups];
           newGroups[currentGroupIndex] = updatedGroup;
 
           return {
@@ -324,7 +336,7 @@ export const useChatStore = createPersistStore(
           };
         });
 
-        // 加载新会话的消息
+        // 确保新会话的消息正确加载
         await get().loadGroupSessionMessages(newSession.id);
       },
 
@@ -1088,7 +1100,8 @@ export const useChatStore = createPersistStore(
             // **修复：如果索引被纠正，异步加载新当前会话的消息**
             get().loadSessionMessages(validIndex);
           }
-          return sessions[index];
+          const session = sessions[index];
+          return session;
         }
 
         // 组会话模式：根据组内视图决定返回哪个会话
@@ -1101,10 +1114,8 @@ export const useChatStore = createPersistStore(
                 currentGroup.sessionIds[currentGroup.currentSessionIndex];
               const session = groupSessions[currentSessionId];
               if (session) {
-                // 确保组内会话的消息已加载
-                if (!session.messages || session.messages.length === 0) {
-                  get().loadGroupSessionMessages(currentSessionId);
-                }
+                // 移除直接调用loadGroupSessionMessages，避免无限循环
+                // 消息加载应该在组件层面处理
                 return session;
               } else {
                 console.warn(
@@ -1126,10 +1137,8 @@ export const useChatStore = createPersistStore(
               const firstSessionId = currentGroup.sessionIds[0];
               const session = groupSessions[firstSessionId];
               if (session) {
-                // 确保组内会话的消息已加载
-                if (!session.messages || session.messages.length === 0) {
-                  get().loadGroupSessionMessages(firstSessionId);
-                }
+                // 移除直接调用loadGroupSessionMessages，避免无限循环
+                // 消息加载应该在组件层面处理
                 return session;
               } else {
                 console.warn(
@@ -1150,7 +1159,8 @@ export const useChatStore = createPersistStore(
           get().loadSessionMessages(validIndex);
         }
 
-        return sessions[index];
+        const fallbackSession = sessions[index];
+        return fallbackSession;
       },
 
       onNewMessage(
