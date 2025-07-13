@@ -147,9 +147,9 @@ function Chat() {
     const prevMessages = session.messages.slice();
     deleteMessage(msgId);
     showToast(
-      Locale.Home.DeleteToast,
+      Locale.Chat.DeleteMessageToast,
       {
-        text: Locale.Home.Revert,
+        text: Locale.Chat.Revert,
         async onClick() {
           updateSession((session) => {
             session.messages = prevMessages;

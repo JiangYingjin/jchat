@@ -554,11 +554,11 @@ export function MarkdownPreviewer(props: {
     props.messages
       .map((m) => {
         if (m.role === "user") {
-          return `## ${Locale.Export.MessageFromUser}\n\n${getMessageTextContent(m)}`;
+          return `## ${Locale.Export.User}\n\n${getMessageTextContent(m)}`;
         } else if (m.role === "system") {
-          return `## ${Locale.Export.MessageFromSystem}\n\n${getMessageTextContent(m).trim()}`;
+          return `## ${Locale.Export.System}\n\n${getMessageTextContent(m).trim()}`;
         } else {
-          return `## ${Locale.Export.MessageFromModel}\n\n${getMessageTextContent(m).trim()}`;
+          return `## ${Locale.Export.Modal}\n\n${getMessageTextContent(m).trim()}`;
         }
       })
       .join("\n\n");

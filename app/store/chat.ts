@@ -82,7 +82,7 @@ const DEFAULT_CHAT_STATE = {
   accessCode: "",
 };
 
-export const DEFAULT_TITLE = Locale.Store.DefaultTitle;
+export const DEFAULT_TITLE = Locale.Session.Title.Default;
 
 export const useChatStore = createPersistStore(
   DEFAULT_CHAT_STATE,
@@ -303,7 +303,7 @@ export const useChatStore = createPersistStore(
         // 创建新的组内会话
         const newSession = createEmptySession();
         newSession.groupId = currentGroup.id;
-        newSession.title = Locale.Store.DefaultGroupTitle;
+        newSession.title = Locale.Session.Title.DefaultGroup;
 
         // 保存会话消息
         await get().saveSessionMessages(newSession);
@@ -554,25 +554,51 @@ export const useChatStore = createPersistStore(
           accessCode: get().accessCode,
         };
 
-        // 计算删除后的当前会话索引
+        // 准备新的会话ID列表和状态更新
+        let newSessionIds = [...currentGroup.sessionIds];
         let newCurrentSessionIndex = currentGroup.currentSessionIndex;
-        if (sessionIndex < currentGroup.currentSessionIndex) {
-          newCurrentSessionIndex--;
-        } else if (sessionIndex === currentGroup.currentSessionIndex) {
-          // 如果删除的是当前会话，选择前一个会话，如果没有则选择下一个
-          newCurrentSessionIndex = Math.max(0, sessionIndex - 1);
+        let newGroupSessions = { ...groupSessions };
+        let newSessionToAdd: ChatSession | null = null;
+
+        // 如果删除的是最后一个会话，先创建新会话
+        if (isLastSession) {
+          console.log(
+            `[ChatStore] Last session deleted, creating new empty session`,
+          );
+
+          // 创建新的组内会话
+          newSessionToAdd = createEmptySession();
+          newSessionToAdd.groupId = currentGroup.id;
+          newSessionToAdd.title = Locale.Session.Title.DefaultGroup;
+
+          // 保存会话消息
+          await get().saveSessionMessages(newSessionToAdd);
+
+          // 更新会话ID列表和索引
+          newSessionIds = [newSessionToAdd.id];
+          newCurrentSessionIndex = 0;
+          newGroupSessions[newSessionToAdd.id] = newSessionToAdd;
+        } else {
+          // 删除指定会话
+          newSessionIds.splice(sessionIndex, 1);
+
+          // 计算删除后的当前会话索引
+          if (sessionIndex < currentGroup.currentSessionIndex) {
+            newCurrentSessionIndex--;
+          } else if (sessionIndex === currentGroup.currentSessionIndex) {
+            // 如果删除的是当前会话，选择前一个会话，如果没有则选择下一个
+            newCurrentSessionIndex = Math.max(0, sessionIndex - 1);
+          }
         }
 
-        // 准备新的会话ID列表
-        const newSessionIds = [...currentGroup.sessionIds];
-        newSessionIds.splice(sessionIndex, 1);
-        const newCurrentSessionId = newSessionIds[newCurrentSessionIndex];
+        // 从 groupSessions 中删除被删除的会话
+        delete newGroupSessions[sessionId];
 
-        // 立即更新UI状态（从组内会话中移除）
+        // 立即更新UI状态（一次性完成删除和添加新会话）
         set((state) => {
           const newGroups = [...state.groups];
 
-          // 如果删除的是第一个会话，需要更新组的 messageCount
+          // 更新组信息
           let updatedGroup = {
             ...currentGroup,
             sessionIds: newSessionIds,
@@ -589,23 +615,26 @@ export const useChatStore = createPersistStore(
             );
           }
 
-          // 重新计算组状态
-          updatedGroup.status = calculateGroupStatus(updatedGroup);
-
-          if (sessionIndex === 0 && newSessionIds.length > 0) {
+          // 如果是删除最后一个会话并创建新会话，重置计数
+          if (isLastSession && newSessionToAdd) {
+            updatedGroup.title = newSessionToAdd.title;
+            updatedGroup.messageCount = newSessionToAdd.messageCount;
+            updatedGroup.errorCount = 0;
+            updatedGroup.pendingCount = 0;
+          } else if (sessionIndex === 0 && newSessionIds.length > 0) {
             // 删除的是第一个会话，更新组的标题和 messageCount 为新的第一个会话的标题和 messageCount
             const newFirstSessionId = newSessionIds[0];
-            const newFirstSession = state.groupSessions[newFirstSessionId];
+            const newFirstSession = newGroupSessions[newFirstSessionId];
             if (newFirstSession) {
               updatedGroup.title = newFirstSession.title;
               updatedGroup.messageCount = newFirstSession.messageCount;
             }
           }
 
-          newGroups[currentGroupIndex] = updatedGroup;
+          // 重新计算组状态
+          updatedGroup.status = calculateGroupStatus(updatedGroup);
 
-          const newGroupSessions = { ...state.groupSessions };
-          delete newGroupSessions[sessionId];
+          newGroups[currentGroupIndex] = updatedGroup;
 
           return {
             groups: newGroups,
@@ -614,56 +643,16 @@ export const useChatStore = createPersistStore(
         });
 
         // **在切换到新会话后，立即加载其消息**
-        if (newCurrentSessionId) {
-          await get().loadGroupSessionMessages(newCurrentSessionId);
-        }
-
-        // 如果删除的是最后一个会话，自动创建新的空会话
-        if (isLastSession) {
+        if (isLastSession && newSessionToAdd) {
+          // 如果是新创建的会话，加载其消息
+          await get().loadGroupSessionMessages(newSessionToAdd.id);
           console.log(
-            `[ChatStore] Last session deleted, creating new empty session`,
+            `[ChatStore] New empty session created: ${newSessionToAdd.id}`,
           );
-
-          // 创建新的组内会话
-          const newSession = createEmptySession();
-          newSession.groupId = currentGroup.id;
-          newSession.title = Locale.Store.DefaultGroupTitle;
-
-          // 保存会话消息
-          await get().saveSessionMessages(newSession);
-
-          // 更新组和组内会话
-          set((state) => {
-            const newGroups = [...state.groups];
-            const updatedGroup = {
-              ...currentGroup,
-              sessionIds: [newSession.id],
-              currentSessionIndex: 0, // 设置为新会话的索引
-              title: newSession.title, // 同步组标题为第一个会话的标题
-              messageCount: newSession.messageCount,
-              errorCount: 0,
-              pendingCount: 0,
-            };
-
-            // 确保组状态与计数保持一致
-            updatedGroup.status = calculateGroupStatus(updatedGroup);
-
-            newGroups[currentGroupIndex] = updatedGroup;
-
-            return {
-              groups: newGroups,
-              groupSessions: {
-                ...state.groupSessions,
-                [newSession.id]: newSession,
-              },
-            };
-          });
-
-          // 加载新会话的消息
-          await get().loadGroupSessionMessages(newSession.id);
-
-          console.log(
-            `[ChatStore] New empty session created: ${newSession.id}`,
+        } else if (newSessionIds[newCurrentSessionIndex]) {
+          // 如果是切换到现有会话，加载其消息
+          await get().loadGroupSessionMessages(
+            newSessionIds[newCurrentSessionIndex],
           );
         }
 
@@ -717,8 +706,12 @@ export const useChatStore = createPersistStore(
         }, 8000);
 
         // **显示带撤销选项的Toast**
+        const toastMessage = isLastSession
+          ? Locale.Chat.DeleteLastGroupSessionToast
+          : Locale.Chat.DeleteSessionToast;
+
         showToast(
-          Locale.Chat.DeleteMessageToast,
+          toastMessage,
           {
             text: Locale.Chat.Revert,
             onClick: restoreGroupSession,
@@ -1070,7 +1063,7 @@ export const useChatStore = createPersistStore(
 
         // **显示带撤销选项的Toast**
         showToast(
-          Locale.Chat.DeleteMessageToast,
+          Locale.Chat.DeleteSessionToast,
           {
             text: Locale.Chat.Revert,
             onClick: restoreSession,

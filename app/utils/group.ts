@@ -11,7 +11,7 @@ export function createEmptyGroup(): ChatGroup {
   const emptySession = createEmptySession();
   const group: ChatGroup = {
     id: nanoid(),
-    title: Locale.Store.DefaultGroupTitle,
+    title: Locale.Session.Title.DefaultGroup,
     sessionIds: [emptySession.id],
     messageCount: emptySession.messageCount,
     status: "normal",

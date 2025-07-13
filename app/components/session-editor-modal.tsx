@@ -29,7 +29,7 @@ export function SessionEditorModal(props: { onClose: () => void }) {
   return (
     <div className="modal-mask">
       <Modal
-        title={Locale.Chat.EditMessage.Title}
+        title={Locale.Chat.EditSession.Title}
         onClose={props.onClose}
         actions={[
           <IconButton
@@ -54,8 +54,8 @@ export function SessionEditorModal(props: { onClose: () => void }) {
       >
         <List>
           <ListItem
-            title={Locale.Chat.EditMessage.Topic.Title}
-            subTitle={Locale.Chat.EditMessage.Topic.SubTitle}
+            title={Locale.Chat.EditSession.SessionTitle.Title}
+            subTitle={Locale.Chat.EditSession.SessionTitle.SubTitle}
           >
             <input
               type="text"
@@ -80,7 +80,7 @@ export function SessionEditorModal(props: { onClose: () => void }) {
               bordered
               title={Locale.Chat.Actions.RefreshTitle}
               onClick={() => {
-                showToast(Locale.Chat.Actions.RefreshToast);
+                showToast(Locale.Chat.Actions.RefreshTitleToast);
                 chatStore.summarizeSession(true, session);
               }}
             />

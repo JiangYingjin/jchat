@@ -11,7 +11,7 @@ import { buildMultimodalContent } from "./chat";
 import { FALLBACK_MODEL } from "../constant";
 
 // 定义默认主题，避免循环依赖
-const DEFAULT_TOPIC = Locale.Store.DefaultTitle;
+const DEFAULT_TOPIC = Locale.Session.Title.Default;
 
 /**
  * 计算会话状态
@@ -193,7 +193,7 @@ export async function summarizeSession(
     const topicMessages = messages.concat(
       createMessage({
         role: "user",
-        content: Locale.Store.Prompt.Topic,
+        content: Locale.Session.Title.RefreshPrompt,
       }),
     );
     let topicContent: string | MultimodalContent[] = "";

@@ -226,7 +226,7 @@ function SearchBarComponent(
           onChange={(e) => handleChange(e.target.value)}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          placeholder={Locale.Home.Search}
+          placeholder={Locale.Search.Title}
         />
         {input.trim().length > 0 && (
           <IconButton

@@ -322,8 +322,6 @@ export async function stream(
           } catch {}
 
           if (res.status === 401) {
-            responseTexts.push(Locale.Error.Unauthorized);
-
             // 处理未授权响应：清空 accessCode 并跳转到 auth 页面
             if (
               typeof window !== "undefined" &&
@@ -511,8 +509,6 @@ export function streamWithThink(
           } catch {}
 
           if (res.status === 401) {
-            responseTexts.push(Locale.Error.Unauthorized);
-
             // 处理未授权响应：清空 accessCode 并跳转到 auth 页面
             if (
               typeof window !== "undefined" &&
