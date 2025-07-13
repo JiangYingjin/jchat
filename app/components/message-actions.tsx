@@ -20,8 +20,17 @@ export function MessageActions(props: {
   onUserStop: (messageId: string) => void;
   onBranch: (message: ChatMessage, index: number) => void;
   index: number;
+  showBranch?: boolean; // 新增：控制是否显示分支按钮
 }) {
-  const { message, onResend, onDelete, onUserStop, onBranch, index } = props;
+  const {
+    message,
+    onResend,
+    onDelete,
+    onUserStop,
+    onBranch,
+    index,
+    showBranch = true,
+  } = props;
 
   return (
     <div className={styles["chat-input-actions"]}>
@@ -52,12 +61,14 @@ export function MessageActions(props: {
             onClick={() => onDelete(message.id ?? index.toString())}
             alwaysFullWidth={false}
           />
-          <ChatAction
-            text={Locale.Chat.Actions.Branch}
-            icon={<BranchIcon />}
-            onClick={() => onBranch(message, index)}
-            alwaysFullWidth={false}
-          />
+          {showBranch && (
+            <ChatAction
+              text={Locale.Chat.Actions.Branch}
+              icon={<BranchIcon />}
+              onClick={() => onBranch(message, index)}
+              alwaysFullWidth={false}
+            />
+          )}
         </>
       )}
     </div>

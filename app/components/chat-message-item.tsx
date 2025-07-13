@@ -1,5 +1,5 @@
 import React, { Fragment, RefObject } from "react";
-import { ChatMessage } from "../store";
+import { ChatMessage, useChatStore } from "../store";
 import { getMessageTextContent, getMessageImages } from "../utils";
 import { MultimodalContent } from "../client/api";
 import { Markdown } from "./markdown";
@@ -47,6 +47,10 @@ export function ChatMessageItem({
   onEditMessage,
   handleTripleClick,
 }: ChatMessageItemProps) {
+  const chatStore = useChatStore();
+  const session = chatStore.currentSession();
+  const showBranch = !session.groupId; // 组内会话不显示分支按钮
+
   return (
     <Fragment key={message.id}>
       <div
@@ -77,6 +81,7 @@ export function ChatMessageItem({
                   onUserStop={onUserStop}
                   onBranch={onBranch}
                   index={index}
+                  showBranch={showBranch}
                 />
               </div>
             )}
@@ -210,6 +215,7 @@ export function ChatMessageItem({
                   onUserStop={onUserStop}
                   onBranch={onBranch}
                   index={index}
+                  showBranch={showBranch}
                 />
               </div>
             )}
