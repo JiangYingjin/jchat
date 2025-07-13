@@ -196,19 +196,14 @@ function Chat() {
   };
 
   const handleBatchApply = async (message: ChatMessage) => {
-    console.log("[BatchApply] 开始批量应用，消息ID:", message.id);
-    console.log("[BatchApply] 消息内容:", getMessageTextContent(message));
-
     // 只有组内会话才支持批量应用
     if (!session.groupId) {
-      console.log("[BatchApply] 不是组内会话，退出");
       showToast("只有组内会话支持批量应用功能");
       return;
     }
 
     // 只有用户消息才支持批量应用
     if (message.role !== "user") {
-      console.log("[BatchApply] 不是用户消息，退出");
       showToast("只有用户消息支持批量应用功能");
       return;
     }
@@ -216,60 +211,38 @@ function Chat() {
     try {
       // 解析消息的 batch id
       const parsedId = parseGroupMessageId(message.id);
-      console.log("[BatchApply] 解析的batchId:", parsedId);
 
       if (!parsedId.isValid) {
-        console.log("[BatchApply] 消息格式不支持批量应用");
         showToast("消息格式不支持批量应用");
         return;
       }
 
       const batchId = parsedId.batchId;
       const currentGroupId = session.groupId;
-      console.log(
-        "[BatchApply] 当前组ID:",
-        currentGroupId,
-        "batchId:",
-        batchId,
-      );
 
       // 获取当前组的所有会话
       const currentGroup = chatStore.groups.find(
         (g) => g.id === currentGroupId,
       );
       if (!currentGroup) {
-        console.log("[BatchApply] 无法找到当前组信息");
         showToast("无法找到当前组信息");
         return;
       }
 
-      console.log("[BatchApply] 组内会话数量:", currentGroup.sessionIds.length);
-      console.log("[BatchApply] 组内会话IDs:", currentGroup.sessionIds);
-
       // 遍历组内所有会话
       for (const sessionId of currentGroup.sessionIds) {
-        console.log("[BatchApply] 处理会话:", sessionId);
-
         // 跳过当前会话
         if (sessionId === session.id) {
-          console.log("[BatchApply] 跳过当前会话:", sessionId);
           continue;
         }
 
         const targetSession = chatStore.groupSessions[sessionId];
         if (!targetSession) {
-          console.warn(`[BatchApply] Session ${sessionId} not found`);
           continue;
         }
 
-        console.log(
-          "[BatchApply] 目标会话消息数量:",
-          targetSession.messages.length,
-        );
-
         // 确保目标会话的消息已加载
         if (!targetSession.messages || targetSession.messages.length === 0) {
-          console.log("[BatchApply] 加载目标会话消息:", sessionId);
           await chatStore.loadGroupSessionMessages(sessionId);
         }
 
@@ -279,28 +252,12 @@ function Chat() {
           return parsed.isValid && parsed.batchId === batchId;
         });
 
-        console.log(
-          "[BatchApply] 查找结果 - existingMessageIndex:",
-          existingMessageIndex,
-        );
-
         if (existingMessageIndex !== -1) {
-          console.log("[BatchApply] 找到相同batchId的消息，开始同步内容");
-
           // 找到相同 batch id 的消息，只更新内容，不重复发送
           const existingMessage = targetSession.messages[existingMessageIndex];
-          console.log("[BatchApply] 现有消息ID:", existingMessage.id);
-          console.log(
-            "[BatchApply] 现有消息内容:",
-            getMessageTextContent(existingMessage),
-          );
 
           // 同步消息内容
           chatStore.updateGroupSession(targetSession, (session) => {
-            console.log(
-              "[BatchApply] 更新消息内容，索引:",
-              existingMessageIndex,
-            );
             session.messages[existingMessageIndex] = {
               ...existingMessage,
               content: message.content,
@@ -310,31 +267,18 @@ function Chat() {
 
           // 保存更新后的消息
           await chatStore.saveSessionMessages(targetSession);
-          console.log("[BatchApply] 消息内容同步完成，不发送新请求");
 
           // 注意：这里不调用 onSendMessage，因为消息已经存在，只需要同步内容
           // 如果需要重新生成回复，用户可以在目标会话中手动重试
         } else {
-          console.log("[BatchApply] 没有找到相同batchId的消息，添加新消息");
-
           // 没有找到相同 batch id 的消息，直接调用 onSendMessage 添加新消息
           // 注意：不要手动添加消息，让 onSendMessage 来处理
           const textContent = getMessageTextContent(message);
           const images = getMessageImages(message);
-          console.log("[BatchApply] 准备发送的内容:", textContent);
-          console.log("[BatchApply] 准备发送的图片数量:", images.length);
 
           // 直接调用 onSendMessage，让它处理消息的添加和发送
           const updatedSession = chatStore.groupSessions[sessionId];
           if (updatedSession) {
-            console.log(
-              "[BatchApply] 准备调用onSendMessage，目标会话ID:",
-              sessionId,
-            );
-            console.log(
-              "[BatchApply] 调用前目标会话消息数量:",
-              updatedSession.messages.length,
-            );
             chatStore.onSendMessage(
               textContent,
               images,
@@ -342,16 +286,127 @@ function Chat() {
               sessionId,
               batchId,
             );
-            console.log("[BatchApply] onSendMessage调用完成");
           }
         }
       }
 
-      console.log("[BatchApply] 批量应用完成");
       showToast("批量应用完成");
     } catch (error) {
       console.error("[BatchApply] Failed to apply batch:", error);
       showToast("批量应用失败，请重试");
+    }
+  };
+
+  const handleBatchDelete = async (message: ChatMessage) => {
+    // 只有组内会话才支持批量删除
+    if (!session.groupId) {
+      showToast("只有组内会话支持批量删除功能");
+      return;
+    }
+
+    // 只有用户消息才支持批量删除
+    if (message.role !== "user") {
+      showToast("只有用户消息支持批量删除功能");
+      return;
+    }
+
+    try {
+      // 解析消息的 batch id
+      const parsedId = parseGroupMessageId(message.id);
+
+      if (!parsedId.isValid) {
+        showToast("消息格式不支持批量删除");
+        return;
+      }
+
+      const batchId = parsedId.batchId;
+      const currentGroupId = session.groupId;
+
+      // 获取当前组的所有会话
+      const currentGroup = chatStore.groups.find(
+        (g) => g.id === currentGroupId,
+      );
+      if (!currentGroup) {
+        showToast("无法找到当前组信息");
+        return;
+      }
+
+      // 保存删除前的所有会话状态用于撤销
+      const restoreStates: { [sessionId: string]: ChatMessage[] } = {};
+
+      // 遍历组内所有会话，删除相同 batch id 的消息
+      for (const sessionId of currentGroup.sessionIds) {
+        const targetSession = chatStore.groupSessions[sessionId];
+        if (!targetSession) {
+          continue;
+        }
+
+        // 确保目标会话的消息已加载
+        if (!targetSession.messages || targetSession.messages.length === 0) {
+          await chatStore.loadGroupSessionMessages(sessionId);
+        }
+
+        // 保存删除前的消息状态
+        restoreStates[sessionId] = [...targetSession.messages];
+
+        // 查找并删除相同 batch id 的消息
+        const messagesToDelete = targetSession.messages.filter((m) => {
+          const parsed = parseGroupMessageId(m.id);
+          return parsed.isValid && parsed.batchId === batchId;
+        });
+
+        if (messagesToDelete.length > 0) {
+          // 删除相同 batch id 的消息
+          chatStore.updateGroupSession(targetSession, (session) => {
+            session.messages = session.messages.filter((m) => {
+              const parsed = parseGroupMessageId(m.id);
+              return !parsed.isValid || parsed.batchId !== batchId;
+            });
+            updateSessionStats(session);
+          });
+
+          // 保存更新后的消息
+          await chatStore.saveSessionMessages(targetSession);
+
+          // 异步更新包含系统提示词的完整统计信息
+          const updatedSession = chatStore.groupSessions[sessionId];
+          if (updatedSession) {
+            await updateSessionStatsAsync(updatedSession);
+            chatStore.updateGroupSession(updatedSession, () => {});
+          }
+        }
+      }
+
+      showToast(
+        Locale.Chat.BatchDeleteToast,
+        {
+          text: Locale.Chat.Revert,
+          async onClick() {
+            // 撤销删除操作
+            for (const sessionId of Object.keys(restoreStates)) {
+              const targetSession = chatStore.groupSessions[sessionId];
+              if (targetSession) {
+                chatStore.updateGroupSession(targetSession, (session) => {
+                  session.messages = restoreStates[sessionId];
+                  updateSessionStats(session);
+                });
+                await chatStore.saveSessionMessages(targetSession);
+
+                // 异步更新包含系统提示词的完整统计信息
+                const updatedSession = chatStore.groupSessions[sessionId];
+                if (updatedSession) {
+                  await updateSessionStatsAsync(updatedSession);
+                  chatStore.updateGroupSession(updatedSession, () => {});
+                }
+              }
+            }
+          },
+        },
+        5000,
+      );
+    } catch (error) {
+      console.error("[BatchDelete] Failed to delete batch:", error);
+      showToast(Locale.Chat.Actions.BatchDeleteFailed);
     }
   };
 
@@ -561,6 +616,7 @@ function Chat() {
               onUserStop={onUserStop}
               onBranch={handleBranch}
               onBatchApply={handleBatchApply}
+              onBatchDelete={handleBatchDelete}
               onEditMessage={handleEditMessage}
               handleTripleClick={handleTripleClick}
               autoScroll={autoScroll}

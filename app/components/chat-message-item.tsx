@@ -22,6 +22,7 @@ interface ChatMessageItemProps {
   onUserStop: (messageId: string) => void;
   onBranch: (message: ChatMessage, index: number) => void;
   onBatchApply: (message: ChatMessage) => void; // 新增：批量应用回调
+  onBatchDelete: (message: ChatMessage) => void; // 新增：批量删除回调
   onEditMessage: (
     message: ChatMessage,
     type?: "content" | "reasoningContent",
@@ -46,6 +47,7 @@ export function ChatMessageItem({
   onUserStop,
   onBranch,
   onBatchApply,
+  onBatchDelete,
   onEditMessage,
   handleTripleClick,
 }: ChatMessageItemProps) {
@@ -83,9 +85,11 @@ export function ChatMessageItem({
                   onUserStop={onUserStop}
                   onBranch={onBranch}
                   onBatchApply={onBatchApply}
+                  onBatchDelete={onBatchDelete}
                   index={index}
                   showBranch={showBranch}
                   showBatchApply={!!session.groupId} // 只有组内会话显示批量应用按钮
+                  showBatchDelete={!!session.groupId} // 只有组内会话显示批量删除按钮
                 />
               </div>
             )}
@@ -219,6 +223,7 @@ export function ChatMessageItem({
                   onUserStop={onUserStop}
                   onBranch={onBranch}
                   onBatchApply={onBatchApply}
+                  onBatchDelete={onBatchDelete}
                   index={index}
                   showBranch={showBranch}
                   showBatchApply={!!session.groupId} // 只有组内会话显示批量应用按钮

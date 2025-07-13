@@ -21,9 +21,11 @@ export function MessageActions(props: {
   onUserStop: (messageId: string) => void;
   onBranch: (message: ChatMessage, index: number) => void;
   onBatchApply: (message: ChatMessage) => void; // 新增：批量应用回调
+  onBatchDelete: (message: ChatMessage) => void; // 新增：批量删除回调
   index: number;
   showBranch?: boolean; // 新增：控制是否显示分支按钮
   showBatchApply?: boolean; // 新增：控制是否显示批量应用按钮
+  showBatchDelete?: boolean; // 新增：控制是否显示批量删除按钮
 }) {
   const {
     message,
@@ -32,9 +34,11 @@ export function MessageActions(props: {
     onUserStop,
     onBranch,
     onBatchApply,
+    onBatchDelete,
     index,
     showBranch = true,
     showBatchApply = true,
+    showBatchDelete = true,
   } = props;
 
   return (
@@ -79,6 +83,14 @@ export function MessageActions(props: {
               text={Locale.Chat.Actions.BatchApply}
               icon={<GroupIcon />}
               onClick={() => onBatchApply(message)}
+              alwaysFullWidth={false}
+            />
+          )}
+          {showBatchDelete && (
+            <DoubleClickChatAction
+              text={Locale.Chat.Actions.BatchDelete}
+              icon={<DeleteIcon />}
+              onClick={() => onBatchDelete(message)}
               alwaysFullWidth={false}
             />
           )}

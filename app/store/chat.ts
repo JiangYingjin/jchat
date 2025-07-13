@@ -1272,11 +1272,6 @@ export const useChatStore = createPersistStore(
         targetSessionId?: string, // 新增：指定目标会话ID
         batchId?: string, // 新增：指定batchId，用于批量应用
       ) {
-        console.log("[onSendMessage] 开始发送消息");
-        console.log("[onSendMessage] 内容:", content);
-        console.log("[onSendMessage] 图片数量:", attachImages?.length || 0);
-        console.log("[onSendMessage] messageIdx:", messageIdx);
-        console.log("[onSendMessage] targetSessionId:", targetSessionId);
         // 根据 targetSessionId 获取目标会话，如果没有指定则使用当前会话
         let session: ChatSession;
         if (targetSessionId) {
@@ -1286,22 +1281,18 @@ export const useChatStore = createPersistStore(
             (s) => s.id === targetSessionId,
           );
           session = groupSession || normalSession || get().currentSession();
-          console.log("[onSendMessage] 使用指定会话:", session.id);
         } else {
           session = get().currentSession();
-          console.log("[onSendMessage] 使用当前会话:", session.id);
         }
 
         // 确保消息已加载
         if (!session.messages || session.messages.length === 0) {
-          console.log("[onSendMessage] 消息未加载，开始加载");
           if (session.groupId) {
             await get().loadGroupSessionMessages(session.id);
           } else {
             await get().loadSessionMessages(get().currentSessionIndex);
           }
         }
-        console.log("[onSendMessage] 会话消息数量:", session.messages.length);
 
         let mContent: string | MultimodalContent[] = content;
 
@@ -1339,10 +1330,6 @@ export const useChatStore = createPersistStore(
           finalBatchId,
         );
 
-        console.log("[onSendMessage] 创建的用户消息ID:", userMessage.id);
-        console.log("[onSendMessage] 创建的模型消息ID:", modelMessage.id);
-        console.log("[onSendMessage] batchId:", finalBatchId);
-
         // get recent messages for the target session
         let recentMessages: ChatMessage[];
         if (targetSessionId && targetSessionId !== get().currentSession().id) {
@@ -1351,17 +1338,9 @@ export const useChatStore = createPersistStore(
             session,
             systemMessageStorage,
           );
-          console.log(
-            "[onSendMessage] 使用目标会话的消息，数量:",
-            recentMessages.length,
-          );
         } else {
           // 否则使用当前会话的消息（保持原有逻辑）
           recentMessages = await get().prepareMessagesForApi();
-          console.log(
-            "[onSendMessage] 使用当前会话的消息，数量:",
-            recentMessages.length,
-          );
         }
 
         let sendMessages = prepareSendMessages(
@@ -1369,15 +1348,10 @@ export const useChatStore = createPersistStore(
           userMessage,
           messageIdx,
         );
-        console.log("[onSendMessage] 准备发送的消息数量:", sendMessages.length);
 
         const messageIndex = session.messages.length + 1;
 
         // save user's and bot's message
-        console.log(
-          "[onSendMessage] 开始保存消息到会话，当前消息数量:",
-          session.messages.length,
-        );
 
         if (session.groupId) {
           get().updateGroupSession(session, (session) => {
@@ -1385,18 +1359,11 @@ export const useChatStore = createPersistStore(
               ...userMessage,
               content: mContent,
             };
-            const oldMessageCount = session.messages.length;
             session.messages = insertMessage(
               session.messages,
               savedUserMessage,
               modelMessage,
               messageIdx,
-            );
-            console.log(
-              "[onSendMessage] 组内会话消息数量变化:",
-              oldMessageCount,
-              "->",
-              session.messages.length,
             );
             updateSessionStats(session); // 先同步更新基础统计信息
           });
@@ -1406,18 +1373,11 @@ export const useChatStore = createPersistStore(
               ...userMessage,
               content: mContent,
             };
-            const oldMessageCount = session.messages.length;
             session.messages = insertMessage(
               session.messages,
               savedUserMessage,
               modelMessage,
               messageIdx,
-            );
-            console.log(
-              "[onSendMessage] 普通会话消息数量变化:",
-              oldMessageCount,
-              "->",
-              session.messages.length,
             );
             updateSessionStats(session); // 先同步更新基础统计信息
           });

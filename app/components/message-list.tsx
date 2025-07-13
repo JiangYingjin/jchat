@@ -14,6 +14,7 @@ interface MessageListProps {
   onUserStop: (messageId: string) => void;
   onBranch: (message: ChatMessage, index: number) => void;
   onBatchApply: (message: ChatMessage) => void; // 新增：批量应用回调
+  onBatchDelete: (message: ChatMessage) => void; // 新增：批量删除回调
   onEditMessage: (
     message: ChatMessage,
     type?: "content" | "reasoningContent",
@@ -35,6 +36,7 @@ export function MessageList({
   onUserStop,
   onBranch,
   onBatchApply,
+  onBatchDelete,
   onEditMessage,
   handleTripleClick,
   autoScroll,
@@ -190,6 +192,7 @@ export function MessageList({
             onUserStop={onUserStop}
             onBranch={onBranch}
             onBatchApply={onBatchApply}
+            onBatchDelete={onBatchDelete}
             onEditMessage={onEditMessage}
             handleTripleClick={handleTripleClick}
           />

@@ -40,6 +40,8 @@ const cn = {
       RefreshTitle: "刷新标题",
       RefreshTitleToast: "已发送刷新标题请求",
       BatchApply: "应用",
+      BatchDelete: "批量删除",
+      BatchDeleteFailed: "批量删除失败，请重试",
     },
     InputActions: {
       UploadImage: "上传图片",
@@ -49,6 +51,7 @@ const cn = {
     DeleteSessionToast: "会话已删除",
     DeleteLastGroupSessionToast: "会话已删除，右键可删除组会话",
     DeleteGroupToast: "组已删除",
+    BatchDeleteToast: "批量删除完成",
     Revert: "撤销",
   },
   Export: {
