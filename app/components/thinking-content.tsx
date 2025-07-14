@@ -35,7 +35,7 @@ export function ThinkingContent({
 
   useEffect(() => {
     if (isThinking && thinkingContentRef.current) {
-      requestAnimationFrame(() => {});
+      requestAnimationFrame((session) => {});
     }
   }, [thinkingContent, isThinking, expanded]);
 

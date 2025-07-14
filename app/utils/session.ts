@@ -18,8 +18,9 @@ const DEFAULT_TOPIC = Locale.Session.Title.Default;
  * 计算会话状态
  */
 export function calculateSessionStatus(
-  messages: ChatMessage[],
+  session: ChatSession,
 ): "normal" | "error" | "pending" {
+  const messages = session.messages;
   if (messages.length === 0) return "normal";
   const lastMessage = messages[messages.length - 1];
   // 如果最后一条消息有错误，返回错误状态
@@ -33,43 +34,20 @@ export function calculateSessionStatus(
 /**
  * 更新会话计数和状态
  */
-export function updateSessionStats(session: ChatSession): void {
-  // 基础消息数量
-  const baseMessageCount = session.messages.length;
-  // 检查系统提示词是否存在且有效
-  // 由于这是同步函数，我们使用一个简单的检查方式
-  // 系统提示词存储在 IndexedDB 中，这里我们暂时只计算基础消息数量
-  // 实际的系统提示词检查将在异步场景中处理
-  session.messageCount = baseMessageCount;
-  session.status = calculateSessionStatus(session.messages);
+export function updateSessionStatsBasic(session: ChatSession): void {
+  // 系统提示词存储在 IndexedDB 中，这里我们暂时只计算基础消息数量；实际的系统提示词检查将在异步场景中处理
+  session.messageCount = session.messages.length;
+  session.status = calculateSessionStatus(session);
 }
 
 /**
  * 异步更新会话计数和状态（包含系统提示词检查）
  */
-export async function updateSessionStatsAsync(
-  session: ChatSession,
-): Promise<void> {
-  // 基础消息数量
-  const baseMessageCount = session.messages.length;
-
+export async function updateSessionStats(session: ChatSession): Promise<void> {
+  session.messageCount = session.messages.length;
+  session.status = calculateSessionStatus(session);
   // 检查系统提示词是否存在且有效
-  let hasSystemPrompt = false;
-  try {
-    const systemData = await systemMessageStorage.get(session.id);
-    hasSystemPrompt =
-      systemData &&
-      (systemData.text.trim() !== "" || systemData.images.length > 0);
-  } catch (error) {
-    console.error("[updateSessionStatsAsync] 检查系统提示词失败:", error);
-    hasSystemPrompt = false;
-  }
-
-  // 如果系统提示词不为空，则 +1，否则为消息列表长度
-  session.messageCount = hasSystemPrompt
-    ? baseMessageCount + 1
-    : baseMessageCount;
-  session.status = calculateSessionStatus(session.messages);
+  if (await checkHasSystemPrompt(session.id)) session.messageCount += 1;
 }
 
 /**
@@ -94,17 +72,13 @@ export function createMessage(
     isGroupMessage = false;
   }
 
+  // 创建消息 ID
   let messageId: string;
-
-  if (isGroupMessage) {
-    // 组内会话使用格式：{12位batchId}_{21位messageId}
-    const finalBatchId = batchId || nanoid(12); // 使用传入的batchId或生成新的
-    const msgId = nanoid(21); // 21位messageId
-    messageId = `${finalBatchId}_${msgId}`;
-  } else {
-    // 普通会话使用原来的nanoid格式
-    messageId = nanoid();
-  }
+  const msgId = nanoid(21); // 21位messageId
+  // 组内会话使用格式：{12位batchId}_{21位messageId}
+  if (isGroupMessage) messageId = `${batchId || nanoid(12)}_${msgId}`;
+  // 普通会话使用格式：{21位messageId}
+  else messageId = msgId;
 
   return {
     id: messageId,
@@ -163,7 +137,7 @@ export function createBranchSession(
   newSession.isModelManuallySelected = originalSession.isModelManuallySelected;
   newSession.model = originalSession.model;
   // 更新消息计数和状态
-  updateSessionStats(newSession);
+  updateSessionStatsBasic(newSession);
   return newSession;
 }
 
@@ -172,40 +146,38 @@ export function createBranchSession(
  */
 export async function prepareMessagesForApi(
   session: ChatSession,
-  systemMessageStorage?: any,
 ): Promise<ChatMessage[]> {
-  const messages = session.messages.slice();
+  const messages = [...session.messages];
 
   // ========== system message 动态加载 ==========
   let systemPrompt: ChatMessage[] = [];
 
   // 直接从 systemMessageStorage 加载系统提示词，不依赖 messages 中的 system 消息
-  if (systemMessageStorage) {
-    try {
-      const storedData = await systemMessageStorage.get(session.id);
+  try {
+    const systemMessage = await systemMessageStorage.get(session.id);
 
-      // 只有当有有效内容时才创建 system 消息
-      if (
-        storedData &&
-        (storedData.text.trim() !== "" || storedData.images.length > 0)
-      ) {
-        // 使用新格式的数据构建 multimodalContent
-        const multimodalContent = buildMultimodalContent(
-          storedData.text,
-          storedData.images,
-        );
+    const hasSystemMessage =
+      systemMessage &&
+      (systemMessage.text.trim() !== "" || systemMessage.images.length > 0);
 
-        // 创建 system 消息（仅用于发送给 API，不存储在 session.messages 中）
-        systemPrompt = [
-          createMessage({
-            role: "system",
-            content: multimodalContent,
-          }),
-        ];
-      }
-    } catch (error) {
-      console.error("[prepareMessagesForApi] 加载系统提示词失败:", error);
+    // 只有当有有效内容时才创建 system 消息
+    if (hasSystemMessage) {
+      // 使用新格式的数据构建 multimodalContent
+      const mContent = buildMultimodalContent(
+        systemMessage.text,
+        systemMessage.images,
+      );
+
+      // 创建 system 消息（仅用于发送给 API，不存储在 session.messages 中）
+      systemPrompt = [
+        createMessage({
+          role: "system",
+          content: mContent,
+        }),
+      ];
     }
+  } catch (error) {
+    console.error("[prepareMessagesForApi] 加载系统提示词失败:", error);
   }
 
   // 获取所有消息（除了错误消息和系统消息）
@@ -383,4 +355,22 @@ export function filterOutUserMessageByBatchId(
     const parsed = parseGroupMessageId(m.id);
     return !(parsed.isValid && parsed.batchId === batchId && m.role === "user");
   });
+}
+
+/**
+ * 检查指定 sessionId 是否有有效的系统提示词
+ */
+export async function checkHasSystemPrompt(
+  sessionId: string,
+): Promise<boolean> {
+  try {
+    const systemData = await systemMessageStorage.get(sessionId);
+    return !!(
+      systemData &&
+      (systemData.text.trim() !== "" || systemData.images.length > 0)
+    );
+  } catch (error) {
+    console.error("[checkHasSystemPrompt] 检查系统提示词失败:", error);
+    return false;
+  }
 }

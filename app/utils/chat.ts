@@ -396,14 +396,9 @@ export function buildMultimodalContent(
   text: string,
   images: string[] = [],
 ): MultimodalContent[] {
-  const result: MultimodalContent[] = [];
-  if (text && text.trim()) {
-    result.push({ type: "text", text: text.trim() });
-  }
-  for (const url of images) {
-    if (url) {
-      result.push({ type: "image_url", image_url: { url } });
-    }
-  }
-  return result;
+  const mContent: MultimodalContent[] = [];
+  if (text && text.trim()) mContent.push({ type: "text", text: text.trim() });
+  for (const url of images)
+    if (url) mContent.push({ type: "image_url", image_url: { url } });
+  return mContent;
 }

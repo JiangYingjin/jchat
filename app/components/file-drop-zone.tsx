@@ -106,13 +106,15 @@ export function FileDropZone({ children }: FileDropZoneProps) {
       });
 
       // 更新会话统计信息
-      const { updateSessionStatsAsync } = await import("../utils/session");
+      const { updateSessionStats: updateSessionStatsAsync } = await import(
+        "../utils/session"
+      );
       await updateSessionStatsAsync(session);
 
       if (session.groupId) {
-        chatStore.updateGroupSession(session, () => {});
+        chatStore.updateGroupSession(session, (session) => {});
       } else {
-        chatStore.updateSession(session, () => {});
+        chatStore.updateSession(session, (session) => {});
       }
     } catch (error) {
       console.error(`处理文件 ${file.name} 失败:`, error);

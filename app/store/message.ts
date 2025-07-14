@@ -50,11 +50,37 @@ class MessageStorage {
    * @param messages 消息数组
    */
   async save(sessionId: string, messages: ChatMessage[]): Promise<boolean> {
+    console.log("[MessageStorage] 💾 开始保存消息到 IndexedDB", {
+      sessionId,
+      messageCount: messages?.length || 0,
+      isClient: typeof window !== "undefined",
+      timestamp: new Date().toISOString(),
+    });
+
     try {
       const storage = this.getStorage();
       if (!storage) {
+        console.warn("[MessageStorage] ⚠️ 存储实例为空 (服务器端?)", {
+          sessionId,
+          isClient: typeof window !== "undefined",
+        });
         return false;
       }
+
+      console.log("[MessageStorage] 🔄 准备写入 IndexedDB", {
+        sessionId,
+        messageCount: messages?.length || 0,
+        messagesPreview:
+          messages?.slice(0, 3).map((m) => ({
+            id: m.id,
+            role: m.role,
+            streaming: m.streaming,
+            contentSnippet:
+              typeof m.content === "string"
+                ? m.content.substring(0, 50) + "..."
+                : `[Object: ${JSON.stringify(m.content).substring(0, 50)}...]`,
+          })) || [],
+      });
 
       // 添加超时处理
       const timeoutPromise = new Promise<never>((_, reject) => {
@@ -67,9 +93,23 @@ class MessageStorage {
       const savePromise = storage.setItem(sessionId, messages);
 
       await Promise.race([savePromise, timeoutPromise]);
+
+      console.log("[MessageStorage] ✅ 成功保存到 IndexedDB", {
+        sessionId,
+        messageCount: messages?.length || 0,
+        timestamp: new Date().toISOString(),
+      });
+
       return true;
     } catch (error) {
-      console.error(`[MessageStorage] 保存消息失败: ${sessionId}`, error);
+      console.error(`[MessageStorage] ❌ 保存消息失败: ${sessionId}`, error);
+      console.error("[MessageStorage] 错误详情:", {
+        sessionId,
+        messageCount: messages?.length || 0,
+        errorMessage: (error as Error)?.message || String(error),
+        errorStack: (error as Error)?.stack,
+        isClient: typeof window !== "undefined",
+      });
       console.error("[MessageStorage] 如果问题持续存在，请重启浏览器重试");
       return false;
     }

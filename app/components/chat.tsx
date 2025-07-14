@@ -12,7 +12,7 @@ import {
   ChatSession,
 } from "../store";
 import { useSubmitHandler, useTripleClick } from "../utils/hooks";
-import { updateSessionStats, updateSessionStatsAsync } from "../utils/session";
+import { updateSessionStatsBasic, updateSessionStats } from "../utils/session";
 import {
   useMobileScreen,
   getMessageTextContent,
@@ -111,8 +111,34 @@ function Chat() {
 
   const handleSubmit = (text: string, images: string[]) => {
     if (text.trim() === "" && isEmpty(images)) return;
+
+    console.log("[Chat] 🚀 开始发送消息", {
+      sessionId: session.id,
+      textLength: text.trim().length,
+      imageCount: images.length,
+      isGroupSession: !!session.groupId,
+      currentMessageCount: session.messages?.length || 0,
+    });
+
     setIsLoading(true);
-    chatStore.onSendMessage(text, images).then(() => setIsLoading(false));
+    chatStore
+      .onSendMessage(text, images)
+      .then(async () => {
+        console.log("[Chat] ✅ 消息发送完成", {
+          sessionId: session.id,
+          step: "handleSubmit-complete",
+        });
+        setIsLoading(false);
+        // onSendMessage 内部已经正确处理了消息保存，无需重复保存
+      })
+      .catch((error) => {
+        console.error("[Chat] ❌ 消息发送失败", {
+          sessionId: session.id,
+          error: error.message,
+          step: "handleSubmit-error",
+        });
+        setIsLoading(false);
+      });
     setAutoScroll(true);
   };
 
@@ -146,25 +172,30 @@ function Chat() {
 
     chatStore
       .onSendMessage(textContent, images, requestIndex, undefined, newBatchId)
-      .then(() => setIsLoading(false));
+      .then(async () => {
+        setIsLoading(false);
+        // onSendMessage 内部已经正确处理了消息保存，无需重复保存
+      });
   };
 
   const deleteMessage = async (msgId?: string) => {
     updateSession((session) => {
       session.messages = session.messages.filter((m) => m.id !== msgId);
-      updateSessionStats(session); // 先同步更新基础统计信息
+      updateSessionStatsBasic(session); // 先同步更新基础统计信息
     });
-    await chatStore.saveSessionMessages(session);
+
+    // 获取最新的 session 对象后再保存
+    const currentSession = chatStore.currentSession();
+    await chatStore.saveSessionMessages(currentSession);
 
     // 异步更新包含系统提示词的完整统计信息
-    const currentSession = chatStore.currentSession();
-    await updateSessionStatsAsync(currentSession);
+    await updateSessionStats(currentSession);
 
     // 根据会话类型更新状态
     if (currentSession.groupId) {
-      chatStore.updateGroupSession(currentSession, () => {});
+      chatStore.updateGroupSession(currentSession, (session) => {});
     } else {
-      chatStore.updateSession(currentSession, () => {});
+      chatStore.updateSession(currentSession, (session) => {});
     }
   };
 
@@ -178,19 +209,21 @@ function Chat() {
         async onClick() {
           updateSession((session) => {
             session.messages = prevMessages;
-            updateSessionStats(session); // 先同步更新基础统计信息
+            updateSessionStatsBasic(session); // 先同步更新基础统计信息
           });
-          await chatStore.saveSessionMessages(session);
+
+          // 获取最新的 session 对象后再保存
+          const currentSession = chatStore.currentSession();
+          await chatStore.saveSessionMessages(currentSession);
 
           // 异步更新包含系统提示词的完整统计信息
-          const currentSession = chatStore.currentSession();
-          await updateSessionStatsAsync(currentSession);
+          await updateSessionStats(currentSession);
 
           // 根据会话类型更新状态
           if (currentSession.groupId) {
-            chatStore.updateGroupSession(currentSession, () => {});
+            chatStore.updateGroupSession(currentSession, (session) => {});
           } else {
-            chatStore.updateSession(currentSession, () => {});
+            chatStore.updateSession(currentSession, (session) => {});
           }
         },
       },
@@ -327,11 +360,14 @@ function Chat() {
             // 删除模型回复消息，因为要重新生成
             chatStore.updateGroupSession(targetSession, (session) => {
               session.messages.splice(nextMessageIndex, 1);
-              updateSessionStats(session);
+              updateSessionStatsBasic(session);
             });
 
-            // 保存更新后的消息
-            await chatStore.saveSessionMessages(targetSession);
+            // 获取最新的会话对象后保存
+            const updatedTargetSession = chatStore.groupSessions[sessionId];
+            if (updatedTargetSession) {
+              await chatStore.saveSessionMessages(updatedTargetSession);
+            }
           }
 
           // 更新用户消息内容
@@ -340,11 +376,14 @@ function Chat() {
               ...session.messages[existingUserMsgIndex],
               content: message.content,
             };
-            updateSessionStats(session);
+            updateSessionStatsBasic(session);
           });
 
-          // 保存更新后的消息
-          await chatStore.saveSessionMessages(targetSession);
+          // 获取最新的会话对象后保存
+          const updatedTargetSession2 = chatStore.groupSessions[sessionId];
+          if (updatedTargetSession2) {
+            await chatStore.saveSessionMessages(updatedTargetSession2);
+          }
 
           // 重新发送消息（类似重试）
           // 用户消息使用原始的用户 batch id，模型消息使用模型回复消息的 batch id
@@ -471,17 +510,20 @@ function Chat() {
               const parsed = parseGroupMessageId(m.id);
               return !parsed.isValid || parsed.batchId !== batchId;
             });
-            updateSessionStats(session);
+            updateSessionStatsBasic(session);
           });
 
-          // 保存更新后的消息
-          await chatStore.saveSessionMessages(targetSession);
+          // 获取最新的会话对象后保存
+          const updatedTargetSession = chatStore.groupSessions[sessionId];
+          if (updatedTargetSession) {
+            await chatStore.saveSessionMessages(updatedTargetSession);
+          }
 
           // 异步更新包含系统提示词的完整统计信息
           const updatedSession = chatStore.groupSessions[sessionId];
           if (updatedSession) {
-            await updateSessionStatsAsync(updatedSession);
-            chatStore.updateGroupSession(updatedSession, () => {});
+            await updateSessionStats(updatedSession);
+            chatStore.updateGroupSession(updatedSession, (session) => {});
           }
         }
       }
@@ -497,15 +539,20 @@ function Chat() {
               if (targetSession) {
                 chatStore.updateGroupSession(targetSession, (session) => {
                   session.messages = restoreStates[sessionId];
-                  updateSessionStats(session);
+                  updateSessionStatsBasic(session);
                 });
-                await chatStore.saveSessionMessages(targetSession);
+
+                // 获取最新的会话对象后保存
+                const updatedTargetSession = chatStore.groupSessions[sessionId];
+                if (updatedTargetSession) {
+                  await chatStore.saveSessionMessages(updatedTargetSession);
+                }
 
                 // 异步更新包含系统提示词的完整统计信息
                 const updatedSession = chatStore.groupSessions[sessionId];
                 if (updatedSession) {
-                  await updateSessionStatsAsync(updatedSession);
-                  chatStore.updateGroupSession(updatedSession, () => {});
+                  await updateSessionStats(updatedSession);
+                  chatStore.updateGroupSession(updatedSession, (session) => {});
                 }
               }
             }
@@ -559,13 +606,13 @@ function Chat() {
 
     // 等待系统提示词保存完成后再更新会话统计信息
     const currentSession = chatStore.currentSession();
-    await updateSessionStatsAsync(currentSession);
+    await updateSessionStats(currentSession);
 
     // 根据会话类型更新状态
     if (currentSession.groupId) {
-      chatStore.updateGroupSession(currentSession, () => {});
+      chatStore.updateGroupSession(currentSession, (session) => {});
     } else {
-      chatStore.updateSession(currentSession, () => {});
+      chatStore.updateSession(currentSession, (session) => {});
     }
   };
 
