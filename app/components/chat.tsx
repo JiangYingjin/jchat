@@ -247,15 +247,40 @@ function Chat() {
       return;
     }
 
-    // 只有用户消息才支持批量应用
-    if (message.role !== "user") {
-      showToast("只有用户消息支持批量应用功能");
+    let anchorUserMessage: ChatMessage | undefined = undefined;
+    let anchorMessage: ChatMessage = message;
+    let isAssistant = false;
+
+    if (message.role === "assistant") {
+      // 查找上一个用户消息
+      const idx = session.messages.findIndex((m) => m.id === message.id);
+      if (idx === -1) {
+        showToast("无法找到当前模型消息");
+        return;
+      }
+      // 向上查找第一个用户消息
+      for (let i = idx - 1; i >= 0; --i) {
+        if (session.messages[i].role === "user") {
+          anchorUserMessage = session.messages[i];
+          break;
+        }
+      }
+      if (!anchorUserMessage) {
+        showToast("缺失对应用户消息，无法批量应用");
+        return;
+      }
+      anchorMessage = anchorUserMessage;
+      isAssistant = true;
+    } else if (message.role === "user") {
+      anchorUserMessage = message;
+    } else {
+      showToast("只有用户消息或模型消息支持批量应用");
       return;
     }
 
     try {
       // 解析消息的 batch id
-      const parsedId = parseGroupMessageId(message.id);
+      const parsedId = parseGroupMessageId(anchorMessage.id);
 
       if (!parsedId.isValid) {
         showToast("消息格式不支持批量应用");
@@ -274,12 +299,10 @@ function Chat() {
         return;
       }
 
-      // 首先检查当前会话是否有对应的模型回复消息
-      // 找到用户消息在消息列表中的位置
+      // 找到 anchor 用户消息在消息列表中的位置
       const userMessageIndex = session.messages.findIndex(
-        (m) => m.id === message.id,
+        (m) => m.id === anchorMessage.id,
       );
-
       if (userMessageIndex === -1) {
         showToast("无法找到用户消息");
         return;
@@ -319,8 +342,8 @@ function Chat() {
         // 这样会自动处理：
         // 1. 如果找到现有的 batchId 消息，更新用户消息内容，删除模型消息，插入新的模型消息
         // 2. 如果没找到，追加到末尾
-        const textContent = getMessageTextContent(message);
-        const images = getMessageImages(message);
+        const textContent = getMessageTextContent(anchorMessage);
+        const images = getMessageImages(anchorMessage);
 
         await chatStore.onSendMessage(
           textContent,

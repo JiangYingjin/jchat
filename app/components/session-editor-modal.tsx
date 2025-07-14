@@ -86,15 +86,17 @@ export function SessionEditorModal(props: { onClose: () => void }) {
             />
           </ListItem>
         </List>
-        <MessageListEditor
-          context={messages}
-          updateContext={(updater) => {
-            const newMessages = messages.slice();
-            updater(newMessages);
-            setMessages(newMessages);
-          }}
-          onModalClose={props.onClose}
-        />
+        {!isGroupSession && (
+          <MessageListEditor
+            context={messages}
+            updateContext={(updater) => {
+              const newMessages = messages.slice();
+              updater(newMessages);
+              setMessages(newMessages);
+            }}
+            onModalClose={props.onClose}
+          />
+        )}
       </Modal>
     </div>
   );
