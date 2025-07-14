@@ -235,47 +235,42 @@ export async function prepareMessagesForApi(
  */
 export async function generateSessionTitle(
   session: ChatSession,
-  refreshTitle: boolean = false,
-  onTopicUpdate?: (topic: string) => void,
+  forceRefresh: boolean = false,
+  onSessionTitleUpdate?: (topic: string) => void,
 ): Promise<void> {
-  // 直接使用全局默认模型进行总结
-  const chatStore = useChatStore.getState();
-  const model = chatStore.models[0];
-
-  const api: ClientApi = getClientApi();
-
-  // remove error messages if any
-  const messages = session.messages;
-
-  // should summarize topic after chating more than 50 words
   const TRIGGER_MIN_LEN = 50;
-  if (
-    ((session.title === DEFAULT_TOPIC ||
-      session.title === Locale.Session.Title.DefaultGroup) &&
-      calculateMessagesTextLength(messages) >= TRIGGER_MIN_LEN) ||
-    refreshTitle
-  ) {
-    const topicMessages = messages.concat(
-      createMessage({
-        role: "user",
-        content: Locale.Session.Title.RefreshPrompt,
-      }),
-    );
-    let topicContent: string | MultimodalContent[] = "";
+
+  const model = useChatStore.getState().models[0];
+  const api: ClientApi = getClientApi();
+  const messages = session.messages.slice();
+
+  // 触发条件判断
+  const isDefaultTitle =
+    session.title === DEFAULT_TOPIC ||
+    session.title === Locale.Session.Title.DefaultGroup;
+
+  const messagesTextLengthReached =
+    calculateMessagesTextLength(messages) >= TRIGGER_MIN_LEN;
+
+  if ((isDefaultTitle && messagesTextLengthReached) || forceRefresh) {
+    // 会话标题
+    let sessionTitle: string | MultimodalContent[] = "";
 
     api.llm.chat({
-      messages: topicMessages,
-      config: {
-        model,
-        stream: true,
-      },
+      messages: messages.concat(
+        createMessage({
+          role: "user",
+          content: Locale.Session.Title.RefreshPrompt,
+        }),
+      ),
+      model,
       onUpdate(message) {
         if (message) {
-          topicContent = message;
+          sessionTitle = message;
         }
       },
       onFinish(message, responseRes, usage) {
-        const finalMessage = message || topicContent;
+        const finalMessage = message || sessionTitle;
         if (responseRes?.status === 200 && finalMessage) {
           // 根据原始会话标题类型选择正确的默认标题
           const fallbackTitle =
@@ -283,11 +278,11 @@ export async function generateSessionTitle(
               ? Locale.Session.Title.DefaultGroup
               : DEFAULT_TOPIC;
 
-          const newTopic =
+          const newTitle =
             finalMessage.length > 0
               ? trimTopic(getTextContent(finalMessage))
               : fallbackTitle;
-          onTopicUpdate?.(newTopic);
+          onSessionTitleUpdate?.(newTitle);
         }
       },
     });

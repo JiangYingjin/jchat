@@ -30,14 +30,9 @@ export interface RequestMessage {
   reasoningContent?: string;
 }
 
-export interface LLMConfig {
-  model: string;
-  stream?: boolean;
-}
-
 export interface ChatOptions {
   messages: RequestMessage[];
-  config: LLMConfig;
+  model: string;
 
   onUpdate?: (message: string | MultimodalContent[], chunk: string) => void;
   onReasoningUpdate?: (message: string, chunk: string) => void;

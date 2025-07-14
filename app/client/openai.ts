@@ -56,64 +56,41 @@ export class OpenAIApi implements LLMApi {
       // 2. 构建请求体
       const requestPayload: RequestPayload = {
         messages,
-        stream: options.config.stream,
-        model:
-          options.config.model ||
-          useChatStore.getState().currentSession().model,
-        max_tokens: 8000, // 保持硬编码的 max_tokens
+        model: options.model || useChatStore.getState().currentSession().model,
+        max_tokens: 8000,
+        stream: true,
       };
 
       console.log("[Request] openai payload: ", requestPayload);
 
       const chatPath = this.path(OpenaiPath.ChatPath);
       const headers = getHeaders();
-      const shouldStream = !!options.config.stream;
 
-      if (shouldStream) {
-        // 3. 流式请求逻辑
-        streamWithThink(
-          chatPath,
-          requestPayload,
-          headers,
-          controller,
-          // 简化的 SSE 解析逻辑
-          (text: string) => {
-            const json = JSON.parse(text);
-            const delta = json.choices?.[0]?.delta;
-            if (!delta) return { isThinking: false, content: "" };
+      // 流式请求逻辑
+      streamWithThink(
+        chatPath,
+        requestPayload,
+        headers,
+        controller,
+        // 简化的 SSE 解析逻辑
+        (text: string) => {
+          const json = JSON.parse(text);
+          const delta = json.choices?.[0]?.delta;
+          if (!delta) return { isThinking: false, content: "" };
 
-            const reasoning = delta.reasoning_content || delta.reasoning;
-            const content = delta.content;
+          const reasoning = delta.reasoning_content || delta.reasoning;
+          const content = delta.content;
 
-            if (reasoning) {
-              return { isThinking: true, content: reasoning };
-            }
-            if (content) {
-              return { isThinking: false, content: content };
-            }
-            return { isThinking: false, content: "" };
-          },
-          options,
-        );
-      } else {
-        // 4. 非流式请求逻辑
-        const requestTimeoutId = setTimeout(
-          () => controller.abort(),
-          getTimeoutMSByModel(options.config.model),
-        );
-
-        const res = await fetch(chatPath, {
-          method: "POST",
-          body: JSON.stringify(requestPayload),
-          signal: controller.signal,
-          headers,
-        });
-        clearTimeout(requestTimeoutId);
-
-        const resJson = await res.json();
-        const message = this.extractMessage(resJson); // 移除了不必要的 await
-        options.onFinish(message, res, resJson.usage);
-      }
+          if (reasoning) {
+            return { isThinking: true, content: reasoning };
+          }
+          if (content) {
+            return { isThinking: false, content: content };
+          }
+          return { isThinking: false, content: "" };
+        },
+        options,
+      );
     } catch (e) {
       console.error("[Request] failed to make a chat request", e);
       options.onError?.(e as Error);
