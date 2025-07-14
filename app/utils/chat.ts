@@ -9,13 +9,12 @@ import {
   RequestMessage,
   MessageContentItem,
 } from "@/app/client/api";
-import Locale from "@/app/locales";
+import { RequestPayload } from "@/app/client/openai";
 import {
   EventStreamContentType,
   fetchEventSource,
 } from "@fortaine/fetch-event-source";
 import { prettyObject } from "./format";
-import { getMessageTextContent } from "../utils";
 
 declare global {
   interface Window {
@@ -81,7 +80,7 @@ export function compressImage(file: Blob, maxSize: number): Promise<string> {
   });
 }
 
-export async function preProcessImageContent(
+export async function convertImageUrlsToBase64(
   content: RequestMessage["content"],
 ) {
   if (typeof content === "string") {
@@ -181,210 +180,14 @@ export function uploadImage(file: Blob): Promise<string> {
     });
 }
 
-export function removeImage(imageUrl: string) {
-  console.log("[Remove] Removing image:", imageUrl);
-  return fetch(imageUrl, {
-    method: "DELETE",
-    mode: "cors",
-    credentials: "include",
-  })
-    .then((res) => {
-      console.log("[Remove] Response status:", res.status);
-      if (!res.ok && res.status !== 404) {
-        throw new Error(`Failed to remove image: ${res.status}`);
-      }
-      return res;
-    })
-    .catch((error) => {
-      console.error("[Remove] Error removing image:", error);
-      throw error;
-    });
-}
-
-export async function stream(
+export function stream(
   chatPath: string,
-  requestPayload: any,
+  requestPayload: RequestPayload,
   headers: any,
   controller: AbortController,
-  parseSSE: (text: string) => string | ImageContent | undefined,
-  options: any,
-) {
-  let responseText = "";
-  let remainText = "";
-  let finished = false;
-  let contentQueue: MessageContentItem[] = [];
-  let multimodalTextContent: MultimodalContent = { type: "text", text: "" };
-  let multimodalContent: MultimodalContent[] = [multimodalTextContent];
-  let imageContext: ImageContent | null = null;
-
-  // animate response to make it looks smooth
-  async function animateResponseText() {
-    if (contentQueue.length > 0) {
-      const chunk = contentQueue.shift();
-      if (chunk?.type === "text") {
-        remainText += chunk.content;
-      } else if (chunk?.type === "image") {
-        imageContext = chunk.content as ImageContent;
-      }
-    }
-    if (remainText.length > 0) {
-      const fetchCount = Math.max(1, Math.round(remainText.length / 60));
-      const fetchText = remainText.slice(0, fetchCount);
-      // responseText += fetchText;
-      multimodalTextContent.text += fetchText;
-      remainText = remainText.slice(fetchCount);
-    }
-    if (imageContext) {
-      multimodalContent.push({
-        type: "image_url",
-        image_url: {
-          url: await uploadImage(
-            base64Image2Blob(imageContext.data, imageContext.mimeType),
-          ),
-        },
-      });
-      imageContext = null;
-      let newMultimodalTextContent: MultimodalContent = {
-        type: "text",
-        text: "",
-      };
-      multimodalTextContent = newMultimodalTextContent;
-      multimodalContent.push(newMultimodalTextContent);
-    }
-    options.onUpdate?.(multimodalContent, "");
-
-    if ((finished || controller.signal.aborted) && contentQueue.length === 0) {
-      multimodalTextContent.text += remainText;
-      options.onUpdate?.(multimodalContent, "");
-      // console.log("[Response Animation] finished");
-      if (
-        responseText?.length === 0 &&
-        multimodalContent.at(0)?.text?.length == 0 &&
-        multimodalContent.length == 1
-      ) {
-        options.onError?.(new Error("empty response from server"));
-      }
-      options.onFinish(multimodalContent);
-      return;
-    }
-
-    requestAnimationFrame(animateResponseText);
-  }
-
-  // start animaion
-  await animateResponseText();
-
-  const finish = () => {
-    if (!finished) {
-      console.debug("[ChatAPI] end");
-      finished = true;
-      options.onFinish(multimodalContent);
-    }
-  };
-
-  controller.signal.onabort = finish;
-
-  function chatApi(chatPath: string, headers: any, requestPayload: any) {
-    const chatPayload = {
-      method: "POST",
-      body: JSON.stringify(requestPayload),
-      signal: controller.signal,
-      headers,
-    };
-    const requestTimeoutId = setTimeout(
-      () => controller.abort(),
-      REQUEST_TIMEOUT_MS,
-    );
-    fetchEventSource(chatPath, {
-      ...chatPayload,
-      async onopen(res) {
-        clearTimeout(requestTimeoutId);
-        const contentType = res.headers.get("content-type");
-        // console.log("[Request] response content type: ", contentType);
-
-        if (contentType?.startsWith("text/plain")) {
-          responseText = await res.clone().text();
-          return finish();
-        }
-
-        if (
-          !res.ok ||
-          !res.headers
-            .get("content-type")
-            ?.startsWith(EventStreamContentType) ||
-          res.status !== 200
-        ) {
-          const responseTexts = [responseText];
-          let extraInfo = await res.clone().text();
-          try {
-            const resJson = await res.clone().json();
-            extraInfo = prettyObject(resJson);
-          } catch {}
-
-          if (res.status === 401) {
-            // 处理未授权响应：清空 accessCode 并跳转到 auth 页面
-            if (
-              typeof window !== "undefined" &&
-              (window as any).__handleUnauthorized
-            ) {
-              (window as any).__handleUnauthorized();
-            }
-          }
-
-          if (extraInfo) {
-            responseTexts.push(extraInfo);
-          }
-
-          responseText = responseTexts.join("\n\n");
-
-          return finish();
-        }
-      },
-      onmessage(msg) {
-        if (msg.data === "[DONE]" || finished) {
-          return finish();
-        }
-        const text = msg.data;
-        try {
-          const chunk = parseSSE(msg.data);
-          console.log("chunk", chunk);
-          if (chunk && typeof chunk === "string") {
-            contentQueue.push({
-              type: "text",
-              content: chunk,
-            });
-          } else if (chunk) {
-            contentQueue.push({
-              type: "image",
-              content: chunk,
-            });
-          }
-        } catch (e) {
-          console.error("[Request] parse error", text, msg, e);
-        }
-      },
-      onclose() {
-        finish();
-      },
-      onerror(e) {
-        options?.onError?.(e);
-        throw e;
-      },
-      openWhenHidden: true,
-    });
-  }
-  console.debug("[ChatAPI] start");
-  chatApi(chatPath, headers, requestPayload); // call fetchEventSource
-}
-
-export function streamWithThink(
-  chatPath: string,
-  requestPayload: any,
-  headers: any,
-  controller: AbortController,
-  parseSSE: (text: string) => {
-    isThinking: boolean;
-    content: string | undefined;
+  extractStreamData: (text: string) => {
+    content: string;
+    isReasoning: boolean;
   },
   options: any,
 ) {
@@ -394,9 +197,9 @@ export function streamWithThink(
   let reasoningRemainText = "";
   let finished = false;
   let responseRes: Response;
-  let isInThinkingMode = false;
-  let lastIsThinking = false;
-  let thinkingModeEnded = false;
+  let isInReasoningMode = false;
+  let lastIsReasoning = false;
+  let reasoningModeEnded = false;
   let usageInfo:
     | {
         completion_tokens?: number;
@@ -424,13 +227,13 @@ export function streamWithThink(
       options.onUpdate?.(responseText, fetchText);
     }
 
-    if (thinkingModeEnded && reasoningRemainText.length > 0) {
+    if (reasoningModeEnded && reasoningRemainText.length > 0) {
       reasoningResponseText += reasoningRemainText;
       reasoningResponseText = reasoningResponseText.replace(/^\s*\n/gm, "");
       const remainingReasoning = reasoningRemainText;
       reasoningRemainText = "";
       options.onReasoningUpdate?.(reasoningResponseText, remainingReasoning);
-      thinkingModeEnded = false;
+      reasoningModeEnded = false;
     } else if (reasoningRemainText.length > 0) {
       const fetchCount = Math.max(
         1,
@@ -547,24 +350,24 @@ export function streamWithThink(
             // 忽略 usage 解析错误，继续处理内容
           }
 
-          const chunk = parseSSE(text);
+          const chunk = extractStreamData(text);
           if (!chunk?.content || chunk.content.length === 0) {
             return;
           }
-          const isThinkingChanged = lastIsThinking !== chunk.isThinking;
-          lastIsThinking = chunk.isThinking;
+          const isReasoningChanged = lastIsReasoning !== chunk.isReasoning;
+          lastIsReasoning = chunk.isReasoning;
 
-          if (chunk.isThinking) {
-            if (!isInThinkingMode || isThinkingChanged) {
-              isInThinkingMode = true;
+          if (chunk.isReasoning) {
+            if (!isInReasoningMode || isReasoningChanged) {
+              isInReasoningMode = true;
               reasoningRemainText += chunk.content;
             } else {
               reasoningRemainText += chunk.content;
             }
           } else {
-            if (isInThinkingMode || isThinkingChanged) {
-              isInThinkingMode = false;
-              thinkingModeEnded = true;
+            if (isInReasoningMode || isReasoningChanged) {
+              isInReasoningMode = false;
+              reasoningModeEnded = true;
             }
             remainText += chunk.content;
           }

@@ -20,24 +20,14 @@ const DEFAULT_TOPIC = Locale.Session.Title.Default;
 export function calculateSessionStatus(
   messages: ChatMessage[],
 ): "normal" | "error" | "pending" {
-  if (messages.length === 0) {
-    return "normal";
-  }
-
+  if (messages.length === 0) return "normal";
   const lastMessage = messages[messages.length - 1];
-
   // 如果最后一条消息有错误，返回错误状态
-  if (lastMessage.isError) {
-    return "error";
-  }
-
+  if (lastMessage.isError) return "error";
   // 如果最后一条消息是用户消息，返回用户待回复状态
-  if (lastMessage.role === "user") {
-    return "pending";
-  }
-
+  else if (lastMessage.role === "user") return "pending";
   // 其他情况返回正常状态
-  return "normal";
+  else return "normal";
 }
 
 /**
@@ -46,7 +36,6 @@ export function calculateSessionStatus(
 export function updateSessionStats(session: ChatSession): void {
   // 基础消息数量
   const baseMessageCount = session.messages.length;
-
   // 检查系统提示词是否存在且有效
   // 由于这是同步函数，我们使用一个简单的检查方式
   // 系统提示词存储在 IndexedDB 中，这里我们暂时只计算基础消息数量

@@ -106,9 +106,9 @@ export const useChatStore = createPersistStore(
         try {
           // 从 messageStorage 异步加载消息
           const messages = await messageStorage.get(session.id);
-          get().updateSession(session, (s) => {
-            s.messages = messages;
-            updateSessionStats(s); // 先同步更新基础统计信息
+          get().updateSession(session, (session) => {
+            session.messages = messages;
+            updateSessionStats(session); // 先同步更新基础统计信息
           });
 
           // 异步更新包含系统提示词的完整统计信息
@@ -1701,11 +1701,11 @@ export const useChatStore = createPersistStore(
         set((state) => {
           const index = state.sessions.findIndex((s) => s.id === session.id);
           if (index < 0) return {}; // 如果会话不存在，直接返回空对象
-          const updatedSession = { ...state.sessions[index] }; // 以 store 里的最新对象为基础，使用展开运算符创建目标会话的浅拷贝
-          updater(updatedSession); // 调用传入的 updater 函数，对会话副本进行修改
-          const newSessions = [...state.sessions]; // 创建当前 sessions 数组的浅拷贝
-          newSessions[index] = updatedSession; // 用更新后的会话替换原数组中对应位置的会话；保持数组结构不变，只更新特定元素
-          return { sessions: newSessions }; // 返回包含新 sessions 数组的状态对象，Zustand 会将这个对象与当前状态合并，触发组件重新渲染
+          const updatedSession = { ...state.sessions[index] }; // 修改浅拷贝
+          updater(updatedSession); // 修改会话浅拷贝
+          const sessions = [...state.sessions]; // 会话数组浅拷贝
+          sessions[index] = updatedSession; // 更新会话数组浅拷贝
+          return { sessions }; // 返回包含新 sessions 数组的状态对象，Zustand 会将这个对象与当前状态合并，触发组件重新渲染
         });
       },
 
