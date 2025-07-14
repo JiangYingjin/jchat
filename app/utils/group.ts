@@ -122,9 +122,19 @@ export async function handleMergeCopy(
             return p.isValid && p.batchId === batchId && m.role === "assistant";
           });
           if (target) {
-            if (typeof target.content === "string") return target.content;
-            if (Array.isArray(target.content))
-              return target.content.map((c: any) => c.text || "").join("\n");
+            let content = "";
+            if (typeof target.content === "string") content = target.content;
+            else if (Array.isArray(target.content))
+              content = target.content.map((c: any) => c.text || "").join("\n");
+            // 查找 session.sourceName
+            let prefix = "";
+            const sessionObj =
+              chatStore.groupSessions?.[sid] ||
+              chatStore.sessions?.find((s: any) => s.id === sid);
+            if (sessionObj && sessionObj.sourceName) {
+              prefix = `# ${sessionObj.sourceName}\n\n`;
+            }
+            return prefix + content;
           }
           return null;
         }),
