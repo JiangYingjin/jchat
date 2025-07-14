@@ -1358,35 +1358,6 @@ export const useChatStore = createPersistStore(
 
         const messageIndex = session.messages.length + 1;
 
-        // 调试：插入前打印 session.messages
-        console.log(
-          "[onSendMessage] 插入前 session.id:",
-          session.id,
-          "messages:",
-          session.messages.map((m) => ({
-            id: m.id,
-            role: m.role,
-            batchId: typeof m.id === "string" ? m.id.split("_")[0] : undefined,
-          })),
-        );
-        // 调试：即将插入的 userMessage 和 modelMessage
-        console.log("[onSendMessage] 即将插入 userMessage:", {
-          id: userMessage.id,
-          role: userMessage.role,
-          batchId:
-            typeof userMessage.id === "string"
-              ? userMessage.id.split("_")[0]
-              : undefined,
-        });
-        console.log("[onSendMessage] 即将插入 modelMessage:", {
-          id: modelMessage.id,
-          role: modelMessage.role,
-          batchId:
-            typeof modelMessage.id === "string"
-              ? modelMessage.id.split("_")[0]
-              : undefined,
-        });
-
         // 始终获取最新的 session 对象
         let latestSession: ChatSession | undefined;
         if (session.groupId) {
@@ -1398,16 +1369,13 @@ export const useChatStore = createPersistStore(
           session = latestSession;
         }
 
-        // 去重：移除所有同 batchId 的用户消息
+        // 去重并插入用户消息
         if (session.groupId && userBatchId) {
-          session.messages = session.messages.filter((m) => {
-            const parsed = parseGroupMessageId(m.id);
-            return !(
-              parsed.isValid &&
-              parsed.batchId === userBatchId &&
-              m.role === "user"
-            );
-          });
+          session.messages = ensureUniqueUserMessage(
+            session.messages,
+            userMessage,
+            userBatchId,
+          );
         }
 
         if (session.groupId) {
@@ -1438,24 +1406,6 @@ export const useChatStore = createPersistStore(
             );
             updateSessionStats(session); // 先同步更新基础统计信息
           });
-        }
-
-        // 调试：插入后打印 session.messages
-        const sessionAfterInsert =
-          get().groupSessions[session.id] ||
-          get().sessions.find((s) => s.id === session.id);
-        if (sessionAfterInsert) {
-          console.log(
-            "[onSendMessage] 插入后 session.id:",
-            session.id,
-            "messages:",
-            sessionAfterInsert.messages.map((m) => ({
-              id: m.id,
-              role: m.role,
-              batchId:
-                typeof m.id === "string" ? m.id.split("_")[0] : undefined,
-            })),
-          );
         }
 
         // 立即保存消息到独立存储
@@ -2067,3 +2017,16 @@ export const useChatStore = createPersistStore(
     },
   },
 );
+
+// 工具函数：确保同 batchId 的用户消息唯一，并插入新消息
+function ensureUniqueUserMessage(
+  messages: ChatMessage[],
+  userMessage: ChatMessage,
+  batchId: string,
+): ChatMessage[] {
+  const filtered = messages.filter((m) => {
+    const parsed = parseGroupMessageId(m.id);
+    return !(parsed.isValid && parsed.batchId === batchId && m.role === "user");
+  });
+  return [...filtered, userMessage];
+}
