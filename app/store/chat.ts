@@ -1084,10 +1084,12 @@ export const useChatStore = createPersistStore(
           let index = currentSessionIndex;
           const validIndex = validateSessionIndex(index, sessions.length);
           if (validIndex !== index) {
-            set(() => ({ currentSessionIndex: validIndex }));
+            // 使用 setTimeout 避免在渲染期间触发状态更新
+            setTimeout(() => {
+              set(() => ({ currentSessionIndex: validIndex }));
+              get().loadSessionMessages(validIndex);
+            }, 0);
             index = validIndex;
-            // **修复：如果索引被纠正，异步加载新当前会话的消息**
-            get().loadSessionMessages(validIndex);
           }
           const session = sessions[index];
           return session;
@@ -1112,11 +1114,13 @@ export const useChatStore = createPersistStore(
                 );
               }
             }
-            // 如果组内会话模式但没有找到会话，回退到组列表模式
+            // 如果组内会话模式但没有找到会话，使用 setTimeout 避免在渲染期间触发状态更新
             // console.log(
             //   `[ChatStore] No group session found, falling back to groups view`,
             // );
-            set({ chatListGroupView: "groups" });
+            setTimeout(() => {
+              set({ chatListGroupView: "groups" });
+            }, 0);
           }
 
           // 组列表模式：返回当前组的第一个会话
@@ -1142,14 +1146,15 @@ export const useChatStore = createPersistStore(
         let index = currentSessionIndex;
         const validIndex = validateSessionIndex(index, sessions.length);
         if (validIndex !== index) {
-          set(() => ({ currentSessionIndex: validIndex }));
+          // 使用 setTimeout 避免在渲染期间触发状态更新
+          setTimeout(() => {
+            set(() => ({ currentSessionIndex: validIndex }));
+            get().loadSessionMessages(validIndex);
+          }, 0);
           index = validIndex;
-          // **修复：如果索引被纠正，异步加载新当前会话的消息**
-          get().loadSessionMessages(validIndex);
         }
-
-        const fallbackSession = sessions[index];
-        return fallbackSession;
+        const session = sessions[index];
+        return session;
       },
 
       handleMessageComplete(

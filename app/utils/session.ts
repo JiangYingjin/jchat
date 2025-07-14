@@ -372,7 +372,7 @@ export async function checkHasSystemPrompt(
  */
 export async function filterEmptyGroupSessions(groupId: string) {
   const chatStore = useChatStore.getState();
-  const { groups, groupSessions } = chatStore;
+  const { groups, groupSessions, chatListGroupView } = chatStore;
   const group = groups.find((g) => g.id === groupId);
   if (!group) return;
 
@@ -407,6 +407,13 @@ export async function filterEmptyGroupSessions(groupId: string) {
       await messageStorage.delete(sessionId);
       await systemMessageStorage.delete(sessionId);
     }
+
+    // 计算新的 currentSessionIndex，确保不超出范围
+    let newCurrentSessionIndex = group.currentSessionIndex;
+    if (newCurrentSessionIndex >= newSessionIds.length) {
+      newCurrentSessionIndex = Math.max(0, newSessionIds.length - 1);
+    }
+
     // 更新 group 和 groupSessions
     useChatStore.setState((state) => {
       const newGroupSessions = { ...state.groupSessions };
@@ -420,10 +427,13 @@ export async function filterEmptyGroupSessions(groupId: string) {
         ...state.groups[groupIdx],
         sessionIds: newSessionIds,
         messageCount: newSessionIds.length,
+        currentSessionIndex: newCurrentSessionIndex, // 确保索引有效
       };
       return {
         groupSessions: newGroupSessions,
         groups: newGroups,
+        // 保持当前的视图状态，不要意外切换回 groups view
+        chatListGroupView: state.chatListGroupView,
       };
     });
   }
