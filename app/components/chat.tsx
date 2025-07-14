@@ -143,6 +143,7 @@ function Chat() {
       console.error("[Chat] failed to resend", message);
       return;
     }
+
     setIsLoading(true);
     const textContent = getMessageTextContent(userMessage);
     const images = getMessageImages(userMessage);
@@ -159,6 +160,9 @@ function Chat() {
         // 重试时保持用户消息的 batchId 不变，但生成新的模型消息 batchId
         userBatchId = parsedId.batchId;
         modelBatchId = nanoid(12);
+
+        // 🚨 关键修复：组内会话重试时也需要传递 messageIdx 来截取消息列表
+        messageIdx = requestIndex;
       }
     } else {
       // 普通会话，传递 requestIndex 作为 messageIdx
@@ -169,7 +173,7 @@ function Chat() {
       .onSendMessage(
         textContent,
         images,
-        messageIdx, // 传递 messageIdx，普通会话用于替换原消息
+        messageIdx, // 🚨 关键修复：组内会话和普通会话都传递 messageIdx
         undefined, // 当前会话
         userBatchId, // 组内会话 batchId
         modelBatchId, // 组内会话模型 batchId
@@ -178,6 +182,7 @@ function Chat() {
         setIsLoading(false);
       })
       .catch((error) => {
+        console.error("[onResend] 重试失败:", error);
         setIsLoading(false);
       });
   };

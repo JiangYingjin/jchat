@@ -259,7 +259,36 @@ export function prepareSendMessages(
   userMessage: ChatMessage,
   messageIdx?: number,
 ): ChatMessage[] {
-  // **修复：分离系统消息和普通消息**
+  // 🔧 关键修复：如果 recentMessages 已经包含系统消息，说明它来自 prepareMessagesForApi
+  // 这种情况下我们不应该重新处理系统消息，只需要处理 messageIdx 的截取逻辑
+  const hasSystemMessage = recentMessages.some((m) => m.role === "system");
+
+  if (hasSystemMessage) {
+    let finalMessages: ChatMessage[];
+
+    if (typeof messageIdx === "number" && messageIdx >= 0) {
+      // 对于重试场景，我们需要截取到指定位置，但保留系统消息
+      const systemMessages = recentMessages.filter((m) => m.role === "system");
+      const nonSystemMessages = recentMessages.filter(
+        (m) => m.role !== "system",
+      );
+      const truncatedNonSystemMessages = nonSystemMessages.slice(0, messageIdx);
+
+      finalMessages = [
+        ...systemMessages,
+        ...truncatedNonSystemMessages,
+        userMessage,
+      ];
+    } else {
+      // 正常发送，直接添加用户消息
+      finalMessages = [...recentMessages, userMessage];
+    }
+
+    return finalMessages;
+  }
+
+  // 🔧 旧逻辑：当 recentMessages 不包含系统消息时的处理
+  // 这通常发生在某些边缘情况或兼容性场景中
   const systemMessages = recentMessages.filter((m) => m.role === "system");
   const nonSystemMessages = recentMessages.filter((m) => m.role !== "system");
 
