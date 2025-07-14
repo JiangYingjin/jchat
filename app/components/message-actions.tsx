@@ -11,6 +11,7 @@ import ResetIcon from "../icons/reload.svg";
 import StopIcon from "../icons/pause.svg";
 import BranchIcon from "../icons/branch.svg";
 import GroupIcon from "../icons/group.svg";
+import MergeIcon from "../icons/group.svg";
 
 import Locale from "../locales";
 
@@ -22,11 +23,13 @@ export function MessageActions(props: {
   onBranch: (message: ChatMessage, index: number) => void;
   onBatchApply: (message: ChatMessage) => void; // 新增：批量应用回调
   onBatchDelete: (message: ChatMessage) => void; // 新增：批量删除回调
+  onMergeCopy: (message: ChatMessage) => void; // 新增：合并复制回调
   index: number;
   showBranch?: boolean; // 新增：控制是否显示分支按钮
   showBatchApply?: boolean; // 新增：控制是否显示批量应用按钮
   showBatchDelete?: boolean; // 新增：控制是否显示批量删除按钮
   showDelete?: boolean; // 新增：控制是否显示单个删除按钮
+  showMergeCopy?: boolean; // 新增：控制是否显示合并复制按钮
 }) {
   const {
     message,
@@ -36,11 +39,13 @@ export function MessageActions(props: {
     onBranch,
     onBatchApply,
     onBatchDelete,
+    onMergeCopy,
     index,
     showBranch = true,
     showBatchApply = true,
     showBatchDelete = true,
     showDelete = true,
+    showMergeCopy = false,
   } = props;
 
   return (
@@ -66,6 +71,15 @@ export function MessageActions(props: {
             onClick={() => copyToClipboard(getMessageTextContent(message))}
             alwaysFullWidth={false}
           />
+          {/* 合并复制按钮，仅组内会话显示，紧挨复制按钮 */}
+          {showMergeCopy && (
+            <ChatAction
+              text={"合并复制"}
+              icon={<MergeIcon />}
+              onClick={() => onMergeCopy(message)}
+              alwaysFullWidth={false}
+            />
+          )}
           {showDelete && (
             <ChatAction
               text={Locale.Chat.Actions.Delete}

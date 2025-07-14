@@ -2,6 +2,10 @@ import { nanoid } from "nanoid";
 import type { ChatGroup } from "../store/chat";
 import { createEmptySession } from "./session";
 import Locale from "../locales";
+import type { ChatMessage } from "../store";
+import pLimit from "p-limit";
+import { copyToClipboard } from "../utils";
+import { messageStorage } from "../store/message";
 
 /**
  * 组内会话消息ID解析工具
@@ -86,4 +90,49 @@ export function parseGroupMessageId(id: string): GroupMessageId {
     messageId: "",
     isValid: false,
   };
+}
+
+/**
+ * 组内合并复制工具函数，供 onMergeCopy 直接调用
+ * 使用 p-limit 控制并发，提升性能与稳定性
+ */
+export async function handleMergeCopy(
+  msg: ChatMessage,
+  session: any,
+  chatStore: any,
+) {
+  if (!session.groupId) return;
+  const parsed = parseGroupMessageId(msg.id);
+  if (!parsed.isValid) return;
+  const batchId = parsed.batchId;
+  const group = chatStore.groups.find(
+    (g: ChatGroup) => g.id === session.groupId,
+  );
+  if (!group) return;
+
+  // p-limit 控制并发，推荐并发数 8
+  const limit = pLimit(8);
+  const allContents: string[] = (
+    await Promise.all(
+      group.sessionIds.map((sid: string) =>
+        limit(async () => {
+          const messages = await messageStorage.get(sid);
+          const target = messages.find((m: any) => {
+            const p = parseGroupMessageId(m.id);
+            return p.isValid && p.batchId === batchId && m.role === "assistant";
+          });
+          if (target) {
+            if (typeof target.content === "string") return target.content;
+            if (Array.isArray(target.content))
+              return target.content.map((c: any) => c.text || "").join("\n");
+          }
+          return null;
+        }),
+      ),
+    )
+  ).filter(Boolean) as string[];
+
+  if (allContents.length > 0) {
+    copyToClipboard(allContents.join("\n\n---\n\n"));
+  }
 }

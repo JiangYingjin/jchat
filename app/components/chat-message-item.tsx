@@ -6,6 +6,7 @@ import { Markdown } from "./markdown";
 import { ThinkingContent } from "./thinking-content";
 import { MessageActions } from "./message-actions";
 import styles from "../styles/chat.module.scss";
+import { handleMergeCopy } from "../utils/group";
 
 type RenderMessage = ChatMessage & { preview?: boolean };
 
@@ -91,6 +92,12 @@ export function ChatMessageItem({
                   showBatchApply={!!session.groupId} // 组内会话下所有消息都显示批量应用按钮
                   showBatchDelete={!!session.groupId} // 只有组内会话显示批量删除按钮
                   showDelete={!session.groupId} // 组内会话隐藏单个删除按钮
+                  showMergeCopy={
+                    !!session.groupId && message.role === "assistant"
+                  }
+                  onMergeCopy={(msg) =>
+                    handleMergeCopy(msg, session, chatStore)
+                  }
                 />
               </div>
             )}
@@ -227,7 +234,15 @@ export function ChatMessageItem({
                   onBatchDelete={onBatchDelete}
                   index={index}
                   showBranch={showBranch}
-                  showBatchApply={!!session.groupId} // 只有组内会话显示批量应用按钮
+                  showBatchApply={!!session.groupId} // 组内会话下所有消息都显示批量应用按钮
+                  showBatchDelete={!!session.groupId} // 组内会话下所有消息都显示批量删除按钮
+                  showDelete={!session.groupId} // 组内会话隐藏单个删除按钮
+                  showMergeCopy={
+                    !!session.groupId && message.role === "assistant"
+                  }
+                  onMergeCopy={(msg) =>
+                    handleMergeCopy(msg, session, chatStore)
+                  }
                 />
               </div>
             )}
