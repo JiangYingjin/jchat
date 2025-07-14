@@ -229,7 +229,7 @@ function Chat() {
         return;
       }
 
-      const batchId = parsedId.batchId;
+      const userBatchId = parsedId.batchId;
       const currentGroupId = session.groupId;
 
       // 获取当前组的所有会话
@@ -265,7 +265,7 @@ function Chat() {
       const modelMessageParsedId = parseGroupMessageId(nextMessage.id);
       const modelBatchId = modelMessageParsedId.isValid
         ? modelMessageParsedId.batchId
-        : batchId;
+        : userBatchId;
 
       // 遍历组内所有会话
       for (const sessionId of currentGroup.sessionIds) {
@@ -274,26 +274,53 @@ function Chat() {
           continue;
         }
 
-        const targetSession = chatStore.groupSessions[sessionId];
-        if (!targetSession) {
+        // 先确保目标会话的消息已加载（必须等待加载完成！）
+        await chatStore.loadGroupSessionMessages(sessionId);
+        const targetSession = chatStore.groupSessions[sessionId]; // 重新获取，确保是最新的
+        if (!targetSession || !targetSession.messages) {
+          console.warn(`[BatchApply] 加载消息失败，sessionId=${sessionId}`);
           continue;
         }
 
-        // 确保目标会话的消息已加载
-        if (!targetSession.messages || targetSession.messages.length === 0) {
-          await chatStore.loadGroupSessionMessages(sessionId);
-        }
+        // 调试：打印当前会话所有消息
+        console.log(
+          `[BatchApply] 处理会话 ${sessionId}，所有消息:`,
+          targetSession.messages.map((m) => ({
+            id: m.id,
+            role: m.role,
+            batchId: parseGroupMessageId(m.id).batchId,
+          })),
+        );
 
         // 查找目标会话中是否有相同用户 batch id 的消息
-        const existingMessageIndex = targetSession.messages.findIndex((m) => {
+        const existingUserMsgIndex = targetSession.messages.findIndex((m) => {
           const parsed = parseGroupMessageId(m.id);
-          return parsed.isValid && parsed.batchId === batchId;
+          return (
+            parsed.isValid &&
+            parsed.batchId === userBatchId &&
+            m.role === "user"
+          );
         });
+        // 调试：打印查找结果
+        if (existingUserMsgIndex !== -1) {
+          const msg = targetSession.messages[existingUserMsgIndex];
+          console.log(`[BatchApply] 已存在用户消息:`, {
+            index: existingUserMsgIndex,
+            id: msg.id,
+            role: msg.role,
+            batchId: parseGroupMessageId(msg.id).batchId,
+            content: msg.content,
+          });
+        } else {
+          console.log(
+            `[BatchApply] 未找到 batchId=${userBatchId} 的用户消息，将插入新消息`,
+          );
+        }
 
-        if (existingMessageIndex !== -1) {
+        if (existingUserMsgIndex !== -1) {
           // 找到相同用户 batch id 的消息，需要重新发送（类似重试）
           // 先检查该消息后面是否有模型回复消息，如果有则删除
-          const nextMessageIndex = existingMessageIndex + 1;
+          const nextMessageIndex = existingUserMsgIndex + 1;
           const nextMessage = targetSession.messages[nextMessageIndex];
 
           if (nextMessage && nextMessage.role === "assistant") {
@@ -309,8 +336,8 @@ function Chat() {
 
           // 更新用户消息内容
           chatStore.updateGroupSession(targetSession, (session) => {
-            session.messages[existingMessageIndex] = {
-              ...session.messages[existingMessageIndex],
+            session.messages[existingUserMsgIndex] = {
+              ...session.messages[existingUserMsgIndex],
               content: message.content,
             };
             updateSessionStats(session);
@@ -331,7 +358,7 @@ function Chat() {
               images,
               undefined,
               sessionId,
-              batchId, // 用户消息使用原始的用户 batch id
+              userBatchId, // 用户消息使用原始的用户 batch id
               modelBatchId, // 模型消息使用模型回复消息的 batch id
             );
           }
@@ -348,12 +375,29 @@ function Chat() {
               images,
               undefined,
               sessionId,
-              batchId, // 用户消息使用原始的用户 batch id
+              userBatchId, // 用户消息使用原始的用户 batch id
               modelBatchId, // 模型消息使用模型回复消息的 batch id
             );
           }
         }
+
+        // 调试：插入或重试后，再次打印该会话所有消息
+        const afterSession = chatStore.groupSessions[sessionId];
+        if (afterSession) {
+          console.log(
+            `[BatchApply] 应用后会话 ${sessionId}，所有消息:`,
+            afterSession.messages.map((m) => ({
+              id: m.id,
+              role: m.role,
+              batchId: parseGroupMessageId(m.id).batchId,
+            })),
+          );
+        }
       }
+      // 调试：打印本次批量应用的 batchId 和 modelBatchId
+      console.log(
+        `[BatchApply] 本次批量应用 batchId=${userBatchId}，modelBatchId=${modelBatchId}`,
+      );
 
       showToast("批量应用完成");
     } catch (error) {
