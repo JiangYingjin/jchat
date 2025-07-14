@@ -1386,12 +1386,40 @@ export const useChatStore = createPersistStore(
                 ...userMessage,
                 content: mContent,
               };
-              session.messages = insertMessage(
-                session.messages,
-                savedUserMessage,
-                modelMessage,
-                messageIdx,
-              );
+
+              // 🔧 修复普通会话重试逻辑：当传递了 messageIdx 时，先删除原有消息再插入
+              if (typeof messageIdx === "number" && messageIdx >= 0) {
+                // 删除从 messageIdx 开始的用户消息和对应的模型回复
+                // 通常是连续的 user -> assistant 对
+                const deleteCount =
+                  messageIdx + 1 < session.messages.length &&
+                  session.messages[messageIdx + 1].role === "assistant"
+                    ? 2
+                    : 1;
+
+                // 删除原有的消息
+                session.messages.splice(messageIdx, deleteCount);
+
+                // 在原位置插入新的用户消息和模型消息
+                session.messages.splice(
+                  messageIdx,
+                  0,
+                  savedUserMessage,
+                  modelMessage,
+                );
+
+                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
+                session.messages = session.messages.concat();
+              } else {
+                // 没有传 messageIdx，追加到末尾
+                session.messages = insertMessage(
+                  session.messages,
+                  savedUserMessage,
+                  modelMessage,
+                  messageIdx,
+                );
+              }
+
               updateSessionStatsBasic(session);
             });
           }

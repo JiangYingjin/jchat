@@ -147,9 +147,10 @@ function Chat() {
     const textContent = getMessageTextContent(userMessage);
     const images = getMessageImages(userMessage);
 
-    // 🔧 修复重试逻辑：使用 batchId 机制而不是 requestIndex
+    // 🔧 修复重试逻辑：使用 batchId 机制或 messageIdx
     let userBatchId: string | undefined;
     let modelBatchId: string | undefined;
+    let messageIdx: number | undefined = undefined;
 
     if (session.groupId) {
       // 解析用户消息的 batch id
@@ -159,16 +160,19 @@ function Chat() {
         userBatchId = parsedId.batchId;
         modelBatchId = nanoid(12);
       }
+    } else {
+      // 普通会话，传递 requestIndex 作为 messageIdx
+      messageIdx = requestIndex;
     }
 
     chatStore
       .onSendMessage(
         textContent,
         images,
-        undefined, // 不传 requestIndex，让 batchId 机制处理
+        messageIdx, // 传递 messageIdx，普通会话用于替换原消息
         undefined, // 当前会话
-        userBatchId, // 保持用户消息的 batchId
-        modelBatchId, // 新的模型消息 batchId
+        userBatchId, // 组内会话 batchId
+        modelBatchId, // 组内会话模型 batchId
       )
       .then(async () => {
         setIsLoading(false);
