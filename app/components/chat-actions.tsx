@@ -68,9 +68,27 @@ export function ChatActions(props: {
         {!isMobileScreen && (
           <ChatAction
             onClick={() => {
-              chatStore.updateSession(session, (s) => {
-                s.longInputMode = !s.longInputMode;
-              });
+              if (session.groupId) {
+                // 获取当前组所有会话
+                const state = useChatStore.getState();
+                const { groups, groupSessions, currentGroupIndex } = state;
+                const currentGroup = groups[currentGroupIndex];
+                if (currentGroup) {
+                  const newMode = !(session.longInputMode ?? false);
+                  currentGroup.sessionIds.forEach((sid) => {
+                    const groupSession = groupSessions[sid];
+                    if (groupSession) {
+                      chatStore.updateGroupSession(groupSession, (sess) => {
+                        sess.longInputMode = newMode;
+                      });
+                    }
+                  });
+                }
+              } else {
+                chatStore.updateSession(session, (s) => {
+                  s.longInputMode = !s.longInputMode;
+                });
+              }
             }}
             text={"长输入模式"}
             icon={<EditIcon />}
