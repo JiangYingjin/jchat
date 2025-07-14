@@ -977,14 +977,3 @@
     ) !important;
   }
 }
-
-// 全局文本选中样式，提升选区美观与协调性
-::selection {
-  background: rgba(52, 120, 246, 0.18); // 柔和主色调蓝色，透明度0.18
-  color: var(--primary); // 文字用主色，或用 #222
-}
-
-::-moz-selection {
-  background: rgba(52, 120, 246, 0.18);
-  color: var(--primary);
-}
