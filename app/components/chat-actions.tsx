@@ -100,11 +100,17 @@ export function ChatActions(props: {
             onClose={() => setShowModelSelector(false)}
             onSelection={(s) => {
               if (s.length === 0) return;
-              chatStore.updateSession(session, (session) => {
-                session.model = s[0] as string;
-                // 标记用户手动选择了模型
-                session.isModelManuallySelected = true;
-              });
+              if (session.groupId) {
+                chatStore.updateGroupSession(session, (session) => {
+                  session.model = s[0] as string;
+                  session.isModelManuallySelected = true;
+                });
+              } else {
+                chatStore.updateSession(session, (session) => {
+                  session.model = s[0] as string;
+                  session.isModelManuallySelected = true;
+                });
+              }
             }}
           />
         )}

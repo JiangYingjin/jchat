@@ -228,6 +228,8 @@ export function stream(
     }
 
     if (reasoningModeEnded && reasoningRemainText.length > 0) {
+      // 这种情况下 reasoning 内容应该已经在消息处理时立即输出了
+      // 但以防万一，这里也处理一下剩余内容
       reasoningResponseText += reasoningRemainText;
       reasoningResponseText = reasoningResponseText.replace(/^\s*\n/gm, "");
       const remainingReasoning = reasoningRemainText;
@@ -366,6 +368,20 @@ export function stream(
             }
           } else {
             if (isInReasoningMode || isReasoningChanged) {
+              // 立即输出所有剩余的 reasoning 内容，避免被截断
+              if (reasoningRemainText.length > 0) {
+                reasoningResponseText += reasoningRemainText;
+                reasoningResponseText = reasoningResponseText.replace(
+                  /^\s*\n/gm,
+                  "",
+                );
+                const remainingReasoning = reasoningRemainText;
+                reasoningRemainText = "";
+                options.onReasoningUpdate?.(
+                  reasoningResponseText,
+                  remainingReasoning,
+                );
+              }
               isInReasoningMode = false;
               reasoningModeEnded = true;
             }
