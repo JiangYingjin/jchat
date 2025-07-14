@@ -1271,6 +1271,7 @@ export const useChatStore = createPersistStore(
         messageIdx?: number,
         targetSessionId?: string, // 新增：指定目标会话ID
         batchId?: string, // 新增：指定batchId，用于批量应用
+        modelBatchId?: string, // 新增：指定模型消息的batchId，用于批量应用时保持模型消息batch id一致
       ) {
         // 根据 targetSessionId 获取目标会话，如果没有指定则使用当前会话
         let session: ChatSession;
@@ -1306,10 +1307,15 @@ export const useChatStore = createPersistStore(
           ];
         }
 
-        // 为组内会话生成batchId，确保用户消息和模型回复使用相同的batchId
-        let finalBatchId: string | undefined;
+        // 为组内会话生成batchId，支持分别指定用户消息和模型消息的batchId
+        let userBatchId: string | undefined;
+        let finalModelBatchId: string | undefined;
+
         if (session.groupId) {
-          finalBatchId = batchId || nanoid(12); // 使用传入的batchId或生成新的
+          // 用户消息使用传入的batchId或生成新的
+          userBatchId = batchId || nanoid(12);
+          // 模型消息使用传入的modelBatchId或生成新的
+          finalModelBatchId = modelBatchId || nanoid(12);
         }
 
         let userMessage: ChatMessage = createMessage(
@@ -1317,7 +1323,7 @@ export const useChatStore = createPersistStore(
             role: "user",
             content: mContent,
           },
-          finalBatchId,
+          userBatchId,
         );
 
         const modelMessage = createMessage(
@@ -1327,7 +1333,7 @@ export const useChatStore = createPersistStore(
             streaming: true,
             model: session.model,
           },
-          finalBatchId,
+          finalModelBatchId,
         );
 
         // get recent messages for the target session

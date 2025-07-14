@@ -284,20 +284,33 @@ function Chat() {
           await chatStore.loadGroupSessionMessages(sessionId);
         }
 
-        // 查找目标会话中是否有相同 batch id 的消息
+        // 查找目标会话中是否有相同用户 batch id 的消息
         const existingMessageIndex = targetSession.messages.findIndex((m) => {
           const parsed = parseGroupMessageId(m.id);
           return parsed.isValid && parsed.batchId === batchId;
         });
 
         if (existingMessageIndex !== -1) {
-          // 找到相同 batch id 的消息，只更新内容，不重复发送
-          const existingMessage = targetSession.messages[existingMessageIndex];
+          // 找到相同用户 batch id 的消息，需要重新发送（类似重试）
+          // 先检查该消息后面是否有模型回复消息，如果有则删除
+          const nextMessageIndex = existingMessageIndex + 1;
+          const nextMessage = targetSession.messages[nextMessageIndex];
 
-          // 同步消息内容
+          if (nextMessage && nextMessage.role === "assistant") {
+            // 删除模型回复消息，因为要重新生成
+            chatStore.updateGroupSession(targetSession, (session) => {
+              session.messages.splice(nextMessageIndex, 1);
+              updateSessionStats(session);
+            });
+
+            // 保存更新后的消息
+            await chatStore.saveSessionMessages(targetSession);
+          }
+
+          // 更新用户消息内容
           chatStore.updateGroupSession(targetSession, (session) => {
             session.messages[existingMessageIndex] = {
-              ...existingMessage,
+              ...session.messages[existingMessageIndex],
               content: message.content,
             };
             updateSessionStats(session);
@@ -306,16 +319,11 @@ function Chat() {
           // 保存更新后的消息
           await chatStore.saveSessionMessages(targetSession);
 
-          // 注意：这里不调用 onSendMessage，因为消息已经存在，只需要同步内容
-          // 如果需要重新生成回复，用户可以在目标会话中手动重试
-        } else {
-          // 没有找到相同 batch id 的消息，直接调用 onSendMessage 添加新消息
-          // 注意：不要手动添加消息，让 onSendMessage 来处理
+          // 重新发送消息（类似重试）
+          // 用户消息使用原始的用户 batch id，模型消息使用模型回复消息的 batch id
           const textContent = getMessageTextContent(message);
           const images = getMessageImages(message);
 
-          // 直接调用 onSendMessage，让它处理消息的添加和发送
-          // 使用模型回复消息的 batch id，确保其他会话的模型回复消息有相同的 batch id
           const updatedSession = chatStore.groupSessions[sessionId];
           if (updatedSession) {
             chatStore.onSendMessage(
@@ -323,7 +331,25 @@ function Chat() {
               images,
               undefined,
               sessionId,
-              modelBatchId,
+              batchId, // 用户消息使用原始的用户 batch id
+              modelBatchId, // 模型消息使用模型回复消息的 batch id
+            );
+          }
+        } else {
+          // 没有找到相同用户 batch id 的消息，需要创建新的用户消息
+          // 用户消息使用原始的用户 batch id，模型消息使用模型回复消息的 batch id
+          const textContent = getMessageTextContent(message);
+          const images = getMessageImages(message);
+
+          const updatedSession = chatStore.groupSessions[sessionId];
+          if (updatedSession) {
+            chatStore.onSendMessage(
+              textContent,
+              images,
+              undefined,
+              sessionId,
+              batchId, // 用户消息使用原始的用户 batch id
+              modelBatchId, // 模型消息使用模型回复消息的 batch id
             );
           }
         }
