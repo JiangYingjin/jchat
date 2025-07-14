@@ -112,22 +112,10 @@ function Chat() {
   const handleSubmit = (text: string, images: string[]) => {
     if (text.trim() === "" && isEmpty(images)) return;
 
-    console.log("[Chat] 🚀 开始发送消息", {
-      sessionId: session.id,
-      textLength: text.trim().length,
-      imageCount: images.length,
-      isGroupSession: !!session.groupId,
-      currentMessageCount: session.messages?.length || 0,
-    });
-
     setIsLoading(true);
     chatStore
       .onSendMessage(text, images)
       .then(async () => {
-        console.log("[Chat] ✅ 消息发送完成", {
-          sessionId: session.id,
-          step: "handleSubmit-complete",
-        });
         setIsLoading(false);
         // onSendMessage 内部已经正确处理了消息保存，无需重复保存
       })
@@ -170,13 +158,6 @@ function Chat() {
         // 重试时保持用户消息的 batchId 不变，但生成新的模型消息 batchId
         userBatchId = parsedId.batchId;
         modelBatchId = nanoid(12);
-
-        console.log("[Resend] 🔄 组内会话重试", {
-          userMessageId: userMessage.id,
-          userBatchId,
-          modelBatchId,
-          sessionId: session.id,
-        });
       }
     }
 
@@ -191,10 +172,8 @@ function Chat() {
       )
       .then(async () => {
         setIsLoading(false);
-        console.log("[Resend] ✅ 重试完成");
       })
       .catch((error) => {
-        console.error("[Resend] ❌ 重试失败", error);
         setIsLoading(false);
       });
   };
@@ -321,13 +300,6 @@ function Chat() {
         ? modelMessageParsedId.batchId
         : userBatchId;
 
-      console.log(`[BatchApply] 🚀 开始批量应用`, {
-        userBatchId,
-        modelBatchId,
-        sourceSessionId: session.id,
-        targetSessionCount: currentGroup.sessionIds.length - 1,
-      });
-
       // 遍历组内所有会话
       for (const sessionId of currentGroup.sessionIds) {
         // 跳过当前会话
@@ -342,12 +314,6 @@ function Chat() {
           console.warn(`[BatchApply] 加载消息失败，sessionId=${sessionId}`);
           continue;
         }
-
-        console.log(`[BatchApply] 📝 处理会话 ${sessionId}`, {
-          currentMessageCount: targetSession.messages.length,
-          userBatchId,
-          modelBatchId,
-        });
 
         // 🔧 优化：直接使用 onSendMessage 的 batchId 机制
         // 这样会自动处理：
@@ -364,15 +330,7 @@ function Chat() {
           userBatchId, // 用户消息使用原始的用户 batch id
           modelBatchId, // 模型消息使用模型回复消息的 batch id
         );
-
-        console.log(`[BatchApply] ✅ 完成处理会话 ${sessionId}`);
       }
-
-      console.log(`[BatchApply] 🎉 批量应用完成`, {
-        userBatchId,
-        modelBatchId,
-        processedSessions: currentGroup.sessionIds.length - 1,
-      });
 
       showToast("批量应用完成");
     } catch (error) {

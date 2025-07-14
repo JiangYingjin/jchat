@@ -294,20 +294,6 @@ export function insertMessage(
     // 🔧 修复：当指定了 messageIdx 时，在该位置插入用户消息和模型消息
     const insertIdx = Math.min(messageIdx, messages.length);
 
-    console.log(`[insertMessage] 指定位置插入:`, {
-      messageIdx,
-      insertIdx,
-      totalMessages: messages.length,
-      userMessageId: userMessage.id,
-      modelMessageId: modelMessage.id,
-      messageAtInsertIdx: messages[insertIdx]
-        ? {
-            id: messages[insertIdx].id,
-            role: messages[insertIdx].role,
-          }
-        : "none",
-    });
-
     // 在指定位置插入用户消息和模型消息
     return [
       ...messages.slice(0, insertIdx),
@@ -317,12 +303,6 @@ export function insertMessage(
     ];
   } else {
     // 没有入参 messageIdx，插入到末尾
-    console.log(`[insertMessage] 末尾插入:`, {
-      totalMessages: messages.length,
-      userMessageId: userMessage.id,
-      modelMessageId: modelMessage.id,
-    });
-
     return messages.concat([userMessage, modelMessage]);
   }
 }
