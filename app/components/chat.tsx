@@ -105,7 +105,7 @@ function Chat() {
     if (session.groupId) {
       chatStore.updateGroupSession(session, updater);
     } else {
-      chatStore.updateTargetSession(session, updater);
+      chatStore.updateSession(session, updater);
     }
   };
 
@@ -164,7 +164,7 @@ function Chat() {
     if (currentSession.groupId) {
       chatStore.updateGroupSession(currentSession, () => {});
     } else {
-      chatStore.updateTargetSession(currentSession, () => {});
+      chatStore.updateSession(currentSession, () => {});
     }
   };
 
@@ -190,7 +190,7 @@ function Chat() {
           if (currentSession.groupId) {
             chatStore.updateGroupSession(currentSession, () => {});
           } else {
-            chatStore.updateTargetSession(currentSession, () => {});
+            chatStore.updateSession(currentSession, () => {});
           }
         },
       },
@@ -565,7 +565,7 @@ function Chat() {
     if (currentSession.groupId) {
       chatStore.updateGroupSession(currentSession, () => {});
     } else {
-      chatStore.updateTargetSession(currentSession, () => {});
+      chatStore.updateSession(currentSession, () => {});
     }
   };
 

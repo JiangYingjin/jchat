@@ -112,7 +112,7 @@ export function FileDropZone({ children }: FileDropZoneProps) {
       if (session.groupId) {
         chatStore.updateGroupSession(session, () => {});
       } else {
-        chatStore.updateTargetSession(session, () => {});
+        chatStore.updateSession(session, () => {});
       }
     } catch (error) {
       console.error(`处理文件 ${file.name} 失败:`, error);

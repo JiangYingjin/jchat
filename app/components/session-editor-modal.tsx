@@ -22,7 +22,7 @@ export function SessionEditorModal(props: { onClose: () => void }) {
     if (isGroupSession) {
       chatStore.updateGroupSession(session, updater);
     } else {
-      chatStore.updateTargetSession(session, updater);
+      chatStore.updateSession(session, updater);
     }
   };
 

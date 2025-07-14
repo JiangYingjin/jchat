@@ -66,6 +66,10 @@ export class ClientApi {
   }
 }
 
+export function getClientApi(): ClientApi {
+  return new ClientApi();
+}
+
 export function getBearerToken(apiKey: string): string {
   return validString(apiKey) ? `Bearer ${apiKey.trim()}` : "";
 }
@@ -89,8 +93,4 @@ export function getHeaders(ignoreHeaders: boolean = false) {
   }
 
   return headers;
-}
-
-export function getClientApi(): ClientApi {
-  return new ClientApi();
 }

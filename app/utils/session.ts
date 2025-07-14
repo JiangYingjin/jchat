@@ -4,12 +4,12 @@ import type { ChatMessage } from "../store/message";
 import type { ChatSession } from "../store/chat";
 import type { ClientApi, MultimodalContent } from "../client/api";
 import { getClientApi } from "../client/api";
-import { estimateTokenLength } from "./token";
 import { useChatStore } from "../store/chat";
 import Locale from "../locales";
 import { buildMultimodalContent } from "./chat";
 import { FALLBACK_MODEL } from "../constant";
 import { systemMessageStorage } from "../store/system";
+import { parseGroupMessageId } from "./group";
 
 // 定义默认主题，避免循环依赖
 const DEFAULT_TOPIC = Locale.Session.Title.Default;
@@ -153,13 +153,10 @@ export function createEmptySession(): ChatSession {
 }
 
 /**
- * 计算消息总token数
+ * 计算消息总文本长度
  */
-export function countMessages(msgs: ChatMessage[]): number {
-  return msgs.reduce(
-    (pre, cur) => pre + estimateTokenLength(getMessageTextContent(cur)),
-    0,
-  );
+export function calculateMessagesTextLength(msgs: ChatMessage[]): number {
+  return msgs.reduce((pre, cur) => pre + getMessageTextContent(cur).length, 0);
 }
 
 /**
@@ -251,11 +248,11 @@ export async function generateSessionTitle(
   const messages = session.messages;
 
   // should summarize topic after chating more than 50 words
-  const SUMMARIZE_MIN_LEN = 50;
+  const TRIGGER_MIN_LEN = 50;
   if (
     ((session.title === DEFAULT_TOPIC ||
       session.title === Locale.Session.Title.DefaultGroup) &&
-      countMessages(messages) >= SUMMARIZE_MIN_LEN) ||
+      calculateMessagesTextLength(messages) >= TRIGGER_MIN_LEN) ||
     refreshTitle
   ) {
     const topicMessages = messages.concat(
@@ -391,4 +388,15 @@ export function validateSessionIndex(
     return Math.min(sessionsLength - 1, Math.max(0, index));
   }
   return index;
+}
+
+// 工具函数：只移除同 batchId 的用户消息，不添加
+export function filterOutUserMessageByBatchId(
+  messages: ChatMessage[],
+  batchId: string,
+): ChatMessage[] {
+  return messages.filter((m) => {
+    const parsed = parseGroupMessageId(m.id);
+    return !(parsed.isValid && parsed.batchId === batchId && m.role === "user");
+  });
 }
