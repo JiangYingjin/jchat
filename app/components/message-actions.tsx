@@ -11,8 +11,8 @@ import ResetIcon from "../icons/reload.svg";
 import StopIcon from "../icons/pause.svg";
 import BranchIcon from "../icons/branch.svg";
 import GroupIcon from "../icons/group.svg";
-import MergeCopyIcon from "../icons/merge-copy.svg"; // 引入新的合并复制图标
-
+import MergeCopyIcon from "../icons/merge-copy.svg";
+import BatchApplyIcon from "../icons/batch-apply.svg";
 import Locale from "../locales";
 
 export function MessageActions(props: {
@@ -99,7 +99,7 @@ export function MessageActions(props: {
           {showBatchApply && (
             <DoubleClickChatAction
               text={Locale.Chat.Actions.BatchApply}
-              icon={<GroupIcon />}
+              icon={<BatchApplyIcon />}
               onClick={() => onBatchApply(message)}
               alwaysFullWidth={false}
             />
