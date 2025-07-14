@@ -24,6 +24,7 @@ import {
   updateSessionStats,
   filterOutUserMessageByBatchId,
 } from "../utils/session";
+import { parseGroupMessageId } from "../utils/group";
 import { calculateGroupStatus } from "../utils/group";
 
 let fetchState = 0; // 0 not fetch, 1 fetching, 2 done
@@ -127,12 +128,12 @@ export const useChatStore = createPersistStore(
 
       // 新增：保存会话消息到独立存储
       async saveSessionMessages(session: ChatSession): Promise<void> {
-        console.log("[SaveSessionMessages] 🚀 开始保存消息", {
-          sessionId: session.id,
-          groupId: session.groupId,
-          messageCount: session.messages?.length || 0,
-          stackTrace: new Error().stack?.split("\n")[2]?.trim() || "unknown",
-        });
+        // console.log("[SaveSessionMessages] 🚀 开始保存消息", {
+        //   sessionId: session.id,
+        //   groupId: session.groupId,
+        //   messageCount: session.messages?.length || 0,
+        //   stackTrace: new Error().stack?.split("\n")[2]?.trim() || "unknown",
+        // });
 
         try {
           let messagesToSave = session.messages;
@@ -142,48 +143,48 @@ export const useChatStore = createPersistStore(
             const groupSession = get().groupSessions[session.id];
             if (groupSession && groupSession.messages) {
               messagesToSave = groupSession.messages;
-              console.log("[SaveSessionMessages] 📄 使用组会话消息", {
-                sessionId: session.id,
-                groupMessageCount: groupSession.messages.length,
-                sessionMessageCount: session.messages?.length || 0,
-              });
+              // console.log("[SaveSessionMessages] 📄 使用组会话消息", {
+              //   sessionId: session.id,
+              //   groupMessageCount: groupSession.messages.length,
+              //   sessionMessageCount: session.messages?.length || 0,
+              // });
             } else {
-              console.warn(
-                `[ChatStore] Group session ${session.id} not found in groupSessions or has no messages`,
-              );
-              console.log(
-                "[SaveSessionMessages] ⚠️ 组会话未找到，使用原始会话消息",
-                {
-                  sessionId: session.id,
-                  hasGroupSession: !!groupSession,
-                  groupSessionMessages: groupSession?.messages?.length || 0,
-                },
-              );
+              // console.warn(
+              //   `[ChatStore] Group session ${session.id} not found in groupSessions or has no messages`,
+              // );
+              // console.log(
+              //   "[SaveSessionMessages] ⚠️ 组会话未找到，使用原始会话消息",
+              //   {
+              //     sessionId: session.id,
+              //     hasGroupSession: !!groupSession,
+              //     groupSessionMessages: groupSession?.messages?.length || 0,
+              //   },
+              // );
             }
           }
 
-          console.log("[SaveSessionMessages] 💾 准备保存到 messageStorage", {
-            sessionId: session.id,
-            messageCount: messagesToSave?.length || 0,
-            messages:
-              messagesToSave?.map((m) => ({
-                id: m.id,
-                role: m.role,
-                contentLength:
-                  typeof m.content === "string"
-                    ? m.content.length
-                    : JSON.stringify(m.content).length,
-                streaming: m.streaming,
-              })) || [],
-          });
+          // console.log("[SaveSessionMessages] 💾 准备保存到 messageStorage", {
+          //   sessionId: session.id,
+          //   messageCount: messagesToSave?.length || 0,
+          //   messages:
+          //     messagesToSave?.map((m) => ({
+          //       id: m.id,
+          //       role: m.role,
+          //       contentLength:
+          //         typeof m.content === "string"
+          //           ? m.content.length
+          //           : JSON.stringify(m.content).length,
+          //       streaming: m.streaming,
+          //     })) || [],
+          // });
 
           const success = await messageStorage.save(session.id, messagesToSave);
 
-          console.log("[SaveSessionMessages] ✅ 保存完成", {
-            sessionId: session.id,
-            success,
-            messageCount: messagesToSave?.length || 0,
-          });
+          // console.log("[SaveSessionMessages] ✅ 保存完成", {
+          //   sessionId: session.id,
+          //   success,
+          //   messageCount: messagesToSave?.length || 0,
+          // });
         } catch (error) {
           console.error(
             `[ChatStore] ❌ Failed to save messages for session ${session.id}`,
@@ -628,9 +629,9 @@ export const useChatStore = createPersistStore(
 
         // 如果删除的是最后一个会话，先创建新会话
         if (isLastSession) {
-          console.log(
-            `[ChatStore] Last session deleted, creating new empty session`,
-          );
+          // console.log(
+          //   `[ChatStore] Last session deleted, creating new empty session`,
+          // );
 
           // 创建新的组内会话
           newSessionToAdd = createEmptySession();
@@ -712,9 +713,9 @@ export const useChatStore = createPersistStore(
         if (isLastSession && newSessionToAdd) {
           // 如果是新创建的会话，加载其消息
           await get().loadGroupSessionMessages(newSessionToAdd.id);
-          console.log(
-            `[ChatStore] New empty session created: ${newSessionToAdd.id}`,
-          );
+          // console.log(
+          //   `[ChatStore] New empty session created: ${newSessionToAdd.id}`,
+          // );
         } else if (newSessionIds[newCurrentSessionIndex]) {
           // 如果是切换到现有会话，加载其消息
           await get().loadGroupSessionMessages(
@@ -722,7 +723,7 @@ export const useChatStore = createPersistStore(
           );
         }
 
-        console.log(`[ChatStore] Group session ${sessionId} removed from UI`);
+        // console.log(`[ChatStore] Group session ${sessionId} removed from UI`);
 
         // **延迟删除相关数据的定时器**
         let deleteTimer: NodeJS.Timeout | null = null;
@@ -734,9 +735,9 @@ export const useChatStore = createPersistStore(
               chatInputStorage.delete(sessionId),
               systemMessageStorage.delete(sessionId),
             ]);
-            console.log(
-              `[ChatStore] Group session ${sessionId} data deleted permanently`,
-            );
+            // console.log(
+            //   `[ChatStore] Group session ${sessionId} data deleted permanently`,
+            // );
           } catch (error) {
             console.error(
               `[ChatStore] Failed to delete group session ${sessionId} data:`,
@@ -762,7 +763,7 @@ export const useChatStore = createPersistStore(
             await get().loadGroupSessionMessages(sessionId);
           }, 0);
 
-          console.log(`[ChatStore] Group session ${sessionId} deletion undone`);
+          // console.log(`[ChatStore] Group session ${sessionId} deletion undone`);
         };
 
         // 设置8秒后的延迟删除
@@ -843,9 +844,9 @@ export const useChatStore = createPersistStore(
           };
         });
 
-        console.log(
-          `[ChatStore] Group ${groupId} and all its sessions removed from UI`,
-        );
+        // console.log(
+        //   `[ChatStore] Group ${groupId} and all its sessions removed from UI`,
+        // );
 
         // **延迟删除相关数据的定时器**
         let deleteTimer: NodeJS.Timeout | null = null;
@@ -862,9 +863,9 @@ export const useChatStore = createPersistStore(
             });
 
             await Promise.all(deletePromises);
-            console.log(
-              `[ChatStore] Group ${groupId} and all its sessions data deleted permanently`,
-            );
+            // console.log(
+            //   `[ChatStore] Group ${groupId} and all its sessions data deleted permanently`,
+            // );
           } catch (error) {
             console.error(
               `[ChatStore] Failed to delete group ${groupId} data:`,
@@ -892,7 +893,7 @@ export const useChatStore = createPersistStore(
             }
           }, 0);
 
-          console.log(`[ChatStore] Group ${groupId} deletion undone`);
+          // console.log(`[ChatStore] Group ${groupId} deletion undone`);
         };
 
         // 设置8秒后的延迟删除
@@ -1097,9 +1098,9 @@ export const useChatStore = createPersistStore(
               chatInputStorage.delete(deletedSession.id),
               systemMessageStorage.delete(deletedSession.id),
             ]);
-            console.log(
-              `[DeleteSession] 已删除会话 ${deletedSession.id} 的所有数据`,
-            );
+            // console.log(
+            //   `[DeleteSession] 已删除会话 ${deletedSession.id} 的所有数据`,
+            // );
           } catch (error) {
             console.error(
               `[DeleteSession] 删除会话 ${deletedSession.id} 的数据失败:`,
@@ -1125,7 +1126,7 @@ export const useChatStore = createPersistStore(
             await get().loadSessionMessages(deletedSessionIndex);
           }, 0);
 
-          console.log(`[DeleteSession] 已撤销删除会话 ${deletedSession.id}`);
+          // console.log(`[DeleteSession] 已撤销删除会话 ${deletedSession.id}`);
         };
 
         // 设置8秒后的延迟删除
@@ -1190,9 +1191,9 @@ export const useChatStore = createPersistStore(
               }
             }
             // 如果组内会话模式但没有找到会话，回退到组列表模式
-            console.log(
-              `[ChatStore] No group session found, falling back to groups view`,
-            );
+            // console.log(
+            //   `[ChatStore] No group session found, falling back to groups view`,
+            // );
             set({ chatListGroupView: "groups" });
           }
 
@@ -1269,6 +1270,7 @@ export const useChatStore = createPersistStore(
           modelBatchId,
           timestamp: new Date().toISOString(),
         });
+
         // 根据 targetSessionId 获取目标会话，如果没有指定则使用当前会话
         let session: ChatSession;
         if (targetSessionId) {
@@ -1359,35 +1361,6 @@ export const useChatStore = createPersistStore(
 
         const messageIndex = session.messages.length + 1;
 
-        // 调试：插入前打印 session.messages
-        console.log(
-          "[onSendMessage] 插入前 session.id:",
-          session.id,
-          "messages:",
-          session.messages.map((m) => ({
-            id: m.id,
-            role: m.role,
-            batchId: typeof m.id === "string" ? m.id.split("_")[0] : undefined,
-          })),
-        );
-        // 调试：即将插入的 userMessage 和 modelMessage
-        console.log("[onSendMessage] 即将插入 userMessage:", {
-          id: userMessage.id,
-          role: userMessage.role,
-          batchId:
-            typeof userMessage.id === "string"
-              ? userMessage.id.split("_")[0]
-              : undefined,
-        });
-        console.log("[onSendMessage] 即将插入 modelMessage:", {
-          id: modelMessage.id,
-          role: modelMessage.role,
-          batchId:
-            typeof modelMessage.id === "string"
-              ? modelMessage.id.split("_")[0]
-              : undefined,
-        });
-
         // 始终获取最新的 session 对象
         let latestSession: ChatSession | undefined;
         if (session.groupId) {
@@ -1399,71 +1372,174 @@ export const useChatStore = createPersistStore(
           session = latestSession;
         }
 
-        // 去重：只移除所有同 batchId 的用户消息
+        // 🔧 优化：基于 batchId 的消息更新逻辑
         if (session.groupId && userBatchId) {
-          session.messages = filterOutUserMessageByBatchId(
-            session.messages,
-            userBatchId,
+          console.log(
+            `[onSendMessage] 🔍 查找 batchId=${userBatchId} 的现有消息`,
           );
-        }
 
-        if (session.groupId) {
-          get().updateGroupSession(session, (session) => {
-            const savedUserMessage = {
-              ...userMessage,
-              content: mContent,
-            };
-            session.messages = insertMessage(
-              session.messages,
-              savedUserMessage,
-              modelMessage,
-              messageIdx,
+          // 查找相同 batchId 的用户消息
+          const existingUserMsgIndex = session.messages.findIndex((m) => {
+            const parsed = parseGroupMessageId(m.id);
+            return (
+              parsed.isValid &&
+              parsed.batchId === userBatchId &&
+              m.role === "user"
             );
-            updateSessionStatsBasic(session); // 先同步更新基础统计信息
           });
+
+          if (existingUserMsgIndex !== -1) {
+            console.log(`[onSendMessage] ✏️ 找到现有用户消息，更新内容`, {
+              index: existingUserMsgIndex,
+              existingId: session.messages[existingUserMsgIndex].id,
+              newContent:
+                typeof mContent === "string"
+                  ? mContent.substring(0, 50) + "..."
+                  : "[多媒体内容]",
+            });
+
+            // 找到现有用户消息，更新其内容
+            if (session.groupId) {
+              get().updateGroupSession(session, (session) => {
+                session.messages[existingUserMsgIndex] = {
+                  ...session.messages[existingUserMsgIndex],
+                  content: mContent,
+                };
+
+                // 删除该用户消息后面紧跟的模型消息（如果存在）
+                const nextMsgIndex = existingUserMsgIndex + 1;
+                if (
+                  nextMsgIndex < session.messages.length &&
+                  session.messages[nextMsgIndex].role === "assistant"
+                ) {
+                  console.log(`[onSendMessage] 🗑️ 删除现有模型消息`, {
+                    index: nextMsgIndex,
+                    messageId: session.messages[nextMsgIndex].id,
+                  });
+                  session.messages.splice(nextMsgIndex, 1);
+                }
+
+                // 在用户消息后插入新的模型消息
+                session.messages.splice(
+                  existingUserMsgIndex + 1,
+                  0,
+                  modelMessage,
+                );
+                updateSessionStatsBasic(session);
+              });
+            } else {
+              get().updateSession(session, (session) => {
+                session.messages[existingUserMsgIndex] = {
+                  ...session.messages[existingUserMsgIndex],
+                  content: mContent,
+                };
+
+                // 删除该用户消息后面紧跟的模型消息（如果存在）
+                const nextMsgIndex = existingUserMsgIndex + 1;
+                if (
+                  nextMsgIndex < session.messages.length &&
+                  session.messages[nextMsgIndex].role === "assistant"
+                ) {
+                  console.log(`[onSendMessage] 🗑️ 删除现有模型消息`, {
+                    index: nextMsgIndex,
+                    messageId: session.messages[nextMsgIndex].id,
+                  });
+                  session.messages.splice(nextMsgIndex, 1);
+                }
+
+                // 在用户消息后插入新的模型消息
+                session.messages.splice(
+                  existingUserMsgIndex + 1,
+                  0,
+                  modelMessage,
+                );
+                updateSessionStatsBasic(session);
+              });
+            }
+          } else {
+            console.log(`[onSendMessage] ➕ 未找到现有消息，追加到末尾`, {
+              userBatchId,
+              messageCount: session.messages.length,
+            });
+
+            // 没有找到现有消息，追加到末尾
+            if (session.groupId) {
+              get().updateGroupSession(session, (session) => {
+                session.messages.push(userMessage, modelMessage);
+                updateSessionStatsBasic(session);
+              });
+            } else {
+              get().updateSession(session, (session) => {
+                session.messages.push(userMessage, modelMessage);
+                updateSessionStatsBasic(session);
+              });
+            }
+          }
         } else {
-          get().updateSession(session, (session) => {
-            const savedUserMessage = {
-              ...userMessage,
-              content: mContent,
-            };
-            session.messages = insertMessage(
-              session.messages,
-              savedUserMessage,
-              modelMessage,
-              messageIdx,
-            );
-            updateSessionStatsBasic(session); // 先同步更新基础统计信息
+          // 非组内会话或没有指定 batchId，使用原有的 insertMessage 逻辑
+          console.log(`[onSendMessage] 📝 使用传统插入逻辑`, {
+            isGroupSession: !!session.groupId,
+            hasBatchId: !!userBatchId,
+            messageIdx,
           });
+
+          if (session.groupId) {
+            get().updateGroupSession(session, (session) => {
+              const savedUserMessage = {
+                ...userMessage,
+                content: mContent,
+              };
+              session.messages = insertMessage(
+                session.messages,
+                savedUserMessage,
+                modelMessage,
+                messageIdx,
+              );
+              updateSessionStatsBasic(session);
+            });
+          } else {
+            get().updateSession(session, (session) => {
+              const savedUserMessage = {
+                ...userMessage,
+                content: mContent,
+              };
+              session.messages = insertMessage(
+                session.messages,
+                savedUserMessage,
+                modelMessage,
+                messageIdx,
+              );
+              updateSessionStatsBasic(session);
+            });
+          }
         }
 
-        // 调试：插入后打印 session.messages
+        // 调试：操作后打印消息列表
         const sessionAfterInsert =
           get().groupSessions[session.id] ||
           get().sessions.find((s) => s.id === session.id);
         if (sessionAfterInsert) {
           console.log(
-            "[onSendMessage] 插入后 session.id:",
-            session.id,
-            "messages:",
-            sessionAfterInsert.messages.map((m) => ({
+            `[onSendMessage] 📋 操作后消息列表:`,
+            sessionAfterInsert.messages.map((m, idx) => ({
+              index: idx,
               id: m.id,
               role: m.role,
               batchId:
-                typeof m.id === "string" ? m.id.split("_")[0] : undefined,
+                typeof m.id === "string"
+                  ? parseGroupMessageId(m.id).batchId
+                  : undefined,
+              streaming: m.streaming,
             })),
           );
         }
 
         // 立即保存消息到独立存储 - 获取最新的会话对象
-        const latestSessionForSave = session.groupId
-          ? get().groupSessions[session.id]
-          : get().sessions.find((s) => s.id === session.id) || session;
+        const latestSessionForSave = get().getLatestSession(session);
 
         console.log("[onSendMessage] 💾 准备立即保存消息到存储", {
           sessionId: session.id,
           isGroupSession: !!session.groupId,
-          oldMessageCount: session.messages?.length || 0,
           latestMessageCount: latestSessionForSave.messages?.length || 0,
           step: "after-insert",
         });
@@ -1502,9 +1578,7 @@ export const useChatStore = createPersistStore(
               });
             }
             // 异步保存消息更新 - 获取最新会话对象
-            const latestSessionOnUpdate = session.groupId
-              ? get().groupSessions[session.id]
-              : get().sessions.find((s) => s.id === session.id) || session;
+            const latestSessionOnUpdate = get().getLatestSession(session);
 
             console.log("[onSendMessage] 🔄 onUpdate 保存消息", {
               sessionId: session.id,
@@ -1544,9 +1618,7 @@ export const useChatStore = createPersistStore(
               });
             }
             // 异步保存消息更新 - 获取最新会话对象
-            const latestSessionOnReasoning = session.groupId
-              ? get().groupSessions[session.id]
-              : get().sessions.find((s) => s.id === session.id) || session;
+            const latestSessionOnReasoning = get().getLatestSession(session);
 
             console.log("[onSendMessage] 🧠 onReasoningUpdate 保存消息", {
               sessionId: session.id,
@@ -1594,9 +1666,7 @@ export const useChatStore = createPersistStore(
               get().handleMessageComplete(modelMessage, session, usage);
             }
             // 保存最终消息状态 - 获取最新会话对象
-            const latestSessionOnFinish = session.groupId
-              ? get().groupSessions[session.id]
-              : get().sessions.find((s) => s.id === session.id) || session;
+            const latestSessionOnFinish = get().getLatestSession(session);
 
             console.log("[onSendMessage] ✅ onFinish 保存消息", {
               sessionId: session.id,
@@ -1633,9 +1703,7 @@ export const useChatStore = createPersistStore(
               });
             }
             // 保存错误状态的消息 - 获取最新会话对象
-            const latestSessionOnError = session.groupId
-              ? get().groupSessions[session.id]
-              : get().sessions.find((s) => s.id === session.id) || session;
+            const latestSessionOnError = get().getLatestSession(session);
 
             console.log("[onSendMessage] ❌ onError 保存消息", {
               sessionId: session.id,
@@ -1864,7 +1932,7 @@ export const useChatStore = createPersistStore(
         })
           .then((res) => res.json())
           .then((res: any) => {
-            console.log("[Config] got config from server", res);
+            // console.log("[Config] got config from server", res);
             set(() => ({ models: res.models }));
           })
           .catch(() => {
@@ -2019,10 +2087,10 @@ export const useChatStore = createPersistStore(
             chatListGroupView: "group-sessions" as const,
           }));
 
-          console.log(
-            `[ChatStore] 成功从 ${sortedFiles.length} 个文件创建会话组:`,
-            newGroup.id,
-          );
+          // console.log(
+          //   `[ChatStore] 成功从 ${sortedFiles.length} 个文件创建会话组:`,
+          //   newGroup.id,
+          // );
           showToast(`成功创建会话组，包含 ${sortedFiles.length} 个文件`);
 
           return newGroup;

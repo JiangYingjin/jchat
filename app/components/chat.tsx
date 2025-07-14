@@ -159,22 +159,43 @@ function Chat() {
     const textContent = getMessageTextContent(userMessage);
     const images = getMessageImages(userMessage);
 
-    // 组内会话重试时，生成新的 batch id，避免模型回复消息和用户消息有相同的 batch id
-    let newBatchId: string | undefined;
+    // 🔧 修复重试逻辑：使用 batchId 机制而不是 requestIndex
+    let userBatchId: string | undefined;
+    let modelBatchId: string | undefined;
+
     if (session.groupId) {
       // 解析用户消息的 batch id
       const parsedId = parseGroupMessageId(userMessage.id);
       if (parsedId.isValid) {
-        // 生成新的 batch id，确保模型回复消息有独立的 batch id
-        newBatchId = nanoid(12);
+        // 重试时保持用户消息的 batchId 不变，但生成新的模型消息 batchId
+        userBatchId = parsedId.batchId;
+        modelBatchId = nanoid(12);
+
+        console.log("[Resend] 🔄 组内会话重试", {
+          userMessageId: userMessage.id,
+          userBatchId,
+          modelBatchId,
+          sessionId: session.id,
+        });
       }
     }
 
     chatStore
-      .onSendMessage(textContent, images, requestIndex, undefined, newBatchId)
+      .onSendMessage(
+        textContent,
+        images,
+        undefined, // 不传 requestIndex，让 batchId 机制处理
+        undefined, // 当前会话
+        userBatchId, // 保持用户消息的 batchId
+        modelBatchId, // 新的模型消息 batchId
+      )
       .then(async () => {
         setIsLoading(false);
-        // onSendMessage 内部已经正确处理了消息保存，无需重复保存
+        console.log("[Resend] ✅ 重试完成");
+      })
+      .catch((error) => {
+        console.error("[Resend] ❌ 重试失败", error);
+        setIsLoading(false);
       });
   };
 
@@ -300,6 +321,13 @@ function Chat() {
         ? modelMessageParsedId.batchId
         : userBatchId;
 
+      console.log(`[BatchApply] 🚀 开始批量应用`, {
+        userBatchId,
+        modelBatchId,
+        sourceSessionId: session.id,
+        targetSessionCount: currentGroup.sessionIds.length - 1,
+      });
+
       // 遍历组内所有会话
       for (const sessionId of currentGroup.sessionIds) {
         // 跳过当前会话
@@ -315,128 +343,36 @@ function Chat() {
           continue;
         }
 
-        // 调试：打印当前会话所有消息
-        console.log(
-          `[BatchApply] 处理会话 ${sessionId}，所有消息:`,
-          targetSession.messages.map((m) => ({
-            id: m.id,
-            role: m.role,
-            batchId: parseGroupMessageId(m.id).batchId,
-          })),
+        console.log(`[BatchApply] 📝 处理会话 ${sessionId}`, {
+          currentMessageCount: targetSession.messages.length,
+          userBatchId,
+          modelBatchId,
+        });
+
+        // 🔧 优化：直接使用 onSendMessage 的 batchId 机制
+        // 这样会自动处理：
+        // 1. 如果找到现有的 batchId 消息，更新用户消息内容，删除模型消息，插入新的模型消息
+        // 2. 如果没找到，追加到末尾
+        const textContent = getMessageTextContent(message);
+        const images = getMessageImages(message);
+
+        await chatStore.onSendMessage(
+          textContent,
+          images,
+          undefined, // 不传 messageIdx，让 batchId 机制处理
+          sessionId,
+          userBatchId, // 用户消息使用原始的用户 batch id
+          modelBatchId, // 模型消息使用模型回复消息的 batch id
         );
 
-        // 查找目标会话中是否有相同用户 batch id 的消息
-        const existingUserMsgIndex = targetSession.messages.findIndex((m) => {
-          const parsed = parseGroupMessageId(m.id);
-          return (
-            parsed.isValid &&
-            parsed.batchId === userBatchId &&
-            m.role === "user"
-          );
-        });
-        // 调试：打印查找结果
-        if (existingUserMsgIndex !== -1) {
-          const msg = targetSession.messages[existingUserMsgIndex];
-          console.log(`[BatchApply] 已存在用户消息:`, {
-            index: existingUserMsgIndex,
-            id: msg.id,
-            role: msg.role,
-            batchId: parseGroupMessageId(msg.id).batchId,
-            content: msg.content,
-          });
-        } else {
-          console.log(
-            `[BatchApply] 未找到 batchId=${userBatchId} 的用户消息，将插入新消息`,
-          );
-        }
-
-        if (existingUserMsgIndex !== -1) {
-          // 找到相同用户 batch id 的消息，需要重新发送（类似重试）
-          // 先检查该消息后面是否有模型回复消息，如果有则删除
-          const nextMessageIndex = existingUserMsgIndex + 1;
-          const nextMessage = targetSession.messages[nextMessageIndex];
-
-          if (nextMessage && nextMessage.role === "assistant") {
-            // 删除模型回复消息，因为要重新生成
-            chatStore.updateGroupSession(targetSession, (session) => {
-              session.messages.splice(nextMessageIndex, 1);
-              updateSessionStatsBasic(session);
-            });
-
-            // 获取最新的会话对象后保存
-            const updatedTargetSession = chatStore.groupSessions[sessionId];
-            if (updatedTargetSession) {
-              await chatStore.saveSessionMessages(updatedTargetSession);
-            }
-          }
-
-          // 更新用户消息内容
-          chatStore.updateGroupSession(targetSession, (session) => {
-            session.messages[existingUserMsgIndex] = {
-              ...session.messages[existingUserMsgIndex],
-              content: message.content,
-            };
-            updateSessionStatsBasic(session);
-          });
-
-          // 获取最新的会话对象后保存
-          const updatedTargetSession2 = chatStore.groupSessions[sessionId];
-          if (updatedTargetSession2) {
-            await chatStore.saveSessionMessages(updatedTargetSession2);
-          }
-
-          // 重新发送消息（类似重试）
-          // 用户消息使用原始的用户 batch id，模型消息使用模型回复消息的 batch id
-          const textContent = getMessageTextContent(message);
-          const images = getMessageImages(message);
-
-          const updatedSession = chatStore.groupSessions[sessionId];
-          if (updatedSession) {
-            chatStore.onSendMessage(
-              textContent,
-              images,
-              undefined,
-              sessionId,
-              userBatchId, // 用户消息使用原始的用户 batch id
-              modelBatchId, // 模型消息使用模型回复消息的 batch id
-            );
-          }
-        } else {
-          // 没有找到相同用户 batch id 的消息，需要创建新的用户消息
-          // 用户消息使用原始的用户 batch id，模型消息使用模型回复消息的 batch id
-          const textContent = getMessageTextContent(message);
-          const images = getMessageImages(message);
-
-          const updatedSession = chatStore.groupSessions[sessionId];
-          if (updatedSession) {
-            chatStore.onSendMessage(
-              textContent,
-              images,
-              undefined,
-              sessionId,
-              userBatchId, // 用户消息使用原始的用户 batch id
-              modelBatchId, // 模型消息使用模型回复消息的 batch id
-            );
-          }
-        }
-
-        // 调试：插入或重试后，再次打印该会话所有消息
-        const afterSession = chatStore.groupSessions[sessionId];
-        if (afterSession) {
-          console.log(
-            `[BatchApply] 应用后会话 ${sessionId}，所有消息:`,
-            afterSession.messages.map((m) => ({
-              id: m.id,
-              role: m.role,
-              batchId: parseGroupMessageId(m.id).batchId,
-            })),
-          );
-        }
+        console.log(`[BatchApply] ✅ 完成处理会话 ${sessionId}`);
       }
-      // 调试：打印本次批量应用的 batchId 和 modelBatchId
-      console.log(
-        `[BatchApply] 本次批量应用 batchId=${userBatchId}，modelBatchId=${modelBatchId}`,
-      );
+
+      console.log(`[BatchApply] 🎉 批量应用完成`, {
+        userBatchId,
+        modelBatchId,
+        processedSessions: currentGroup.sessionIds.length - 1,
+      });
 
       showToast("批量应用完成");
     } catch (error) {
