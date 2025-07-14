@@ -1425,6 +1425,8 @@ export const useChatStore = createPersistStore(
                   0,
                   modelMessage,
                 );
+                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
+                session.messages = session.messages.concat();
                 updateSessionStatsBasic(session);
               });
             } else {
@@ -1453,6 +1455,8 @@ export const useChatStore = createPersistStore(
                   0,
                   modelMessage,
                 );
+                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
+                session.messages = session.messages.concat();
                 updateSessionStatsBasic(session);
               });
             }
@@ -1466,11 +1470,15 @@ export const useChatStore = createPersistStore(
             if (session.groupId) {
               get().updateGroupSession(session, (session) => {
                 session.messages.push(userMessage, modelMessage);
+                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
+                session.messages = session.messages.concat();
                 updateSessionStatsBasic(session);
               });
             } else {
               get().updateSession(session, (session) => {
                 session.messages.push(userMessage, modelMessage);
+                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
+                session.messages = session.messages.concat();
                 updateSessionStatsBasic(session);
               });
             }
@@ -1562,85 +1570,146 @@ export const useChatStore = createPersistStore(
           messages: sendMessages,
           model: session.model,
           onUpdate(message) {
+            console.log(`[Streaming] 🔄 onUpdate UI 更新开始`, {
+              sessionId: session.id,
+              isGroupSession: !!session.groupId,
+              messageLength: message?.length || 0,
+              timestamp: performance.now(),
+            });
+
             modelMessage.streaming = true;
             if (message) {
               modelMessage.content = message;
             }
+
+            // 🔧 修复：立即更新UI状态，确保触发React重新渲染
             if (session.groupId) {
               get().updateGroupSession(session, (session) => {
+                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
                 session.messages = session.messages.concat();
-                updateSessionStatsBasic(session); // 先同步更新基础统计信息
+                updateSessionStatsBasic(session);
               });
             } else {
               get().updateSession(session, (session) => {
+                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
                 session.messages = session.messages.concat();
-                updateSessionStatsBasic(session); // 先同步更新基础统计信息
+                updateSessionStatsBasic(session);
               });
             }
-            // 异步保存消息更新 - 获取最新会话对象
+
+            console.log(`[Streaming] ✅ onUpdate UI 更新完成`, {
+              sessionId: session.id,
+              timestamp: performance.now(),
+            });
+
+            // 🔧 优化：异步操作不阻塞UI渲染
             const latestSessionOnUpdate = get().getLatestSession(session);
 
-            console.log("[onSendMessage] 🔄 onUpdate 保存消息", {
-              sessionId: session.id,
-              messageLength: message?.length || 0,
-              modelStreaming: modelMessage.streaming,
-              latestMessageCount: latestSessionOnUpdate.messages?.length || 0,
-              step: "onUpdate",
-            });
-            get().saveSessionMessages(latestSessionOnUpdate);
+            // 使用 Promise.resolve() 确保异步操作不阻塞当前渲染
+            Promise.resolve()
+              .then(async () => {
+                console.log("[onSendMessage] 🔄 onUpdate 保存消息", {
+                  sessionId: session.id,
+                  messageLength: message?.length || 0,
+                  modelStreaming: modelMessage.streaming,
+                  latestMessageCount:
+                    latestSessionOnUpdate.messages?.length || 0,
+                  step: "onUpdate",
+                });
 
-            // 异步更新包含系统提示词的完整统计信息
-            updateSessionStats(latestSessionOnUpdate).then(() => {
-              if (latestSessionOnUpdate.groupId) {
-                get().updateGroupSession(
-                  latestSessionOnUpdate,
-                  (session) => {},
-                );
-              } else {
-                get().updateSession(latestSessionOnUpdate, (session) => {});
-              }
-            });
+                // 异步保存消息更新
+                await get().saveSessionMessages(latestSessionOnUpdate);
+
+                // 异步更新包含系统提示词的完整统计信息
+                await updateSessionStats(latestSessionOnUpdate);
+
+                // 最终状态同步（但不阻塞流式渲染）
+                if (latestSessionOnUpdate.groupId) {
+                  get().updateGroupSession(
+                    latestSessionOnUpdate,
+                    (session) => {},
+                  );
+                } else {
+                  get().updateSession(latestSessionOnUpdate, (session) => {});
+                }
+              })
+              .catch((error) => {
+                console.error("[onSendMessage] onUpdate 异步操作失败:", error);
+              });
           },
           onReasoningUpdate(message) {
+            console.log(`[Streaming] 🧠 onReasoningUpdate UI 更新开始`, {
+              sessionId: session.id,
+              isGroupSession: !!session.groupId,
+              reasoningLength: message?.length || 0,
+              timestamp: performance.now(),
+            });
+
             modelMessage.streaming = true;
             if (message) {
               modelMessage.reasoningContent = message;
             }
+
+            // 🔧 修复：立即更新UI状态，确保触发React重新渲染
             if (session.groupId) {
               get().updateGroupSession(session, (session) => {
+                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
                 session.messages = session.messages.concat();
-                updateSessionStatsBasic(session); // 先同步更新基础统计信息
+                updateSessionStatsBasic(session);
               });
             } else {
               get().updateSession(session, (session) => {
+                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
                 session.messages = session.messages.concat();
-                updateSessionStatsBasic(session); // 先同步更新基础统计信息
+                updateSessionStatsBasic(session);
               });
             }
-            // 异步保存消息更新 - 获取最新会话对象
+
+            console.log(`[Streaming] ✅ onReasoningUpdate UI 更新完成`, {
+              sessionId: session.id,
+              timestamp: performance.now(),
+            });
+
+            // 🔧 优化：异步操作不阻塞UI渲染
             const latestSessionOnReasoning = get().getLatestSession(session);
 
-            console.log("[onSendMessage] 🧠 onReasoningUpdate 保存消息", {
-              sessionId: session.id,
-              reasoningLength: message?.length || 0,
-              modelStreaming: modelMessage.streaming,
-              latestMessageCount:
-                latestSessionOnReasoning.messages?.length || 0,
-              step: "onReasoningUpdate",
-            });
-            get().saveSessionMessages(latestSessionOnReasoning);
+            // 使用 Promise.resolve() 确保异步操作不阻塞当前渲染
+            Promise.resolve()
+              .then(async () => {
+                console.log("[onSendMessage] 🧠 onReasoningUpdate 保存消息", {
+                  sessionId: session.id,
+                  reasoningLength: message?.length || 0,
+                  modelStreaming: modelMessage.streaming,
+                  latestMessageCount:
+                    latestSessionOnReasoning.messages?.length || 0,
+                  step: "onReasoningUpdate",
+                });
 
-            // 异步更新包含系统提示词的完整统计信息
-            updateSessionStats(latestSessionOnReasoning).then(() => {
-              if (latestSessionOnReasoning.groupId) {
-                get().updateGroupSession(
-                  latestSessionOnReasoning,
-                  (session) => {},
+                // 异步保存消息更新
+                await get().saveSessionMessages(latestSessionOnReasoning);
+
+                // 异步更新包含系统提示词的完整统计信息
+                await updateSessionStats(latestSessionOnReasoning);
+
+                // 最终状态同步（但不阻塞流式渲染）
+                if (latestSessionOnReasoning.groupId) {
+                  get().updateGroupSession(
+                    latestSessionOnReasoning,
+                    (session) => {},
+                  );
+                } else {
+                  get().updateSession(
+                    latestSessionOnReasoning,
+                    (session) => {},
+                  );
+                }
+              })
+              .catch((error) => {
+                console.error(
+                  "[onSendMessage] onReasoningUpdate 异步操作失败:",
+                  error,
                 );
-              } else {
-                get().updateSession(latestSessionOnReasoning, (session) => {});
-              }
-            });
+              });
           },
           onFinish(message, responseRes, usage) {
             modelMessage.streaming = false;
@@ -1665,6 +1734,22 @@ export const useChatStore = createPersistStore(
 
               get().handleMessageComplete(modelMessage, session, usage);
             }
+
+            // 🔧 修复：立即更新UI状态，确保触发React重新渲染
+            if (session.groupId) {
+              get().updateGroupSession(session, (session) => {
+                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
+                session.messages = session.messages.concat();
+                updateSessionStatsBasic(session);
+              });
+            } else {
+              get().updateSession(session, (session) => {
+                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
+                session.messages = session.messages.concat();
+                updateSessionStatsBasic(session);
+              });
+            }
+
             // 保存最终消息状态 - 获取最新会话对象
             const latestSessionOnFinish = get().getLatestSession(session);
 
@@ -1691,39 +1776,61 @@ export const useChatStore = createPersistStore(
             modelMessage.streaming = false;
             userMessage.isError = !isAborted;
             modelMessage.isError = !isAborted;
+
+            // 🔧 修复：立即更新UI状态，确保触发React重新渲染
             if (session.groupId) {
               get().updateGroupSession(session, (session) => {
+                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
                 session.messages = session.messages.concat();
-                updateSessionStatsBasic(session); // 先同步更新基础统计信息
+                updateSessionStatsBasic(session);
               });
             } else {
               get().updateSession(session, (session) => {
+                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
                 session.messages = session.messages.concat();
-                updateSessionStatsBasic(session); // 先同步更新基础统计信息
+                updateSessionStatsBasic(session);
               });
             }
-            // 保存错误状态的消息 - 获取最新会话对象
+
+            // 🔧 优化：异步操作不阻塞UI渲染
             const latestSessionOnError = get().getLatestSession(session);
 
-            console.log("[onSendMessage] ❌ onError 保存消息", {
-              sessionId: session.id,
-              errorMessage: error.message,
-              isAborted,
-              userMessageError: userMessage.isError,
-              modelMessageError: modelMessage.isError,
-              latestMessageCount: latestSessionOnError.messages?.length || 0,
-              step: "onError",
-            });
-            get().saveSessionMessages(latestSessionOnError);
+            // 使用 Promise.resolve() 确保异步操作不阻塞当前渲染
+            Promise.resolve()
+              .then(async () => {
+                console.log("[onSendMessage] ❌ onError 保存消息", {
+                  sessionId: session.id,
+                  errorMessage: error.message,
+                  isAborted,
+                  userMessageError: userMessage.isError,
+                  modelMessageError: modelMessage.isError,
+                  latestMessageCount:
+                    latestSessionOnError.messages?.length || 0,
+                  step: "onError",
+                });
 
-            // 异步更新包含系统提示词的完整统计信息
-            updateSessionStats(latestSessionOnError).then(() => {
-              if (latestSessionOnError.groupId) {
-                get().updateGroupSession(latestSessionOnError, (session) => {});
-              } else {
-                get().updateSession(latestSessionOnError, (session) => {});
-              }
-            });
+                // 异步保存错误状态的消息
+                await get().saveSessionMessages(latestSessionOnError);
+
+                // 异步更新包含系统提示词的完整统计信息
+                await updateSessionStats(latestSessionOnError);
+
+                // 最终状态同步（但不阻塞错误处理）
+                if (latestSessionOnError.groupId) {
+                  get().updateGroupSession(
+                    latestSessionOnError,
+                    (session) => {},
+                  );
+                } else {
+                  get().updateSession(latestSessionOnError, (session) => {});
+                }
+              })
+              .catch((saveError) => {
+                console.error(
+                  "[onSendMessage] onError 异步操作失败:",
+                  saveError,
+                );
+              });
 
             ChatControllerPool.remove(
               session.id,
