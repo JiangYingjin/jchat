@@ -11,7 +11,7 @@ import ResetIcon from "../icons/reload.svg";
 import StopIcon from "../icons/pause.svg";
 import BranchIcon from "../icons/branch.svg";
 import GroupIcon from "../icons/group.svg";
-import MergeIcon from "../icons/group.svg";
+import MergeCopyIcon from "../icons/merge-copy.svg"; // 引入新的合并复制图标
 
 import Locale from "../locales";
 
@@ -75,7 +75,7 @@ export function MessageActions(props: {
           {showMergeCopy && (
             <ChatAction
               text={"合并复制"}
-              icon={<MergeIcon />}
+              icon={<MergeCopyIcon />} // 使用新的图标
               onClick={() => onMergeCopy(message)}
               alwaysFullWidth={false}
             />
