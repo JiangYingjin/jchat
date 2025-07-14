@@ -9,6 +9,8 @@ import clsx from "clsx";
 import { useMobileScreen } from "../utils";
 import React from "react";
 import { showConfirm } from "./ui-lib";
+import { showToast } from "./ui-lib";
+import { useChatStore } from "../store";
 
 export function ChatHeader(props: {
   sessionTitle: string;
@@ -21,6 +23,17 @@ export function ChatHeader(props: {
   hasGroupId?: boolean; // 新增：是否有 groupId
 }) {
   const isMobileScreen = useMobileScreen();
+  const chatStore = useChatStore();
+
+  // 处理右键单击标题，刷新会话标题
+  const handleTitleContextMenu = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    showToast(Locale.Chat.Actions.RefreshTitleToast);
+    // 获取当前会话
+    const session = chatStore.currentSession();
+    await chatStore.generateSessionTitle(true, session);
+  };
 
   // 处理右键单击删除按钮
   const handleDeleteButtonContextMenu = async (e: React.MouseEvent) => {
@@ -95,6 +108,7 @@ export function ChatHeader(props: {
             styles["chat-body-main-title"],
           )}
           onClickCapture={props.onEditSessionClick}
+          onContextMenu={handleTitleContextMenu}
         >
           {!props.sessionTitle ? DEFAULT_TITLE : props.sessionTitle}
         </div>

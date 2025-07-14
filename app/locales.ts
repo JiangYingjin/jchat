@@ -38,7 +38,7 @@ const cn = {
       Branch: "分支",
       BranchFailed: "分支会话失败，请重试",
       RefreshTitle: "刷新标题",
-      RefreshTitleToast: "已发送刷新标题请求",
+      RefreshTitleToast: "正在刷新标题中",
       BatchApply: "应用",
       BatchDelete: "批量删除",
       BatchDeleteFailed: "批量删除失败，请重试",

@@ -86,7 +86,7 @@ export function SessionEditorModal(props: { onClose: () => void }) {
             />
           </ListItem>
         </List>
-        {!isGroupSession && (
+        {/* {!isGroupSession && (
           <MessageListEditor
             context={messages}
             updateContext={(updater) => {
@@ -96,7 +96,7 @@ export function SessionEditorModal(props: { onClose: () => void }) {
             }}
             onModalClose={props.onClose}
           />
-        )}
+        )} */}
       </Modal>
     </div>
   );
