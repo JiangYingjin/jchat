@@ -101,10 +101,21 @@ export function ChatActions(props: {
             onSelection={(s) => {
               if (s.length === 0) return;
               if (session.groupId) {
-                chatStore.updateGroupSession(session, (session) => {
-                  session.model = s[0] as string;
-                  session.isModelManuallySelected = true;
-                });
+                // 获取当前组所有会话
+                const state = useChatStore.getState();
+                const { groups, groupSessions, currentGroupIndex } = state;
+                const currentGroup = groups[currentGroupIndex];
+                if (currentGroup) {
+                  currentGroup.sessionIds.forEach((sid) => {
+                    const groupSession = groupSessions[sid];
+                    if (groupSession) {
+                      chatStore.updateGroupSession(groupSession, (sess) => {
+                        sess.model = s[0] as string;
+                        sess.isModelManuallySelected = true;
+                      });
+                    }
+                  });
+                }
               } else {
                 chatStore.updateSession(session, (session) => {
                   session.model = s[0] as string;
