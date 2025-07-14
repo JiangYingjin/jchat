@@ -18,6 +18,7 @@ import { useChatStore, type ChatSession } from "../store";
 import { systemMessageStorage } from "../store/system";
 import { uploadImage } from "../utils/chat";
 import { showToast } from "./ui-lib";
+import { filterEmptyGroupSessions } from "../utils/session";
 
 interface FileDropZoneProps {
   children: React.ReactNode;
@@ -366,6 +367,8 @@ export function FileDropZone({ children }: FileDropZoneProps) {
     try {
       const group = await chatStore.createGroupFromFiles(rawFiles);
       if (group) {
+        // 创建成功后过滤空组内会话
+        await filterEmptyGroupSessions(group.id);
         // 创建成功后关闭文件列表
         handleCloseFiles();
       }
@@ -383,6 +386,13 @@ export function FileDropZone({ children }: FileDropZoneProps) {
     setIsProcessingFiles(true);
     try {
       await appendByFileName(rawFiles);
+      // 附加后过滤空组内会话
+      const state = useChatStore.getState();
+      const { groups, currentGroupIndex } = state;
+      const group = groups[currentGroupIndex];
+      if (group) {
+        await filterEmptyGroupSessions(group.id);
+      }
       showToast(`成功处理 ${rawFiles.length} 个文件`);
       handleCloseFiles();
     } catch (error) {
@@ -401,6 +411,13 @@ export function FileDropZone({ children }: FileDropZoneProps) {
     setIsProcessingFiles(true);
     try {
       await appendInOrder(rawFiles);
+      // 附加后过滤空组内会话
+      const state = useChatStore.getState();
+      const { groups, currentGroupIndex } = state;
+      const group = groups[currentGroupIndex];
+      if (group) {
+        await filterEmptyGroupSessions(group.id);
+      }
       showToast(`成功按顺序附加 ${rawFiles.length} 个文件`);
       handleCloseFiles();
     } catch (error) {

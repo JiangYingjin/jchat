@@ -10,6 +10,7 @@ import { buildMultimodalContent } from "./chat";
 import { FALLBACK_MODEL } from "../constant";
 import { systemMessageStorage } from "../store/system";
 import { parseGroupMessageId } from "./group";
+import { messageStorage } from "../store/message";
 
 // 定义默认主题，避免循环依赖
 const DEFAULT_TOPIC = Locale.Session.Title.Default;
@@ -363,5 +364,67 @@ export async function checkHasSystemPrompt(
   } catch (error) {
     console.error("[checkHasSystemPrompt] 检查系统提示词失败:", error);
     return false;
+  }
+}
+
+/**
+ * 过滤指定组内的空会话（标题为默认、系统提示词为空、消息列表为空）
+ */
+export async function filterEmptyGroupSessions(groupId: string) {
+  const chatStore = useChatStore.getState();
+  const { groups, groupSessions } = chatStore;
+  const group = groups.find((g) => g.id === groupId);
+  if (!group) return;
+
+  const defaultTitle = Locale.Session.Title.DefaultGroup;
+
+  // 新的 sessionIds 和 groupSessions
+  const newSessionIds: string[] = [];
+  const sessionsToDelete: string[] = [];
+
+  for (const sessionId of group.sessionIds) {
+    const session = groupSessions[sessionId];
+    if (!session) continue;
+    // 1. 标题为默认
+    const isDefaultTitle = session.title === defaultTitle;
+    // 2. 系统提示词为空
+    const sysMsg = await systemMessageStorage.get(sessionId);
+    const isSystemEmpty =
+      !sysMsg.text.trim() && (!sysMsg.images || sysMsg.images.length === 0);
+    // 3. 消息列表为空
+    const msgs = await messageStorage.get(sessionId);
+    const isMsgEmpty = !msgs || msgs.length === 0;
+    if (isDefaultTitle && isSystemEmpty && isMsgEmpty) {
+      sessionsToDelete.push(sessionId);
+    } else {
+      newSessionIds.push(sessionId);
+    }
+  }
+
+  if (sessionsToDelete.length > 0) {
+    // 删除空会话的消息和系统提示词
+    for (const sessionId of sessionsToDelete) {
+      await messageStorage.delete(sessionId);
+      await systemMessageStorage.delete(sessionId);
+    }
+    // 更新 group 和 groupSessions
+    useChatStore.setState((state) => {
+      const newGroupSessions = { ...state.groupSessions };
+      for (const sessionId of sessionsToDelete) {
+        delete newGroupSessions[sessionId];
+      }
+      const groupIdx = state.groups.findIndex((g) => g.id === groupId);
+      if (groupIdx === -1) return {};
+      const newGroups = [...state.groups];
+      newGroups[groupIdx] = {
+        ...state.groups[groupIdx],
+        sessionIds: newSessionIds,
+        messageCount: newSessionIds.length,
+      };
+      return {
+        groupSessions: newGroupSessions,
+        groups: newGroups,
+      };
+    });
   }
 }
