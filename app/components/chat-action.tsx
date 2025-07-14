@@ -107,7 +107,6 @@ export function DoubleClickChatAction(props: {
   onClick: () => void;
   style?: React.CSSProperties;
   alwaysFullWidth?: boolean;
-  confirmText?: string; // 确认时的文本
 }) {
   const iconRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -201,8 +200,6 @@ export function DoubleClickChatAction(props: {
     setIsConfirmed(false);
   };
 
-  const displayText = isConfirmed ? props.confirmText || "重试" : props.text;
-
   return (
     <div
       className={clsx(styles["chat-input-action"], "clickable")}
@@ -225,7 +222,7 @@ export function DoubleClickChatAction(props: {
         }
         ref={textRef}
       >
-        {!props.loding && displayText}
+        {!props.loding && props.text}
       </div>
       {props.innerNode}
     </div>

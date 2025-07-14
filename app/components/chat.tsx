@@ -340,18 +340,6 @@ function Chat() {
   };
 
   const handleBatchDelete = async (message: ChatMessage) => {
-    // 只有组内会话才支持批量删除
-    if (!session.groupId) {
-      showToast("只有组内会话支持批量删除功能");
-      return;
-    }
-
-    // 只有用户消息才支持批量删除
-    if (message.role !== "user") {
-      showToast("只有用户消息支持批量删除功能");
-      return;
-    }
-
     try {
       // 解析消息的 batch id
       const parsedId = parseGroupMessageId(message.id);
@@ -376,7 +364,7 @@ function Chat() {
       // 保存删除前的所有会话状态用于撤销
       const restoreStates: { [sessionId: string]: ChatMessage[] } = {};
 
-      // 遍历组内所有会话，删除相同 batch id 的消息
+      // 遍历组内所有会话，删除相同 batch id 且 role 相同的消息
       for (const sessionId of currentGroup.sessionIds) {
         const targetSession = chatStore.groupSessions[sessionId];
         if (!targetSession) {
@@ -391,18 +379,26 @@ function Chat() {
         // 保存删除前的消息状态
         restoreStates[sessionId] = [...targetSession.messages];
 
-        // 查找并删除相同 batch id 的消息
+        // 查找并删除相同 batch id 且 role 相同的消息
         const messagesToDelete = targetSession.messages.filter((m) => {
           const parsed = parseGroupMessageId(m.id);
-          return parsed.isValid && parsed.batchId === batchId;
+          return (
+            parsed.isValid &&
+            parsed.batchId === batchId &&
+            m.role === message.role
+          );
         });
 
         if (messagesToDelete.length > 0) {
-          // 删除相同 batch id 的消息
+          // 删除相同 batch id 且 role 相同的消息
           chatStore.updateGroupSession(targetSession, (session) => {
             session.messages = session.messages.filter((m) => {
               const parsed = parseGroupMessageId(m.id);
-              return !parsed.isValid || parsed.batchId !== batchId;
+              return (
+                !parsed.isValid ||
+                parsed.batchId !== batchId ||
+                m.role !== message.role
+              );
             });
             updateSessionStatsBasic(session);
           });

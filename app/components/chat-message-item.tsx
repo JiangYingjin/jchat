@@ -90,6 +90,7 @@ export function ChatMessageItem({
                   showBranch={showBranch}
                   showBatchApply={!!session.groupId} // 只有组内会话显示批量应用按钮
                   showBatchDelete={!!session.groupId} // 只有组内会话显示批量删除按钮
+                  showDelete={!session.groupId} // 组内会话隐藏单个删除按钮
                 />
               </div>
             )}

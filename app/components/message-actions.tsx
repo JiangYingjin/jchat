@@ -26,6 +26,7 @@ export function MessageActions(props: {
   showBranch?: boolean; // 新增：控制是否显示分支按钮
   showBatchApply?: boolean; // 新增：控制是否显示批量应用按钮
   showBatchDelete?: boolean; // 新增：控制是否显示批量删除按钮
+  showDelete?: boolean; // 新增：控制是否显示单个删除按钮
 }) {
   const {
     message,
@@ -39,6 +40,7 @@ export function MessageActions(props: {
     showBranch = true,
     showBatchApply = true,
     showBatchDelete = true,
+    showDelete = true,
   } = props;
 
   return (
@@ -64,12 +66,14 @@ export function MessageActions(props: {
             onClick={() => copyToClipboard(getMessageTextContent(message))}
             alwaysFullWidth={false}
           />
-          <ChatAction
-            text={Locale.Chat.Actions.Delete}
-            icon={<DeleteIcon />}
-            onClick={() => onDelete(message.id ?? index.toString())}
-            alwaysFullWidth={false}
-          />
+          {showDelete && (
+            <ChatAction
+              text={Locale.Chat.Actions.Delete}
+              icon={<DeleteIcon />}
+              onClick={() => onDelete(message.id ?? index.toString())}
+              alwaysFullWidth={false}
+            />
+          )}
           {showBranch && (
             <ChatAction
               text={Locale.Chat.Actions.Branch}
