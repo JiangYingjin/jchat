@@ -127,7 +127,10 @@ export const useChatStore = createPersistStore(
       },
 
       // 新增：保存会话消息到独立存储
-      async saveSessionMessages(session: ChatSession): Promise<void> {
+      async saveSessionMessages(
+        session: ChatSession,
+        force: boolean = false,
+      ): Promise<void> {
         try {
           let messagesToSave = session.messages;
 
@@ -139,7 +142,11 @@ export const useChatStore = createPersistStore(
             }
           }
 
-          const success = await messageStorage.save(session.id, messagesToSave);
+          const success = await messageStorage.save(
+            session.id,
+            messagesToSave,
+            force,
+          );
         } catch (error) {
           console.error(
             `[ChatStore] Failed to save messages for session ${session.id}`,
@@ -1588,7 +1595,8 @@ export const useChatStore = createPersistStore(
             // 保存最终消息状态 - 获取最新会话对象
             const latestSessionOnFinish = get().getLatestSession(session);
 
-            get().saveSessionMessages(latestSessionOnFinish);
+            // 🔥 Stream 完成后强制保存（绕过频率限制）
+            get().saveSessionMessages(latestSessionOnFinish, true);
             ChatControllerPool.remove(session.id, modelMessage.id);
           },
 
@@ -1636,8 +1644,8 @@ export const useChatStore = createPersistStore(
                   step: "onError",
                 });
 
-                // 异步保存错误状态的消息
-                await get().saveSessionMessages(latestSessionOnError);
+                // 异步保存错误状态的消息（强制保存）
+                await get().saveSessionMessages(latestSessionOnError, true);
 
                 // 异步更新包含系统提示词的完整统计信息
                 await updateSessionStats(latestSessionOnError);
