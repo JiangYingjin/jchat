@@ -35,8 +35,11 @@ class MessageStorage {
   // 每个会话的状态管理
   private sessionStates: Map<string, SessionState> = new Map();
 
-  // p-limit 限制并发数为 3
-  private saveLimit = pLimit(3);
+  // 改为串行处理，避免 IndexedDB 并发写入问题
+  private saveLimit = pLimit(1);
+
+  // 防止并发处理队列的标志
+  private isProcessingQueue = false;
 
   private getStorage(): LocalForage | null {
     if (!isClient) {
@@ -65,25 +68,79 @@ class MessageStorage {
   }
 
   /**
-   * 检查频率限制（每秒最多一次）
+   * 检查频率限制（每2秒最多一次）
    */
   private checkRateLimit(sessionId: string, currentTimestamp: number): boolean {
     const sessionState = this.getSessionState(sessionId);
-    return currentTimestamp - sessionState.lastRequestTimestamp >= 1000;
+    return currentTimestamp - sessionState.lastRequestTimestamp >= 2000; // 改为 2 秒
   }
 
   /**
-   * 处理保存队列（LIFO + p-limit）
+   * 处理保存队列（LIFO + 串行处理）- 防止并发调用
    */
   private async processQueue(): Promise<void> {
-    while (this.saveQueue.length > 0) {
-      // LIFO: 取队首（最新请求）
-      const request = this.saveQueue.shift()!;
+    // 防止并发处理队列
+    if (this.isProcessingQueue) {
+      // console.log("[MessageStorage] 🔄 队列正在处理中，跳过此次调用");
+      return;
+    }
 
-      // 提交到 p-limit 处理
-      this.saveLimit(async () => {
-        await this.processSaveRequest(request);
-      });
+    this.isProcessingQueue = true;
+    // console.log(
+    //   `[MessageStorage] 🚀 开始串行处理队列，当前队列长度: ${this.saveQueue.length}`,
+    // );
+
+    try {
+      // 串行处理队列中的请求，避免 IndexedDB 并发问题
+      const requestsToProcess = [...this.saveQueue];
+      this.saveQueue = []; // 清空队列
+
+      // console.log(
+      //   `[MessageStorage] 📝 串行处理 ${requestsToProcess.length} 个请求`,
+      // );
+
+      // 串行处理每个请求
+      for (const request of requestsToProcess) {
+        try {
+          // console.log(
+          //   `[MessageStorage] 🔧 开始处理请求 ${request.sessionId} (timestamp: ${request.timestamp}, force: ${request.force})`,
+          // );
+
+          // 使用 p-limit(1) 确保串行
+          await this.saveLimit(async () => {
+            await this.processSaveRequest(request);
+          });
+
+          // console.log(
+          //   `[MessageStorage] ✅ 完成处理请求 ${request.sessionId} (timestamp: ${request.timestamp})`,
+          // );
+
+          // 在每个请求之间添加小延迟，进一步减少 IndexedDB 压力
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        } catch (error) {
+          console.error(
+            `[MessageStorage] ❌ 处理请求失败 ${request.sessionId}:`,
+            error,
+          );
+        }
+      }
+
+      // console.log(
+      //   `[MessageStorage] 🎉 串行队列处理完成，处理了 ${requestsToProcess.length} 个请求`,
+      // );
+    } catch (error) {
+      console.error("[MessageStorage] ❌ 队列处理出错:", error);
+    } finally {
+      this.isProcessingQueue = false;
+
+      // 如果处理期间又有新请求入队，递归处理
+      if (this.saveQueue.length > 0) {
+        // console.log(
+        //   `[MessageStorage] 🔄 处理期间有新请求入队 (${this.saveQueue.length} 个)，继续处理`,
+        // );
+        // 使用 setTimeout 避免深度递归，并给 IndexedDB 一些恢复时间
+        setTimeout(() => this.processQueue(), 100);
+      }
     }
   }
 
@@ -95,12 +152,18 @@ class MessageStorage {
     const sessionState = this.getSessionState(sessionId);
 
     // 时间戳比较：如果请求时间戳 <= 最新完成时间戳，则跳过
-    if (timestamp <= sessionState.lastSaveTimestamp) {
-      console.log(
-        `[MessageStorage] 跳过过期请求 ${sessionId} (${timestamp} <= ${sessionState.lastSaveTimestamp})`,
-      );
+    // 但强制保存的请求不跳过
+    if (!force && timestamp <= sessionState.lastSaveTimestamp) {
+      // console.log(
+      //   `[MessageStorage] ⏭️ 跳过过期请求 ${sessionId} (${timestamp} <= ${sessionState.lastSaveTimestamp})`,
+      // );
       return;
     }
+
+    const startTime = Date.now();
+    // console.log(
+    //   `[MessageStorage] 💾 开始保存 ${sessionId} (timestamp: ${timestamp}, force: ${force}, messageCount: ${messages?.length || 0})`,
+    // );
 
     try {
       const storage = this.getStorage();
@@ -111,11 +174,16 @@ class MessageStorage {
         return;
       }
 
-      // 添加超时处理
+      // 串行处理，可以适当减少超时时间到 8 秒
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(
-          () => reject(new Error("IndexedDB operation timeout")),
-          5000,
+          () =>
+            reject(
+              new Error(
+                `IndexedDB operation timeout after 8s for session ${sessionId}`,
+              ),
+            ),
+          8000,
         );
       });
 
@@ -125,20 +193,29 @@ class MessageStorage {
       // 保存完成后，更新最新完成时间戳（使用请求的时间戳）
       sessionState.lastSaveTimestamp = timestamp;
 
+      const duration = Date.now() - startTime;
       const forceLabel = force ? " [FORCE]" : "";
-      console.log(
-        `[MessageStorage] ✅ 成功保存到 IndexedDB ${sessionId} (timestamp: ${timestamp})${forceLabel}`,
-      );
+      // console.log(
+      //   `[MessageStorage] ✅ 成功保存到 IndexedDB ${sessionId} (timestamp: ${timestamp}, 用时: ${duration}ms)${forceLabel}`,
+      // );
     } catch (error) {
-      console.error(`[MessageStorage] ❌ 保存消息失败: ${sessionId}`, error);
+      const duration = Date.now() - startTime;
+      console.error(
+        `[MessageStorage] ❌ 保存消息失败: ${sessionId} (用时: ${duration}ms)`,
+        error,
+      );
       console.error("[MessageStorage] 错误详情:", {
         sessionId,
         messageCount: messages?.length || 0,
         timestamp,
         force,
+        duration,
         errorMessage: (error as Error)?.message || String(error),
         errorStack: (error as Error)?.stack,
         isClient: typeof window !== "undefined",
+        currentQueueLength: this.saveQueue.length,
+        activeSaveLimit: this.saveLimit.activeCount,
+        pendingSaveLimit: this.saveLimit.pendingCount,
       });
       console.error("[MessageStorage] 如果问题持续存在，请重启浏览器重试");
     }
@@ -175,16 +252,18 @@ class MessageStorage {
     const currentTimestamp = Date.now();
     const sessionState = this.getSessionState(sessionId);
 
-    // 频率控制：每秒最多一次（强制保存时跳过检查）
+    // 频率控制：每2秒最多一次（强制保存时跳过检查）
     if (!force && !this.checkRateLimit(sessionId, currentTimestamp)) {
-      console.log(
-        `[MessageStorage] 频率限制跳过 ${sessionId} (${currentTimestamp - sessionState.lastRequestTimestamp}ms < 1000ms)`,
-      );
+      // console.log(
+      //   `[MessageStorage] ⏰ 频率限制跳过 ${sessionId} (${currentTimestamp - sessionState.lastRequestTimestamp}ms < 2000ms)`,
+      // );
       return false;
     }
 
-    // 更新上次请求时间戳
-    sessionState.lastRequestTimestamp = currentTimestamp;
+    // 更新上次请求时间戳（只有非强制保存才更新）
+    if (!force) {
+      sessionState.lastRequestTimestamp = currentTimestamp;
+    }
 
     // 创建保存请求
     const saveRequest: SaveRequest = {
@@ -198,9 +277,9 @@ class MessageStorage {
     this.saveQueue.unshift(saveRequest);
 
     const forceLabel = force ? " [强制保存]" : "";
-    console.log(
-      `[MessageStorage] 💾 加入保存队列 ${sessionId} (timestamp: ${currentTimestamp}, 队列长度: ${this.saveQueue.length})${forceLabel}`,
-    );
+    // console.log(
+    //   `[MessageStorage] 💾 加入保存队列 ${sessionId} (timestamp: ${currentTimestamp}, 队列长度: ${this.saveQueue.length})${forceLabel}`,
+    // );
 
     // 异步处理队列
     this.processQueue();
@@ -261,22 +340,6 @@ class MessageStorage {
       console.error(`[MessageStorage] 删除消息失败: ${sessionId}`, error);
       return false;
     }
-  }
-
-  /**
-   * 获取队列统计信息（用于调试）
-   */
-  getQueueStats() {
-    return {
-      queueLength: this.saveQueue.length,
-      sessionsCount: this.sessionStates.size,
-      sessionStates: Object.fromEntries(this.sessionStates),
-      queueRequests: this.saveQueue.map((req) => ({
-        sessionId: req.sessionId,
-        timestamp: req.timestamp,
-        force: req.force,
-      })),
-    };
   }
 }
 
