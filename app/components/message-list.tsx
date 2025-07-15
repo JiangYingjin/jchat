@@ -170,7 +170,10 @@ export function MessageList({
       {renderMessages.map((message, i) => {
         const isUser = message.role === "user";
         const isSystem = message.role === "system";
-        const showActions = !(message.preview || message.content.length === 0);
+        const showActions = !(
+          message.preview ||
+          (message.content.length === 0 && !message.reasoningContent)
+        );
 
         // 系统级提示词在会话界面中隐藏
         if (isSystem) {

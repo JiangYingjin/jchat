@@ -1726,29 +1726,6 @@ export const useChatStore = createPersistStore(
         }
       },
 
-      async resetSession(session: ChatSession) {
-        if (session.groupId) {
-          get().updateGroupSession(session, (session) => {
-            session.messages = [];
-            updateSessionStatsBasic(session); // 先同步更新基础统计信息
-          });
-        } else {
-          get().updateSession(session, (session) => {
-            session.messages = [];
-            updateSessionStatsBasic(session); // 先同步更新基础统计信息
-          });
-        }
-        await get().saveSessionMessages(session);
-
-        // 异步更新包含系统提示词的完整统计信息
-        await updateSessionStats(session);
-        if (session.groupId) {
-          get().updateGroupSession(session, (session) => {});
-        } else {
-          get().updateSession(session, (session) => {});
-        }
-      },
-
       async generateSessionTitle(
         refreshTitle: boolean = false,
         session: ChatSession,
