@@ -22,7 +22,7 @@ import {
 import { determineModelForSystemPrompt } from "../utils/model";
 import { prettyObject } from "../utils/format";
 import { handleUnauthorizedResponse, handleUrlAuthCode } from "../utils/auth";
-import { findMessagePairForResend } from "../../utils/message";
+import { findMessagePairForResend } from "../utils/message";
 import { parseGroupMessageId } from "../utils/group";
 
 // --- Client & Constants ---

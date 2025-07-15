@@ -34,7 +34,6 @@ echo "🔨 在临时目录中开始构建 ..."
 rm -rf .next
 source ~/.zshrc
 nvm use 22
-# nvm use 18
 
 # 执行构建，如果失败则退出
 if ! yarn build; then
