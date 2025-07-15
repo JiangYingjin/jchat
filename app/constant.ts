@@ -24,6 +24,7 @@ export enum SlotID {
 
 export enum StoreKey {
   Chat = "chats",
+  ExportFormat = "export-format",
 }
 
 export const DEFAULT_SIDEBAR_WIDTH = 180;

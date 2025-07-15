@@ -10,7 +10,6 @@ import {
   getMessageImages,
   useMobileScreen,
 } from "../utils";
-import { jchatStorage } from "../utils/store";
 
 import CopyIcon from "../icons/copy.svg";
 import LoadingIcon from "../icons/three-dots.svg";
@@ -28,8 +27,6 @@ import { getMessageTextContent } from "../utils";
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
 });
-
-const EXPORT_FORMAT_KEY = "export-format"; // 记住导出格式的 jchatStorage key
 
 export function ExportMessageModal(props: { onClose: () => void }) {
   return (
@@ -143,9 +140,8 @@ export function MessageExporter() {
   useEffect(() => {
     const loadSavedFormat = async () => {
       try {
-        const savedFormat = (await jchatStorage.getItem(
-          EXPORT_FORMAT_KEY,
-        )) as ExportFormat | null;
+        const savedFormat =
+          (await chatStore.getExportFormat()) as ExportFormat | null;
         if (
           savedFormat &&
           (formats as readonly string[]).includes(savedFormat)
@@ -181,17 +177,17 @@ export function MessageExporter() {
     loadSystemMessage();
   }, [session.id]);
 
-  // 更新导出配置，并在切换格式时写入 jchatStorage
+  // 更新导出配置，并在切换格式时写入 chatStore
   const updateExportConfig = async (
     updater: (config: typeof exportConfig) => void,
   ) => {
     const config = { ...exportConfig };
     updater(config);
     setExportConfig(config);
-    // 如果格式有变化则写入 jchatStorage
+    // 如果格式有变化则写入 chatStore
     if (config.format !== exportConfig.format) {
       try {
-        await jchatStorage.setItem(EXPORT_FORMAT_KEY, config.format);
+        await chatStore.setExportFormat(config.format);
       } catch (error) {
         console.error("保存导出格式失败:", error);
       }

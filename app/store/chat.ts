@@ -84,6 +84,8 @@ const DEFAULT_CHAT_STATE = {
   chatListGroupView: "groups" as "groups" | "group-sessions",
   models: [] as string[],
   accessCode: "",
+  batchApplyMode: false, // 批量应用模式
+  activeBatchRequests: 0, // 活跃的批量请求计数器
 };
 
 export const DEFAULT_TITLE = Locale.Session.Title.Default;
@@ -92,6 +94,87 @@ export const useChatStore = createPersistStore(
   DEFAULT_CHAT_STATE,
   (set, _get) => {
     const methods = {
+      // 新增：渲染优化相关状态管理
+      batchApplyMode: false, // 批量应用模式标志
+      activeBatchRequests: 0, // 活跃的批量请求计数器
+
+      // 新增：设置批量应用模式
+      setBatchApplyMode(enabled: boolean): void {
+        set({ batchApplyMode: enabled });
+
+        // 启用批量模式时重置计数器
+        if (enabled) {
+          set({ activeBatchRequests: 0 });
+        }
+      },
+
+      // 新增：增加活跃批量请求计数
+      incrementBatchRequest(): void {
+        const state = get();
+        if (state.batchApplyMode) {
+          const newCount = state.activeBatchRequests + 1;
+          set({ activeBatchRequests: newCount });
+        }
+      },
+
+      // 新增：减少活跃批量请求计数，当计数为0时自动退出批量模式
+      decrementBatchRequest(): void {
+        const state = get();
+        if (state.batchApplyMode && state.activeBatchRequests > 0) {
+          const newCount = state.activeBatchRequests - 1;
+          set({ activeBatchRequests: newCount });
+
+          // 当所有请求完成时自动退出批量模式
+          if (newCount === 0) {
+            state.setBatchApplyMode(false);
+            showToast("🎉 批量应用全部完成！");
+          }
+        }
+      },
+
+      // 新增：判断会话是否为当前可见会话
+      isCurrentVisibleSession(sessionId: string): boolean {
+        const state = get();
+        const currentSession = state.currentSession();
+        return currentSession.id === sessionId;
+      },
+
+      // 新增：智能更新会话状态（只有当前会话触发UI重新渲染）
+      smartUpdateSession(
+        session: ChatSession,
+        updater: (session: ChatSession) => void,
+        forceRender: boolean = false,
+      ): void {
+        const state = get();
+        const isVisible = state.isCurrentVisibleSession(session.id);
+
+        if (session.groupId) {
+          state.updateGroupSession(session, (sessionToUpdate) => {
+            updater(sessionToUpdate);
+
+            // 极简渲染策略：只有可见会话或强制渲染时才触发UI更新
+            const shouldRender = isVisible || forceRender;
+
+            if (shouldRender) {
+              sessionToUpdate.messages = sessionToUpdate.messages.concat();
+            }
+            updateSessionStatsBasic(sessionToUpdate);
+          });
+        } else {
+          state.updateSession(session, (sessionToUpdate) => {
+            updater(sessionToUpdate);
+
+            // 极简渲染策略：只有可见会话或强制渲染时才触发UI更新
+            const shouldRender = isVisible || forceRender;
+
+            if (shouldRender) {
+              sessionToUpdate.messages = sessionToUpdate.messages.concat();
+            }
+            updateSessionStatsBasic(sessionToUpdate);
+          });
+        }
+      },
+
       // 新增：加载指定会话的消息
       async loadSessionMessages(sessionIndex: number): Promise<void> {
         // 只在客户端环境下执行
@@ -155,12 +238,62 @@ export const useChatStore = createPersistStore(
         }
       },
 
+      // 优化：会话切换时的清理
       selectSession(index: number) {
-        set({
+        const validIndex = validateSessionIndex(index, get().sessions.length);
+        if (validIndex !== index) {
+          index = validIndex;
+        }
+
+        set((state) => ({
           currentSessionIndex: index,
+          chatListView: "sessions",
+        }));
+
+        // 异步加载消息，避免阻塞UI切换
+        setTimeout(() => {
+          get().loadSessionMessages(index);
+          // 强制渲染目标会话以确保显示最新内容
+          const targetSession = get().sessions[index];
+          if (targetSession) {
+            get().smartUpdateSession(targetSession, () => {}, true);
+          }
+        }, 0);
+      },
+
+      // 优化：组会话切换时的清理
+      selectGroupSession(index: number, switchToChatView: boolean = true) {
+        const state = get();
+        const currentGroup = state.groups[state.currentGroupIndex];
+        if (!currentGroup || index >= currentGroup.sessionIds.length) {
+          return;
+        }
+
+        // 更新当前组的会话索引
+        set((state) => {
+          const newGroups = [...state.groups];
+          newGroups[state.currentGroupIndex] = {
+            ...newGroups[state.currentGroupIndex],
+            currentSessionIndex: index,
+          };
+          return {
+            groups: newGroups,
+            chatListView: switchToChatView ? "groups" : state.chatListView,
+            chatListGroupView: "group-sessions",
+          };
         });
-        // 当选择一个新会话时，触发消息加载
-        get().loadSessionMessages(index);
+
+        const sessionId = currentGroup.sessionIds[index];
+
+        // 异步加载消息，避免阻塞UI切换
+        setTimeout(() => {
+          get().loadGroupSessionMessages(sessionId);
+          // 强制渲染目标会话以确保显示最新内容
+          const targetSession = get().groupSessions[sessionId];
+          if (targetSession) {
+            get().smartUpdateSession(targetSession, () => {}, true);
+          }
+        }, 0);
       },
 
       moveSession(from: number, to: number) {
@@ -391,46 +524,6 @@ export const useChatStore = createPersistStore(
           set({
             chatListGroupView: "group-sessions",
           });
-        }
-      },
-
-      // 选择组内的指定会话
-      selectGroupSession(
-        sessionIndex: number,
-        switchToGroupSessionsView: boolean = false,
-      ) {
-        const { groups, currentGroupIndex } = get();
-        const currentGroup = groups[currentGroupIndex];
-        if (!currentGroup) {
-          console.warn(`[ChatStore] No current group found`);
-          return;
-        }
-
-        // 更新组内的当前会话索引
-        set((state) => {
-          const newGroups = [...state.groups];
-          newGroups[currentGroupIndex] = {
-            ...currentGroup,
-            currentSessionIndex: sessionIndex,
-          };
-          return {
-            groups: newGroups,
-            ...(switchToGroupSessionsView
-              ? { chatListGroupView: "group-sessions" }
-              : {}),
-          };
-        });
-
-        // 加载组内会话的消息
-        const sessionId = currentGroup.sessionIds[sessionIndex];
-        const session = get().groupSessions[sessionId];
-        if (session && (!session.messages || session.messages.length === 0)) {
-          // 只在消息未加载时才加载
-          get().loadGroupSessionMessages(sessionId);
-        } else if (!session) {
-          console.warn(
-            `[ChatStore] Group session ${sessionId} not found in groupSessions`,
-          );
         }
       },
 
@@ -1122,9 +1215,6 @@ export const useChatStore = createPersistStore(
               }
             }
             // 如果组内会话模式但没有找到会话，使用 setTimeout 避免在渲染期间触发状态更新
-            // console.log(
-            //   `[ChatStore] No group session found, falling back to groups view`,
-            // );
             setTimeout(() => {
               set({ chatListGroupView: "groups" });
             }, 0);
@@ -1300,136 +1390,72 @@ export const useChatStore = createPersistStore(
 
           if (existingUserMsgIndex !== -1) {
             // 找到现有用户消息，更新其内容
-            if (session.groupId) {
-              get().updateGroupSession(session, (session) => {
-                session.messages[existingUserMsgIndex] = {
-                  ...session.messages[existingUserMsgIndex],
-                  content: mContent,
-                };
+            get().smartUpdateSession(session, (session) => {
+              session.messages[existingUserMsgIndex] = {
+                ...session.messages[existingUserMsgIndex],
+                content: mContent,
+              };
 
-                // 删除该用户消息后面紧跟的模型消息（如果存在）
-                const nextMsgIndex = existingUserMsgIndex + 1;
-                if (
-                  nextMsgIndex < session.messages.length &&
-                  session.messages[nextMsgIndex].role === "assistant"
-                ) {
-                  session.messages.splice(nextMsgIndex, 1);
-                }
+              // 删除该用户消息后面紧跟的模型消息（如果存在）
+              const nextMsgIndex = existingUserMsgIndex + 1;
+              if (
+                nextMsgIndex < session.messages.length &&
+                session.messages[nextMsgIndex].role === "assistant"
+              ) {
+                session.messages.splice(nextMsgIndex, 1);
+              }
 
-                // 在用户消息后插入新的模型消息
-                session.messages.splice(
-                  existingUserMsgIndex + 1,
-                  0,
-                  modelMessage,
-                );
-                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
-                session.messages = session.messages.concat();
-                updateSessionStatsBasic(session);
-              });
-            } else {
-              get().updateSession(session, (session) => {
-                session.messages[existingUserMsgIndex] = {
-                  ...session.messages[existingUserMsgIndex],
-                  content: mContent,
-                };
-
-                // 删除该用户消息后面紧跟的模型消息（如果存在）
-                const nextMsgIndex = existingUserMsgIndex + 1;
-                if (
-                  nextMsgIndex < session.messages.length &&
-                  session.messages[nextMsgIndex].role === "assistant"
-                ) {
-                  session.messages.splice(nextMsgIndex, 1);
-                }
-
-                // 在用户消息后插入新的模型消息
-                session.messages.splice(
-                  existingUserMsgIndex + 1,
-                  0,
-                  modelMessage,
-                );
-                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
-                session.messages = session.messages.concat();
-                updateSessionStatsBasic(session);
-              });
-            }
+              // 在用户消息后插入新的模型消息
+              session.messages.splice(
+                existingUserMsgIndex + 1,
+                0,
+                modelMessage,
+              );
+            });
           } else {
             // 没有找到现有消息，追加到末尾
-            if (session.groupId) {
-              get().updateGroupSession(session, (session) => {
-                session.messages.push(userMessage, modelMessage);
-                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
-                session.messages = session.messages.concat();
-                updateSessionStatsBasic(session);
-              });
-            } else {
-              get().updateSession(session, (session) => {
-                session.messages.push(userMessage, modelMessage);
-                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
-                session.messages = session.messages.concat();
-                updateSessionStatsBasic(session);
-              });
-            }
+            get().smartUpdateSession(session, (session) => {
+              session.messages.push(userMessage, modelMessage);
+            });
           }
         } else {
           // 非组内会话或没有指定 batchId，使用原有的 insertMessage 逻辑
-          if (session.groupId) {
-            get().updateGroupSession(session, (session) => {
-              const savedUserMessage = {
-                ...userMessage,
-                content: mContent,
-              };
+          get().smartUpdateSession(session, (session) => {
+            const savedUserMessage = {
+              ...userMessage,
+              content: mContent,
+            };
+
+            // 🔧 修复普通会话重试逻辑：当传递了 messageIdx 时，先删除原有消息再插入
+            if (typeof messageIdx === "number" && messageIdx >= 0) {
+              // 删除从 messageIdx 开始的用户消息和对应的模型回复
+              // 通常是连续的 user -> assistant 对
+              const deleteCount =
+                messageIdx + 1 < session.messages.length &&
+                session.messages[messageIdx + 1].role === "assistant"
+                  ? 2
+                  : 1;
+
+              // 删除原有的消息
+              session.messages.splice(messageIdx, deleteCount);
+
+              // 在原位置插入新的用户消息和模型消息
+              session.messages.splice(
+                messageIdx,
+                0,
+                savedUserMessage,
+                modelMessage,
+              );
+            } else {
+              // 没有传 messageIdx，追加到末尾
               session.messages = insertMessage(
                 session.messages,
                 savedUserMessage,
                 modelMessage,
                 messageIdx,
               );
-              updateSessionStatsBasic(session);
-            });
-          } else {
-            get().updateSession(session, (session) => {
-              const savedUserMessage = {
-                ...userMessage,
-                content: mContent,
-              };
-
-              // 🔧 修复普通会话重试逻辑：当传递了 messageIdx 时，先删除原有消息再插入
-              if (typeof messageIdx === "number" && messageIdx >= 0) {
-                // 删除从 messageIdx 开始的用户消息和对应的模型回复
-                // 通常是连续的 user -> assistant 对
-                const deleteCount =
-                  messageIdx + 1 < session.messages.length &&
-                  session.messages[messageIdx + 1].role === "assistant"
-                    ? 2
-                    : 1;
-
-                // 删除原有的消息
-                session.messages.splice(messageIdx, deleteCount);
-
-                // 在原位置插入新的用户消息和模型消息
-                session.messages.splice(
-                  messageIdx,
-                  0,
-                  savedUserMessage,
-                  modelMessage,
-                );
-
-                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
-                session.messages = session.messages.concat();
-              } else {
-                // 没有传 messageIdx，追加到末尾
-                session.messages = insertMessage(
-                  session.messages,
-                  savedUserMessage,
-                  modelMessage,
-                  messageIdx,
-                );
-              }
-
-              updateSessionStatsBasic(session);
-            });
-          }
+            }
+          });
         }
 
         // 立即保存消息到独立存储 - 获取最新的会话对象
@@ -1448,6 +1474,9 @@ export const useChatStore = createPersistStore(
           get().updateSession(currentSession, (session) => {});
         }
 
+        // 🔧 批量模式：开始请求时增加计数器
+        get().incrementBatchRequest();
+
         const api: ClientApi = getClientApi();
         // make request
         api.llm.chat({
@@ -1459,20 +1488,8 @@ export const useChatStore = createPersistStore(
               modelMessage.content = message;
             }
 
-            // 🔧 修复：立即更新UI状态，确保触发React重新渲染
-            if (session.groupId) {
-              get().updateGroupSession(session, (session) => {
-                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
-                session.messages = session.messages.concat();
-                updateSessionStatsBasic(session);
-              });
-            } else {
-              get().updateSession(session, (session) => {
-                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
-                session.messages = session.messages.concat();
-                updateSessionStatsBasic(session);
-              });
-            }
+            // 🔧 优化：只有当前可见会话触发UI渲染，后台会话完全不渲染
+            get().smartUpdateSession(session, () => {});
 
             // 🔧 优化：异步操作不阻塞UI渲染
             const latestSessionOnUpdate = get().getLatestSession(session);
@@ -1506,20 +1523,8 @@ export const useChatStore = createPersistStore(
               modelMessage.reasoningContent = message;
             }
 
-            // 🔧 修复：立即更新UI状态，确保触发React重新渲染
-            if (session.groupId) {
-              get().updateGroupSession(session, (session) => {
-                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
-                session.messages = session.messages.concat();
-                updateSessionStatsBasic(session);
-              });
-            } else {
-              get().updateSession(session, (session) => {
-                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
-                session.messages = session.messages.concat();
-                updateSessionStatsBasic(session);
-              });
-            }
+            // 🔧 优化：只有当前可见会话触发UI渲染，后台会话完全不渲染
+            get().smartUpdateSession(session, () => {});
 
             // 🔧 优化：异步操作不阻塞UI渲染
             const latestSessionOnReasoning = get().getLatestSession(session);
@@ -1577,20 +1582,8 @@ export const useChatStore = createPersistStore(
               get().handleMessageComplete(modelMessage, session, usage);
             }
 
-            // 🔧 修复：立即更新UI状态，确保触发React重新渲染
-            if (session.groupId) {
-              get().updateGroupSession(session, (session) => {
-                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
-                session.messages = session.messages.concat();
-                updateSessionStatsBasic(session);
-              });
-            } else {
-              get().updateSession(session, (session) => {
-                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
-                session.messages = session.messages.concat();
-                updateSessionStatsBasic(session);
-              });
-            }
+            // 🔧 优化：智能更新UI状态，完成时强制渲染确保最终状态同步
+            get().smartUpdateSession(session, () => {}, true);
 
             // 保存最终消息状态 - 获取最新会话对象
             const latestSessionOnFinish = get().getLatestSession(session);
@@ -1598,10 +1591,14 @@ export const useChatStore = createPersistStore(
             // 🔥 Stream 完成后强制保存（绕过频率限制）
             get().saveSessionMessages(latestSessionOnFinish, true);
             ChatControllerPool.remove(session.id, modelMessage.id);
+
+            // 🔧 批量模式：请求完成时减少计数器
+            get().decrementBatchRequest();
           },
 
           onError(error) {
             const isAborted = error.message?.includes?.("aborted");
+
             modelMessage.content +=
               "\n\n" +
               prettyObject({
@@ -1612,20 +1609,8 @@ export const useChatStore = createPersistStore(
             userMessage.isError = !isAborted;
             modelMessage.isError = !isAborted;
 
-            // 🔧 修复：立即更新UI状态，确保触发React重新渲染
-            if (session.groupId) {
-              get().updateGroupSession(session, (session) => {
-                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
-                session.messages = session.messages.concat();
-                updateSessionStatsBasic(session);
-              });
-            } else {
-              get().updateSession(session, (session) => {
-                // 🚨 关键修复：创建新的消息数组引用，触发React重新渲染
-                session.messages = session.messages.concat();
-                updateSessionStatsBasic(session);
-              });
-            }
+            // 🔧 优化：智能更新UI状态，错误时强制渲染确保错误状态显示
+            get().smartUpdateSession(session, () => {}, true);
 
             // 🔧 优化：异步操作不阻塞UI渲染
             const latestSessionOnError = get().getLatestSession(session);
@@ -1671,6 +1656,9 @@ export const useChatStore = createPersistStore(
               session.id,
               modelMessage.id ?? messageIndex,
             );
+
+            // 🔧 批量模式：请求出错时也减少计数器
+            get().decrementBatchRequest();
 
             console.error("[Chat] failed ", error);
           },
@@ -1851,7 +1839,7 @@ export const useChatStore = createPersistStore(
         })
           .then((res) => res.json())
           .then((res: any) => {
-            // console.log("[Config] got config from server", res);
+            console.log("[Config] got config from server", res);
             set(() => ({ models: res.models }));
           })
           .catch(() => {
@@ -2006,10 +1994,6 @@ export const useChatStore = createPersistStore(
             chatListGroupView: "group-sessions" as const,
           }));
 
-          // console.log(
-          //   `[ChatStore] 成功从 ${sortedFiles.length} 个文件创建会话组:`,
-          //   newGroup.id,
-          // );
           showToast(`成功创建会话组，包含 ${sortedFiles.length} 个文件`);
 
           return newGroup;
@@ -2017,6 +2001,24 @@ export const useChatStore = createPersistStore(
           console.error("[ChatStore] 从文件创建会话组失败:", error);
           showToast("创建会话组失败，请重试");
           return null;
+        }
+      },
+
+      // 统一管理导出格式的读取
+      async getExportFormat(): Promise<string> {
+        try {
+          const format = await jchatStorage.getItem(StoreKey.ExportFormat);
+          return typeof format === "string" ? format : "image";
+        } catch (e) {
+          return "image";
+        }
+      },
+      // 统一管理导出格式的保存
+      async setExportFormat(format: string): Promise<void> {
+        try {
+          await jchatStorage.setItem(StoreKey.ExportFormat, format);
+        } catch (e) {
+          // ignore
         }
       },
     };
@@ -2071,8 +2073,6 @@ export const useChatStore = createPersistStore(
         if (error) {
           console.error("[Store] An error happened during hydration", error);
         } else {
-          // console.log("[Store] Hydration finished.");
-
           // 设置全局 hydration 状态
           isHydrated = true;
 

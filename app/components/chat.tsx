@@ -256,6 +256,9 @@ function Chat() {
       return;
     }
 
+    // 🔧 性能优化：启用批量应用模式，减少渲染频率
+    chatStore.setBatchApplyMode(true);
+
     let anchorUserMessage: ChatMessage | undefined = undefined;
     let anchorMessage: ChatMessage = message;
     let isAssistant = false;
@@ -364,11 +367,14 @@ function Chat() {
         );
       }
 
-      showToast("批量应用完成");
+      showToast("批量应用已提交，正在处理中...");
     } catch (error) {
       console.error("[BatchApply] Failed to apply batch:", error);
       showToast("批量应用失败，请重试");
+      // 🔧 出错时手动退出批量模式
+      chatStore.setBatchApplyMode(false);
     }
+    // 注意：不再手动退出批量模式，系统会在所有流式响应完成后自动退出
   };
 
   const handleBatchDelete = async (message: ChatMessage) => {
