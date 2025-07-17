@@ -2052,14 +2052,15 @@ export const useChatStore = createPersistStore(
     storage: jchatStorage,
 
     /**
-     * **核心改动：使用 partialize 排除 messages**
+     * **核心改动：使用 partialize 排除 messages 和 mobileViewState**
      * 这个函数在持久化状态之前被调用。
-     * 我们返回一个不包含任何 session.messages 的新状态对象。
+     * 我们返回一个不包含任何 session.messages 和 mobileViewState 的新状态对象。
      */
     partialize: (state) => {
-      // 创建一个没有 messages 的 state副本
+      // 创建一个没有 messages 和 mobileViewState 的 state副本
+      const { mobileViewState, ...stateWithoutMobileView } = state;
       const stateToPersist = {
-        ...state,
+        ...stateWithoutMobileView,
         sessions: state.sessions.map((session) => {
           const { messages, ...rest } = session;
           return { ...rest, messages: [] }; // 保持结构但清空messages
@@ -2075,7 +2076,7 @@ export const useChatStore = createPersistStore(
           {} as GroupSession,
         ),
       };
-      return stateToPersist;
+      return stateToPersist as any; // 使用 any 类型避免复杂的类型推断问题
     },
 
     /**

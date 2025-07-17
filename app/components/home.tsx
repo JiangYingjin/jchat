@@ -189,35 +189,72 @@ function MobileAwareLayout({
   // 移动端初始化：确保初次进入时显示侧边栏
   useEffect(() => {
     if (isMobileScreen) {
-      // 移动端初始化：无论当前状态如何，都重置为侧边栏状态
+      // 移动端初始化：确保总是从侧边栏开始
       chatStore.showSidebarOnMobile();
+
+      // 建立正确的历史记录状态
+      window.history.replaceState(
+        { mobileView: "sidebar", canExit: true },
+        "",
+        location.pathname,
+      );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMobileScreen]); // 只依赖isMobileScreen，避免chatStore导致的循环
 
-  // 移动端历史记录管理
+  // 移动端历史记录管理 - 简化版本
   useEffect(() => {
     if (!isMobileScreen) return;
 
     const handlePopState = (event: PopStateEvent) => {
-      // 检查是否在聊天界面，如果是，则返回到侧边栏
+      // 如果当前在聊天界面，拦截返回操作并跳转到侧边栏
       if (mobileViewState === "chat") {
         event.preventDefault();
+        event.stopPropagation();
+
+        // 切换到侧边栏状态
         chatStore.showSidebarOnMobile();
-        // 添加一个新的历史记录条目，避免用户直接退出应用
+
+        // 添加一个新的历史记录条目，确保用户在侧边栏时再次返回才会退出应用
         window.history.pushState(
-          { mobileView: "sidebar" },
+          { mobileView: "sidebar", canExit: true },
+          "",
+          location.pathname,
+        );
+
+        return;
+      }
+
+      // 如果在侧边栏界面，允许正常的返回行为（退出应用）
+      // 这里不需要阻止默认行为，让浏览器正常处理
+    };
+
+    // 监听浏览器返回按钮和全面屏手势
+    window.addEventListener("popstate", handlePopState);
+
+    // 当切换到聊天界面时的历史记录管理
+    if (mobileViewState === "chat") {
+      // 检查当前历史记录状态，避免重复添加
+      const currentState = window.history.state;
+      if (!currentState || currentState.mobileView !== "chat") {
+        // 添加聊天界面的历史记录条目
+        window.history.pushState(
+          { mobileView: "chat", canExit: false },
           "",
           location.pathname,
         );
       }
-    };
-
-    // 监听浏览器返回按钮
-    window.addEventListener("popstate", handlePopState);
-
-    // 当切换到聊天界面时，添加历史记录条目
-    if (mobileViewState === "chat") {
-      window.history.pushState({ mobileView: "chat" }, "", location.pathname);
+    } else if (mobileViewState === "sidebar") {
+      // 当在侧边栏时，确保历史记录状态正确
+      const currentState = window.history.state;
+      if (!currentState || currentState.mobileView !== "sidebar") {
+        // 替换当前历史记录，标记为可以退出
+        window.history.replaceState(
+          { mobileView: "sidebar", canExit: true },
+          "",
+          location.pathname,
+        );
+      }
     }
 
     return () => {
