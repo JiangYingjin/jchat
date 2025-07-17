@@ -99,6 +99,65 @@ function StatusDot({ status, title }: StatusDotProps) {
   return <span className={className} title={title || defaultTitle} />;
 }
 
+// 独立的 GroupSessionsHeader 组件
+export function GroupSessionsHeader() {
+  const [groups, currentGroupIndex, chatListGroupView, chatStore] =
+    useChatStore((state) => [
+      state.groups,
+      state.currentGroupIndex,
+      state.chatListGroupView,
+      state,
+    ]);
+
+  // 返回到组列表
+  const handleBackToGroups = () => {
+    chatStore.setchatListGroupView("groups");
+  };
+
+  const currentGroup = groups[currentGroupIndex];
+  const groupSessions = currentGroup
+    ? currentGroup.sessionIds
+        .map((sessionId: string) => chatStore.groupSessions[sessionId])
+        .filter(Boolean)
+    : [];
+
+  return (
+    <div className={groupSessionsStyles["group-sessions-header"]}>
+      {chatListGroupView === "groups" ? (
+        // 在 groups view 中显示 header，但返回按钮不可用
+        <>
+          <div
+            className={
+              groupSessionsStyles["back-button"] +
+              " " +
+              groupSessionsStyles["back-button-disabled"]
+            }
+          >
+            <BackIcon />
+          </div>
+          <span className={groupSessionsStyles["group-sessions-title"]}>
+            组会话模式
+          </span>
+        </>
+      ) : (
+        // 在 group-sessions view 中显示可用的返回按钮
+        <>
+          <div
+            className={groupSessionsStyles["back-button"]}
+            onClick={handleBackToGroups}
+            title="返回组列表"
+          >
+            <BackIcon />
+          </div>
+          <span className={groupSessionsStyles["group-sessions-title"]}>
+            组内会话 ({groupSessions.length})
+          </span>
+        </>
+      )}
+    </div>
+  );
+}
+
 // 组会话列表组件
 export function GroupList() {
   const [
@@ -193,22 +252,6 @@ export function GroupList() {
   if (chatListGroupView === "groups") {
     return (
       <div className={groupSessionsStyles["group-sessions-view"]}>
-        {/* 在 groups view 中也显示 header，但返回按钮不可用 */}
-        <div className={groupSessionsStyles["group-sessions-header"]}>
-          <div
-            className={
-              groupSessionsStyles["back-button"] +
-              " " +
-              groupSessionsStyles["back-button-disabled"]
-            }
-          >
-            <BackIcon />
-          </div>
-          <span className={groupSessionsStyles["group-sessions-title"]}>
-            组会话模式
-          </span>
-        </div>
-
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -256,20 +299,6 @@ export function GroupList() {
 
     return (
       <div className={groupSessionsStyles["group-sessions-view"]}>
-        {/* 返回按钮 */}
-        <div className={groupSessionsStyles["group-sessions-header"]}>
-          <div
-            className={groupSessionsStyles["back-button"]}
-            onClick={handleBackToGroups}
-            title="返回组列表"
-          >
-            <BackIcon />
-          </div>
-          <span className={groupSessionsStyles["group-sessions-title"]}>
-            组内会话 ({groupSessions.length})
-          </span>
-        </div>
-
         {/* 组内会话列表 */}
         <div className={chatItemStyles["chat-list"]}>
           {groupSessions.map((session: any, i: number) => (

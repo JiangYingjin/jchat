@@ -17,6 +17,7 @@ import { useMobileScreen } from "../utils";
 import dynamic from "next/dynamic";
 import { SearchBar, SearchInputRef } from "./search-bar";
 import { createEmptyGroup } from "../utils/group";
+import { GroupSessionsHeader } from "./group-list";
 
 const ChatList = dynamic(async () => (await import("./chat-list")).ChatList, {
   loading: () => null,
@@ -121,6 +122,13 @@ export function SideBar(props: { className?: string }) {
       >
         <SearchBar ref={searchBarRef} setIsSearching={setIsSearching} />
       </div>
+
+      {/* Group Sessions Header - 只在 groups 模式下显示 */}
+      {chatListView === "groups" && (
+        <div className={sidebarStyles["group-sessions-header-container"]}>
+          <GroupSessionsHeader />
+        </div>
+      )}
 
       {!isSearching && (
         <div

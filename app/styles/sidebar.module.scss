@@ -160,6 +160,14 @@
     margin-bottom: 0px;
   }
 
+  // Group Sessions Header 容器样式
+  .group-sessions-header-container {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 15px;
+    padding: 0;
+  }
+
   &:hover,
   &:active {
     .sidebar-drag {
