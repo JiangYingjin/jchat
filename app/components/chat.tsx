@@ -13,6 +13,7 @@ import {
   systemMessageStorage,
   ChatSession,
 } from "../store";
+import { useAppReadyGuard } from "../hooks/app-ready";
 import { useSubmitHandler, useTripleClick } from "../utils/hooks";
 import { updateSessionStatsBasic, updateSessionStats } from "../utils/session";
 import {
@@ -788,6 +789,20 @@ function Chat() {
  */
 export function ChatPage() {
   const chatStore = useChatStore();
+  const isAppReady = useAppReadyGuard();
+
+  // 🔥 确保应用完全准备好后再渲染聊天界面
+  if (!isAppReady) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">正在准备聊天数据...</p>
+        </div>
+      </div>
+    );
+  }
+
   const session = chatStore.currentSession();
 
   // 统一使用会话ID作为key，确保会话切换的可靠性

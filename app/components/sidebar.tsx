@@ -9,6 +9,7 @@ import AddIcon from "../icons/add.svg";
 import GroupIcon from "../icons/group.svg";
 
 import { useChatStore } from "../store";
+import { useAppReadyGuard } from "../hooks/app-ready";
 
 import { DEFAULT_SIDEBAR_WIDTH, Path } from "../constant";
 
@@ -30,25 +31,6 @@ const GroupList = dynamic(
   },
 );
 
-function useHotKey() {
-  const chatStore = useChatStore();
-
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if (e.altKey || e.ctrlKey) {
-        if (e.key === "ArrowUp") {
-          chatStore.nextSession(-1);
-        } else if (e.key === "ArrowDown") {
-          chatStore.nextSession(1);
-        }
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  });
-}
-
 function useSideBar() {
   const isMobileScreen = useMobileScreen();
 
@@ -61,6 +43,7 @@ function useSideBar() {
 
 export function SideBar(props: { className?: string }) {
   const chatStore = useChatStore();
+  const isAppReady = useAppReadyGuard();
 
   // sidebar
   useSideBar();
@@ -75,15 +58,19 @@ export function SideBar(props: { className?: string }) {
   // 获取当前列表模式
   const chatListView = useChatStore((state) => state.chatListView);
 
-  // 移除可能导致无限循环的useEffect
-  // useEffect(() => {
-  //   console.log("[Sidebar] 状态变化:", {
-  //     chatListView,
-  //     isMobileScreen,
-  //     pathname: location.pathname,
-  //     chatListGroupView: chatStore.chatListGroupView,
-  //   });
-  // }, [chatListView, isMobileScreen, location.pathname, chatStore.chatListGroupView]);
+  // 🔥 确保应用完全准备好后再渲染侧边栏
+  if (!isAppReady) {
+    return (
+      <div className={props.className}>
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500 mx-auto mb-2"></div>
+            <p className="text-sm text-gray-600">加载中...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const stopSearch = () => {
     setIsSearching(false);
@@ -101,8 +88,6 @@ export function SideBar(props: { className?: string }) {
       chatStore.setchatListView("sessions");
     }
   };
-
-  useHotKey();
 
   return (
     <div

@@ -300,6 +300,21 @@ class MessageStorage {
     messages: ChatMessage[],
     force: boolean = false,
   ): Promise<boolean> {
+    // 数据未恢复时，禁止消息持久化
+    // 通过导入的 isDataRestored 状态检查
+    if (
+      typeof window !== "undefined" &&
+      (window as any).__jchat_data_restored !== true
+    ) {
+      console.log(`[MessageStorage] ❌ 数据未恢复，禁止消息持久化`, {
+        sessionId,
+        isDataRestored: (window as any).__jchat_data_restored,
+        force,
+        timestamp: Date.now(),
+      });
+      return false;
+    }
+
     const currentTimestamp = Date.now();
     const sessionState = this.getSessionState(sessionId);
 

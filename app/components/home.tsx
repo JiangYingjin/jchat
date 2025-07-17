@@ -15,6 +15,7 @@ import { SideBar } from "./sidebar";
 // 状态管理和自定义 Hooks
 import { useChatStore } from "../store";
 import { useMobileScreen } from "../utils";
+import { useAppReady } from "../hooks/app-ready";
 
 // 常量和工具函数
 import { Path, SlotID, DEFAULT_THEME } from "../constant";
@@ -68,6 +69,8 @@ const useHasHydrated = () => {
 
   return hasHydrated;
 };
+
+// 移除本地的 useAppReady 函数，使用导入的 Hook
 
 /**
  * 异步加载 Google 字体
@@ -295,6 +298,14 @@ function MobileAwareLayout({
 export function Home() {
   useHtmlLang();
 
+  // 🔥 新增：使用应用准备状态检查
+  const hasHydrated = useHasHydrated();
+  const {
+    isReady: isAppReady,
+    isInitialized: appInitialized,
+    error,
+  } = useAppReady();
+
   // 应用启动时获取全局数据并初始化存储健康检查
   useEffect(() => {
     useChatStore.getState().fetchModels();
@@ -317,11 +328,18 @@ export function Home() {
     return () => clearTimeout(timer);
   }, []);
 
-  // 等待客户端水合完成，以显示正确的 UI
-  if (!useHasHydrated()) {
+  // 🔥 优化加载逻辑：分阶段显示加载状态
+  // 1. 等待客户端水合完成（避免 SSR 不匹配）
+  if (!hasHydrated) {
     return <Loading />;
   }
 
+  // 2. 等待应用数据准备完成（数据完整性、一致性检查）
+  if (!appInitialized || !isAppReady) {
+    return <Loading />;
+  }
+
+  // 3. 应用完全准备就绪，开始渲染界面
   return (
     <ErrorBoundary>
       <FileDropZone>

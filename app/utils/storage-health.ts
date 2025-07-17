@@ -1,7 +1,4 @@
 import localforage from "localforage";
-import { messageStorage } from "../store/message";
-import { systemMessageStorage } from "../store/system";
-import { chatInputStorage } from "../store/input";
 import { jchatStorage } from "./store";
 
 // 存储健康状态枚举
@@ -425,9 +422,6 @@ class StorageHealthManager {
    */
   private async reinitializeStorage(): Promise<void> {
     try {
-      // 强制重新创建存储实例
-      // await localforage.clear(); // [MODIFIED] This is too dangerous, disable for now.
-
       // 重新创建各个存储实例
       const storageNames = [
         "default",

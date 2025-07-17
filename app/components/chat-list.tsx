@@ -27,6 +27,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { Path } from "../constant";
 import { useRef, useMemo } from "react";
 import { useMobileScreen } from "../utils";
+import { useAppReadyGuard } from "../hooks/app-ready";
 
 /**
  * 根据消息数量计算项目样式
@@ -221,7 +222,9 @@ export function ChatList(props: {}) {
   const chatStore = useChatStore();
   const router = useRouter();
   const isMobileScreen = useMobileScreen();
+  const isAppReady = useAppReadyGuard();
 
+  // 🔥 所有 hooks 必须在条件渲染之前调用
   // 配置传感器
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -234,6 +237,20 @@ export function ChatList(props: {}) {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
+
+  // 🔥 确保应用完全准备好后再渲染聊天列表
+  if (!isAppReady) {
+    return (
+      <div className={chatItemStyles["chat-list"]}>
+        <div className="flex items-center justify-center h-32">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mx-auto mb-2"></div>
+            <p className="text-xs text-gray-600">加载会话...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;

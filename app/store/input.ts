@@ -28,6 +28,19 @@ class ChatInputStorage {
   }
 
   async save(sessionId: string, data: ChatInputData): Promise<boolean> {
+    // 数据未恢复时，禁止输入数据持久化
+    if (
+      typeof window !== "undefined" &&
+      (window as any).__jchat_data_restored !== true
+    ) {
+      console.log(`[ChatInputStorage] ❌ 数据未恢复，禁止输入数据持久化`, {
+        sessionId,
+        isDataRestored: (window as any).__jchat_data_restored,
+        timestamp: Date.now(),
+      });
+      return false;
+    }
+
     try {
       const storage = this.getStorage();
       if (!storage) return false; // 服务器端直接返回false

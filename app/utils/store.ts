@@ -29,6 +29,19 @@ export const jchatStorage = {
     return (await instance.getItem(key)) as any;
   },
   async setItem(key: string, value: any) {
+    // 数据未恢复时，禁止数据持久化
+    if (
+      typeof window !== "undefined" &&
+      (window as any).__jchat_data_restored !== true
+    ) {
+      console.log(`[jchatStorage] ❌ 数据未恢复，禁止数据持久化`, {
+        key,
+        isDataRestored: (window as any).__jchat_data_restored,
+        timestamp: Date.now(),
+      });
+      return;
+    }
+
     const instance = getJchatLocalForage();
     if (!instance) return; // 服务器端直接返回
 
