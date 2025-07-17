@@ -18,7 +18,7 @@ import { useChatStore, type ChatSession } from "../store";
 import { systemMessageStorage } from "../store/system";
 import { uploadImage } from "../utils/chat";
 import { showToast } from "./ui-lib";
-import { filterEmptyGroupSessions } from "../utils/session";
+import { filterEmptyGroupSessions, updateSessionStats } from "../utils/session";
 
 interface FileDropZoneProps {
   children: React.ReactNode;
@@ -107,10 +107,7 @@ export function FileDropZone({ children }: FileDropZoneProps) {
       });
 
       // 更新会话统计信息
-      const { updateSessionStats: updateSessionStatsAsync } = await import(
-        "../utils/session"
-      );
-      await updateSessionStatsAsync(session);
+      await updateSessionStats(session);
 
       if (session.groupId) {
         chatStore.updateGroupSession(session, (session) => {});

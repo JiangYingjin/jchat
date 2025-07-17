@@ -19,6 +19,7 @@ import { useMobileScreen } from "../utils";
 // 常量和工具函数
 import { Path, SlotID, DEFAULT_THEME } from "../constant";
 import { checkAndHandleAuth } from "../utils/auth";
+import { storageHealthManager } from "../utils/storage-helper";
 
 // 静态资源
 import BotIcon from "../icons/bot.svg";
@@ -294,9 +295,20 @@ function MobileAwareLayout({
 export function Home() {
   useHtmlLang();
 
-  // 应用启动时获取全局数据
+  // 应用启动时获取全局数据并初始化存储健康检查
   useEffect(() => {
     useChatStore.getState().fetchModels();
+
+    // 启动存储健康检查（防止频繁刷新导致的数据丢失）
+    const initializeStorageHealth = async () => {
+      try {
+        await storageHealthManager.checkHealth();
+      } catch (error) {
+        console.error("[Home] 存储健康检查初始化失败:", error);
+      }
+    };
+
+    initializeStorageHealth();
   }, []);
 
   // 等待客户端水合完成，以显示正确的 UI

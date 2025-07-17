@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 // State Management
 import { useChatStore } from "../store";
 import { useMobileScreen } from "../utils";
+import { jchatDataManager } from "../utils/data-manager";
 
 // UI Components
 import { List, ListItem, showToast } from "./ui-lib";
@@ -130,7 +131,6 @@ function LocalDataItems() {
   useEffect(() => {
     const loadDatabaseStats = async () => {
       try {
-        const { jchatDataManager } = await import("../utils/data-manager");
         const stats = await jchatDataManager.getDatabaseStats();
         setDatabaseStats(stats);
       } catch (error) {
@@ -162,7 +162,6 @@ function LocalDataItems() {
 
   const handleExport = async () => {
     try {
-      const { jchatDataManager } = await import("../utils/data-manager");
       await jchatDataManager.exportData();
     } catch (error) {
       console.error("导出失败:", error);
@@ -172,7 +171,6 @@ function LocalDataItems() {
 
   const handleImport = async () => {
     try {
-      const { jchatDataManager } = await import("../utils/data-manager");
       await jchatDataManager.importData();
     } catch (error) {
       console.error("导入失败:", error);
