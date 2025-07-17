@@ -299,16 +299,22 @@ export function Home() {
   useEffect(() => {
     useChatStore.getState().fetchModels();
 
-    // 启动存储健康检查（防止频繁刷新导致的数据丢失）
-    const initializeStorageHealth = async () => {
-      try {
-        await storageHealthManager.checkHealth();
-      } catch (error) {
-        console.error("[Home] 存储健康检查初始化失败:", error);
-      }
-    };
+    // 延迟启动存储健康检查，确保应用已经完全初始化
+    const timer = setTimeout(() => {
+      const initializeStorageHealth = async () => {
+        try {
+          await storageHealthManager.checkHealth();
+        } catch (error) {
+          console.warn(
+            "[Home] 存储健康检查初始化失败，但不影响应用运行:",
+            error,
+          );
+        }
+      };
+      initializeStorageHealth();
+    }, 1000); // 延迟1秒，确保应用完全加载
 
-    initializeStorageHealth();
+    return () => clearTimeout(timer);
   }, []);
 
   // 等待客户端水合完成，以显示正确的 UI

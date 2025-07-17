@@ -1,5 +1,5 @@
 // 权限验证工具函数
-import { useChatStore, isStoreHydrated, onStoreHydrated } from "../store";
+import { useChatStore, isStoreHydrated, waitForHydration } from "../store/chat";
 
 // 检查访问码是否有权限
 export async function checkAccessCodePermission(
@@ -34,10 +34,15 @@ function waitForStoreHydration(timeout: number = 5000): Promise<boolean> {
       resolve(false);
     }, timeout);
 
-    onStoreHydrated(() => {
-      clearTimeout(timeoutId);
-      resolve(true);
-    });
+    waitForHydration()
+      .then(() => {
+        clearTimeout(timeoutId);
+        resolve(true);
+      })
+      .catch(() => {
+        clearTimeout(timeoutId);
+        resolve(false);
+      });
   });
 }
 

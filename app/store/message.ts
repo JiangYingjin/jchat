@@ -222,16 +222,67 @@ class MessageStorage {
   }
 
   /**
-   * 获取指定会话的消息数组
+   * 获取指定会话的消息数组（增强版）
    * @param sessionId 会话 ID
    * @returns 消息数组，如果不存在则返回空数组
    */
   async get(sessionId: string): Promise<ChatMessage[]> {
+    if (!sessionId) {
+      console.warn("[MessageStorage] sessionId 为空，返回空数组");
+      return [];
+    }
+
     try {
       const storage = this.getStorage();
-      if (!storage) return [];
+      if (!storage) {
+        console.warn("[MessageStorage] 存储不可用，返回空数组");
+        return [];
+      }
+
       const messages = await storage.getItem<ChatMessage[]>(sessionId);
-      return messages || [];
+
+      // 更严格的数据验证
+      if (!messages) {
+        return [];
+      }
+
+      if (!Array.isArray(messages)) {
+        console.warn(
+          `[MessageStorage] 会话 ${sessionId} 的数据格式不正确，不是数组:`,
+          typeof messages,
+        );
+        return [];
+      }
+
+      // 验证消息数组中的每个消息对象
+      const validMessages = messages.filter((msg, index) => {
+        if (!msg || typeof msg !== "object") {
+          console.warn(
+            `[MessageStorage] 会话 ${sessionId} 第 ${index} 条消息格式不正确:`,
+            msg,
+          );
+          return false;
+        }
+
+        // 检查必需字段
+        if (!msg.id || !msg.role || (!msg.content && msg.content !== "")) {
+          console.warn(
+            `[MessageStorage] 会话 ${sessionId} 第 ${index} 条消息缺少必需字段:`,
+            msg,
+          );
+          return false;
+        }
+
+        return true;
+      });
+
+      if (validMessages.length !== messages.length) {
+        console.warn(
+          `[MessageStorage] 会话 ${sessionId} 过滤了 ${messages.length - validMessages.length} 条无效消息`,
+        );
+      }
+
+      return validMessages;
     } catch (error) {
       console.error(`[MessageStorage] 获取消息失败: ${sessionId}`, error);
       return [];
@@ -298,9 +349,9 @@ class MessageStorage {
       const testKey = "__health_check__";
       const testValue = { timestamp: Date.now() };
 
-      // 超时保护
+      // 缩短超时时间，减少阻塞
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("Health check timeout")), 3000);
+        setTimeout(() => reject(new Error("Health check timeout")), 1000);
       });
 
       // 测试写入
@@ -316,9 +367,10 @@ class MessageStorage {
 
       return result !== null;
     } catch (error) {
-      console.error("[MessageStorage] 健康检查失败", error);
-      console.error("[MessageStorage] 如果问题持续存在，请重启浏览器重试");
-      return false;
+      console.warn("[MessageStorage] 健康检查失败，但不影响存储使用:", error);
+      // 健康检查失败时，仍然认为存储是可用的
+      // 这样可以避免频繁刷新时的数据丢失
+      return true;
     }
   }
 

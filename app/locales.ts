@@ -114,6 +114,11 @@ const cn = {
   Exporter: {
     Model: "模型",
     Time: "时间",
+    Title: "主题",
+  },
+  Store: {
+    MessageNotFound: "部分聊天记录加载失败，可能已损坏或被意外删除。",
+    MessageLoadFailed: "聊天记录加载失败，请检查网络或刷新页面重试。",
   },
 };
 
