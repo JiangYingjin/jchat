@@ -207,8 +207,8 @@ function MobileAwareLayout({
     if (!isMobileScreen) return;
 
     const handlePopState = (event: PopStateEvent) => {
-      // 如果当前在聊天界面，拦截返回操作并跳转到侧边栏
-      if (mobileViewState === "chat") {
+      // 如果当前在聊天界面或设置界面，拦截返回操作并跳转到侧边栏
+      if (mobileViewState === "chat" || mobileViewState === "settings") {
         event.preventDefault();
         event.stopPropagation();
 
@@ -232,14 +232,14 @@ function MobileAwareLayout({
     // 监听浏览器返回按钮和全面屏手势
     window.addEventListener("popstate", handlePopState);
 
-    // 当切换到聊天界面时的历史记录管理
-    if (mobileViewState === "chat") {
+    // 当切换到聊天界面或设置界面时的历史记录管理
+    if (mobileViewState === "chat" || mobileViewState === "settings") {
       // 检查当前历史记录状态，避免重复添加
       const currentState = window.history.state;
-      if (!currentState || currentState.mobileView !== "chat") {
-        // 添加聊天界面的历史记录条目
+      if (!currentState || currentState.mobileView !== mobileViewState) {
+        // 添加聊天界面或设置界面的历史记录条目
         window.history.pushState(
-          { mobileView: "chat", canExit: false },
+          { mobileView: mobileViewState, canExit: false },
           "",
           location.pathname,
         );
@@ -266,13 +266,20 @@ function MobileAwareLayout({
   if (isMobileScreen) {
     if (mobileViewState === "sidebar") {
       return <SideBar className={sidebarStyles["sidebar-show"]} />;
+    } else if (mobileViewState === "settings") {
+      return (
+        <div className={containerStyles["window-content"]} id={SlotID.AppBody}>
+          <Routes>
+            <Route path="*" element={<Settings />} />
+          </Routes>
+        </div>
+      );
     } else {
       return (
         <div className={containerStyles["window-content"]} id={SlotID.AppBody}>
           <Routes>
             <Route path={Path.Home} element={<Chat />} />
             <Route path={Path.Chat} element={<Chat />} />
-            <Route path={Path.Settings} element={<Settings />} />
           </Routes>
         </div>
       );

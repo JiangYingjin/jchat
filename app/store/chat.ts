@@ -86,7 +86,7 @@ const DEFAULT_CHAT_STATE = {
   accessCode: "",
   batchApplyMode: false, // 批量应用模式
   activeBatchRequests: 0, // 活跃的批量请求计数器
-  mobileViewState: "sidebar" as "sidebar" | "chat", // 移动端界面状态
+  mobileViewState: "sidebar" as "sidebar" | "chat" | "settings", // 移动端界面状态
 };
 
 export const DEFAULT_TITLE = Locale.Session.Title.Default;
@@ -110,7 +110,7 @@ export const useChatStore = createPersistStore(
       },
 
       // 移动端界面状态管理
-      setMobileViewState(state: "sidebar" | "chat"): void {
+      setMobileViewState(state: "sidebar" | "chat" | "settings"): void {
         set({ mobileViewState: state });
       },
 
@@ -120,6 +120,10 @@ export const useChatStore = createPersistStore(
 
       showChatOnMobile(): void {
         set({ mobileViewState: "chat" });
+      },
+
+      showSettingsOnMobile(): void {
+        set({ mobileViewState: "settings" });
       },
 
       // 新增：增加活跃批量请求计数

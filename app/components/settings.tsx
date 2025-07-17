@@ -7,6 +7,7 @@ import { useNavigate } from "react-router-dom";
 
 // State Management
 import { useChatStore } from "../store";
+import { useMobileScreen } from "../utils";
 
 // UI Components
 import { List, ListItem, showToast } from "./ui-lib";
@@ -34,6 +35,8 @@ import { checkAndHandleAuth } from "../utils/auth";
  */
 export function Settings() {
   const navigate = useNavigate();
+  const isMobileScreen = useMobileScreen();
+  const chatStore = useChatStore();
 
   // Effect for checking authentication when the component mounts.
   useEffect(() => {
@@ -44,7 +47,11 @@ export function Settings() {
   useEffect(() => {
     const keydownEvent = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        navigate(Path.Home);
+        if (isMobileScreen) {
+          chatStore.showSidebarOnMobile();
+        } else {
+          navigate(Path.Home);
+        }
       }
     };
     document.addEventListener("keydown", keydownEvent);
@@ -52,7 +59,7 @@ export function Settings() {
       document.removeEventListener("keydown", keydownEvent);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isMobileScreen, chatStore]);
 
   return (
     <ErrorBoundary>
@@ -72,7 +79,13 @@ export function Settings() {
             <IconButton
               aria={Locale.UI.Close}
               icon={<CloseIcon />}
-              onClick={() => navigate(Path.Home)}
+              onClick={() => {
+                if (isMobileScreen) {
+                  chatStore.showSidebarOnMobile();
+                } else {
+                  navigate(Path.Home);
+                }
+              }}
               bordered
             />
           </div>

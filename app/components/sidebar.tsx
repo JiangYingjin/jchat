@@ -147,9 +147,20 @@ export function SideBar(props: { className?: string }) {
               }
               onClick={() => {
                 if (location.pathname.includes(Path.Settings)) {
-                  navigate(Path.Chat);
+                  // 如果当前在设置页面，返回聊天页面
+                  if (isMobileScreen) {
+                    chatStore.showChatOnMobile();
+                  } else {
+                    navigate(Path.Chat);
+                  }
                 } else {
-                  navigate(Path.Settings);
+                  // 如果当前不在设置页面，跳转到设置页面
+                  if (isMobileScreen) {
+                    chatStore.showSettingsOnMobile();
+                    navigate(Path.Settings);
+                  } else {
+                    navigate(Path.Settings);
+                  }
                 }
               }}
             />
