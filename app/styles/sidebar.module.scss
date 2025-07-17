@@ -244,15 +244,16 @@
 /* 移动端侧边栏样式 */
 @media only screen and (max-width: 600px) {
   .sidebar {
-    position: absolute;
-    left: -100%;
-    z-index: 1000;
+    position: relative;
+    left: 0;
+    width: 100vw;
     height: var(--full-height);
-    transition: all ease 0.3s;
+    transition: none;
     box-shadow: none;
+    z-index: 1;
   }
 
   .sidebar-show {
-    left: 0;
+    /* 在移动端，sidebar-show类不需要特殊样式，因为我们使用JavaScript控制显示/隐藏 */
   }
 }

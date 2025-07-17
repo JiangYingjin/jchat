@@ -26,6 +26,7 @@ import Locale from "../locales";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Path } from "../constant";
 import { useRef, useMemo } from "react";
+import { useMobileScreen } from "../utils";
 
 /**
  * 根据消息数量计算项目样式
@@ -219,6 +220,7 @@ export function ChatList(props: {}) {
   );
   const chatStore = useChatStore();
   const navigate = useNavigate();
+  const isMobileScreen = useMobileScreen();
 
   // 配置传感器
   const sensors = useSensors(
@@ -269,8 +271,14 @@ export function ChatList(props: {}) {
               index={i}
               selected={i === selectedIndex}
               onClick={() => {
-                navigate(Path.Chat);
                 selectSession(i);
+                // 移动端：选择会话后切换到聊天界面
+                if (isMobileScreen) {
+                  chatStore.showChatOnMobile();
+                } else {
+                  // 桌面端：导航到聊天页面
+                  navigate(Path.Chat);
+                }
               }}
               onDelete={async () => {
                 await chatStore.deleteSession(i);

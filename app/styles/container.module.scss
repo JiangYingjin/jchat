@@ -122,6 +122,14 @@
   flex-direction: column;
 }
 
+/* 移动端window-content样式 */
+@media only screen and (max-width: 600px) {
+  .window-content {
+    width: 100vw;
+    height: var(--full-height);
+  }
+}
+
 .mobile {
   display: none;
 }

@@ -2,6 +2,7 @@ import { useRef, useState, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useChatStore, ChatGroup } from "../store";
 import { Path } from "../constant";
+import { useMobileScreen } from "../utils";
 import { ChatItem } from "./chat-list";
 import chatItemStyles from "../styles/chat-item.module.scss";
 import groupSessionsStyles from "../styles/group-sessions.module.scss";
@@ -114,6 +115,7 @@ export function GroupList() {
     state,
   ]);
   const navigate = useNavigate();
+  const isMobileScreen = useMobileScreen();
 
   // 配置传感器
   const sensors = useSensors(
@@ -137,8 +139,13 @@ export function GroupList() {
       // 第一次点击：切换到该组，选择第一个会话，并切换到组内会话视图
       chatStore.selectGroup(groupIndex);
       chatStore.selectGroupSession(0, false);
-      // 导航到聊天页面
-      navigate(Path.Chat);
+      // 移动端：选择组后切换到聊天界面
+      if (isMobileScreen) {
+        chatStore.showChatOnMobile();
+      } else {
+        // 桌面端：导航到聊天页面
+        navigate(Path.Chat);
+      }
     } else {
       // 第二次点击：切换到组内会话视图
       chatStore.setchatListGroupView("group-sessions");
@@ -154,8 +161,13 @@ export function GroupList() {
   const handleGroupSessionClick = (sessionIndex: number) => {
     // 选择该会话，保持在当前组内会话视图
     chatStore.selectGroupSession(sessionIndex, false);
-    // 导航到聊天页面
-    navigate(Path.Chat);
+    // 移动端：选择会话后切换到聊天界面
+    if (isMobileScreen) {
+      chatStore.showChatOnMobile();
+    } else {
+      // 桌面端：导航到聊天页面
+      navigate(Path.Chat);
+    }
   };
 
   // 拖拽处理

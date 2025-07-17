@@ -163,21 +163,97 @@ function Screen() {
       {isAuth ? (
         <AuthPage />
       ) : (
-        <>
-          <SideBar className={isHome ? sidebarStyles["sidebar-show"] : ""} />
-          <div
-            className={containerStyles["window-content"]}
-            id={SlotID.AppBody}
-          >
-            <Routes>
-              <Route path={Path.Home} element={<Chat />} />
-              <Route path={Path.Chat} element={<Chat />} />
-              <Route path={Path.Settings} element={<Settings />} />
-            </Routes>
-          </div>
-        </>
+        <MobileAwareLayout isHome={isHome} isMobileScreen={isMobileScreen} />
       )}
     </div>
+  );
+}
+
+// 4.5 移动端感知布局组件
+// -----------------------------------------------------------------------------
+/**
+ * MobileAwareLayout 组件负责移动端的单屏切换逻辑
+ */
+function MobileAwareLayout({
+  isHome,
+  isMobileScreen,
+}: {
+  isHome: boolean;
+  isMobileScreen: boolean;
+}) {
+  const chatStore = useChatStore();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const mobileViewState = useChatStore((state) => state.mobileViewState);
+
+  // 移动端初始化：确保初次进入时显示侧边栏
+  useEffect(() => {
+    if (isMobileScreen) {
+      // 移动端初始化：无论当前状态如何，都重置为侧边栏状态
+      chatStore.showSidebarOnMobile();
+    }
+  }, [isMobileScreen]); // 只依赖isMobileScreen，避免chatStore导致的循环
+
+  // 移动端历史记录管理
+  useEffect(() => {
+    if (!isMobileScreen) return;
+
+    const handlePopState = (event: PopStateEvent) => {
+      // 检查是否在聊天界面，如果是，则返回到侧边栏
+      if (mobileViewState === "chat") {
+        event.preventDefault();
+        chatStore.showSidebarOnMobile();
+        // 添加一个新的历史记录条目，避免用户直接退出应用
+        window.history.pushState(
+          { mobileView: "sidebar" },
+          "",
+          location.pathname,
+        );
+      }
+    };
+
+    // 监听浏览器返回按钮
+    window.addEventListener("popstate", handlePopState);
+
+    // 当切换到聊天界面时，添加历史记录条目
+    if (mobileViewState === "chat") {
+      window.history.pushState({ mobileView: "chat" }, "", location.pathname);
+    }
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [mobileViewState, isMobileScreen, chatStore, location.pathname]);
+
+  // 移动端：根据mobileViewState决定显示哪个界面
+  if (isMobileScreen) {
+    if (mobileViewState === "sidebar") {
+      return <SideBar className={sidebarStyles["sidebar-show"]} />;
+    } else {
+      return (
+        <div className={containerStyles["window-content"]} id={SlotID.AppBody}>
+          <Routes>
+            <Route path={Path.Home} element={<Chat />} />
+            <Route path={Path.Chat} element={<Chat />} />
+            <Route path={Path.Settings} element={<Settings />} />
+          </Routes>
+        </div>
+      );
+    }
+  }
+
+  // 桌面端：保持原有的分屏布局
+  return (
+    <>
+      <SideBar className={isHome ? sidebarStyles["sidebar-show"] : ""} />
+      <div className={containerStyles["window-content"]} id={SlotID.AppBody}>
+        <Routes>
+          <Route path={Path.Home} element={<Chat />} />
+          <Route path={Path.Chat} element={<Chat />} />
+          <Route path={Path.Settings} element={<Settings />} />
+        </Routes>
+      </div>
+    </>
   );
 }
 

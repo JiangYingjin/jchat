@@ -176,11 +176,6 @@ export function SideBar(props: { className?: string }) {
             icon={<AddIcon />}
             onClick={async () => {
               try {
-                // 检查是否需要导航到聊天页面
-                if (!location.pathname.includes(Path.Chat)) {
-                  navigate(Path.Chat);
-                }
-
                 // 判断当前模式并执行相应操作
                 if (chatListView === "sessions") {
                   await chatStore.newSession();
@@ -189,6 +184,16 @@ export function SideBar(props: { className?: string }) {
                   await chatStore.newGroup(newGroup);
                 } else {
                   await chatStore.newGroupSession();
+                }
+
+                // 移动端：新建会话后切换到聊天界面
+                if (isMobileScreen) {
+                  chatStore.showChatOnMobile();
+                } else {
+                  // 桌面端：检查是否需要导航到聊天页面
+                  if (!location.pathname.includes(Path.Chat)) {
+                    navigate(Path.Chat);
+                  }
                 }
 
                 stopSearch();
