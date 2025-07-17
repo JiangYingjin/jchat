@@ -14,7 +14,7 @@ import SearchIcon from "../icons/search.svg";
 import { IconButton } from "./button";
 import CloseIcon from "../icons/close.svg";
 import { Markdown } from "./markdown";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Path } from "@/app/constant";
 import Locale from "../locales";
 import { getMessageTextContent } from "../utils";
@@ -99,13 +99,13 @@ function SearchResultItem({
   selectSession: (id: number) => void;
   index: number;
 }) {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   return (
     <div
       className={sidebarStyles["search-result-item"]}
       onClick={() => {
-        navigate(Path.Chat);
+        router.push(Path.Home);
         selectSession(index);
       }}
     >

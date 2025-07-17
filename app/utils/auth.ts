@@ -42,9 +42,7 @@ function waitForStoreHydration(timeout: number = 5000): Promise<boolean> {
 }
 
 // 异步检查当前 accessCode 权限，如果无权限则清空并跳转
-export async function checkAndHandleAuth(
-  navigate: (path: string) => void,
-): Promise<void> {
+export async function checkAndHandleAuth(navigate: () => void): Promise<void> {
   // 等待 store 完成 hydration
   await waitForStoreHydration();
 
@@ -53,7 +51,7 @@ export async function checkAndHandleAuth(
 
   if (!accessCode) {
     // 如果 accessCode 为空，直接跳转到 auth 页面
-    navigate("/auth");
+    navigate();
     return;
   }
 
@@ -65,7 +63,7 @@ export async function checkAndHandleAuth(
         chatStore.update((chat) => {
           chat.accessCode = "";
         });
-        navigate("/auth");
+        navigate();
       }
     })
     .catch((error) => {
@@ -74,7 +72,7 @@ export async function checkAndHandleAuth(
       chatStore.update((chat) => {
         chat.accessCode = "";
       });
-      navigate("/auth");
+      navigate();
     });
 }
 
@@ -86,42 +84,36 @@ export async function checkAccessCodeSync(
 }
 
 // 处理未授权响应
-export function handleUnauthorizedResponse(
-  navigate: (path: string) => void,
-): void {
+export function handleUnauthorizedResponse(navigate: () => void): void {
   const chatStore = useChatStore.getState();
   chatStore.update((chat) => {
     chat.accessCode = "";
   });
-  navigate("/auth");
+  navigate();
 }
 
 // 处理URL中的认证码参数
 export async function handleUrlAuthCode(
   searchParams: URLSearchParams,
-  setSearchParams: (params: URLSearchParams) => void,
-  navigate: (path: string) => void,
+  router: { push: (path: string) => void; replace: (path: string) => void },
+  navigate: () => void,
 ): Promise<void> {
-  let shouldUpdate = false;
-  let foundCode: string | null = null;
-
-  searchParams.forEach((param, name) => {
-    if (name === "code") {
-      console.log("[Auth] got code from url: ", param);
-      if (param) {
-        foundCode = param;
-      }
-      searchParams.delete(name);
-      shouldUpdate = true;
-    }
-  });
-
-  if (shouldUpdate) {
-    setSearchParams(searchParams);
-  }
+  const foundCode = searchParams.get("code");
 
   // 如果找到了code，立即验证权限
   if (foundCode) {
+    console.log("[Auth] got code from url: ", foundCode);
+
+    // 清除URL中的code参数
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete("code");
+    if (typeof window !== "undefined") {
+      const newUrl =
+        window.location.pathname +
+        (newParams.toString() ? "?" + newParams.toString() : "");
+      router.replace(newUrl);
+    }
+
     const hasPermission = await checkAccessCodePermission(foundCode);
     const chatStore = useChatStore.getState();
 
@@ -131,7 +123,7 @@ export async function handleUrlAuthCode(
     } else {
       // 没有权限，清空accessCode并跳转到auth页面
       chatStore.update((chat) => (chat.accessCode = ""));
-      navigate("/auth");
+      navigate();
     }
   }
 }

@@ -23,7 +23,7 @@ import {
 
 import { useChatStore } from "../store";
 import Locale from "../locales";
-import { useLocation, useNavigate } from "react-router-dom";
+import { usePathname, useRouter } from "next/navigation";
 import { Path } from "../constant";
 import { useRef, useMemo } from "react";
 import { useMobileScreen } from "../utils";
@@ -115,7 +115,7 @@ export function ChatItem(props: {
   styleCalculator?: (count: number) => React.CSSProperties; // 背景色计算函数
   tooltipText?: string; // 自定义提示文本
 }) {
-  const { pathname: currentPath } = useLocation();
+  const currentPath = usePathname();
 
   // 使用传入的样式计算函数，默认为普通会话样式
   const styleCalculator = props.styleCalculator || getChatItemStyle;
@@ -219,7 +219,7 @@ export function ChatList(props: {}) {
     ],
   );
   const chatStore = useChatStore();
-  const navigate = useNavigate();
+  const router = useRouter();
   const isMobileScreen = useMobileScreen();
 
   // 配置传感器
@@ -276,8 +276,8 @@ export function ChatList(props: {}) {
                 if (isMobileScreen) {
                   chatStore.showChatOnMobile();
                 } else {
-                  // 桌面端：导航到聊天页面
-                  navigate(Path.Chat);
+                  // 桌面端：导航到首页
+                  router.push(Path.Home);
                 }
               }}
               onDelete={async () => {

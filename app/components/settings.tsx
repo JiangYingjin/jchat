@@ -1,9 +1,11 @@
+"use client";
+
 // --- 1. Imports ---
 // Grouped by type for clarity and better organization.
 
 // React and Hooks
 import { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 
 // State Management
 import { useChatStore } from "../store";
@@ -34,14 +36,23 @@ import { checkAndHandleAuth } from "../utils/auth";
  * page-level logic like navigation and authentication checks.
  */
 export function Settings() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const isMobileScreen = useMobileScreen();
   const chatStore = useChatStore();
 
+  const goHome = () => {
+    if (isMobileScreen) {
+      chatStore.showChatOnMobile();
+      router.push(Path.Home);
+    } else {
+      router.push(Path.Home);
+    }
+  };
+
   // Effect for checking authentication when the component mounts.
   useEffect(() => {
-    checkAndHandleAuth(navigate);
-  }, [navigate]);
+    checkAndHandleAuth(() => router.push(Path.Auth));
+  }, [router]);
 
   // Effect for handling the 'Escape' key to close the settings page.
   useEffect(() => {
@@ -50,7 +61,7 @@ export function Settings() {
         if (isMobileScreen) {
           chatStore.showSidebarOnMobile();
         } else {
-          navigate(Path.Home);
+          goHome();
         }
       }
     };
@@ -83,7 +94,7 @@ export function Settings() {
                 if (isMobileScreen) {
                   chatStore.showSidebarOnMobile();
                 } else {
-                  navigate(Path.Home);
+                  goHome();
                 }
               }}
               bordered

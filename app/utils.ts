@@ -84,11 +84,13 @@ export function isIOS() {
 
 export function useWindowSize() {
   const [size, setSize] = useState({
-    width: window.innerWidth,
-    height: window.innerHeight,
+    width: typeof window !== "undefined" ? window.innerWidth : 0,
+    height: typeof window !== "undefined" ? window.innerHeight : 0,
   });
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const onResize = () => {
       setSize({
         width: window.innerWidth,
@@ -114,7 +116,9 @@ export function useMobileScreen() {
 }
 
 function getDomContentWidth(dom: HTMLElement) {
-  const style = window.getComputedStyle(dom);
+  const style =
+    typeof window !== "undefined" ? window.getComputedStyle(dom) : null;
+  if (!style) return 0;
   const paddingWidth =
     parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
   const width = dom.clientWidth - paddingWidth;
@@ -152,10 +156,14 @@ export function autoGrowTextArea(dom: HTMLTextAreaElement) {
   measureDom.style.fontSize = dom.style.fontSize;
   measureDom.style.fontFamily = dom.style.fontFamily;
   const endWithEmptyLine = dom.value.endsWith("\n");
-  const height = parseFloat(window.getComputedStyle(measureDom).height);
-  const singleLineHeight = parseFloat(
-    window.getComputedStyle(singleLineDom).height,
-  );
+  const height =
+    typeof window !== "undefined"
+      ? parseFloat(window.getComputedStyle(measureDom).height)
+      : 0;
+  const singleLineHeight =
+    typeof window !== "undefined"
+      ? parseFloat(window.getComputedStyle(singleLineDom).height)
+      : 0;
 
   const rows =
     Math.round(height / singleLineHeight) + (endWithEmptyLine ? 1 : 0);

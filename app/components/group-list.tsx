@@ -1,5 +1,5 @@
 import { useRef, useState, useMemo } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useRouter, usePathname } from "next/navigation";
 import { useChatStore, ChatGroup } from "../store";
 import { Path } from "../constant";
 import { useMobileScreen } from "../utils";
@@ -173,7 +173,7 @@ export function GroupList() {
     state.chatListGroupView,
     state,
   ]);
-  const navigate = useNavigate();
+  const router = useRouter();
   const isMobileScreen = useMobileScreen();
 
   // 配置传感器
@@ -202,8 +202,8 @@ export function GroupList() {
       if (isMobileScreen) {
         chatStore.showChatOnMobile();
       } else {
-        // 桌面端：导航到聊天页面
-        navigate(Path.Chat);
+        // 桌面端：导航到首页
+        router.push(Path.Home);
       }
     } else {
       // 第二次点击：切换到组内会话视图
@@ -224,8 +224,8 @@ export function GroupList() {
     if (isMobileScreen) {
       chatStore.showChatOnMobile();
     } else {
-      // 桌面端：导航到聊天页面
-      navigate(Path.Chat);
+      // 桌面端：导航到首页
+      router.push(Path.Home);
     }
   };
 

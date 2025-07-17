@@ -5,19 +5,12 @@
 // 外部库
 import { useState, useEffect } from "react";
 import dynamic from "next/dynamic";
-import {
-  HashRouter as Router,
-  Routes,
-  Route,
-  useLocation,
-  useNavigate,
-} from "react-router-dom";
+import { usePathname, useRouter } from "next/navigation";
 
 // 内部组件
 import { ErrorBoundary } from "./error";
 import { FileDropZone } from "./file-drop-zone";
 import { SideBar } from "./sidebar";
-import { AuthPage } from "./auth";
 
 // 状态管理和自定义 Hooks
 import { useChatStore } from "../store";
@@ -34,15 +27,11 @@ import containerStyles from "../styles/container.module.scss";
 import sidebarStyles from "../styles/sidebar.module.scss";
 import groupSessionsStyles from "../styles/group-sessions.module.scss";
 
-// 2. 动态组件导入 (Code Splitting)
+// 2. 组件导入
 // -----------------------------------------------------------------------------
-const Settings = dynamic(async () => (await import("./settings")).Settings, {
-  loading: () => <Loading noLogo />,
-});
-
-const Chat = dynamic(async () => (await import("./chat")).ChatPage, {
-  loading: () => <Loading noLogo />,
-});
+import { Settings } from "./settings";
+import { ChatPage as Chat } from "./chat";
+import { AuthPage as AuthComponent } from "./auth";
 
 // 3. 辅助/工具组件
 // -----------------------------------------------------------------------------
@@ -100,10 +89,10 @@ const loadAsyncGoogleFont = () => {
  * Screen 组件负责页面的主布局、路由和主题切换逻辑
  */
 function Screen() {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const isHome = location.pathname === Path.Home;
-  const isAuth = location.pathname === Path.Auth;
+  const pathname = usePathname();
+  const router = useRouter();
+  const isHome = pathname === Path.Home;
+  const isAuth = pathname === Path.Auth;
   const isMobileScreen = useMobileScreen();
   const shouldTightBorder = !isMobileScreen;
 
@@ -116,9 +105,9 @@ function Screen() {
   useEffect(() => {
     // 只在非 auth 页面进行权限检查
     if (!isAuth) {
-      checkAndHandleAuth(navigate);
+      checkAndHandleAuth(() => router.push(Path.Auth));
     }
-  }, [location.pathname, navigate, isAuth]);
+  }, [pathname, router, isAuth]);
 
   // 主题颜色和 Safari theme-color 适配
   useEffect(() => {
@@ -161,7 +150,7 @@ function Screen() {
       }
     >
       {isAuth ? (
-        <AuthPage />
+        <AuthComponent />
       ) : (
         <MobileAwareLayout isHome={isHome} isMobileScreen={isMobileScreen} />
       )}
@@ -182,13 +171,13 @@ function MobileAwareLayout({
   isMobileScreen: boolean;
 }) {
   const chatStore = useChatStore();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const pathname = usePathname();
   const mobileViewState = useChatStore((state) => state.mobileViewState);
 
   // 移动端初始化：确保初次进入时显示侧边栏
   useEffect(() => {
-    if (isMobileScreen) {
+    if (isMobileScreen && typeof window !== "undefined") {
       // 移动端初始化：确保总是从侧边栏开始
       chatStore.showSidebarOnMobile();
 
@@ -196,7 +185,7 @@ function MobileAwareLayout({
       window.history.replaceState(
         { mobileView: "sidebar", canExit: true },
         "",
-        location.pathname,
+        pathname,
       );
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -204,7 +193,7 @@ function MobileAwareLayout({
 
   // 移动端历史记录管理 - 简化版本
   useEffect(() => {
-    if (!isMobileScreen) return;
+    if (!isMobileScreen || typeof window === "undefined") return;
 
     const handlePopState = (event: PopStateEvent) => {
       // 如果当前在聊天界面或设置界面，拦截返回操作并跳转到侧边栏
@@ -219,7 +208,7 @@ function MobileAwareLayout({
         window.history.pushState(
           { mobileView: "sidebar", canExit: true },
           "",
-          location.pathname,
+          pathname,
         );
 
         return;
@@ -241,7 +230,7 @@ function MobileAwareLayout({
         window.history.pushState(
           { mobileView: mobileViewState, canExit: false },
           "",
-          location.pathname,
+          pathname,
         );
       }
     } else if (mobileViewState === "sidebar") {
@@ -252,7 +241,7 @@ function MobileAwareLayout({
         window.history.replaceState(
           { mobileView: "sidebar", canExit: true },
           "",
-          location.pathname,
+          pathname,
         );
       }
     }
@@ -260,7 +249,7 @@ function MobileAwareLayout({
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [mobileViewState, isMobileScreen, chatStore, location.pathname]);
+  }, [mobileViewState, isMobileScreen, chatStore, pathname]);
 
   // 移动端：根据mobileViewState决定显示哪个界面
   if (isMobileScreen) {
@@ -269,18 +258,13 @@ function MobileAwareLayout({
     } else if (mobileViewState === "settings") {
       return (
         <div className={containerStyles["window-content"]} id={SlotID.AppBody}>
-          <Routes>
-            <Route path="*" element={<Settings />} />
-          </Routes>
+          <Settings />
         </div>
       );
     } else {
       return (
         <div className={containerStyles["window-content"]} id={SlotID.AppBody}>
-          <Routes>
-            <Route path={Path.Home} element={<Chat />} />
-            <Route path={Path.Chat} element={<Chat />} />
-          </Routes>
+          <Chat />
         </div>
       );
     }
@@ -291,11 +275,15 @@ function MobileAwareLayout({
     <>
       <SideBar className={isHome ? sidebarStyles["sidebar-show"] : ""} />
       <div className={containerStyles["window-content"]} id={SlotID.AppBody}>
-        <Routes>
-          <Route path={Path.Home} element={<Chat />} />
-          <Route path={Path.Chat} element={<Chat />} />
-          <Route path={Path.Settings} element={<Settings />} />
-        </Routes>
+        {pathname === Path.Settings ? (
+          <Settings />
+        ) : pathname === Path.Chat ? (
+          <Chat />
+        ) : pathname === Path.Auth ? (
+          <AuthComponent />
+        ) : (
+          <Chat />
+        )}
       </div>
     </>
   );
@@ -319,9 +307,7 @@ export function Home() {
   return (
     <ErrorBoundary>
       <FileDropZone>
-        <Router>
-          <Screen />
-        </Router>
+        <Screen />
       </FileDropZone>
     </ErrorBoundary>
   );

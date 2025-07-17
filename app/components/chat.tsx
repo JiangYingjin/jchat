@@ -1,5 +1,7 @@
+"use client";
+
 import React, { useState, useRef, useEffect, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useRouter, useSearchParams } from "next/navigation";
 import { isEmpty } from "lodash-es";
 import { nanoid } from "nanoid";
 
@@ -53,8 +55,8 @@ function Chat() {
   const session = chatStore.currentSession();
   const allModels = chatStore.models;
 
-  const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const isMobileScreen = useMobileScreen();
 
   const messageEditRef = useRef<HTMLTextAreaElement>(null);
@@ -591,18 +593,18 @@ function Chat() {
 
   // Handle URL authentication code on initial load
   useEffect(() => {
-    handleUrlAuthCode(searchParams, setSearchParams, navigate);
+    handleUrlAuthCode(searchParams, router, () => router.push("/auth"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Set up global handler for unauthorized API responses
   useEffect(() => {
     (window as any).__handleUnauthorized = () =>
-      handleUnauthorizedResponse(navigate);
+      handleUnauthorizedResponse(() => router.push("/auth"));
     return () => {
       delete (window as any).__handleUnauthorized;
     };
-  }, [navigate]);
+  }, [router]);
 
   // Default to long input mode on mobile devices
   useEffect(() => {

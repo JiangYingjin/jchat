@@ -1,9 +1,5 @@
 import { Home } from "./components/home";
 
-export default async function App() {
-  return (
-    <>
-      <Home />
-    </>
-  );
+export default function App() {
+  return <Home />;
 }

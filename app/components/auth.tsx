@@ -1,8 +1,10 @@
+"use client";
+
 import styles from "../styles/auth.module.scss";
 import { IconButton } from "./button";
 import { useRef, useEffect } from "react";
 
-import { useNavigate } from "react-router-dom";
+import { useRouter } from "next/navigation";
 import { Path } from "../constant";
 import { useChatStore } from "../store";
 import Locale from "../locales";
@@ -11,7 +13,7 @@ import { checkAccessCodeSync } from "../utils/auth";
 import BotIcon from "../icons/bot.svg";
 
 export function AuthPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
   const chatStore = useChatStore();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -32,8 +34,8 @@ export function AuthPage() {
 
     const hasPermission = await checkAccessCodeSync(currentAccessCode);
     if (hasPermission) {
-      // 有权限，跳转到 chat 页面
-      navigate(Path.Chat);
+      // 有权限，跳转到首页
+      router.push(Path.Home);
     }
     // 如果没有权限，不更新 chatStore.accessCode，也不离开 auth 页面
   };

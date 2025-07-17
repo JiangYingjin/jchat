@@ -12,7 +12,7 @@ import { useChatStore } from "../store";
 
 import { DEFAULT_SIDEBAR_WIDTH, Path } from "../constant";
 
-import { useNavigate, useLocation } from "react-router-dom";
+import { useRouter, usePathname } from "next/navigation";
 import { useMobileScreen } from "../utils";
 import dynamic from "next/dynamic";
 import { SearchBar, SearchInputRef } from "./search-bar";
@@ -64,9 +64,9 @@ export function SideBar(props: { className?: string }) {
 
   // sidebar
   useSideBar();
-  const navigate = useNavigate();
+  const router = useRouter();
   const isMobileScreen = useMobileScreen();
-  const location = useLocation();
+  const pathname = usePathname();
 
   // search bar
   const searchBarRef = useRef<SearchInputRef>(null);
@@ -135,7 +135,7 @@ export function SideBar(props: { className?: string }) {
           className={sidebarStyles["sidebar-body"]}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
-              navigate(Path.Home);
+              router.push(Path.Home);
             }
           }}
         >
@@ -149,25 +149,23 @@ export function SideBar(props: { className?: string }) {
             <IconButton
               icon={<SettingsIcon />}
               className={
-                location.pathname.includes(Path.Settings)
-                  ? buttonStyles["active"]
-                  : ""
+                pathname.includes(Path.Settings) ? buttonStyles["active"] : ""
               }
               onClick={() => {
-                if (location.pathname.includes(Path.Settings)) {
-                  // 如果当前在设置页面，返回聊天页面
+                if (pathname.includes(Path.Settings)) {
+                  // 如果当前在设置页面，返回首页
                   if (isMobileScreen) {
                     chatStore.showChatOnMobile();
                   } else {
-                    navigate(Path.Chat);
+                    router.push(Path.Home);
                   }
                 } else {
                   // 如果当前不在设置页面，跳转到设置页面
                   if (isMobileScreen) {
                     chatStore.showSettingsOnMobile();
-                    navigate(Path.Settings);
+                    router.push(Path.Settings);
                   } else {
-                    navigate(Path.Settings);
+                    router.push(Path.Settings);
                   }
                 }
               }}
@@ -209,9 +207,12 @@ export function SideBar(props: { className?: string }) {
                 if (isMobileScreen) {
                   chatStore.showChatOnMobile();
                 } else {
-                  // 桌面端：检查是否需要导航到聊天页面
-                  if (!location.pathname.includes(Path.Chat)) {
-                    navigate(Path.Chat);
+                  // 桌面端：新建会话后导航到首页
+                  if (
+                    !pathname.includes(Path.Home) &&
+                    !pathname.includes(Path.Chat)
+                  ) {
+                    router.push(Path.Home);
                   }
                 }
 
