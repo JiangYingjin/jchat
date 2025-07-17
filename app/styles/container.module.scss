@@ -52,6 +52,7 @@
   }
 }
 
+/* 桌面端紧凑容器样式 */
 @media only screen and (min-width: 600px) {
   .tight-container {
     --window-width: 100vw;
@@ -125,6 +126,7 @@
   display: none;
 }
 
+/* 移动端容器样式 */
 @media only screen and (max-width: 600px) {
   .container {
     min-height: unset;

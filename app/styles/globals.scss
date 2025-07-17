@@ -76,6 +76,7 @@
   --chat-item-bg-start: #ffffff;
 }
 
+/* 移动端样式调整 */
 @media only screen and (max-width: 600px) {
   :root {
     --window-width: 100vw;
@@ -119,6 +120,7 @@ body {
   touch-action: pan-x pan-y;
   overflow: hidden;
 
+  /* 移动端背景色调整 */
   @media only screen and (max-width: 600px) {
     background-color: var(--second);
   }
@@ -266,6 +268,7 @@ div.math {
   align-items: center;
   justify-content: center;
 
+  /* 移动端模态框位置调整 */
   @media screen and (max-width: 600px) {
     align-items: flex-end;
   }

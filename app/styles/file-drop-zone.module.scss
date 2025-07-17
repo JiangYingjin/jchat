@@ -302,8 +302,8 @@
     gap: 1rem;
   }
 
-  /* 大屏时按钮更紧凑 */
-  @media (min-width: 1024px) {
+  /* 桌面端按钮优化 */
+  @media (min-width: 600px) {
     gap: 0.75rem;
 
     &:has(button + button) {
@@ -312,8 +312,8 @@
   }
 }
 
-/* 大屏时按钮尺寸优化 */
-@media (min-width: 1024px) {
+/* 桌面端按钮尺寸优化 */
+@media (min-width: 600px) {
   .createGroupButton,
   .appendButton {
     min-width: 160px;
@@ -647,171 +647,15 @@
   }
 }
 
-/* 响应式设计 */
-@media (max-width: 768px) {
-  .fileModal {
-    padding: 0.75rem;
-  }
-
-  .fileModalContent {
-    max-width: 680px;
-    max-height: 90vh;
-    border-radius: 16px;
-  }
-
-  .fileModalHeader {
-    padding: 1.25rem 1.5rem 1rem;
-  }
-
-  .fileModalTitle {
-    font-size: 1.25rem;
-  }
-
-  .fileList {
-    padding: 0 1.5rem;
-    max-height: 350px;
-  }
-
-  .fileItem {
-    padding: 1rem 0;
-    gap: 1rem;
-  }
-
-  .fileIcon {
-    font-size: 1.75rem;
-    width: 48px;
-    height: 48px;
-  }
-
-  .fileDetails {
-    gap: 0.375rem;
-  }
-
-  .fileSize,
-  .fileType,
-  .fileDate {
-    font-size: 0.75rem;
-    padding: 0.25rem 0.625rem;
-  }
-
-  .fileModalFooter {
-    padding: 1.25rem 1.5rem 1.5rem;
-  }
-
-  .fileModalActions {
-    gap: 0.75rem;
-  }
-
-  .createGroupButton,
-  .appendButton {
-    min-width: 160px;
-    padding: 0.875rem 1.75rem;
-    font-size: 0.95rem;
-  }
-
-  .dragContent {
-    padding: 2.5rem 1.5rem;
-    max-width: 350px;
-  }
-
-  .dragIcon {
-    font-size: 3rem;
-  }
-
-  .dragTitle {
-    font-size: 1.25rem;
-  }
-
-  .dragSubtitle {
-    font-size: 0.9rem;
-  }
-}
-
-@media (max-width: 640px) {
-  .fileModal {
-    padding: 0.5rem;
-  }
-
-  .fileModalContent {
-    max-width: 680px;
-    max-height: 95vh;
-    border-radius: 12px;
-  }
-
-  .fileModalHeader {
-    padding: 1rem 1.25rem 0.75rem;
-  }
-
-  .fileModalTitle {
-    font-size: 1.125rem;
-  }
-
-  .fileList {
-    padding: 0 1.25rem;
-    max-height: 300px;
-  }
-
-  .fileItem {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.875rem 0;
-  }
-
-  .fileIcon {
-    align-self: flex-start;
-    font-size: 1.5rem;
-    width: 40px;
-    height: 40px;
-  }
-
-  .fileDetails {
-    flex-direction: column;
-    gap: 0.375rem;
-  }
-
-  .fileModalFooter {
-    padding: 1rem 1.25rem 1.25rem;
-  }
-
-  .fileModalActions {
-    flex-direction: column;
-    gap: 0.75rem;
-  }
-
-  .createGroupButton,
-  .appendButton {
-    min-width: 100%;
-    padding: 0.875rem 1.5rem;
-    font-size: 0.9rem;
-  }
-
-  .dragContent {
-    padding: 2rem 1.25rem;
-    max-width: 320px;
-    border-radius: 16px;
-  }
-
-  .dragIcon {
-    font-size: 2.5rem;
-  }
-
-  .dragTitle {
-    font-size: 1.125rem;
-  }
-
-  .dragSubtitle {
-    font-size: 0.85rem;
-  }
-}
-
-@media (max-width: 480px) {
+/* 响应式设计 - 移动端样式 */
+@media (max-width: 600px) {
   .fileModal {
     padding: 0.25rem;
   }
 
   .fileModalContent {
     max-width: 680px;
+    max-height: 95vh;
     border-radius: 8px;
   }
 
@@ -829,11 +673,45 @@
   }
 
   .fileItem {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
     padding: 0.75rem 0;
+  }
+
+  .fileIcon {
+    align-self: flex-start;
+    font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+  }
+
+  .fileDetails {
+    flex-direction: column;
+    gap: 0.375rem;
+  }
+
+  .fileSize,
+  .fileType,
+  .fileDate {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.625rem;
   }
 
   .fileModalFooter {
     padding: 0.875rem 1rem 1rem;
+  }
+
+  .fileModalActions {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .createGroupButton,
+  .appendButton {
+    min-width: 100%;
+    padding: 0.875rem 1.5rem;
+    font-size: 0.9rem;
   }
 
   .dragContent {

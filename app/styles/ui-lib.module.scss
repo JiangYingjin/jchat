@@ -19,6 +19,7 @@
   right: 0;
   top: calc(100% + 10px);
 }
+/* 移动端弹出框样式 */
 @media screen and (max-width: 600px) {
   .popover-content {
     width: auto;
@@ -200,6 +201,7 @@
   }
 }
 
+/* 移动端模态框样式 */
 @media screen and (max-width: 600px) {
   .modal-container {
     width: 100vw;

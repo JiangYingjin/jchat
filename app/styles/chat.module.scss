@@ -383,6 +383,7 @@
   }
 }
 
+/* 移动端聊天标题居中 */
 @media only screen and (max-width: 600px) {
   .chat-body-title {
     text-align: center;
@@ -566,6 +567,7 @@
   border: rgba($color: #888, $alpha: 0.2) 1px solid;
 }
 
+/* 移动端图片样式 */
 @media only screen and (max-width: 600px) {
   $calc-image-width: calc(100vw / 3 * 2 / var(--image-count));
 
@@ -579,6 +581,7 @@
   }
 }
 
+/* 桌面端图片样式 */
 @media screen and (min-width: 600px) {
   $max-image-width: calc(
     calc(1200px - var(--sidebar-width)) / 3 * 2 / var(--image-count)

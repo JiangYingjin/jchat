@@ -234,6 +234,7 @@
           }
         }
 
+        /* 桌面端图片样式 */
         @media screen and (min-width: 600px) {
           $max-image-width: calc(900px / 3 * 2 / var(--image-count));
           $image-width: calc(80vw / 3 * 2 / var(--image-count));
