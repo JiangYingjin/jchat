@@ -2,8 +2,6 @@
 import styles from "../styles/ui-lib.module.scss";
 import LoadingIcon from "../icons/three-dots.svg";
 import CloseIcon from "../icons/close.svg";
-import EyeIcon from "../icons/eye.svg";
-import EyeOffIcon from "../icons/eye-off.svg";
 import DownIcon from "../icons/down.svg";
 import ConfirmIcon from "../icons/confirm.svg";
 import CancelIcon from "../icons/cancel.svg";
@@ -15,7 +13,6 @@ import Locale from "../locales";
 import { createRoot } from "react-dom/client";
 import React, {
   CSSProperties,
-  HTMLProps,
   MouseEvent,
   useEffect,
   useState,
@@ -184,27 +181,6 @@ export function Modal(props: ModalProps) {
   );
 }
 
-export function showModal(props: ModalProps) {
-  const div = document.createElement("div");
-  div.className = "modal-mask";
-  document.body.appendChild(div);
-
-  const root = createRoot(div);
-  const closeModal = () => {
-    props.onClose?.();
-    root.unmount();
-    div.remove();
-  };
-
-  div.onclick = (e) => {
-    if (e.target === div) {
-      closeModal();
-    }
-  };
-
-  root.render(<Modal {...props} onClose={closeModal}></Modal>);
-}
-
 export type ToastProps = {
   content: string;
   action?: {
@@ -272,31 +248,6 @@ export function Input(props: InputProps) {
       {...props}
       className={`${styles["input"]} ${props.className}`}
     ></textarea>
-  );
-}
-
-export function PasswordInput(
-  props: HTMLProps<HTMLInputElement> & { aria?: string },
-) {
-  const [visible, setVisible] = useState(false);
-  function changeVisibility() {
-    setVisible(!visible);
-  }
-
-  return (
-    <div className={"password-input-container"}>
-      <IconButton
-        aria={props.aria}
-        icon={visible ? <EyeIcon /> : <EyeOffIcon />}
-        onClick={changeVisibility}
-        className={"password-eye"}
-      />
-      <input
-        {...props}
-        type={visible ? "text" : "password"}
-        className={"password-input"}
-      />
-    </div>
   );
 }
 
@@ -372,102 +323,6 @@ export function showConfirm(content: any) {
   });
 }
 
-function PromptInput(props: {
-  value: string;
-  onChange: (value: string) => void;
-  rows?: number;
-  onConfirm?: () => void;
-  messageEditRef?: React.RefObject<HTMLTextAreaElement>;
-}) {
-  const [input, setInput] = useState(props.value);
-  const onInput = (value: string) => {
-    props.onChange(value);
-    setInput(value);
-  };
-
-  return (
-    <textarea
-      className={styles["modal-input"]}
-      autoFocus
-      value={input}
-      onInput={(e) => onInput(e.currentTarget.value)}
-      rows={props.rows ?? 3}
-      onKeyDown={(e) => {
-        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-          props.onConfirm?.();
-        }
-      }}
-      ref={props.messageEditRef}
-    ></textarea>
-  );
-}
-
-export function showPrompt(
-  content: any,
-  value = "",
-  rows = 3,
-  messageEditRef?: React.RefObject<HTMLTextAreaElement> | null,
-) {
-  const div = document.createElement("div");
-  div.className = "modal-mask";
-  document.body.appendChild(div);
-
-  const root = createRoot(div);
-  const closeModal = () => {
-    root.unmount();
-    div.remove();
-  };
-
-  return new Promise<{ value: string; byCtrlEnter: boolean }>((resolve) => {
-    let userInput = value;
-    let resolved = false;
-    const doResolve = (byCtrlEnter: boolean) => {
-      if (resolved) return;
-      resolved = true;
-      resolve({ value: userInput, byCtrlEnter });
-      closeModal();
-    };
-
-    root.render(
-      <Modal
-        title={content}
-        actions={[
-          <IconButton
-            key="cancel"
-            text={Locale.UI.Cancel}
-            onClick={() => {
-              closeModal();
-            }}
-            icon={<CancelIcon />}
-            bordered
-            tabIndex={0}
-          ></IconButton>,
-          <IconButton
-            key="confirm"
-            text={Locale.UI.Confirm}
-            type="primary"
-            onClick={() => {
-              doResolve(false);
-            }}
-            icon={<ConfirmIcon />}
-            bordered
-            tabIndex={0}
-          ></IconButton>,
-        ]}
-        onClose={closeModal}
-      >
-        <PromptInput
-          onChange={(val) => (userInput = val)}
-          value={value}
-          rows={rows}
-          onConfirm={() => doResolve(true)}
-          messageEditRef={messageEditRef ?? undefined}
-        ></PromptInput>
-      </Modal>,
-    );
-  });
-}
-
 export function showImageModal(
   img: string,
   defaultMax?: boolean,
@@ -518,6 +373,7 @@ export function showImageModal(
     </Modal>,
   );
 }
+
 export function SearchSelector<T>(props: {
   items: Array<{
     title: string;
@@ -548,9 +404,6 @@ export function SearchSelector<T>(props: {
     setSelectedValues(newSelectedValues);
   }, [props.defaultSelectedValue]);
 
-  // 添加搜索状态
-  const [searchQuery, setSearchQuery] = useState("");
-
   const handleSelection = (e: MouseEvent, value: T) => {
     if (props.multiple) {
       e.stopPropagation();
@@ -567,13 +420,6 @@ export function SearchSelector<T>(props: {
   };
 
   const { items, onClose } = props;
-  // 过滤列表项
-  const filteredItems = items.filter(
-    (item) =>
-      item.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.subTitle &&
-        item.subTitle.toLowerCase().includes(searchQuery.toLowerCase())),
-  );
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -594,19 +440,7 @@ export function SearchSelector<T>(props: {
         onClick={(e) => e.stopPropagation()}
       >
         <List>
-          {/* 搜索框 */}
-          <div className={styles["selector-search"]}>
-            <input
-              type="text"
-              autoFocus
-              className={styles["selector-search-input"]}
-              placeholder="search model"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              onClick={(e) => e.stopPropagation()}
-            />
-          </div>
-          {filteredItems.map((item, i) => {
+          {items.map((item, i) => {
             const selected = selectedValues.includes(item.value);
             return (
               <ListItem
@@ -631,6 +465,7 @@ export function SearchSelector<T>(props: {
                       width: 10,
                       backgroundColor: "var(--primary)",
                       borderRadius: 10,
+                      marginLeft: 12,
                     }}
                   ></div>
                 ) : (
@@ -644,83 +479,7 @@ export function SearchSelector<T>(props: {
     </div>
   );
 }
-export function Selector<T>(props: {
-  items: Array<{
-    title: string;
-    subTitle?: string;
-    value: T;
-    disable?: boolean;
-  }>;
-  defaultSelectedValue?: T[] | T;
-  onSelection?: (selection: T[]) => void;
-  onClose?: () => void;
-  multiple?: boolean;
-}) {
-  const [selectedValues, setSelectedValues] = useState<T[]>(
-    Array.isArray(props.defaultSelectedValue)
-      ? props.defaultSelectedValue
-      : props.defaultSelectedValue !== undefined
-        ? [props.defaultSelectedValue]
-        : [],
-  );
 
-  const handleSelection = (e: MouseEvent, value: T) => {
-    if (props.multiple) {
-      e.stopPropagation();
-      const newSelectedValues = selectedValues.includes(value)
-        ? selectedValues.filter((v) => v !== value)
-        : [...selectedValues, value];
-      setSelectedValues(newSelectedValues);
-      props.onSelection?.(newSelectedValues);
-    } else {
-      setSelectedValues([value]);
-      props.onSelection?.([value]);
-      props.onClose?.();
-    }
-  };
-
-  return (
-    <div className={styles["selector"]} onClick={() => props.onClose?.()}>
-      <div className={styles["selector-content"]}>
-        <List>
-          {props.items.map((item, i) => {
-            const selected = selectedValues.includes(item.value);
-            return (
-              <ListItem
-                className={`${styles["selector-item"]} ${
-                  item.disable && styles["selector-item-disabled"]
-                }`}
-                key={i}
-                title={item.title}
-                subTitle={item.subTitle}
-                onClick={(e) => {
-                  if (item.disable) {
-                    e.stopPropagation();
-                  } else {
-                    handleSelection(e, item.value);
-                  }
-                }}
-              >
-                {selected ? (
-                  <div
-                    style={{
-                      height: 10,
-                      width: 10,
-                      backgroundColor: "var(--primary)",
-                      borderRadius: 10,
-                    }}
-                  ></div>
-                ) : (
-                  <></>
-                )}
-              </ListItem>
-            );
-          })}
-        </List>
-      </div>
-    </div>
-  );
-}
 export function FullScreen(props: any) {
   const { children, right = 10, top = 10, ...rest } = props;
   const ref = useRef<HTMLDivElement>();

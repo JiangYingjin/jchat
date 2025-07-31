@@ -479,7 +479,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
         />
         {attachImages.length != 0 && (
           <div className={styles["attach-images"]}>
-            {attachImages.map((image, index) => {
+            {attachImages.map((image, index: number) => {
               return (
                 <div
                   key={index}
