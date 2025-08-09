@@ -11,6 +11,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ErrorBoundary } from "./error";
 import { FileDropZone } from "./file-drop-zone";
 import { SideBar } from "./sidebar";
+import { ClipboardManager } from "./clipboard-manager";
 
 // 状态管理和自定义 Hooks
 import { useChatStore } from "../store";
@@ -342,9 +343,11 @@ export function Home() {
   // 3. 应用完全准备就绪，开始渲染界面
   return (
     <ErrorBoundary>
-      <FileDropZone>
-        <Screen />
-      </FileDropZone>
+      <ClipboardManager>
+        <FileDropZone>
+          <Screen />
+        </FileDropZone>
+      </ClipboardManager>
     </ErrorBoundary>
   );
 }
