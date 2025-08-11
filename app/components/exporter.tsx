@@ -136,26 +136,19 @@ export function MessageExporter() {
   // 添加系统提示词状态
   const [systemMessageData, setSystemMessageData] = useState<any>(null);
 
-  // 异步加载保存的导出格式
+  // 加载保存的导出格式
   useEffect(() => {
-    const loadSavedFormat = async () => {
-      try {
-        const savedFormat =
-          (await chatStore.getExportFormat()) as ExportFormat | null;
-        if (
-          savedFormat &&
-          (formats as readonly string[]).includes(savedFormat)
-        ) {
-          setExportConfig((prev) => ({
-            ...prev,
-            format: savedFormat,
-          }));
-        }
-      } catch (error) {
-        console.error("加载保存的导出格式失败:", error);
+    try {
+      const savedFormat = chatStore.getExportFormat() as ExportFormat | null;
+      if (savedFormat && (formats as readonly string[]).includes(savedFormat)) {
+        setExportConfig((prev) => ({
+          ...prev,
+          format: savedFormat,
+        }));
       }
-    };
-    loadSavedFormat();
+    } catch (error) {
+      console.error("加载保存的导出格式失败:", error);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -178,7 +171,7 @@ export function MessageExporter() {
   }, [session.id]);
 
   // 更新导出配置，并在切换格式时写入 chatStore
-  const updateExportConfig = async (
+  const updateExportConfig = (
     updater: (config: typeof exportConfig) => void,
   ) => {
     const config = { ...exportConfig };
@@ -187,7 +180,7 @@ export function MessageExporter() {
     // 如果格式有变化则写入 chatStore
     if (config.format !== exportConfig.format) {
       try {
-        await chatStore.setExportFormat(config.format);
+        chatStore.setExportFormat(config.format as string);
       } catch (error) {
         console.error("保存导出格式失败:", error);
       }
@@ -296,11 +289,9 @@ export function MessageExporter() {
               >
                 <Select
                   value={exportConfig.format}
-                  onChange={async (e) => {
+                  onChange={(e) => {
                     const newFormat = e.currentTarget.value as ExportFormat;
-                    await updateExportConfig(
-                      (config) => (config.format = newFormat),
-                    );
+                    updateExportConfig((config) => (config.format = newFormat));
                     if (!userSelectionTouched) {
                       console.log(
                         "[Exporter] Format changed, userSelectionTouched is false, autoSelectByFormat",

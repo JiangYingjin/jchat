@@ -1040,6 +1040,7 @@ const DEFAULT_CHAT_STATE = {
   batchApplyMode: false, // 批量应用模式
   activeBatchRequests: 0, // 活跃的批量请求计数器
   mobileViewState: "sidebar" as "sidebar" | "chat" | "settings", // 移动端界面状态
+  exportFormat: "image" as string, // 导出格式配置
 };
 
 export const DEFAULT_TITLE = Locale.Session.Title.Default;
@@ -3506,31 +3507,17 @@ export const useChatStore = createPersistStore(
       },
 
       // 统一管理导出格式的读取
-      async getExportFormat(): Promise<string> {
-        try {
-          const format = await jchatStorage.getItem(StoreKey.ExportFormat);
-          return typeof format === "string" ? format : "image";
-        } catch (e) {
-          return "image";
-        }
+      getExportFormat(): string {
+        const state = get();
+        return state.exportFormat || "image";
       },
       // 统一管理导出格式的保存
-      async setExportFormat(format: string): Promise<void> {
-        // 数据未恢复时，禁止数据持久化
-        if (!isDataRestored) {
-          debugLog("SET_EXPORT_FORMAT", "❌ 数据未恢复，禁止导出格式持久化", {
-            format,
-            isDataRestored,
-            timestamp: Date.now(),
-          });
-          return;
-        }
-
-        try {
-          await jchatStorage.setItem(StoreKey.ExportFormat, format);
-        } catch (e) {
-          // ignore
-        }
+      setExportFormat(format: string): void {
+        set({ exportFormat: format });
+        debugLog("SET_EXPORT_FORMAT", "设置导出格式", {
+          format,
+          timestamp: Date.now(),
+        });
       },
     };
 
