@@ -7,7 +7,8 @@ import Locale from "../locales";
 import { prettyObject } from "../utils/format";
 import { createPersistStore, jchatStorage } from "../utils/store";
 import { chatInputStorage } from "./input";
-import { storageHealthManager } from "../utils/storage-health";
+import { storageManager } from "../utils/storage-manager";
+import { appReadyManager } from "../utils/app-ready-manager";
 import { uploadImage } from "../utils/chat";
 import { systemMessageStorage } from "./system";
 import { messageStorage, type ChatMessage } from "./message";
@@ -44,10 +45,7 @@ let isDataRestored = false;
 let dataRestorationPromise: Promise<void> | null = null;
 const DATA_RESTORATION_TIMEOUT = 10000; // 增加到10秒超时，给数据恢复更多时间
 
-// 新增：应用准备就绪状态管理
-let isAppReady = false;
-let appReadyPromise: Promise<void> | null = null;
-const appReadyCallbacks: (() => void)[] = [];
+// 应用准备状态管理已移至 app-ready-manager.ts
 
 // 设置全局状态标记供其他模块使用
 const setGlobalDataRestoredFlag = (restored: boolean) => {
@@ -57,13 +55,7 @@ const setGlobalDataRestoredFlag = (restored: boolean) => {
   }
 };
 
-// 设置全局应用准备就绪标记
-const setGlobalAppReadyFlag = (ready: boolean) => {
-  isAppReady = ready;
-  if (typeof window !== "undefined") {
-    (window as any).__jchat_app_ready = ready;
-  }
-};
+// 全局应用准备标记已移至 app-ready-manager.ts
 
 // 初始化全局标志
 if (typeof window !== "undefined") {
@@ -96,7 +88,10 @@ async function forceDataRestoration(): Promise<void> {
   dataRestorationPromise = (async () => {
     try {
       // 等待存储准备就绪
-      await waitForStorageReady();
+      const health = await storageManager.quickHealthCheck();
+      if (health.status === "unavailable") {
+        throw new Error("存储系统不可用");
+      }
 
       // 检查 persist 是否已经完成 rehydration
       if (
@@ -275,102 +270,7 @@ async function retryStorageOperation<T>(
   throw lastError;
 }
 
-// 添加存储准备就绪检查
-async function waitForStorageReady(): Promise<void> {
-  debugLog("STORAGE_READY", "开始存储准备就绪检查");
-
-  // 检查 IndexedDB 是否可用
-  if (typeof window === "undefined" || !window.indexedDB) {
-    debugLog("STORAGE_READY", "IndexedDB 不可用", {
-      hasWindow: typeof window !== "undefined",
-      hasIndexedDB: typeof window !== "undefined" && !!window.indexedDB,
-    });
-    throw new Error("IndexedDB not available");
-  }
-
-  // 尝试打开一个测试数据库来验证 IndexedDB 是否正常工作
-  const testDbName = "jchat_ready_test";
-  let testDb: IDBDatabase | null = null;
-
-  try {
-    testDb = await new Promise<IDBDatabase>((resolve, reject) => {
-      const request = indexedDB.open(testDbName, 1);
-
-      request.onerror = () => {
-        debugLog("STORAGE_READY", "测试数据库打开失败", {
-          error: request.error?.message,
-        });
-        reject(request.error);
-      };
-
-      request.onsuccess = () => {
-        debugLog("STORAGE_READY", "测试数据库打开成功");
-        resolve(request.result);
-      };
-
-      request.onupgradeneeded = (event) => {
-        debugLog("STORAGE_READY", "测试数据库升级");
-        const db = (event.target as IDBOpenDBRequest).result;
-        if (!db.objectStoreNames.contains("test")) {
-          db.createObjectStore("test", { keyPath: "id" });
-        }
-      };
-    });
-
-    // 测试读写操作
-    const testData = { id: "test", value: Date.now() };
-
-    await new Promise<void>((resolve, reject) => {
-      const transaction = testDb!.transaction(["test"], "readwrite");
-      const store = transaction.objectStore("test");
-
-      transaction.oncomplete = () => {
-        debugLog("STORAGE_READY", "测试写入成功");
-        resolve();
-      };
-
-      transaction.onerror = () => {
-        debugLog("STORAGE_READY", "测试写入失败", {
-          error: transaction.error?.message,
-        });
-        reject(transaction.error);
-      };
-
-      store.put(testData);
-    });
-
-    debugLog("STORAGE_READY", "存储准备就绪检查完成", {
-      dbName: testDbName,
-      testDataId: testData.id,
-    });
-  } catch (error) {
-    debugLog("STORAGE_READY", "存储准备就绪检查失败", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    throw error;
-  } finally {
-    // 清理测试数据库
-    if (testDb) {
-      try {
-        testDb.close();
-        debugLog("STORAGE_READY", "关闭测试数据库");
-      } catch (error) {
-        debugLog("STORAGE_READY", "关闭测试数据库失败", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
-
-    try {
-      indexedDB.deleteDatabase(testDbName);
-      debugLog("STORAGE_READY", "清理测试数据库");
-    } catch (error) {
-      debugLog("STORAGE_READY", "清理测试数据库失败", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-    }
-  }
-}
+// 存储准备就绪检查已移至 storage-manager.ts
 
 // 移除全局存储健康状态跟踪，现在总是尝试访问存储
 
@@ -383,7 +283,7 @@ export function isStoreDataRestored(): boolean {
 }
 
 export function isAppReadyState(): boolean {
-  return isAppReady;
+  return appReadyManager.isReady();
 }
 
 export function waitForHydration(): Promise<void> {
@@ -405,155 +305,34 @@ export function waitForDataRestoration(): Promise<void> {
 }
 
 export function waitForAppReady(): Promise<void> {
-  if (isAppReady) {
-    return Promise.resolve();
-  }
-
-  if (appReadyPromise) {
-    return appReadyPromise;
-  }
-
-  return new Promise((resolve) => {
-    appReadyCallbacks.push(resolve);
-  });
+  return appReadyManager.waitForReady();
 }
 
-// 新增：确保应用完全准备就绪的核心函数
-async function ensureAppReady(): Promise<void> {
-  if (isAppReady) {
-    debugLog("APP_READY", "应用已准备就绪");
-    return;
-  }
-
-  if (appReadyPromise) {
-    debugLog("APP_READY", "等待现有的应用准备流程");
-    return appReadyPromise;
-  }
-
-  debugLog("APP_READY", "开始应用准备流程");
-
-  appReadyPromise = (async () => {
-    try {
-      // 1. 等待数据恢复完成
-      debugLog("APP_READY", "步骤1: 等待数据恢复完成");
-      await waitForDataRestoration();
-
-      // 2. 等待 Zustand 水合完成
-      debugLog("APP_READY", "步骤2: 等待 Zustand 水合完成");
-      await waitForHydration();
-
-      // 3. 验证存储系统健康状态
-      debugLog("APP_READY", "步骤3: 验证存储系统健康状态");
-      await waitForStorageReady();
-
-      // 4. 验证数据一致性
-      debugLog("APP_READY", "步骤4: 验证数据一致性");
-      await validateDataIntegrity();
-
-      // 5. 确保当前会话数据完整
-      debugLog("APP_READY", "步骤5: 确保当前会话数据完整");
-      await ensureCurrentSessionDataComplete();
-
-      // 6. 标记应用准备就绪
-      debugLog("APP_READY", "步骤6: 标记应用准备就绪");
-      setGlobalAppReadyFlag(true);
-
-      // 7. 触发所有回调
-      debugLog("APP_READY", "步骤7: 触发准备就绪回调", {
-        callbackCount: appReadyCallbacks.length,
-      });
-
-      appReadyCallbacks.forEach((callback, index) => {
-        try {
-          callback();
-        } catch (error) {
-          debugLog("APP_READY", `回调 ${index} 执行失败`, {
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      });
-      appReadyCallbacks.length = 0;
-
-      // 8. 清除应用准备超时定时器
-      clearAppReadyTimeout();
-
-      debugLog("APP_READY", "✅ 应用准备完成");
-    } catch (error) {
-      debugLog("APP_READY", "❌ 应用准备失败", {
-        error: error instanceof Error ? error.message : String(error),
-      });
-      throw error;
-    } finally {
-      appReadyPromise = null;
-    }
-  })();
-
-  return appReadyPromise;
-}
-
-// 新增：验证数据一致性
-async function validateDataIntegrity(): Promise<void> {
-  debugLog("DATA_INTEGRITY", "开始数据一致性验证");
-
+// 应用准备管理已移至 app-ready-manager.ts
+// 这里提供数据验证函数供新管理器使用
+async function validateChatStoreData(): Promise<void> {
   const state = useChatStore.getState();
 
-  // 验证会话数据完整性
-  if (!Array.isArray(state.sessions)) {
-    throw new Error("会话数据结构损坏：sessions 不是数组");
+  // 验证基本数据结构
+  if (!Array.isArray(state.sessions) || state.sessions.length === 0) {
+    throw new Error("会话数据无效");
   }
 
-  if (state.sessions.length === 0) {
-    throw new Error("会话数据为空");
+  // 使用统一存储管理器验证数据一致性
+  const { valid, fixes } = await storageManager.validateDataConsistency(state);
+  if (!valid) {
+    throw new Error("数据一致性验证失败");
   }
 
-  // 验证当前会话索引
-  if (
-    state.currentSessionIndex < 0 ||
-    state.currentSessionIndex >= state.sessions.length
-  ) {
-    debugLog("DATA_INTEGRITY", "当前会话索引无效，尝试修复", {
-      currentIndex: state.currentSessionIndex,
-      sessionsLength: state.sessions.length,
-    });
-
-    // 自动修复索引
-    const validIndex = Math.max(
-      0,
-      Math.min(state.currentSessionIndex, state.sessions.length - 1),
-    );
-    useChatStore.setState({ currentSessionIndex: validIndex });
+  if (fixes.length > 0) {
+    console.log("[ChatStore] 数据修复:", fixes);
   }
 
-  // 验证组数据完整性
-  if (!Array.isArray(state.groups)) {
-    throw new Error("组数据结构损坏：groups 不是数组");
-  }
-
-  if (typeof state.groupSessions !== "object" || state.groupSessions === null) {
-    throw new Error("组会话数据结构损坏：groupSessions 不是对象");
-  }
-
-  // 验证组索引
-  if (
-    state.groups.length > 0 &&
-    (state.currentGroupIndex < 0 ||
-      state.currentGroupIndex >= state.groups.length)
-  ) {
-    debugLog("DATA_INTEGRITY", "当前组索引无效，尝试修复", {
-      currentIndex: state.currentGroupIndex,
-      groupsLength: state.groups.length,
-    });
-
-    // 自动修复索引
-    const validIndex = Math.max(
-      0,
-      Math.min(state.currentGroupIndex, state.groups.length - 1),
-    );
-    useChatStore.setState({ currentGroupIndex: validIndex });
-  }
-
-  debugLog("DATA_INTEGRITY", "✅ 数据一致性验证通过");
+  // 确保当前会话数据完整
+  await ensureCurrentSessionDataComplete();
 }
+
+// 旧的 validateDataIntegrity 已合并到 validateChatStoreData
 
 // 新增：确保当前会话数据完整
 async function ensureCurrentSessionDataComplete(): Promise<void> {
@@ -676,7 +455,10 @@ async function safeInitializeStore(): Promise<void> {
     try {
       // 首先等待存储准备就绪
       debugLog("INIT", "等待存储准备就绪");
-      await waitForStorageReady();
+      const health = await storageManager.quickHealthCheck();
+      if (health.status === "unavailable") {
+        throw new Error("存储系统不可用");
+      }
 
       // 添加额外的延迟以确保浏览器完全准备好
       await new Promise((resolve) => setTimeout(resolve, 100));
@@ -934,7 +716,8 @@ async function safeInitializeStore(): Promise<void> {
       setTimeout(async () => {
         try {
           debugLog("INIT", "开始存储健康检查");
-          const isHealthy = await storageHealthManager.checkHealth();
+          const health = await storageManager.quickHealthCheck();
+          const isHealthy = health.status === "ready";
           debugLog("INIT", "存储健康检查结果", {
             isHealthy,
             timestamp: Date.now(),
@@ -3762,8 +3545,11 @@ export const useChatStore = createPersistStore(
                     : "unknown",
               });
 
-              // 使用新的 ensureAppReady 函数，确保数据完整性
-              ensureAppReady()
+              // 注册数据验证函数到应用准备管理器
+              appReadyManager.registerDataValidator(validateChatStoreData);
+              // 启动应用准备流程
+              appReadyManager
+                .ensureReady()
                 .then(() => {
                   debugLog("REHYDRATE", "✅ 应用准备流程完成");
 
@@ -3780,7 +3566,7 @@ export const useChatStore = createPersistStore(
                       finalSession?.messages && finalSession.messages.length > 0
                     ),
                     totalInitTime: Date.now() - startupState.initStartTime,
-                    appReady: isAppReady,
+                    appReady: appReadyManager.isReady(),
                     dataRestored: isDataRestored,
                     hydrated: isHydrated,
                   });
@@ -3878,73 +3664,7 @@ if (typeof useChatStore.persist === "function") {
   });
 }
 
-// 监控应用准备状态，如果一定时间内没有完成，手动触发恢复
-let appReadyTimeout: NodeJS.Timeout | null = null;
-const APP_READY_TIMEOUT = 8000; // 8秒超时，给应用准备更多时间
-
-const clearAppReadyTimeout = () => {
-  if (appReadyTimeout) {
-    clearTimeout(appReadyTimeout);
-    appReadyTimeout = null;
-    debugLog("PERSIST_DEBUG", "清除应用准备超时定时器");
-  }
-};
-
-// 监听应用准备状态变化
-const checkAppReadyStatus = () => {
-  debugLog("PERSIST_DEBUG", "检查应用准备状态", {
-    isAppReady: isAppReady,
-    isDataRestored: isDataRestored,
-    isHydrated: isHydrated,
-    hasRehydrated:
-      typeof useChatStore.persist === "function"
-        ? (useChatStore.persist as any).hasHydrated?.()
-        : false,
-    timestamp: Date.now(),
-  });
-
-  if (isAppReady) {
-    debugLog("PERSIST_DEBUG", "✅ 应用准备已完成");
-    clearAppReadyTimeout();
-    return;
-  }
-
-  // 如果超时还没有完成应用准备，强制刷新页面
-  appReadyTimeout = setTimeout(() => {
-    debugLog("PERSIST_DEBUG", "⚠️ 应用准备超时，即将刷新页面", {
-      timeout: APP_READY_TIMEOUT,
-      isAppReady: isAppReady,
-      isDataRestored: isDataRestored,
-      isHydrated: isHydrated,
-      hasRehydrated:
-        typeof useChatStore.persist === "function"
-          ? (useChatStore.persist as any).hasHydrated?.()
-          : false,
-      timestamp: Date.now(),
-    });
-
-    // 应用准备超时，直接刷新页面
-    debugLog("PERSIST_DEBUG", "应用准备超时，刷新页面");
-    if (typeof window !== "undefined") {
-      window.location.reload();
-    }
-
-    appReadyTimeout = null;
-  }, APP_READY_TIMEOUT);
-};
-
-// 在适当的时机检查应用准备状态
-if (typeof window !== "undefined") {
-  // 等待一段时间后检查状态，给初始化更多时间
-  setTimeout(checkAppReadyStatus, 500);
-
-  // 如果文档还在加载，等待完成后再检查
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", () => {
-      setTimeout(checkAppReadyStatus, 500);
-    });
-  }
-}
+// 应用准备状态监控已移至 app-ready-manager.ts
 
 // 添加状态诊断函数
 const diagnoseStoreState = () => {

@@ -21,7 +21,7 @@ import { useAppReady } from "../hooks/app-ready";
 // 常量和工具函数
 import { Path, SlotID, DEFAULT_THEME } from "../constant";
 import { checkAndHandleAuth } from "../utils/auth";
-import { storageHealthManager } from "../utils/storage-helper";
+import { storageManager } from "../utils/storage-manager";
 
 // 静态资源
 import BotIcon from "../icons/bot.svg";
@@ -315,7 +315,7 @@ export function Home() {
     const timer = setTimeout(() => {
       const initializeStorageHealth = async () => {
         try {
-          await storageHealthManager.checkHealth();
+          await storageManager.quickHealthCheck();
         } catch (error) {
           console.warn(
             "[Home] 存储健康检查初始化失败，但不影响应用运行:",

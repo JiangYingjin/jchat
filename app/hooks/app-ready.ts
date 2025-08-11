@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { waitForAppReady, isAppReadyState } from "../store";
+import { waitForAppReady, isAppReady } from "../utils/app-ready-manager";
 
 /**
  * Hook: 检查应用是否完全准备就绪
@@ -18,7 +18,7 @@ export function useAppReady() {
 
   useEffect(() => {
     // 先检查是否已经准备好
-    if (isAppReadyState()) {
+    if (isAppReady()) {
       setIsReady(true);
       setIsInitialized(true);
       return;
