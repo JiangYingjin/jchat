@@ -25,7 +25,6 @@ import {
   validateSessionIndex,
   updateSessionStatsBasic,
   updateSessionStats,
-  filterOutUserMessageByBatchId,
 } from "../utils/session";
 import { parseGroupMessageId } from "../utils/group";
 import { calculateGroupStatus } from "../utils/group";
@@ -491,20 +490,6 @@ async function safeInitializeStore(): Promise<void> {
 
       // 获取当前会话的详细信息
       const session = state.currentSession();
-      // debugLog("INIT", "获取当前会话详情", {
-      //   sessionExists: !!session,
-      //   sessionId: session?.id,
-      //   sessionTitle: session?.title,
-      //   sessionGroupId: session?.groupId,
-      //   sessionMessageCount: session?.messageCount,
-      //   sessionMessagesLength: session?.messages?.length,
-      //   sessionStatus: session?.status,
-      //   sessionModel: session?.model,
-      //   sessionLastUpdate: session?.lastUpdate,
-      //   sessionMessagesIsArray: Array.isArray(session?.messages),
-      //   sessionHasValidMessages:
-      //     session?.messages && Array.isArray(session.messages),
-      // });
 
       // 检查是否需要加载消息
       const needsMessageLoad =
@@ -1023,18 +1008,18 @@ export const useChatStore = createPersistStore(
 
             if (messages && Array.isArray(messages)) {
               targetSession.messages = messages;
-              debugLog("LOAD", "设置加载的消息", {
-                sessionId: session.id,
-                messagesCount: messages.length,
-                messageIds: messages.map((m) => m.id),
-                messageRoles: messages.map((m) => m.role),
-                totalMessageLength: messages.reduce(
-                  (sum, m) =>
-                    sum +
-                    (typeof m.content === "string" ? m.content.length : 0),
-                  0,
-                ),
-              });
+              // debugLog("LOAD", "设置加载的消息", {
+              //   sessionId: session.id,
+              //   messagesCount: messages.length,
+              //   messageIds: messages.map((m) => m.id),
+              //   messageRoles: messages.map((m) => m.role),
+              //   totalMessageLength: messages.reduce(
+              //     (sum, m) =>
+              //       sum +
+              //       (typeof m.content === "string" ? m.content.length : 0),
+              //     0,
+              //   ),
+              // });
             } else if (targetSession.messageCount > 0) {
               // 如果 messageCount > 0 但无法从 storage 加载消息，
               // 这表示数据可能已损坏或丢失。
@@ -3333,15 +3318,15 @@ export const useChatStore = createPersistStore(
         return {}; // 返回空对象，不进行持久化
       }
 
-      debugLog("PERSIST", "开始状态持久化", {
-        sessionsCount: state.sessions.length,
-        groupsCount: state.groups.length,
-        groupSessionsCount: Object.keys(state.groupSessions).length,
-        currentSessionIndex: state.currentSessionIndex,
-        currentGroupIndex: state.currentGroupIndex,
-        chatListView: state.chatListView,
-        hasMobileViewState: "mobileViewState" in state,
-      });
+      // debugLog("PERSIST", "开始状态持久化", {
+      //   sessionsCount: state.sessions.length,
+      //   groupsCount: state.groups.length,
+      //   groupSessionsCount: Object.keys(state.groupSessions).length,
+      //   currentSessionIndex: state.currentSessionIndex,
+      //   currentGroupIndex: state.currentGroupIndex,
+      //   chatListView: state.chatListView,
+      //   hasMobileViewState: "mobileViewState" in state,
+      // });
 
       // 创建一个没有 messages 和 mobileViewState 的 state副本
       const { mobileViewState, ...stateWithoutMobileView } = state;
@@ -3377,12 +3362,13 @@ export const useChatStore = createPersistStore(
         ),
       };
 
-      debugLog("PERSIST", "状态持久化完成", {
-        persistedSessionsCount: stateToPersist.sessions.length,
-        persistedGroupsCount: stateToPersist.groups.length,
-        persistedGroupSessionsCount: Object.keys(stateToPersist.groupSessions)
-          .length,
-      });
+      debugLog("PERSIST", "状态持久化完成");
+      // debugLog("PERSIST", "状态持久化完成", {
+      //   persistedSessionsCount: stateToPersist.sessions.length,
+      //   persistedGroupsCount: stateToPersist.groups.length,
+      //   persistedGroupSessionsCount: Object.keys(stateToPersist.groupSessions)
+      //     .length,
+      // });
 
       return stateToPersist as any; // 使用 any 类型避免复杂的类型推断问题
     },
@@ -3431,34 +3417,6 @@ export const useChatStore = createPersistStore(
           }
           // 不要设置 isHydrated = true
           return;
-
-          // 即使 hydration 失败，也要设置 hydrated 状态，避免无限等待
-          isHydrated = true;
-          startupState.hydrationCompleted = true;
-          // startupState.lastError =
-          //   error instanceof Error ? error : new Error(String(error));
-
-          // 安全地执行所有回调
-          const callbackCount = hydrationCallbacks.length;
-          debugLog("REHYDRATE", "执行错误状态下的回调", { callbackCount });
-
-          hydrationCallbacks.forEach((callback, index) => {
-            try {
-              callback();
-            } catch (callbackError) {
-              debugLog("REHYDRATE", `回调 ${index} 执行失败`, {
-                error:
-                  callbackError instanceof Error
-                    ? callbackError.message
-                    : String(callbackError),
-              });
-              console.error(
-                "[Store] Error in hydration callback:",
-                callbackError,
-              );
-            }
-          });
-          hydrationCallbacks.length = 0;
         } else {
           debugLog("REHYDRATE", "✅ 状态恢复成功，开始后续处理", {
             callbackCount: hydrationCallbacks.length,
@@ -3663,171 +3621,3 @@ if (typeof useChatStore.persist === "function") {
     persistOptions: (useChatStore.persist as any).getOptions?.(),
   });
 }
-
-// 应用准备状态监控已移至 app-ready-manager.ts
-
-// 添加状态诊断函数
-const diagnoseStoreState = () => {
-  const state = useChatStore.getState();
-  const currentSession = state.currentSession();
-
-  const diagnosis = {
-    timestamp: Date.now(),
-    startup: {
-      isInitialized: startupState.isInitialized,
-      hydrationCompleted: startupState.hydrationCompleted,
-      firstDataLoad: startupState.firstDataLoad,
-      hasError: !!startupState.lastError,
-      lastError: startupState.lastError?.message,
-      totalInitTime: startupState.initEndTime - startupState.initStartTime,
-    },
-    storage: {
-      isHydrated: isHydrated,
-      isInitializing: isInitializing,
-      hasInitPromise: !!initializationPromise,
-    },
-    sessions: {
-      total: state.sessions.length,
-      currentIndex: state.currentSessionIndex,
-      currentId: currentSession?.id,
-      currentTitle: currentSession?.title,
-      currentMessageCount: currentSession?.messageCount,
-      currentMessagesLength: currentSession?.messages?.length,
-      hasMessages: !!(
-        currentSession?.messages && currentSession.messages.length > 0
-      ),
-      messageLoadNeeded: !!(
-        currentSession &&
-        currentSession.messageCount > 0 &&
-        (!currentSession.messages || currentSession.messages.length === 0)
-      ),
-    },
-    groups: {
-      total: state.groups.length,
-      currentIndex: state.currentGroupIndex,
-      groupSessionsCount: Object.keys(state.groupSessions).length,
-    },
-    view: {
-      chatListView: state.chatListView,
-      chatListGroupView: state.chatListGroupView,
-    },
-    issues: [] as string[],
-  };
-
-  // 检查常见问题
-  if (!diagnosis.startup.isInitialized) {
-    diagnosis.issues.push("应用未完成初始化");
-  }
-
-  if (!diagnosis.startup.hydrationCompleted) {
-    diagnosis.issues.push("状态恢复未完成");
-  }
-
-  if (diagnosis.sessions.messageLoadNeeded) {
-    diagnosis.issues.push("当前会话消息未加载");
-  }
-
-  if (diagnosis.sessions.currentIndex >= diagnosis.sessions.total) {
-    diagnosis.issues.push("当前会话索引超出范围");
-  }
-
-  if (diagnosis.startup.hasError) {
-    diagnosis.issues.push(`启动错误: ${diagnosis.startup.lastError}`);
-  }
-
-  return diagnosis;
-};
-
-// 添加数据恢复函数
-const attemptDataRecovery = async () => {
-  debugLog("RECOVERY", "开始数据恢复", { timestamp: Date.now() });
-
-  try {
-    const state = useChatStore.getState();
-    const currentSession = state.currentSession();
-
-    if (!currentSession) {
-      debugLog("RECOVERY", "当前会话不存在，创建默认会话");
-      await state.newSession();
-      return true;
-    }
-
-    // 检查消息加载状态
-    const needsMessageLoad =
-      currentSession.messageCount > 0 &&
-      (!currentSession.messages || currentSession.messages.length === 0);
-
-    if (needsMessageLoad) {
-      debugLog("RECOVERY", "尝试重新加载消息", {
-        sessionId: currentSession.id,
-        messageCount: currentSession.messageCount,
-        groupId: currentSession.groupId,
-      });
-
-      if (currentSession.groupId) {
-        await state.loadGroupSessionMessages(currentSession.id);
-      } else {
-        await state.loadSessionMessages(state.currentSessionIndex);
-      }
-
-      // 验证恢复结果
-      const recoveredSession = useChatStore.getState().currentSession();
-      const recoverySuccess = !!(
-        recoveredSession?.messages && recoveredSession.messages.length > 0
-      );
-
-      debugLog("RECOVERY", "数据恢复结果", {
-        sessionId: recoveredSession?.id,
-        recoverySuccess,
-        recoveredMessages: recoveredSession?.messages?.length || 0,
-      });
-
-      return recoverySuccess;
-    }
-
-    debugLog("RECOVERY", "无需数据恢复", {
-      sessionId: currentSession.id,
-      hasMessages: !!(
-        currentSession.messages && currentSession.messages.length > 0
-      ),
-    });
-
-    return true;
-  } catch (error) {
-    debugLog("RECOVERY", "数据恢复失败", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-    console.error("[ChatStore] 数据恢复失败:", error);
-    return false;
-  }
-};
-
-// 添加全局错误处理和诊断
-const handleStartupIssues = async () => {
-  const diagnosis = diagnoseStoreState();
-
-  debugLog("DIAGNOSIS", "状态诊断结果", diagnosis);
-
-  // 如果有问题，尝试恢复
-  if (diagnosis.issues.length > 0) {
-    debugLog("DIAGNOSIS", "发现问题，尝试自动恢复", {
-      issues: diagnosis.issues,
-      willAttemptRecovery: true,
-    });
-
-    const recoverySuccess = await attemptDataRecovery();
-
-    if (recoverySuccess) {
-      debugLog("DIAGNOSIS", "✅ 自动恢复成功");
-      // 重新诊断以确认恢复效果
-      const postRecoveryDiagnosis = diagnoseStoreState();
-      debugLog("DIAGNOSIS", "恢复后状态", postRecoveryDiagnosis);
-    } else {
-      debugLog("DIAGNOSIS", "❌ 自动恢复失败");
-    }
-
-    return recoverySuccess;
-  }
-
-  return true;
-};
