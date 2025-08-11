@@ -7,7 +7,11 @@ import { messageStorage } from "../store/message";
 import { systemMessageStorage } from "../store/system";
 import { chatInputStorage } from "../store/input";
 import { jchatStorage } from "./store";
-import { downloadAs, readFromFile } from "../utils";
+import {
+  downloadBlob,
+  readFromFile,
+  jsonStringifyOffMainThread,
+} from "../utils";
 import { showToast } from "../components/ui-lib";
 import Locale from "../locales";
 
@@ -53,10 +57,11 @@ class JChatDataManager {
       const keys = await store.keys();
       const data: Record<string, any> = {};
 
-      for (const key of keys) {
-        const value = await store.getItem(key);
+      const values = await Promise.all(keys.map((k) => store.getItem(k)));
+      for (let i = 0; i < keys.length; i++) {
+        const value = values[i];
         if (value !== null) {
-          data[key] = value;
+          data[keys[i]] = value;
         }
       }
 
@@ -82,18 +87,29 @@ class JChatDataManager {
         storeName: storeName,
       });
 
-      // 先清空现有数据
       await store.clear();
 
-      // 批量写入新数据
-      for (const [key, value] of Object.entries(data)) {
-        if (value !== null && value !== undefined) {
-          await store.setItem(key, value);
+      const entries = Object.entries(data).filter(
+        ([, value]) => value !== null && value !== undefined,
+      );
+
+      // 优化：小数据量直接写入，大数据量分批处理
+      if (entries.length <= 100) {
+        await Promise.all(entries.map(([k, v]) => store.setItem(k, v)));
+      } else {
+        const batchSize = 50;
+        for (let i = 0; i < entries.length; i += batchSize) {
+          const batch = entries.slice(i, i + batchSize);
+          await Promise.all(batch.map(([k, v]) => store.setItem(k, v)));
+          // 只在非最后一批时让出主线程
+          if (i + batchSize < entries.length) {
+            await new Promise((r) => setTimeout(r, 0));
+          }
         }
       }
 
       console.log(
-        `[DataManager] 成功恢复存储桶 ${storeName}，共 ${Object.keys(data).length} 项数据`,
+        `[DataManager] 成功恢复存储桶 ${storeName}，共 ${entries.length} 项数据`,
       );
     } catch (error) {
       console.error(`[DataManager] 恢复存储桶 ${storeName} 数据失败:`, error);
@@ -113,7 +129,7 @@ class JChatDataManager {
     try {
       showToast("正在导出数据...");
 
-      // 并行获取所有存储桶的数据
+      // 并发获取所有存储桶的数据（限制在单个 Promise.all 中完成，以避免额外的事件循环阻塞）
       const [defaultData, messagesData, systemMessagesData, chatInputData] =
         await Promise.all([
           this.getAllDataFromStore("default"),
@@ -147,12 +163,18 @@ class JChatDataManager {
         },
       };
 
-      // 生成文件名
+      // 生成文件名并开始序列化
       const datePart = new Date().toLocaleString().replace(/[/:]/g, "-");
       const fileName = `JChat-Backup-${datePart}.json`;
 
-      // 下载文件
-      downloadAs(JSON.stringify(backupData, null, 2), fileName);
+      showToast("正在生成导出文件...");
+
+      // 使用 Web Worker 进行 JSON 序列化，完全避免阻塞主线程
+      const jsonText = await jsonStringifyOffMainThread(backupData);
+
+      // 直接创建 Blob 并下载，无需额外延迟
+      const blob = new Blob([jsonText], { type: "application/json" });
+      await downloadBlob(blob, fileName);
 
       showToast(
         `导出成功！包含 ${totalSessions} 个会话，${totalMessages} 条消息`,

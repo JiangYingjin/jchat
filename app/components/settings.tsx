@@ -126,6 +126,7 @@ function LocalDataItems() {
     systemMessages: 0,
     chatInputs: 0,
   });
+  const [exporting, setExporting] = useState(false);
 
   // Asynchronously load real database statistics on component mount.
   useEffect(() => {
@@ -161,11 +162,15 @@ function LocalDataItems() {
   }, [chatStore.sessions, databaseStats]);
 
   const handleExport = async () => {
+    if (exporting) return;
+    setExporting(true);
     try {
       await jchatDataManager.exportData();
     } catch (error) {
       console.error("导出失败:", error);
       showToast("导出失败，请检查控制台");
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -194,6 +199,8 @@ function LocalDataItems() {
             icon={<UploadIcon />}
             text={Locale.UI.Export}
             onClick={handleExport}
+            disabled={exporting}
+            loding={exporting}
           />
           <IconButton
             aria={Locale.Settings.LocalData.LocalState + Locale.UI.Import}

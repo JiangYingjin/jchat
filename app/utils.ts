@@ -57,6 +57,23 @@ export async function downloadAs(text: string, filename: string) {
   document.body.removeChild(element);
 }
 
+// 更高效的下载：使用 Blob + Object URL，避免对大文本进行 encodeURIComponent
+export async function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  try {
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.style.display = "none";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  } finally {
+    // 延迟释放，兼容部分浏览器的下载完成时机
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
+  }
+}
+
 export function readFromFile() {
   return new Promise<string>((res, rej) => {
     const fileInput = document.createElement("input");
@@ -211,4 +228,84 @@ export function getTimeoutMSByModel(model: string) {
     return REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION;
   }
   return REQUEST_TIMEOUT_MS;
+}
+
+// 在 Web Worker 中执行 JSON.stringify，避免阻塞主线程。
+// 如果 Worker 不可用或失败，自动回退至主线程执行。
+export async function jsonStringifyOffMainThread(
+  data: unknown,
+  opts?: { timeoutMs?: number },
+): Promise<string> {
+  const timeoutMs = opts?.timeoutMs ?? 15_000;
+  if (typeof window === "undefined" || typeof Worker === "undefined") {
+    return JSON.stringify(data);
+  }
+
+  const workerCode = `self.onmessage = function(e){
+  try {
+    const json = JSON.stringify(e.data);
+    self.postMessage({ ok: true, json });
+  } catch (err) {
+    self.postMessage({ ok: false, error: (err && err.message) ? err.message : String(err) });
+  }
+};`;
+
+  const blob = new Blob([workerCode], { type: "application/javascript" });
+  const workerUrl = URL.createObjectURL(blob);
+  const worker = new Worker(workerUrl);
+
+  return new Promise<string>((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      if (!settled) {
+        settled = true;
+        worker.terminate();
+        URL.revokeObjectURL(workerUrl);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      if (!settled) {
+        cleanup();
+        // 超时回退到主线程
+        try {
+          resolve(JSON.stringify(data));
+        } catch (e) {
+          reject(e);
+        }
+      }
+    }, timeoutMs);
+
+    worker.onmessage = (ev: MessageEvent) => {
+      if (settled) return;
+      clearTimeout(timer);
+      const { ok, json, error } = ev.data || {};
+      if (ok) {
+        cleanup();
+        resolve(json as string);
+      } else {
+        cleanup();
+        // Worker 出错，回退到主线程
+        try {
+          resolve(JSON.stringify(data));
+        } catch (e) {
+          reject(error || e);
+        }
+      }
+    };
+
+    worker.onerror = () => {
+      if (settled) return;
+      clearTimeout(timer);
+      cleanup();
+      // Worker 不可用，回退到主线程
+      try {
+        resolve(JSON.stringify(data));
+      } catch (e) {
+        reject(e);
+      }
+    };
+
+    worker.postMessage(data);
+  });
 }
