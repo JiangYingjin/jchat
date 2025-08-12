@@ -35,10 +35,6 @@ let fetchState = 0; // 0 not fetch, 1 fetching, 2 done
 let isHydrated = false;
 const hydrationCallbacks: (() => void)[] = [];
 
-// 添加状态锁机制，防止并发操作导致数据不一致
-let isInitializing = false;
-let initializationPromise: Promise<void> | null = null;
-
 // 数据恢复状态管理（失败时强制刷新页面）
 let isDataRestored = false;
 let dataRestorationPromise: Promise<void> | null = null;
@@ -193,20 +189,20 @@ async function retryStorageOperation<T>(
 
   let lastError: Error | null = null;
 
-  debugLog("STORAGE_RETRY", "开始存储操作", {
-    maxRetries,
-    delay,
-    timeout: RETRY_CONFIG.storageTimeout,
-    stackTrace: new Error().stack?.split("\n")[2]?.trim(), // 添加调用栈信息
-  });
+  // debugLog("STORAGE_RETRY", "开始存储操作", {
+  //   maxRetries,
+  //   delay,
+  //   timeout: RETRY_CONFIG.storageTimeout,
+  //   stackTrace: new Error().stack?.split("\n")[2]?.trim(), // 添加调用栈信息
+  // });
 
   for (let i = 0; i < maxRetries; i++) {
     try {
-      debugLog("STORAGE_RETRY", `尝试存储操作 ${i + 1}/${maxRetries}`, {
-        attempt: i + 1,
-        isFirstAttempt: i === 0,
-        previousError: lastError?.message,
-      });
+      // debugLog("STORAGE_RETRY", `尝试存储操作 ${i + 1}/${maxRetries}`, {
+      //   attempt: i + 1,
+      //   isFirstAttempt: i === 0,
+      //   previousError: lastError?.message,
+      // });
 
       const result = await Promise.race([
         operation(),
@@ -218,14 +214,14 @@ async function retryStorageOperation<T>(
         ),
       ]);
 
-      debugLog("STORAGE_RETRY", "存储操作成功", {
-        attempt: i + 1,
-        hasResult: !!result,
-        resultType: typeof result,
-        resultPreview: Array.isArray(result)
-          ? `Array(${result.length})`
-          : result,
-      });
+      // debugLog("STORAGE_RETRY", "存储操作成功", {
+      //   attempt: i + 1,
+      //   hasResult: !!result,
+      //   resultType: typeof result,
+      //   resultPreview: Array.isArray(result)
+      //     ? `Array(${result.length})`
+      //     : result,
+      // });
 
       return result;
     } catch (error) {
@@ -324,7 +320,7 @@ async function validateChatStoreData(): Promise<void> {
   }
 
   if (fixes.length > 0) {
-    console.log("[ChatStore] 数据修复:", fixes);
+    // console.log("[ChatStore] 数据修复:", fixes);
   }
 
   // 确保当前会话数据完整
@@ -396,14 +392,20 @@ async function ensureCurrentSessionDataComplete(): Promise<void> {
   debugLog("CURRENT_SESSION_DATA", "✅ 当前会话数据验证完成");
 }
 
-// 添加调试日志函数
+// 添加调试日志函数（仅输出关键类别）
+const CRITICAL_DEBUG_CATEGORIES = new Set(["STARTUP", "STORAGE_RETRY"]);
 const debugLog = (category: string, message: string, data?: any) => {
+  if (!CRITICAL_DEBUG_CATEGORIES.has(category)) {
+    return;
+  }
+
   const timestamp = new Date().toISOString();
   const logData = data
     ? typeof data === "object"
       ? JSON.stringify(data, null, 2)
       : data
     : "";
+  // 仅输出关键调试信息
   console.log(
     `[ChatStore-${category}] ${timestamp} - ${message}${logData ? "\n" + logData : ""}`,
   );
@@ -431,340 +433,6 @@ const resetStartupState = () => {
   };
   debugLog("STARTUP", "重置启动状态", startupState);
 };
-
-// 改进的安全状态初始化函数
-async function safeInitializeStore(): Promise<void> {
-  debugLog("INIT", "开始安全初始化存储", {
-    isInitializing,
-    hasPromise: !!initializationPromise,
-    startupState,
-    currentTime: Date.now(),
-    documentReadyState:
-      typeof document !== "undefined" ? document.readyState : "unknown",
-  });
-
-  // 防止重复初始化
-  if (isInitializing) {
-    debugLog("INIT", "已经在初始化中，返回现有 Promise");
-    return initializationPromise || Promise.resolve();
-  }
-
-  isInitializing = true;
-  initializationPromise = (async () => {
-    try {
-      // 首先等待存储准备就绪
-      debugLog("INIT", "等待存储准备就绪");
-      const health = await storageManager.quickHealthCheck();
-      if (health.status === "unavailable") {
-        throw new Error("存储系统不可用");
-      }
-
-      // 添加额外的延迟以确保浏览器完全准备好
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      // 详细的状态获取调试
-      const state = useChatStore.getState();
-      debugLog("INIT", "获取当前状态", {
-        sessionsCount: state.sessions.length,
-        groupsCount: state.groups.length,
-        currentSessionIndex: state.currentSessionIndex,
-        currentGroupIndex: state.currentGroupIndex,
-        chatListView: state.chatListView,
-        hasDefaultSession: state.sessions.length > 0,
-        defaultSessionId: state.sessions[0]?.id,
-        defaultSessionTitle: state.sessions[0]?.title,
-        defaultSessionMessageCount: state.sessions[0]?.messageCount,
-        defaultSessionMessagesLength: state.sessions[0]?.messages?.length,
-        stateIntegrity: {
-          sessionsIsArray: Array.isArray(state.sessions),
-          groupsIsArray: Array.isArray(state.groups),
-          groupSessionsIsObject: typeof state.groupSessions === "object",
-          hasValidCurrentSessionIndex:
-            state.currentSessionIndex >= 0 &&
-            state.currentSessionIndex < state.sessions.length,
-          hasValidCurrentGroupIndex:
-            state.currentGroupIndex >= 0 &&
-            state.currentGroupIndex < state.groups.length,
-        },
-      });
-
-      // 获取当前会话的详细信息
-      const session = state.currentSession();
-
-      // 检查是否需要加载消息
-      const needsMessageLoad =
-        session &&
-        (!session.messages ||
-          session.messages.length === 0 ||
-          (session.messageCount > 0 && session.messages.length === 0));
-
-      debugLog("INIT", "消息加载需求分析", {
-        needsMessageLoad,
-        sessionExists: !!session,
-        hasMessages: !!(session?.messages && session.messages.length > 0),
-        messageCount: session?.messageCount || 0,
-        messagesLength: session?.messages?.length || 0,
-        isFirstLoad: !startupState.firstDataLoad,
-        loadingConditions: {
-          noMessages: !session?.messages,
-          emptyMessages: session?.messages?.length === 0,
-          messageCountMismatch:
-            session?.messageCount > 0 && session?.messages?.length === 0,
-        },
-      });
-
-      if (session && needsMessageLoad) {
-        try {
-          debugLog("INIT", "开始加载会话消息", {
-            sessionId: session.id,
-            groupId: session.groupId,
-            loadType: session.groupId ? "group" : "normal",
-            retryAttempts: RETRY_CONFIG.maxRetries,
-          });
-
-          // 使用重试机制加载消息
-          if (session.groupId) {
-            debugLog("INIT", "加载组内会话消息", {
-              sessionId: session.id,
-              groupId: session.groupId,
-            });
-            await retryStorageOperation(() =>
-              state.loadGroupSessionMessages(session.id),
-            );
-          } else {
-            debugLog("INIT", "加载普通会话消息", {
-              sessionIndex: state.currentSessionIndex,
-              sessionId: session.id,
-            });
-            await retryStorageOperation(() =>
-              state.loadSessionMessages(state.currentSessionIndex),
-            );
-          }
-
-          // 验证消息是否成功加载
-          const updatedState = useChatStore.getState();
-          const updatedSession = updatedState.currentSession();
-
-          debugLog("INIT", "验证消息加载结果", {
-            sessionId: updatedSession?.id,
-            originalMessageCount: session.messageCount,
-            loadedMessagesCount: updatedSession?.messages?.length || 0,
-            messagesLoaded: !!(
-              updatedSession?.messages && updatedSession.messages.length > 0
-            ),
-            loadSuccess:
-              updatedSession?.messages?.length === session.messageCount ||
-              (session.messageCount === 0 &&
-                updatedSession?.messages?.length === 0),
-            messageIntegrity: {
-              messagesIsArray: Array.isArray(updatedSession?.messages),
-              hasValidLength: (updatedSession?.messages?.length || 0) >= 0,
-              firstMessagePreview: updatedSession?.messages?.[0]
-                ? {
-                    id: updatedSession.messages[0].id,
-                    role: updatedSession.messages[0].role,
-                    hasContent: !!updatedSession.messages[0].content,
-                  }
-                : null,
-            },
-          });
-
-          // 标记首次数据加载完成
-          if (!startupState.firstDataLoad) {
-            startupState.firstDataLoad = true;
-            debugLog("INIT", "首次数据加载完成", {
-              sessionId: updatedSession?.id,
-              loadedMessages: updatedSession?.messages?.length || 0,
-              elapsedTime: Date.now() - startupState.initStartTime,
-            });
-          }
-
-          // 检查数据完整性
-          const finalSession =
-            updatedState.sessions[updatedState.currentSessionIndex] ||
-            updatedState.groupSessions[session.id];
-
-          if (
-            finalSession &&
-            finalSession.messageCount > 0 &&
-            (!finalSession.messages || finalSession.messages.length === 0)
-          ) {
-            debugLog("INIT", "⚠️ 检测到数据不一致，尝试恢复数据", {
-              sessionId: finalSession.id,
-              expectedMessageCount: finalSession.messageCount,
-              actualMessagesLength: finalSession.messages?.length || 0,
-              sessionType: finalSession.groupId ? "group" : "normal",
-              possibleCauses: [
-                "存储读取延迟",
-                "IndexedDB 未完全准备",
-                "数据损坏",
-                "竞态条件",
-              ],
-            });
-
-            // 尝试从备用存储恢复
-            try {
-              // 添加额外延迟以等待存储稳定
-              await new Promise((resolve) => setTimeout(resolve, 200));
-
-              if (finalSession.groupId) {
-                await retryStorageOperation(() =>
-                  state.loadGroupSessionMessages(finalSession.id),
-                );
-              } else {
-                await retryStorageOperation(() =>
-                  state.loadSessionMessages(state.currentSessionIndex),
-                );
-              }
-
-              // 再次验证恢复结果
-              const recoveredState = useChatStore.getState();
-              const recoveredSession = recoveredState.currentSession();
-
-              debugLog("INIT", "数据恢复结果", {
-                sessionId: recoveredSession?.id,
-                recoveredMessagesCount: recoveredSession?.messages?.length || 0,
-                recoverySuccess: !!(
-                  recoveredSession?.messages &&
-                  recoveredSession.messages.length > 0
-                ),
-                finalMessageCount: recoveredSession?.messageCount || 0,
-                dataConsistency: {
-                  messageCountMatch:
-                    recoveredSession?.messages?.length ===
-                    recoveredSession?.messageCount,
-                  hasValidData:
-                    recoveredSession?.messages &&
-                    recoveredSession.messages.length > 0,
-                },
-              });
-
-              if (
-                recoveredSession?.messages &&
-                recoveredSession.messages.length > 0
-              ) {
-                debugLog("INIT", "✅ 数据恢复成功");
-              } else {
-                debugLog("INIT", "❌ 数据恢复失败，数据可能已丢失");
-              }
-            } catch (recoveryError) {
-              debugLog("INIT", "❌ 数据恢复失败", {
-                error:
-                  recoveryError instanceof Error
-                    ? recoveryError.message
-                    : String(recoveryError),
-                errorType:
-                  recoveryError instanceof Error
-                    ? recoveryError.constructor.name
-                    : typeof recoveryError,
-              });
-              console.error("[ChatStore] 数据恢复失败:", recoveryError);
-              startupState.lastError =
-                recoveryError instanceof Error
-                  ? recoveryError
-                  : new Error(String(recoveryError));
-            }
-          } else {
-            debugLog("INIT", "✅ 数据一致性检查通过", {
-              sessionId: finalSession?.id,
-              messageCount: finalSession?.messageCount,
-              messagesLength: finalSession?.messages?.length,
-            });
-          }
-        } catch (error) {
-          debugLog("INIT", "❌ 加载会话消息失败", {
-            sessionId: session.id,
-            error: error instanceof Error ? error.message : String(error),
-            errorType:
-              error instanceof Error ? error.constructor.name : typeof error,
-            isStorageError:
-              error instanceof Error &&
-              (error.message.includes("QuotaExceededError") ||
-                error.message.includes("InvalidStateError") ||
-                error.message.includes("NotSupportedError") ||
-                error.message.includes("timeout")),
-          });
-          console.error("[ChatStore] 加载会话消息失败:", error);
-          startupState.lastError =
-            error instanceof Error ? error : new Error(String(error));
-        }
-      } else {
-        debugLog("INIT", "跳过消息加载", {
-          reason: !session ? "当前会话不存在" : "消息已加载或无需加载",
-          sessionId: session?.id,
-          hasMessages: !!(session?.messages && session.messages.length > 0),
-          messageCount: session?.messageCount || 0,
-        });
-      }
-
-      // 存储健康检查（异步，不阻塞主流程）
-      setTimeout(async () => {
-        try {
-          debugLog("INIT", "开始存储健康检查");
-          const health = await storageManager.quickHealthCheck();
-          const isHealthy = health.status === "ready";
-          debugLog("INIT", "存储健康检查结果", {
-            isHealthy,
-            timestamp: Date.now(),
-          });
-
-          if (!isHealthy) {
-            console.warn("[ChatStore] 存储系统异常，但应用继续正常运行");
-          }
-        } catch (error) {
-          debugLog("INIT", "存储健康检查失败", {
-            error: error instanceof Error ? error.message : String(error),
-          });
-          console.warn("[ChatStore] 存储健康检查失败:", error);
-        }
-      }, 100);
-
-      // 标记初始化完成
-      startupState.isInitialized = true;
-      startupState.initEndTime = Date.now();
-
-      debugLog("INIT", "✅ 初始化完成", {
-        totalTime: startupState.initEndTime - startupState.initStartTime,
-        firstDataLoad: startupState.firstDataLoad,
-        hasError: !!startupState.lastError,
-        finalState: {
-          currentSessionId: useChatStore.getState().currentSession()?.id,
-          messagesLoaded: !!useChatStore.getState().currentSession()?.messages
-            ?.length,
-          messageCount: useChatStore.getState().currentSession()?.messageCount,
-          messagesLength: useChatStore.getState().currentSession()?.messages
-            ?.length,
-        },
-      });
-    } catch (error) {
-      debugLog("INIT", "❌ 初始化失败", {
-        error: error instanceof Error ? error.message : String(error),
-        errorType:
-          error instanceof Error ? error.constructor.name : typeof error,
-        stack: error instanceof Error ? error.stack : undefined,
-        isStorageError:
-          error instanceof Error &&
-          (error.message.includes("QuotaExceededError") ||
-            error.message.includes("InvalidStateError") ||
-            error.message.includes("NotSupportedError") ||
-            error.message.includes("timeout")),
-      });
-      console.error("[ChatStore] 初始化失败:", error);
-      startupState.lastError =
-        error instanceof Error ? error : new Error(String(error));
-    } finally {
-      isInitializing = false;
-      initializationPromise = null;
-      debugLog("INIT", "初始化流程结束", {
-        isInitialized: startupState.isInitialized,
-        hasError: !!startupState.lastError,
-        elapsedTime: Date.now() - startupState.initStartTime,
-      });
-    }
-  })();
-
-  return initializationPromise;
-}
 
 export interface ChatSession {
   id: string;
@@ -1130,11 +798,7 @@ export const useChatStore = createPersistStore(
             }
           }
 
-          const success = await messageStorage.save(
-            session.id,
-            messagesToSave,
-            force,
-          );
+          await messageStorage.save(session.id, messagesToSave, force);
         } catch (error) {
           console.error(
             `[ChatStore] Failed to save messages for session ${session.id}`,
@@ -1344,7 +1008,7 @@ export const useChatStore = createPersistStore(
         const currentGroup = groups[currentGroupIndex];
 
         if (!currentGroup) {
-          console.warn("[ChatStore] No current group found");
+          // console.warn("[ChatStore] No current group found");
           return;
         }
 
@@ -1471,7 +1135,7 @@ export const useChatStore = createPersistStore(
             availableSessionIds: Object.keys(get().groupSessions),
             totalGroupSessions: Object.keys(get().groupSessions).length,
           });
-          console.warn(`[ChatStore] Group session ${sessionId} not found`);
+          // console.warn(`[ChatStore] Group session ${sessionId} not found`);
           return;
         }
 
@@ -1616,9 +1280,9 @@ export const useChatStore = createPersistStore(
                 "组内会话数据不一致",
               ],
             });
-            console.warn(
-              `[ChatStore] 组会话 ${sessionId} 显示有 ${session.messageCount} 条消息，但加载为空`,
-            );
+            // console.warn(
+            //   `[ChatStore] 组会话 ${sessionId} 显示有 ${session.messageCount} 条消息，但加载为空`,
+            // );
             // 标记为错误状态
             set((state) => {
               const updatedSession = {
@@ -1773,23 +1437,23 @@ export const useChatStore = createPersistStore(
         const currentGroup = groups[currentGroupIndex];
 
         if (!currentGroup) {
-          console.warn(`[ChatStore] No current group found`);
+          // console.warn(`[ChatStore] No current group found`);
           return;
         }
 
         const sessionIndex = currentGroup.sessionIds.indexOf(sessionId);
         if (sessionIndex === -1) {
-          console.warn(
-            `[ChatStore] Session ${sessionId} not found in current group`,
-          );
+          // console.warn(
+          //   `[ChatStore] Session ${sessionId} not found in current group`,
+          // );
           return;
         }
 
         const deletedSession = groupSessions[sessionId];
         if (!deletedSession) {
-          console.warn(
-            `[ChatStore] Group session ${sessionId} not found in groupSessions`,
-          );
+          // console.warn(
+          //   `[ChatStore] Group session ${sessionId} not found in groupSessions`,
+          // );
           return;
         }
 
@@ -2410,9 +2074,9 @@ export const useChatStore = createPersistStore(
                   sessionId: currentSessionId,
                   availableSessionIds: Object.keys(groupSessions),
                 });
-                console.warn(
-                  `[ChatStore] Group session ${currentSessionId} not found in groupSessions`,
-                );
+                // console.warn(
+                //   `[ChatStore] Group session ${currentSessionId} not found in groupSessions`,
+                // );
               }
             }
             // 如果组内会话模式但没有找到会话，使用 setTimeout 避免在渲染期间触发状态更新
@@ -2453,9 +2117,9 @@ export const useChatStore = createPersistStore(
                     availableSessionIds: Object.keys(groupSessions),
                   },
                 );
-                console.warn(
-                  `[ChatStore] Group session ${firstSessionId} not found in groupSessions`,
-                );
+                // console.warn(
+                //   `[ChatStore] Group session ${firstSessionId} not found in groupSessions`,
+                // );
               }
             }
           }
@@ -2862,16 +2526,16 @@ export const useChatStore = createPersistStore(
             // 使用 Promise.resolve() 确保异步操作不阻塞当前渲染
             Promise.resolve()
               .then(async () => {
-                console.log("[onSendMessage] ❌ onError 保存消息", {
-                  sessionId: session.id,
-                  errorMessage: error.message,
-                  isAborted,
-                  userMessageError: userMessage.isError,
-                  modelMessageError: modelMessage.isError,
-                  latestMessageCount:
-                    latestSessionOnError.messages?.length || 0,
-                  step: "onError",
-                });
+                // console.log("[onSendMessage] ❌ onError 保存消息", {
+                //   sessionId: session.id,
+                //   errorMessage: error.message,
+                //   isAborted,
+                //   userMessageError: userMessage.isError,
+                //   modelMessageError: modelMessage.isError,
+                //   latestMessageCount:
+                //     latestSessionOnError.messages?.length || 0,
+                //   step: "onError",
+                // });
 
                 // 异步保存错误状态的消息（强制保存）
                 await get().saveSessionMessages(latestSessionOnError, true);
@@ -3097,7 +2761,7 @@ export const useChatStore = createPersistStore(
         })
           .then((res) => res.json())
           .then((res: any) => {
-            console.log("[Config] got config from server", res);
+            // console.log("[Config] got config from server", res);
             set(() => ({ models: res.models }));
           })
           .catch(() => {
@@ -3130,7 +2794,7 @@ export const useChatStore = createPersistStore(
           });
 
           if (supportedFiles.length === 0) {
-            console.warn("[ChatStore] 没有找到支持的文件类型");
+            // console.warn("[ChatStore] 没有找到支持的文件类型");
             showToast(
               "没有找到支持的文件类型（支持：jpg, jpeg, png, webp, md, txt）",
             );
@@ -3560,10 +3224,10 @@ export const useChatStore = createPersistStore(
                     }
                   } else {
                     // 其他错误，允许应用继续启动，但记录错误
-                    console.warn(
-                      "[Store] 应用准备失败，但允许应用继续启动:",
-                      readyError,
-                    );
+                    // console.warn(
+                    //   "[Store] 应用准备失败，但允许应用继续启动:",
+                    //   readyError,
+                    // );
                     startupState.lastError =
                       readyError instanceof Error
                         ? readyError
