@@ -12,6 +12,8 @@ import {
   formatFileSize,
   formatLastModified,
   getFileIcon,
+  isImageFileLike,
+  isTextFileLike,
   type DroppedFileInfo,
 } from "../utils/file-drop";
 import { useChatStore, type ChatSession } from "../store";
@@ -82,11 +84,11 @@ export function FileDropZone({ children }: FileDropZoneProps) {
 
       const ext = file.name.split(".").pop()?.toLowerCase();
 
-      if (["jpg", "jpeg", "png", "webp"].includes(ext || "")) {
+      if (isImageFileLike({ type: file.type, name: file.name })) {
         // 图片文件：上传图片并添加到系统提示词
         const imageUrl = await uploadImage(file);
         newImages.push(imageUrl);
-      } else if (["md", "txt"].includes(ext || "")) {
+      } else if (isTextFileLike({ type: file.type, name: file.name })) {
         // 文本文件：读取内容作为系统提示词
         const text = await file.text();
 
@@ -479,9 +481,7 @@ export function FileDropZone({ children }: FileDropZoneProps) {
                 ? "释放文件以附加到组内会话"
                 : "释放文件以创建会话组"}
             </div>
-            <div className={styles.dragSubtitle}>
-              支持 JPG、JPEG、PNG、WebP、MD、TXT 文件
-            </div>
+            <div className={styles.dragSubtitle}>支持 图片文件 与 文本文件</div>
           </div>
         </div>
       )}

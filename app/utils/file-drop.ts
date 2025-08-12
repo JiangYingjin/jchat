@@ -9,14 +9,77 @@ export interface DroppedFileInfo {
 /**
  * 支持的文件扩展名列表
  */
-export const SUPPORTED_EXTENSIONS = [
-  "jpg",
-  "jpeg",
-  "png",
-  "webp",
-  "md",
+// Image and text detection helpers
+const IMAGE_EXTENSIONS = ["jpg", "jpeg", "png", "webp", "gif", "bmp", "svg"];
+
+const TEXT_MIME_TYPES = new Set([
+  "application/json",
+  "application/xml",
+  "application/xhtml+xml",
+  "application/javascript",
+  "application/x-javascript",
+  "application/sql",
+  "application/yaml",
+  "application/x-yaml",
+  "application/toml",
+]);
+
+const TEXT_EXTENSIONS = new Set([
+  // docs/markup
   "txt",
-] as const;
+  "md",
+  "mdx",
+  "html",
+  "htm",
+  "xml",
+  "csv",
+  "tsv",
+  // data/config
+  "json",
+  "yml",
+  "yaml",
+  "toml",
+  "ini",
+  "conf",
+  "config",
+  "env",
+  "log",
+  // code
+  "js",
+  "jsx",
+  "ts",
+  "tsx",
+  "css",
+  "scss",
+  "less",
+  "py",
+  "java",
+  "c",
+  "cpp",
+  "h",
+  "hpp",
+  "go",
+  "rs",
+  "php",
+  "rb",
+  "swift",
+  "kt",
+  "kts",
+  "sql",
+  "sh",
+  "bash",
+  "zsh",
+  "bat",
+  "ps1",
+  "psm1",
+  "vue",
+  "svelte",
+  "dart",
+  "lua",
+  "r",
+  "tex",
+  "bib",
+]);
 
 /**
  * 提取文件信息
@@ -37,7 +100,7 @@ export function extractFileInfo(file: File): DroppedFileInfo {
 export function filterSupportedFiles(
   files: DroppedFileInfo[],
 ): DroppedFileInfo[] {
-  return files.filter((file) => isSupportedFileType(file));
+  return files.filter((file) => isImageFileLike(file) || isTextFileLike(file));
 }
 
 /**
@@ -121,14 +184,6 @@ export function extractFilesFromDrop(event: DragEvent): File[] {
 }
 
 /**
- * 检查文件类型是否被支持
- */
-export function isSupportedFileType(file: DroppedFileInfo): boolean {
-  const ext = getFileExtension(file.name);
-  return SUPPORTED_EXTENSIONS.includes(ext as any);
-}
-
-/**
  * 获取文件扩展名
  */
 export function getFileExtension(fileName: string): string {
@@ -136,6 +191,30 @@ export function getFileExtension(fileName: string): string {
   return lastDotIndex !== -1
     ? fileName.slice(lastDotIndex + 1).toLowerCase()
     : "";
+}
+
+/**
+ * 判断是否为图片类文件
+ */
+export function isImageFileLike(file: {
+  type?: string;
+  name: string;
+}): boolean {
+  const mimeType = (file.type || "").toLowerCase();
+  if (mimeType.startsWith("image/")) return true;
+  const ext = getFileExtension(file.name);
+  return IMAGE_EXTENSIONS.includes(ext);
+}
+
+/**
+ * 判断是否为文本类文件（尽量覆盖常见文本类型，含 HTML 等）
+ */
+export function isTextFileLike(file: { type?: string; name: string }): boolean {
+  const mimeType = (file.type || "").toLowerCase();
+  if (mimeType.startsWith("text/")) return true;
+  if (TEXT_MIME_TYPES.has(mimeType)) return true;
+  const ext = getFileExtension(file.name);
+  return ext ? TEXT_EXTENSIONS.has(ext) : false;
 }
 
 /**

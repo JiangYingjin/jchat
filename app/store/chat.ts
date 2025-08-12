@@ -10,6 +10,7 @@ import { chatInputStorage } from "./input";
 import { storageManager } from "../utils/storage-manager";
 import { appReadyManager } from "../utils/app-ready-manager";
 import { uploadImage } from "../utils/chat";
+import { isImageFileLike, isTextFileLike } from "../utils/file-drop";
 import { systemMessageStorage } from "./system";
 import { messageStorage, type ChatMessage } from "./message";
 import { nanoid } from "nanoid";
@@ -2785,19 +2786,14 @@ export const useChatStore = createPersistStore(
             return null;
           }
 
-          // 过滤支持的文件类型
-          const supportedFiles = files.filter((file) => {
-            const ext = file.name.split(".").pop()?.toLowerCase();
-            return ["jpg", "jpeg", "png", "webp", "md", "txt"].includes(
-              ext || "",
-            );
-          });
+          // 过滤支持的文件类型（图片或任意文本文件），统一复用工具函数
+          const supportedFiles = files.filter(
+            (file) => isImageFileLike(file) || isTextFileLike(file),
+          );
 
           if (supportedFiles.length === 0) {
             // console.warn("[ChatStore] 没有找到支持的文件类型");
-            showToast(
-              "没有找到支持的文件类型（支持：jpg, jpeg, png, webp, md, txt）",
-            );
+            showToast("没有找到支持的文件类型（支持：图片 或 任意文本文件）");
             return null;
           }
 
@@ -2847,13 +2843,11 @@ export const useChatStore = createPersistStore(
             let systemImages: string[] = [];
 
             try {
-              const ext = file.name.split(".").pop()?.toLowerCase();
-
-              if (["jpg", "jpeg", "png", "webp"].includes(ext || "")) {
+              if (isImageFileLike(file)) {
                 // 图片文件：上传图片并添加到系统提示词
                 const imageUrl = await uploadImage(file);
                 systemImages.push(imageUrl);
-              } else if (["md", "txt"].includes(ext || "")) {
+              } else if (isTextFileLike(file)) {
                 // 文本文件：读取内容作为系统提示词
                 const text = await file.text();
                 systemText = text;
