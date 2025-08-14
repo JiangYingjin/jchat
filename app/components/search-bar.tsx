@@ -21,6 +21,7 @@ import { getMessageTextContent } from "../utils";
 import { searchService, SearchResult, SearchStats } from "../services/search";
 import { ChatMessage } from "../store/message";
 import { SystemMessageData } from "../store/system";
+import { ParseError, AdvancedSearchParser } from "../services/advanced-search";
 
 // 搜索状态枚举
 enum SearchState {
@@ -34,6 +35,8 @@ enum SearchState {
 interface SearchError {
   message: string;
   code?: string;
+  suggestion?: string; // 添加建议信息
+  position?: number; // 错误位置
 }
 
 interface SearchBarProps {
@@ -373,6 +376,7 @@ function SearchBarComponent(
   const [searchState, setSearchState] = useState<SearchState>(SearchState.IDLE);
   const [searchStats, setSearchStats] = useState<SearchStats | null>(null);
   const [searchError, setSearchError] = useState<SearchError | null>(null);
+  const [showSyntaxHelp, setShowSyntaxHelp] = useState(false);
 
   // 防抖和取消相关
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -405,9 +409,46 @@ function SearchBarComponent(
     setSearchState(SearchState.IDLE);
     setSearchStats(null);
     setSearchError(null);
+    setShowSyntaxHelp(false);
     setIsSearching(false);
     lastSearchRef.current = "";
   }, [setIsSearching]);
+
+  // 验证搜索语法
+  const validateSyntax = useCallback((query: string) => {
+    if (!query.trim()) {
+      setSearchError(null);
+      return true;
+    }
+
+    const validation = AdvancedSearchParser.validate(query);
+    if (!validation.valid && validation.error) {
+      setSearchError({
+        message: validation.error.message,
+        suggestion: validation.error.suggestion,
+        position: validation.error.position,
+      });
+      return false;
+    }
+
+    setSearchError(null);
+    return true;
+  }, []);
+
+  // 检测是否需要显示高级语法帮助
+  const shouldShowSyntaxHelp = useCallback((query: string): boolean => {
+    // 当用户使用了高级语法特征时显示帮助
+    const advancedFeatures = [
+      /\|/, // OR 操作符
+      /\([^)]*\)/, // 括号
+      /（[^）]*）/, // 全角括号
+      /"[^"]*"/, // 引号
+      /[\u201c][\s\S]*?[\u201d]/, // 全角引号
+      /标题[:：]/, // 标题前缀
+      /title[:：]/i, // 英文标题前缀
+    ];
+    return advancedFeatures.some((pattern) => pattern.test(query));
+  }, []);
 
   // 执行搜索
   const performSearch = useCallback(async (query: string) => {
@@ -431,17 +472,17 @@ function SearchBarComponent(
         setResults(searchResult.results);
         setSearchStats(searchResult.stats);
         setSearchState(SearchState.SUCCESS);
-        console.log(
-          `[搜索统计] 总用时: ${searchResult.stats.searchDuration}ms, 结果: ${searchResult.results.length}`,
-        );
       }
     } catch (error) {
       if (error instanceof Error && error.message === "Search aborted") {
-        console.log("[SearchBar] 搜索被取消");
+        // 静默处理搜索取消
         return;
       }
 
-      console.error("[SearchBar] 搜索失败:", error);
+      // 只在开发环境输出搜索失败信息
+      if (process.env.NODE_ENV === "development") {
+        console.error("[SearchBar] 搜索失败:", error);
+      }
       setSearchError({
         message: error instanceof Error ? error.message : "搜索失败",
         code: "SEARCH_ERROR",
@@ -462,9 +503,14 @@ function SearchBarComponent(
         return;
       }
 
+      // 🎯 实时语法验证（非阻塞）
+      const isValidSyntax = validateSyntax(value);
+
+      // 设置是否显示语法帮助
+      setShowSyntaxHelp(shouldShowSyntaxHelp(value));
+
       setIsSearching(true);
-      setSearchState(SearchState.SEARCHING);
-      setSearchError(null);
+      setSearchState(isValidSyntax ? SearchState.SEARCHING : SearchState.ERROR);
 
       // 清空现有结果，重新开始搜索
       setResults([]);
@@ -481,7 +527,13 @@ function SearchBarComponent(
         performSearch(value.trim());
       }, 300); // 300ms 防抖
     },
-    [setIsSearching, handleClearInput, performSearch],
+    [
+      setIsSearching,
+      handleClearInput,
+      performSearch,
+      shouldShowSyntaxHelp,
+      validateSyntax,
+    ],
   );
 
   // 处理焦点
@@ -552,7 +604,14 @@ function SearchBarComponent(
             )}
             {hasError && searchError && (
               <div className={sidebarStyles["search-error"]}>
-                搜索失败: {searchError.message}
+                <div className={sidebarStyles["error-message"]}>
+                  🚫 语法错误: {searchError.message}
+                </div>
+                {searchError.suggestion && (
+                  <div className={sidebarStyles["error-suggestion"]}>
+                    💡 建议: {searchError.suggestion}
+                  </div>
+                )}
               </div>
             )}
             {!isLoading && !hasError && (
@@ -592,6 +651,33 @@ function SearchBarComponent(
                   未找到匹配的结果
                 </div>
               )}
+        </div>
+      )}
+
+      {/* 高级搜索语法帮助 */}
+      {showSyntaxHelp && (
+        <div className={sidebarStyles["syntax-help"]}>
+          <div className={sidebarStyles["syntax-help-title"]}>
+            🎯 高级搜索语法
+          </div>
+          <div className={sidebarStyles["syntax-help-content"]}>
+            <div className={sidebarStyles["syntax-rule"]}>
+              <code>空格</code> → 与 (AND)：<code>AI 投资</code>
+            </div>
+            <div className={sidebarStyles["syntax-rule"]}>
+              <code>|</code> → 或 (OR)：<code>React | Vue</code>
+            </div>
+            <div className={sidebarStyles["syntax-rule"]}>
+              <code>&quot;...&quot;</code> → 精确匹配：
+              <code>&quot;人工智能&quot;</code>
+            </div>
+            <div className={sidebarStyles["syntax-rule"]}>
+              <code>标题:</code> → 限定范围：<code>标题:报告</code>
+            </div>
+            <div className={sidebarStyles["syntax-rule"]}>
+              <code>(...)</code> → 优先级：<code>(AI | ML) 投资</code>
+            </div>
+          </div>
         </div>
       )}
     </>
