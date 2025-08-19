@@ -22,6 +22,11 @@ import { searchService, SearchResult, SearchStats } from "../services/search";
 import { ChatMessage } from "../store/message";
 import { SystemMessageData } from "../store/system";
 import { ParseError, AdvancedSearchParser } from "../services/advanced-search";
+import {
+  SmartHighlighter,
+  HighlightSegment,
+  HighlightType,
+} from "../services/smart-highlighter";
 
 // 搜索状态枚举
 enum SearchState {
@@ -50,156 +55,82 @@ export interface SearchInputRef {
   inputElement: HTMLInputElement | null;
 }
 
+// 🧹 旧的高亮逻辑已移除，现在使用SmartHighlighter
+// 保留escapeRegExp函数以防其他地方使用
 function escapeRegExp(search: string) {
   return search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/**
- * 计算字符串的显示长度（中文字符=1，数字/英文字符=0.5，空格换行忽略）
- */
-function getDisplayLength(str: string): number {
-  let length = 0;
-  for (const char of str) {
-    if (/[\u4e00-\u9fff]/.test(char)) {
-      // 中文字符
-      length += 1;
-    } else if (/[a-zA-Z0-9]/.test(char)) {
-      // 英文字母和数字
-      length += 0.5;
-    }
-    // 空格、换行等忽略不计
-  }
-  return length;
-}
-
-/**
- * 优化的文本截取算法
- * 搜索关键词左侧截取16个字符，右侧截取40个字符
- * 换行用空格替换，连续空格合并为一个
- */
-function optimizedTextTruncate(
-  str: string,
-  search: string,
-  leftChars: number = 16,
-  rightChars: number = 40,
-): string {
-  if (!str) return "";
-
-  // 预处理：换行替换为空格，连续空格合并
-  const cleanStr = str.replace(/\n/g, " ").replace(/\s+/g, " ").trim();
-
-  if (!search) {
-    // 没有搜索词时，从头截取总共56个字符 (16+40)
-    let result = "";
-    let currentLength = 0;
-    const totalChars = leftChars + rightChars;
-    for (const char of cleanStr) {
-      const charLength = getDisplayLength(char);
-      if (currentLength + charLength > totalChars) break;
-      result += char;
-      currentLength += charLength;
-    }
-    return result + (result.length < cleanStr.length ? "..." : "");
-  }
-
-  const index = cleanStr.toLowerCase().indexOf(search.toLowerCase());
-  if (index === -1) {
-    // 找不到搜索词，从头截取
-    let result = "";
-    let currentLength = 0;
-    const totalChars = leftChars + rightChars;
-    for (const char of cleanStr) {
-      const charLength = getDisplayLength(char);
-      if (currentLength + charLength > totalChars) break;
-      result += char;
-      currentLength += charLength;
-    }
-    return result + (result.length < cleanStr.length ? "..." : "");
-  }
-
-  // 找到搜索词，左侧固定16字符，右侧固定40字符
-
-  // 向前寻找起始位置 - 左侧16字符
-  let startIndex = index;
-  let beforeLength = 0;
-  for (let i = index - 1; i >= 0 && beforeLength < leftChars; i--) {
-    const charLength = getDisplayLength(cleanStr[i]);
-    if (beforeLength + charLength > leftChars) break;
-    beforeLength += charLength;
-    startIndex = i;
-  }
-
-  // 向后寻找结束位置 - 右侧40字符
-  let endIndex = index + search.length;
-  let afterLength = 0;
-  for (let i = endIndex; i < cleanStr.length && afterLength < rightChars; i++) {
-    const charLength = getDisplayLength(cleanStr[i]);
-    if (afterLength + charLength > rightChars) break;
-    afterLength += charLength;
-    endIndex = i + 1;
-  }
-
-  let result = cleanStr.slice(startIndex, endIndex);
-
-  // 添加省略号
-  if (startIndex > 0) {
-    result = "..." + result;
-  }
-  if (endIndex < cleanStr.length) {
-    result = result + "...";
-  }
-
-  return result;
-}
-
-function highlightText(str: string, search: string): string {
-  if (!str || !search) return str;
-
-  // 使用安全的正则表达式进行高亮，不使用Markdown渲染
-  const safeSearch = escapeRegExp(search);
-  return str.replace(new RegExp(`(${safeSearch})`, "gi"), "**$1**");
-}
-
-// 高亮显示文本组件（纯文本版本，不使用Markdown渲染）
+// 智能高亮显示文本组件（使用新的SmartHighlighter）
 function HighlightedText({
   text,
-  search,
+  matchedTerms = [],
+  contextType = "message",
   leftChars = 16,
   rightChars = 40,
 }: {
   text: string;
-  search: string;
+  matchedTerms?: string[]; // 🎯 改为使用matchedTerms
+  contextType?: "title" | "message" | "system";
   leftChars?: number;
   rightChars?: number;
 }) {
-  const processedText = useMemo(() => {
-    const truncated = optimizedTextTruncate(
-      text,
-      search,
-      leftChars,
-      rightChars,
-    );
-    return highlightText(truncated, search);
-  }, [text, search, leftChars, rightChars]);
+  const highlightSegments = useMemo(() => {
+    if (!text || matchedTerms.length === 0) {
+      return [{ text, isHighlighted: false }];
+    }
 
-  // 简单的高亮渲染，将 **text** 转换为 <strong>text</strong>
-  const renderHighlightedText = (text: string) => {
-    const parts = text.split(/(\*\*[^*]+\*\*)/);
-    return parts.map((part, index) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
+    const highlighter = new SmartHighlighter({
+      leftContextChars: leftChars,
+      rightContextChars: rightChars,
+    });
+
+    return highlighter.highlight(text, matchedTerms, contextType);
+  }, [text, matchedTerms, contextType, leftChars, rightChars]);
+
+  // 渲染高亮片段
+  const renderHighlightSegments = (segments: HighlightSegment[]) => {
+    return segments.map((segment, index) => {
+      if (segment.isHighlighted) {
+        const className = getHighlightClassName(segment.highlightType);
         return (
-          <strong key={index} className={sidebarStyles["search-highlight"]}>
-            {part.slice(2, -2)}
+          <strong
+            key={index}
+            className={`${sidebarStyles["search-highlight"]} ${className}`}
+            title={
+              segment.originalTerm
+                ? `匹配词: ${segment.originalTerm}`
+                : undefined
+            }
+          >
+            {segment.text}
           </strong>
         );
       }
-      return part;
+      return <span key={index}>{segment.text}</span>;
     });
   };
 
+  // 根据高亮类型获取CSS类名
+  const getHighlightClassName = (highlightType?: HighlightType): string => {
+    switch (highlightType) {
+      case HighlightType.EXACT:
+        return sidebarStyles["search-highlight-exact"] || "";
+      case HighlightType.TITLE:
+        return sidebarStyles["search-highlight-title"] || "";
+      case HighlightType.PARTIAL:
+        return sidebarStyles["search-highlight-partial"] || "";
+      case HighlightType.WORD:
+      default:
+        return "";
+    }
+  };
+
   return (
-    <span className={sidebarStyles["search-highlighted-text"]}>
-      {renderHighlightedText(processedText)}
+    <span
+      className={`${sidebarStyles["search-highlighted-text"]} ${sidebarStyles[`context-${contextType}`] || ""}`}
+    >
+      {renderHighlightSegments(highlightSegments)}
     </span>
   );
 }
@@ -207,37 +138,25 @@ function HighlightedText({
 // 嵌入式消息显示组件 - 图标嵌入在文本开头
 function EmbeddedMessage({
   message,
-  search,
+  matchedTerms = [],
 }: {
   message: ChatMessage;
-  search: string;
+  matchedTerms?: string[]; // 🎯 改为使用matchedTerms
 }) {
   const messageText = getMessageTextContent(message);
   const roleIcon = message.role === "user" ? "👤" : "🤖";
-
-  const truncatedText = optimizedTextTruncate(messageText, search, 16, 40);
-  const highlightedText = highlightText(truncatedText, search);
-
-  // 简单的高亮渲染
-  const renderText = (text: string) => {
-    const parts = text.split(/(\*\*[^*]+\*\*)/);
-    return parts.map((part, index) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return (
-          <strong key={index} className={sidebarStyles["search-highlight"]}>
-            {part.slice(2, -2)}
-          </strong>
-        );
-      }
-      return part;
-    });
-  };
 
   return (
     <div className={sidebarStyles["search-message-embedded"]}>
       <span className={sidebarStyles["search-message-text"]}>
         <span className={sidebarStyles["search-role-icon"]}>{roleIcon}</span>
-        {renderText(highlightedText)}
+        <HighlightedText
+          text={messageText}
+          matchedTerms={matchedTerms}
+          contextType="message"
+          leftChars={16}
+          rightChars={40}
+        />
       </span>
     </div>
   );
@@ -246,39 +165,22 @@ function EmbeddedMessage({
 // 嵌入式系统消息显示组件 - 无左边框样式
 function EmbeddedSystemMessage({
   systemMessage,
-  search,
+  matchedTerms = [],
 }: {
   systemMessage: { text: string };
-  search: string;
+  matchedTerms?: string[]; // 🎯 改为使用matchedTerms
 }) {
-  const truncatedText = optimizedTextTruncate(
-    systemMessage.text,
-    search,
-    16,
-    40,
-  );
-  const highlightedText = highlightText(truncatedText, search);
-
-  // 简单的高亮渲染
-  const renderText = (text: string) => {
-    const parts = text.split(/(\*\*[^*]+\*\*)/);
-    return parts.map((part, index) => {
-      if (part.startsWith("**") && part.endsWith("**")) {
-        return (
-          <strong key={index} className={sidebarStyles["search-highlight"]}>
-            {part.slice(2, -2)}
-          </strong>
-        );
-      }
-      return part;
-    });
-  };
-
   return (
     <div className={sidebarStyles["search-system-embedded"]}>
       <span className={sidebarStyles["search-message-text"]}>
         <span className={sidebarStyles["search-role-icon"]}>⚙️</span>
-        {renderText(highlightedText)}
+        <HighlightedText
+          text={systemMessage.text}
+          matchedTerms={matchedTerms}
+          contextType="system"
+          leftChars={16}
+          rightChars={40}
+        />
       </span>
     </div>
   );
@@ -290,7 +192,7 @@ function SearchResultItem({
   selectSession,
 }: {
   result: SearchResult;
-  input: string;
+  input: string; // 保留用于向后兼容，但主要使用matchedTerms
   selectSession: (sessionId: string) => void;
 }) {
   const router = useRouter();
@@ -304,7 +206,8 @@ function SearchResultItem({
     }
   };
 
-  // 移除匹配类型显示文本，为标题腾出更多空间
+  // 🎯 使用SearchResult中的matchedTerms，提供精确的高亮
+  const matchedTerms = result.matchedTerms || [];
 
   return (
     <div
@@ -313,8 +216,12 @@ function SearchResultItem({
     >
       <div className={sidebarStyles["search-item-header"]}>
         <div className={sidebarStyles["search-item-title"]}>
-          {result.matchType === "title" ? (
-            <HighlightedText text={result.topic} search={input} />
+          {result.matchType === "title" || result.matchType === "multiple" ? (
+            <HighlightedText
+              text={result.topic}
+              matchedTerms={matchedTerms}
+              contextType="title"
+            />
           ) : (
             result.topic
           )}
@@ -330,7 +237,7 @@ function SearchResultItem({
               <EmbeddedMessage
                 key={message.id}
                 message={message}
-                search={input}
+                matchedTerms={matchedTerms}
               />
             ))}
           </div>
@@ -340,7 +247,7 @@ function SearchResultItem({
         {result.matchedSystemMessage && (
           <EmbeddedSystemMessage
             systemMessage={result.matchedSystemMessage}
-            search={input}
+            matchedTerms={matchedTerms}
           />
         )}
 

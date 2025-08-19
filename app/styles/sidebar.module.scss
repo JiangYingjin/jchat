@@ -416,16 +416,105 @@
   }
 }
 
-.search-highlighted-text {
-  line-height: 1.4;
-  word-break: break-word;
-}
-
+// 🎯 智能高亮系统 - 支持多种高亮类型
 .search-highlight {
-  background-color: rgba(255, 235, 59, 0.3); // 黄色高亮背景
   font-weight: bold;
   padding: 1px 2px;
   border-radius: 2px;
+  transition: all 0.2s ease;
+
+  // 默认高亮样式（普通词汇匹配）
+  background-color: rgba(255, 235, 59, 0.3); // 黄色高亮背景
+
+  &:hover {
+    background-color: rgba(255, 235, 59, 0.5);
+  }
+}
+
+// 精确匹配高亮 - 更显眼的样式
+.search-highlight-exact {
+  background-color: rgba(255, 152, 0, 0.25); // 橙色背景
+  border: 1px solid rgba(255, 152, 0, 0.4);
+  box-shadow: 0 1px 2px rgba(255, 152, 0, 0.2);
+
+  &:hover {
+    background-color: rgba(255, 152, 0, 0.35);
+    border-color: rgba(255, 152, 0, 0.6);
+  }
+}
+
+// 标题匹配高亮 - 重要性突出
+.search-highlight-title {
+  background-color: rgba(76, 175, 80, 0.25); // 绿色背景
+  border-bottom: 2px solid rgba(76, 175, 80, 0.6);
+  font-weight: 900; // 更粗字体
+
+  &:hover {
+    background-color: rgba(76, 175, 80, 0.35);
+    border-bottom-color: rgba(76, 175, 80, 0.8);
+  }
+}
+
+// 部分匹配高亮 - 较淡的样式
+.search-highlight-partial {
+  background-color: rgba(158, 158, 158, 0.2); // 灰色背景
+  font-weight: 500; // 较轻字体
+
+  &:hover {
+    background-color: rgba(158, 158, 158, 0.3);
+  }
+}
+
+// 多重匹配的渐变效果（当一个文本包含多种匹配类型时）
+.search-highlight.search-highlight-exact.search-highlight-title {
+  background: linear-gradient(
+    45deg,
+    rgba(76, 175, 80, 0.25) 0%,
+    rgba(255, 152, 0, 0.25) 100%
+  );
+  border-bottom: 2px solid rgba(76, 175, 80, 0.6);
+  border-top: 1px solid rgba(255, 152, 0, 0.4);
+}
+
+// 上下文类型特定样式
+.search-highlighted-text {
+  line-height: 1.4;
+  word-break: break-word;
+
+  // 在标题上下文中的高亮
+  &.context-title .search-highlight {
+    font-size: inherit;
+    font-weight: inherit;
+
+    // 标题中的高亮稍微温和一些
+    &.search-highlight-exact {
+      background-color: rgba(255, 152, 0, 0.2);
+    }
+
+    &.search-highlight-title {
+      background-color: rgba(76, 175, 80, 0.2);
+    }
+  }
+
+  // 在消息上下文中的高亮
+  &.context-message .search-highlight {
+    font-size: inherit;
+
+    // 消息中的高亮保持标准强度
+  }
+
+  // 在系统消息上下文中的高亮
+  &.context-system .search-highlight {
+    font-size: inherit;
+
+    // 系统消息中的高亮使用蓝色调
+    background-color: rgba(33, 150, 243, 0.2);
+
+    &.search-highlight-exact {
+      background-color: rgba(33, 150, 243, 0.3);
+      border-color: rgba(33, 150, 243, 0.5);
+    }
+  }
 }
 
 // 嵌入式消息布局 - 图标嵌入在文本开头

@@ -106,7 +106,7 @@ export class SearchExecutor {
     }
 
     let result = await this.executeNode(children[0]);
-    const allMatchedTerms = [...result.matchedTerms];
+    const allMatchedTerms = new Set<string>(result.matchedTerms);
 
     for (let i = 1; i < children.length; i++) {
       if (!result.matched) break;
@@ -124,10 +124,13 @@ export class SearchExecutor {
         }
       }
 
+      // 合并匹配词（去重）
+      childResult.matchedTerms.forEach((term) => allMatchedTerms.add(term));
+
       result = {
         matched: intersection.size > 0,
         sessions: intersection,
-        matchedTerms: allMatchedTerms.concat(childResult.matchedTerms),
+        matchedTerms: Array.from(allMatchedTerms),
       };
     }
 
@@ -139,7 +142,7 @@ export class SearchExecutor {
    */
   private async executeOr(children: SearchAST[]): Promise<MatchResult> {
     const allSessions = new Set<string>();
-    const allMatchedTerms: string[] = [];
+    const allMatchedTerms = new Set<string>();
     let hasMatch = false;
 
     for (const child of children) {
@@ -147,14 +150,14 @@ export class SearchExecutor {
       if (childResult.matched) {
         hasMatch = true;
         childResult.sessions.forEach((sessionId) => allSessions.add(sessionId));
-        allMatchedTerms.push(...childResult.matchedTerms);
+        childResult.matchedTerms.forEach((term) => allMatchedTerms.add(term));
       }
     }
 
     return {
       matched: hasMatch,
       sessions: allSessions,
-      matchedTerms: allMatchedTerms,
+      matchedTerms: Array.from(allMatchedTerms),
     };
   }
 
@@ -163,35 +166,56 @@ export class SearchExecutor {
    */
   private async executeTitle(node: SearchAST): Promise<MatchResult> {
     const titleMatches = new Set<string>();
-    let matchedTerms: string[] = [];
+    const allMatchedTerms = new Set<string>();
 
-    // 直接在标题中搜索，不在其他内容中搜索
+    // 在标题中搜索，需要直接处理不同类型的节点
     for (const session of this.context.sessions) {
       const titleText = session.title.toLowerCase();
       let sessionMatches = false;
+      const sessionMatchedTerms: string[] = [];
 
       if (node.type === "WORD") {
         // 单个词搜索
         const word = node.value!.toLowerCase();
         if (titleText.includes(word)) {
           sessionMatches = true;
-          matchedTerms.push(node.value!);
+          sessionMatchedTerms.push(node.value!);
+        }
+      } else if (node.type === "EXACT") {
+        // 精确搜索
+        const phrase = node.value!.toLowerCase();
+        if (titleText.includes(phrase)) {
+          sessionMatches = true;
+          sessionMatchedTerms.push(node.value!);
         }
       } else if (node.type === "AND") {
         // AND 搜索 - 标题必须包含所有词
-        const allWordsMatch = node.children!.every((child) => {
+        const andTerms: string[] = [];
+        let allWordsMatch = true;
+
+        for (const child of node.children!) {
           if (child.type === "WORD") {
             const word = child.value!.toLowerCase();
-            return titleText.includes(word);
+            if (titleText.includes(word)) {
+              andTerms.push(child.value!);
+            } else {
+              allWordsMatch = false;
+              break;
+            }
+          } else if (child.type === "EXACT") {
+            const phrase = child.value!.toLowerCase();
+            if (titleText.includes(phrase)) {
+              andTerms.push(child.value!);
+            } else {
+              allWordsMatch = false;
+              break;
+            }
           }
-          return false;
-        });
+        }
 
-        if (allWordsMatch) {
+        if (allWordsMatch && andTerms.length > 0) {
           sessionMatches = true;
-          matchedTerms = node
-            .children!.filter((child) => child.type === "WORD")
-            .map((child) => child.value!);
+          sessionMatchedTerms.push(...andTerms);
         }
       } else if (node.type === "OR") {
         // OR 搜索 - 标题包含任一词即可
@@ -200,29 +224,28 @@ export class SearchExecutor {
             const word = child.value!.toLowerCase();
             if (titleText.includes(word)) {
               sessionMatches = true;
-              matchedTerms.push(child.value!);
-              break;
+              sessionMatchedTerms.push(child.value!);
+            }
+          } else if (child.type === "EXACT") {
+            const phrase = child.value!.toLowerCase();
+            if (titleText.includes(phrase)) {
+              sessionMatches = true;
+              sessionMatchedTerms.push(child.value!);
             }
           }
-        }
-      } else if (node.type === "EXACT") {
-        // 精确搜索
-        const phrase = node.value!.toLowerCase();
-        if (titleText.includes(phrase)) {
-          sessionMatches = true;
-          matchedTerms.push(node.value!);
         }
       }
 
       if (sessionMatches) {
         titleMatches.add(session.id);
+        sessionMatchedTerms.forEach((term) => allMatchedTerms.add(term));
       }
     }
 
     return {
       matched: titleMatches.size > 0,
       sessions: titleMatches,
-      matchedTerms: [...new Set(matchedTerms)], // 去重
+      matchedTerms: Array.from(allMatchedTerms),
     };
   }
 
@@ -344,30 +367,46 @@ export class SearchExecutor {
     searchTerms: string[],
   ): Promise<SearchResult | null> {
     try {
+      // 收集实际在各个位置匹配的词汇
+      const actualMatchedTerms = new Set<string>();
+
       const result: SearchResult = {
         sessionId: session.id,
         topic: session.title,
         lastUpdate: session.lastUpdate,
         matchedMessages: [],
         matchType: "message",
-        matchedTerms: searchTerms,
+        matchedTerms: [], // 稍后更新
       };
 
       let hasMatches = false;
 
-      // 检查标题匹配
-      const titleMatches = searchTerms.some((term) =>
-        session.title.toLowerCase().includes(term.toLowerCase()),
+      // 检查标题匹配，并收集实际匹配的词
+      const titleMatchedTerms = this.findMatchedTermsInText(
+        session.title,
+        searchTerms,
       );
+      const titleMatches = titleMatchedTerms.length > 0;
 
-      // 收集匹配的消息
+      if (titleMatches) {
+        titleMatchedTerms.forEach((term) => actualMatchedTerms.add(term));
+      }
+
+      // 收集匹配的消息，并收集实际匹配的词
       try {
         const messages = await messageStorage.get(session.id);
         const matchedMessages = messages.filter((message) => {
-          const content = getMessageTextContent(message).toLowerCase();
-          return searchTerms.some((term) =>
-            content.includes(term.toLowerCase()),
+          const content = getMessageTextContent(message);
+          const messageMatchedTerms = this.findMatchedTermsInText(
+            content,
+            searchTerms,
           );
+
+          if (messageMatchedTerms.length > 0) {
+            messageMatchedTerms.forEach((term) => actualMatchedTerms.add(term));
+            return true;
+          }
+          return false;
         });
 
         if (matchedMessages.length > 0) {
@@ -378,15 +417,17 @@ export class SearchExecutor {
         console.warn(`加载会话 ${session.id} 消息失败:`, error);
       }
 
-      // 检查系统消息匹配
+      // 检查系统消息匹配，并收集实际匹配的词
       try {
         const systemMessage = await systemMessageStorage.get(session.id);
         if (systemMessage.text) {
-          const systemMatches = searchTerms.some((term) =>
-            systemMessage.text.toLowerCase().includes(term.toLowerCase()),
+          const systemMatchedTerms = this.findMatchedTermsInText(
+            systemMessage.text,
+            searchTerms,
           );
 
-          if (systemMatches) {
+          if (systemMatchedTerms.length > 0) {
+            systemMatchedTerms.forEach((term) => actualMatchedTerms.add(term));
             result.matchedSystemMessage = systemMessage;
             hasMatches = true;
           }
@@ -394,6 +435,9 @@ export class SearchExecutor {
       } catch (error) {
         console.warn(`加载会话 ${session.id} 系统消息失败:`, error);
       }
+
+      // 设置实际匹配的词汇列表
+      result.matchedTerms = Array.from(actualMatchedTerms);
 
       // 确定匹配类型
       if (
@@ -415,6 +459,81 @@ export class SearchExecutor {
       // 静默处理构建搜索结果失败，避免控制台错误
       return null;
     }
+  }
+
+  /**
+   * 在文本中查找实际匹配的词汇
+   * @param text 要搜索的文本
+   * @param candidateTerms 候选匹配词列表
+   * @returns 实际在文本中找到的匹配词
+   */
+  private findMatchedTermsInText(
+    text: string,
+    candidateTerms: string[],
+  ): string[] {
+    const matchedTerms: string[] = [];
+    const lowerText = text.toLowerCase();
+
+    for (const term of candidateTerms) {
+      const lowerTerm = term.toLowerCase();
+      if (lowerText.includes(lowerTerm)) {
+        matchedTerms.push(term);
+      }
+    }
+
+    return matchedTerms;
+  }
+
+  /**
+   * 更精确地在文本中查找匹配词，支持整词匹配
+   * @param text 要搜索的文本
+   * @param candidateTerms 候选匹配词列表
+   * @param exactMatch 是否进行精确匹配
+   * @returns 实际在文本中找到的匹配词及其位置信息
+   */
+  private findMatchedTermsWithPositions(
+    text: string,
+    candidateTerms: string[],
+    exactMatch: boolean = false,
+  ): Array<{ term: string; positions: Array<{ start: number; end: number }> }> {
+    const results: Array<{
+      term: string;
+      positions: Array<{ start: number; end: number }>;
+    }> = [];
+    const searchText = text.toLowerCase();
+
+    for (const term of candidateTerms) {
+      const searchTerm = term.toLowerCase();
+      const positions: Array<{ start: number; end: number }> = [];
+
+      if (exactMatch) {
+        // 精确匹配：整个短语
+        let startIndex = 0;
+        while (true) {
+          const index = searchText.indexOf(searchTerm, startIndex);
+          if (index === -1) break;
+          positions.push({ start: index, end: index + searchTerm.length });
+          startIndex = index + 1;
+        }
+      } else {
+        // 部分匹配：包含即可
+        if (searchText.includes(searchTerm)) {
+          let startIndex = 0;
+          while (true) {
+            const index = searchText.indexOf(searchTerm, startIndex);
+            if (index === -1) break;
+            positions.push({ start: index, end: index + searchTerm.length });
+            startIndex = index + 1;
+          }
+        }
+      }
+
+      if (positions.length > 0) {
+        results.push({ term, positions });
+      }
+    }
+
+    return results;
   }
 }
 
