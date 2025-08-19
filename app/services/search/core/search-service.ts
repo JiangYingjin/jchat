@@ -46,6 +46,28 @@ export class SearchService {
     // 去掉前后空格，确保搜索query的一致性
     query = query.trim();
 
+    // 🚨 修复：防止空查询和仅包含引号的查询导致内存泄漏
+    // 检查是否为危险的空查询模式
+    if (
+      query === '""' ||
+      query === "''" ||
+      query === '""""' ||
+      query === "''''"
+    ) {
+      return {
+        results: [],
+        stats: {
+          totalSessions: useChatStore.getState().sessions.length,
+          sessionsWithTitleMatch: 0,
+          sessionsWithMessageMatch: 0,
+          sessionsWithSystemMatch: 0,
+          totalMatches: 0,
+          searchDuration: Date.now() - startTime,
+          queryComplexity: "simple",
+        },
+      };
+    }
+
     // 取消之前的搜索
     this.cancelCurrentSearch();
 

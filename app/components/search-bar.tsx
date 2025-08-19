@@ -58,7 +58,6 @@ export interface SearchInputRef {
   inputElement: HTMLInputElement | null;
 }
 
-// 🧹 旧的高亮逻辑已移除，现在使用SmartHighlighter
 // 保留escapeRegExp函数以防其他地方使用
 function escapeRegExp(search: string) {
   return search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -73,7 +72,7 @@ function HighlightedText({
   rightChars = 40,
 }: {
   text: string;
-  matchedTerms?: string[]; // 🎯 改为使用matchedTerms
+  matchedTerms?: string[];
   contextType?: "title" | "message" | "system";
   leftChars?: number;
   rightChars?: number;
@@ -144,7 +143,7 @@ function EmbeddedMessage({
   matchedTerms = [],
 }: {
   message: ChatMessage;
-  matchedTerms?: string[]; // 🎯 改为使用matchedTerms
+  matchedTerms?: string[];
 }) {
   const messageText = getMessageTextContent(message);
   const roleIcon = message.role === "user" ? "👤" : "🤖";
@@ -171,7 +170,7 @@ function EmbeddedSystemMessage({
   matchedTerms = [],
 }: {
   systemMessage: { text: string };
-  matchedTerms?: string[]; // 🎯 改为使用matchedTerms
+  matchedTerms?: string[];
 }) {
   return (
     <div className={sidebarStyles["search-system-embedded"]}>
@@ -209,7 +208,7 @@ function SearchResultItem({
     }
   };
 
-  // 🎯 使用SearchResult中的matchedTerms，提供精确的高亮
+  // 使用SearchResult中的matchedTerms，提供精确的高亮
   const matchedTerms = result.matchedTerms || [];
 
   return (
@@ -306,20 +305,15 @@ function SearchBarComponent(
 
   // 清空输入和搜索结果
   const handleClearInput = useCallback(() => {
-    console.log(`[SearchBar][HandleClearInput] 开始清空输入和搜索结果`);
-
     // 取消当前搜索
-    console.log(`[SearchBar][HandleClearInput] 取消当前搜索`);
     searchService.cancelCurrentSearch();
 
     if (searchTimeoutRef.current) {
-      console.log(`[SearchBar][HandleClearInput] 清除防抖定时器`);
       clearTimeout(searchTimeoutRef.current);
       searchTimeoutRef.current = null;
     }
 
     // 清空状态
-    console.log(`[SearchBar][HandleClearInput] 重置所有状态`);
     setInput("");
     setResults([]);
     setSearchState(SearchState.IDLE);
@@ -328,8 +322,6 @@ function SearchBarComponent(
     setShowSyntaxHelp(false);
     setIsSearching(false);
     lastSearchRef.current = "";
-
-    console.log(`[SearchBar][HandleClearInput] 清空完成`);
   }, [setIsSearching]);
 
   // 验证搜索语法
@@ -371,83 +363,44 @@ function SearchBarComponent(
   // 执行搜索
   const performSearch = useCallback(
     async (query: string) => {
-      console.log(`[SearchBar][PerformSearch] 开始执行搜索: "${query}"`);
-      console.log(
-        `[SearchBar][PerformSearch] 上次搜索: "${lastSearchRef.current}"`,
-      );
-      console.log(`[SearchBar][PerformSearch] 当前结果数量: ${results.length}`);
-
       if (query === lastSearchRef.current) {
-        console.log(`[SearchBar][PerformSearch] 相同查询，检查当前状态`);
-
-        // 🚨 修复：如果是相同查询但当前有结果，直接设置为成功状态
+        // 如果是相同查询但当前有结果，直接设置为成功状态
         if (results.length > 0) {
-          console.log(
-            `[SearchBar][PerformSearch] 相同查询且有结果(${results.length}条)，直接设置为成功状态`,
-          );
           setSearchState(SearchState.SUCCESS);
-          console.log(
-            `[SearchBar][PerformSearch] 状态已设置为SUCCESS，结束函数`,
-          );
           return;
-        } else {
-          console.log(
-            `[SearchBar][PerformSearch] 相同查询但无结果，继续执行搜索`,
-          );
-          // 继续执行搜索，不要return
         }
       }
 
       lastSearchRef.current = query;
-      console.log(`[SearchBar][PerformSearch] 更新最后搜索查询: "${query}"`);
 
       try {
-        console.log(`[SearchBar][PerformSearch] 设置搜索状态为 SEARCHING`);
         setSearchState(SearchState.SEARCHING);
 
-        // 🚨 修复：在真正开始搜索时才清空结果
-        console.log(`[SearchBar][PerformSearch] 清空之前的搜索结果`);
+        // 在真正开始搜索时才清空结果
         setResults([]);
         setSearchStats(null);
         setSearchError(null);
 
-        console.log(`[SearchBar][PerformSearch] 调用 searchService.search`);
         const searchResult = await searchService.search(query, {
           caseSensitive: false,
           searchInSystemMessages: true,
-          // 不限制搜索结果数量
         });
-
-        console.log(
-          `[SearchBar][PerformSearch] 搜索完成，结果数量: ${searchResult.results.length}`,
-        );
-        console.log(
-          `[SearchBar][PerformSearch] 当前查询: "${query}", 最后查询: "${lastSearchRef.current}"`,
-        );
 
         // 检查是否仍然是当前查询（避免竞态条件）
         if (lastSearchRef.current === query) {
-          console.log(`[SearchBar][PerformSearch] 查询匹配，更新搜索结果`);
           setResults(searchResult.results);
           setSearchStats(searchResult.stats);
           setSearchState(SearchState.SUCCESS);
-          setSearchError(null); // 清除之前的错误
-        } else {
-          console.log(
-            `[SearchBar][PerformSearch] 查询不匹配，忽略结果 (竞态条件)`,
-          );
+          setSearchError(null);
         }
       } catch (error) {
-        console.log(`[SearchBar][PerformSearch] 搜索异常:`, error);
-
         // 检查错误类型
         if (error instanceof Error) {
           if (
             error.message === "Search aborted" ||
             error.name === "AbortError"
           ) {
-            console.log(`[SearchBar][PerformSearch] 搜索被取消，重置状态`);
-            // 🚨 修复：搜索被取消时，重置状态到 IDLE 而不是保持 SEARCHING
+            // 搜索被取消时，重置状态到 IDLE
             setSearchState(SearchState.IDLE);
             setResults([]);
             setSearchStats(null);
@@ -461,7 +414,6 @@ function SearchBarComponent(
           console.error("[SearchBar] 搜索失败:", error);
         }
 
-        console.log(`[SearchBar][PerformSearch] 设置搜索错误状态`);
         setSearchError({
           message: error instanceof Error ? error.message : "搜索失败",
           code: "SEARCH_ERROR",
@@ -477,65 +429,45 @@ function SearchBarComponent(
   // 处理输入变化
   const handleChange = useCallback(
     (value: string) => {
-      // 🐛 DEBUG: 输入变化调试
-      console.log(
-        `[SearchBar][HandleChange] 输入变化: "${value}", 长度: ${value.length}, 当前状态: ${searchState}`,
-      );
-
       setInput(value);
 
       // 如果输入为空，直接清空结果
       if (value.trim().length === 0) {
-        console.log(`[SearchBar][HandleChange] 输入为空，清空结果`);
         handleClearInput();
         return;
       }
 
-      // 🎯 实时语法验证（非阻塞）
+      // 实时语法验证（非阻塞）
       const isValidSyntax = validateSyntax(value);
-      console.log(`[SearchBar][HandleChange] 语法验证结果: ${isValidSyntax}`);
 
       // 设置是否显示语法帮助
       setShowSyntaxHelp(shouldShowSyntaxHelp(value));
 
       // 取消之前的搜索
-      console.log(`[SearchBar][HandleChange] 取消之前的搜索`);
       searchService.cancelCurrentSearch();
       if (searchTimeoutRef.current) {
         clearTimeout(searchTimeoutRef.current);
         searchTimeoutRef.current = null;
-        console.log(`[SearchBar][HandleChange] 清除防抖定时器`);
       }
 
-      // 🚨 修复：延迟设置搜索状态，避免在防抖期间显示不必要的加载状态
       setIsSearching(true);
 
       // 如果语法无效，立即设置错误状态
       if (!isValidSyntax) {
-        console.log(`[SearchBar][HandleChange] 语法无效，设置错误状态`);
         setSearchState(SearchState.ERROR);
         setResults([]);
         setSearchStats(null);
         return;
       }
 
-      // 🚨 修复：不要在这里清空结果，而是在真正开始搜索时再清空
-      // 只清空错误状态，保留搜索结果直到新搜索开始
-      console.log(
-        `[SearchBar][HandleChange] 保留现有结果(${results.length}条)，仅清除错误状态`,
-      );
+      // 清除错误状态，保留搜索结果直到新搜索开始
       setSearchError(null);
 
       // 设置新的防抖定时器
-      console.log(`[SearchBar][HandleChange] 设置防抖定时器 (300ms)`);
       searchTimeoutRef.current = setTimeout(() => {
-        console.log(
-          `[SearchBar][HandleChange] 防抖定时器触发，开始搜索: "${value.trim()}"`,
-        );
-        console.log(`[SearchBar][HandleChange] 即将设置状态为SEARCHING`);
-        setSearchState(SearchState.SEARCHING); // 在真正开始搜索时才设置状态
+        setSearchState(SearchState.SEARCHING);
         performSearch(value.trim());
-      }, 300); // 300ms 防抖
+      }, 300);
     },
     [
       setIsSearching,
@@ -543,8 +475,6 @@ function SearchBarComponent(
       performSearch,
       shouldShowSyntaxHelp,
       validateSyntax,
-      searchState,
-      results.length,
     ],
   );
 
@@ -575,13 +505,6 @@ function SearchBarComponent(
 
   // 计算显示的结果
   const displayedResults = useMemo(() => results, [results]);
-
-  // 监控状态变化
-  useEffect(() => {
-    console.log(
-      `[SearchBar][StateChange] 搜索状态变化: ${searchState}, 结果数量: ${results.length}, 输入: "${input}"`,
-    );
-  }, [searchState, results.length, input]);
 
   // 计算加载状态
   const isLoading = searchState === SearchState.SEARCHING;

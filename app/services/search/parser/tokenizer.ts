@@ -126,6 +126,15 @@ export class SearchTokenizer {
 
     this.position++; // 跳过结束引号
 
+    // 🚨 修复：对于空引号内容，抛出更明确的错误
+    if (value.trim().length === 0) {
+      throw new ParseError(
+        "引号内容不能为空",
+        startPos,
+        '请在引号内输入搜索内容，如："人工智能"',
+      );
+    }
+
     this.tokens.push({
       type: TokenType.QUOTED,
       value: value,

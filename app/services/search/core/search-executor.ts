@@ -239,11 +239,23 @@ export class SearchExecutor {
    * 执行精确匹配搜索
    */
   private async executeExact(phrase: string): Promise<MatchResult> {
+    // 🚨 修复：防止空字符串导致的内存泄漏
+    if (!phrase || phrase.trim().length === 0) {
+      return { matched: false, sessions: new Set(), matchedTerms: [] };
+    }
+
     const matches = new Set<string>();
     const lowerPhrase = phrase.toLowerCase();
 
     for (const session of this.context.sessions) {
       let sessionMatches = false;
+
+      // 检查信号是否被取消
+      if (this.context.signal?.aborted) {
+        const abortError = new Error("Search aborted");
+        abortError.name = "AbortError";
+        throw abortError;
+      }
 
       // 检查标题
       if (session.title.toLowerCase().includes(lowerPhrase)) {
@@ -294,6 +306,11 @@ export class SearchExecutor {
    * 执行单词搜索
    */
   private async executeWord(word: string): Promise<MatchResult> {
+    // 🚨 修复：防止空字符串导致的内存泄漏
+    if (!word || word.trim().length === 0) {
+      return { matched: false, sessions: new Set(), matchedTerms: [] };
+    }
+
     const matches = new Set<string>();
     const lowerWord = word.toLowerCase();
 
@@ -456,6 +473,11 @@ export class SearchExecutor {
     const lowerText = text.toLowerCase();
 
     for (const term of candidateTerms) {
+      // 🚨 修复：忽略空字符串和空白词汇，防止误匹配
+      if (!term || term.trim().length === 0) {
+        continue;
+      }
+
       const lowerTerm = term.toLowerCase();
       if (lowerText.includes(lowerTerm)) {
         matchedTerms.push(term);
