@@ -1,33 +1,4 @@
-/**
- * 智能高亮器 - 基于语法感知的高亮处理
- * 支持复杂搜索语法的精确高亮显示
- */
-
-import { SearchAST, SearchASTType } from "./advanced-search";
-
-// 高亮类型枚举
-export enum HighlightType {
-  EXACT = "exact", // 精确匹配
-  WORD = "word", // 单词匹配
-  TITLE = "title", // 标题匹配
-  PARTIAL = "partial", // 部分匹配
-}
-
-// 高亮片段接口
-export interface HighlightSegment {
-  text: string;
-  isHighlighted: boolean;
-  highlightType?: HighlightType;
-  originalTerm?: string; // 原始匹配词
-}
-
-// 高亮选项
-export interface HighlightOptions {
-  caseSensitive?: boolean;
-  maxContextLength?: number;
-  leftContextChars?: number;
-  rightContextChars?: number;
-}
+import { HighlightType, HighlightSegment, HighlightOptions } from "../types";
 
 /**
  * 智能高亮器类
@@ -61,7 +32,6 @@ export class SmartHighlighter {
       return [{ text, isHighlighted: false }];
     }
 
-    // 🎯 核心改进：使用 matchedTerms 而不是原始查询
     return this.highlightWithTerms(text, matchedTerms, contextType);
   }
 

@@ -1,19 +1,10 @@
-/**
- * 搜索执行引擎
- * 将 AST 语法树转换为实际的搜索操作
- */
-
-import { SearchAST } from "./advanced-search";
-import { SearchResult } from "./search-types";
-import { ChatMessage } from "../store/message";
-import { SystemMessageData } from "../store/system";
-import { messageStorage } from "../store/message";
-import { systemMessageStorage } from "../store/system";
-import { useChatStore } from "../store/chat";
-import { getMessageTextContent } from "../utils";
-
-// 重新导出类型，保持向后兼容
-export type { SearchResult };
+import { SearchAST, SearchResult } from "../types";
+import { ChatMessage } from "../../../store/message";
+import { SystemMessageData } from "../../../store/system";
+import { messageStorage } from "../../../store/message";
+import { systemMessageStorage } from "../../../store/system";
+import { useChatStore } from "../../../store/chat";
+import { getMessageTextContent } from "../../../utils";
 
 // 搜索上下文
 interface SearchContext {
@@ -58,7 +49,6 @@ export class SearchExecutor {
 
       // 检查信号是否被取消
       if (this.context.signal?.aborted) {
-        console.log(`[SearchExecutor] 搜索被取消，会话: ${sessionId}`);
         const abortError = new Error("Search aborted");
         abortError.name = "AbortError";
         throw abortError;
@@ -175,21 +165,18 @@ export class SearchExecutor {
       const sessionMatchedTerms: string[] = [];
 
       if (node.type === "WORD") {
-        // 单个词搜索
         const word = node.value!.toLowerCase();
         if (titleText.includes(word)) {
           sessionMatches = true;
           sessionMatchedTerms.push(node.value!);
         }
       } else if (node.type === "EXACT") {
-        // 精确搜索
         const phrase = node.value!.toLowerCase();
         if (titleText.includes(phrase)) {
           sessionMatches = true;
           sessionMatchedTerms.push(node.value!);
         }
       } else if (node.type === "AND") {
-        // AND 搜索 - 标题必须包含所有词
         const andTerms: string[] = [];
         let allWordsMatch = true;
 
@@ -218,7 +205,6 @@ export class SearchExecutor {
           sessionMatchedTerms.push(...andTerms);
         }
       } else if (node.type === "OR") {
-        // OR 搜索 - 标题包含任一词即可
         for (const child of node.children!) {
           if (child.type === "WORD") {
             const word = child.value!.toLowerCase();
@@ -276,7 +262,7 @@ export class SearchExecutor {
             }
           }
         } catch (error) {
-          // 静默处理加载失败，避免控制台警告
+          // 静默处理加载失败
         }
       }
 
@@ -288,7 +274,7 @@ export class SearchExecutor {
             sessionMatches = true;
           }
         } catch (error) {
-          // 静默处理加载失败，避免控制台警告
+          // 静默处理加载失败
         }
       }
 
@@ -331,7 +317,7 @@ export class SearchExecutor {
             }
           }
         } catch (error) {
-          // 静默处理加载失败，避免控制台警告
+          // 静默处理加载失败
         }
       }
 
@@ -343,7 +329,7 @@ export class SearchExecutor {
             sessionMatches = true;
           }
         } catch (error) {
-          // 静默处理加载失败，避免控制台警告
+          // 静默处理加载失败
         }
       }
 
@@ -367,7 +353,6 @@ export class SearchExecutor {
     searchTerms: string[],
   ): Promise<SearchResult | null> {
     try {
-      // 收集实际在各个位置匹配的词汇
       const actualMatchedTerms = new Set<string>();
 
       const result: SearchResult = {
@@ -376,12 +361,12 @@ export class SearchExecutor {
         lastUpdate: session.lastUpdate,
         matchedMessages: [],
         matchType: "message",
-        matchedTerms: [], // 稍后更新
+        matchedTerms: [],
       };
 
       let hasMatches = false;
 
-      // 检查标题匹配，并收集实际匹配的词
+      // 检查标题匹配
       const titleMatchedTerms = this.findMatchedTermsInText(
         session.title,
         searchTerms,
@@ -392,7 +377,7 @@ export class SearchExecutor {
         titleMatchedTerms.forEach((term) => actualMatchedTerms.add(term));
       }
 
-      // 收集匹配的消息，并收集实际匹配的词
+      // 收集匹配的消息
       try {
         const messages = await messageStorage.get(session.id);
         const matchedMessages = messages.filter((message) => {
@@ -414,10 +399,10 @@ export class SearchExecutor {
           hasMatches = true;
         }
       } catch (error) {
-        console.warn(`加载会话 ${session.id} 消息失败:`, error);
+        // 静默处理加载失败
       }
 
-      // 检查系统消息匹配，并收集实际匹配的词
+      // 检查系统消息匹配
       try {
         const systemMessage = await systemMessageStorage.get(session.id);
         if (systemMessage.text) {
@@ -433,7 +418,7 @@ export class SearchExecutor {
           }
         }
       } catch (error) {
-        console.warn(`加载会话 ${session.id} 系统消息失败:`, error);
+        // 静默处理加载失败
       }
 
       // 设置实际匹配的词汇列表
@@ -456,16 +441,12 @@ export class SearchExecutor {
 
       return hasMatches || titleMatches ? result : null;
     } catch (error) {
-      // 静默处理构建搜索结果失败，避免控制台错误
       return null;
     }
   }
 
   /**
    * 在文本中查找实际匹配的词汇
-   * @param text 要搜索的文本
-   * @param candidateTerms 候选匹配词列表
-   * @returns 实际在文本中找到的匹配词
    */
   private findMatchedTermsInText(
     text: string,
@@ -482,58 +463,6 @@ export class SearchExecutor {
     }
 
     return matchedTerms;
-  }
-
-  /**
-   * 更精确地在文本中查找匹配词，支持整词匹配
-   * @param text 要搜索的文本
-   * @param candidateTerms 候选匹配词列表
-   * @param exactMatch 是否进行精确匹配
-   * @returns 实际在文本中找到的匹配词及其位置信息
-   */
-  private findMatchedTermsWithPositions(
-    text: string,
-    candidateTerms: string[],
-    exactMatch: boolean = false,
-  ): Array<{ term: string; positions: Array<{ start: number; end: number }> }> {
-    const results: Array<{
-      term: string;
-      positions: Array<{ start: number; end: number }>;
-    }> = [];
-    const searchText = text.toLowerCase();
-
-    for (const term of candidateTerms) {
-      const searchTerm = term.toLowerCase();
-      const positions: Array<{ start: number; end: number }> = [];
-
-      if (exactMatch) {
-        // 精确匹配：整个短语
-        let startIndex = 0;
-        while (true) {
-          const index = searchText.indexOf(searchTerm, startIndex);
-          if (index === -1) break;
-          positions.push({ start: index, end: index + searchTerm.length });
-          startIndex = index + 1;
-        }
-      } else {
-        // 部分匹配：包含即可
-        if (searchText.includes(searchTerm)) {
-          let startIndex = 0;
-          while (true) {
-            const index = searchText.indexOf(searchTerm, startIndex);
-            if (index === -1) break;
-            positions.push({ start: index, end: index + searchTerm.length });
-            startIndex = index + 1;
-          }
-        }
-      }
-
-      if (positions.length > 0) {
-        results.push({ term, positions });
-      }
-    }
-
-    return results;
   }
 }
 

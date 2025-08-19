@@ -18,15 +18,18 @@ import { useRouter } from "next/navigation";
 import { Path } from "@/app/constant";
 import Locale from "../locales";
 import { getMessageTextContent } from "../utils";
-import { searchService, SearchResult, SearchStats } from "../services/search";
-import { ChatMessage } from "../store/message";
-import { SystemMessageData } from "../store/system";
-import { ParseError, AdvancedSearchParser } from "../services/advanced-search";
 import {
+  searchService,
+  SearchResult,
+  SearchStats,
+  ParseError,
+  AdvancedSearchParser,
   SmartHighlighter,
   HighlightSegment,
   HighlightType,
-} from "../services/smart-highlighter";
+} from "../services/search";
+import { ChatMessage } from "../store/message";
+import { SystemMessageData } from "../store/system";
 
 // 搜索状态枚举
 enum SearchState {
