@@ -57,10 +57,14 @@ export class SearchService {
     const signal = options.signal || this.currentSearchController.signal;
 
     try {
+      console.log(`[SearchService][Search] 开始搜索: "${query}"`);
+
       // 获取所有会话
       const sessions = useChatStore.getState().sessions;
+      console.log(`[SearchService][Search] 会话总数: ${sessions.length}`);
 
       if (query.length === 0) {
+        console.log(`[SearchService][Search] 空查询，返回空结果`);
         return {
           results: [],
           stats: {
@@ -75,8 +79,17 @@ export class SearchService {
         };
       }
 
+      // 🚨 检查信号是否已被取消
+      if (signal.aborted) {
+        console.log(`[SearchService][Search] 搜索在开始前就被取消`);
+        const abortError = new Error("Search aborted");
+        abortError.name = "AbortError";
+        throw abortError;
+      }
+
       // 检测查询复杂度
       const queryComplexity = this.getQueryComplexity(query);
+      console.log(`[SearchService][Search] 查询复杂度: ${queryComplexity}`);
 
       try {
         // 🎯 统一使用高级搜索引擎
@@ -168,9 +181,9 @@ export class SearchService {
    */
   cancelCurrentSearch(): void {
     if (this.currentSearchController) {
+      console.log(`[SearchService][CancelCurrentSearch] 取消当前搜索`);
       this.currentSearchController.abort();
       this.currentSearchController = null;
-      // 静默取消搜索，不输出日志
     }
   }
 

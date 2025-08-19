@@ -58,8 +58,10 @@ export class SearchExecutor {
 
       // 检查信号是否被取消
       if (this.context.signal?.aborted) {
-        // 静默返回空结果，不输出日志
-        return [];
+        console.log(`[SearchExecutor] 搜索被取消，会话: ${sessionId}`);
+        const abortError = new Error("Search aborted");
+        abortError.name = "AbortError";
+        throw abortError;
       }
 
       const result = await this.buildSearchResult(
