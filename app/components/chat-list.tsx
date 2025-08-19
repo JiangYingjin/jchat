@@ -287,8 +287,8 @@ export function ChatList(props: {}) {
               id={item.id}
               index={i}
               selected={i === selectedIndex}
-              onClick={() => {
-                selectSession(i);
+              onClick={async () => {
+                await selectSession(i);
                 // 移动端：选择会话后切换到聊天界面
                 if (isMobileScreen) {
                   chatStore.showChatOnMobile();

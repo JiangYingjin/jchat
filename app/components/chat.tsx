@@ -48,7 +48,7 @@ import { ExportMessageModal } from "./exporter";
 // --- Styles ---
 import styles from "../styles/chat.module.scss";
 
-function Chat() {
+const Chat = React.memo(function Chat() {
   type RenderMessage = ChatMessage & { preview?: boolean };
 
   // --- State, Refs, and Hooks ---
@@ -781,7 +781,7 @@ function Chat() {
       )}
     </>
   );
-}
+});
 
 /**
  * A wrapper component that forces the Chat component to re-mount when the session changes.

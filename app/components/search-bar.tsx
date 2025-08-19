@@ -577,13 +577,13 @@ function SearchBarComponent(
                   key={result.sessionId}
                   result={result}
                   input={input}
-                  selectSession={(sessionId: string) => {
+                  selectSession={async (sessionId: string) => {
                     const sessions = useChatStore.getState().sessions;
                     const sessionIndex = sessions.findIndex(
                       (s) => s.id === sessionId,
                     );
                     if (sessionIndex !== -1) {
-                      selectSession(sessionIndex);
+                      await selectSession(sessionIndex);
                     }
                   }}
                 />

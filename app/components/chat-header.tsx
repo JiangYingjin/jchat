@@ -12,7 +12,7 @@ import { showConfirm } from "./ui-lib";
 import { showToast } from "./ui-lib";
 import { useChatStore } from "../store";
 
-export function ChatHeader(props: {
+export const ChatHeader = React.memo(function ChatHeader(props: {
   sessionTitle: string;
   messageCount: number;
   onEditSystemMessageClick: () => void;
@@ -151,4 +151,4 @@ export function ChatHeader(props: {
       </div>
     </div>
   );
-}
+});

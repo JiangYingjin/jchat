@@ -677,6 +677,8 @@ export const useChatStore = createPersistStore(
 
             if (messages && Array.isArray(messages)) {
               targetSession.messages = messages;
+              // 🔧 同步更新 messageCount 为实际消息数量
+              targetSession.messageCount = messages.length;
               // debugLog("LOAD", "设置加载的消息", {
               //   sessionId: session.id,
               //   messagesCount: messages.length,
@@ -809,7 +811,7 @@ export const useChatStore = createPersistStore(
       },
 
       // 优化：会话切换时的清理
-      selectSession(index: number) {
+      async selectSession(index: number) {
         // 严格要求数据恢复完成
         if (!isDataRestored) {
           debugLog("SELECT_SESSION", "❌ 数据未恢复，禁止切换会话", {
@@ -826,20 +828,25 @@ export const useChatStore = createPersistStore(
           index = validIndex;
         }
 
+        const targetSession = get().sessions[index];
+        const needsMessageLoad =
+          targetSession?.messageCount > 0 &&
+          (!targetSession?.messages || targetSession.messages.length === 0);
+
+        // 🔧 修复竞态条件：如果需要加载消息，先加载再更新UI
+        if (needsMessageLoad) {
+          try {
+            await get().loadSessionMessages(index);
+          } catch (error) {
+            console.error("[selectSession] 消息加载失败", error);
+          }
+        }
+
+        // 更新UI状态（此时消息已加载完成或本来就存在）
         set((state) => ({
           currentSessionIndex: index,
           chatListView: "sessions",
         }));
-
-        // 异步加载消息，避免阻塞UI切换
-        setTimeout(() => {
-          get().loadSessionMessages(index);
-          // 强制渲染目标会话以确保显示最新内容
-          const targetSession = get().sessions[index];
-          if (targetSession) {
-            get().smartUpdateSession(targetSession, () => {}, true);
-          }
-        }, 0);
       },
 
       // 优化：组会话切换时的清理
@@ -1877,11 +1884,11 @@ export const useChatStore = createPersistStore(
         }
       },
 
-      nextSession(delta: number) {
+      async nextSession(delta: number) {
         const n = get().sessions.length;
         const limit = (x: number) => (x + n) % n;
         const i = get().currentSessionIndex;
-        get().selectSession(limit(i + delta));
+        await get().selectSession(limit(i + delta));
       },
 
       async deleteSession(index: number) {
