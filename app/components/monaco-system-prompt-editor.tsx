@@ -165,7 +165,6 @@ export const MonacoSystemPromptEditor: React.FC<
   onChange,
   onMount,
   className,
-  placeholder = "请输入系统提示词...",
   readOnly = false,
   autoFocus = true,
 }) => {
@@ -244,7 +243,6 @@ export const MonacoSystemPromptEditor: React.FC<
           language: SYSTEM_PROMPT_LANGUAGE,
           theme: "system-prompt-theme",
           readOnly,
-          placeholder,
         });
 
         // 再次检查组件是否仍然挂载
@@ -332,7 +330,7 @@ export const MonacoSystemPromptEditor: React.FC<
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onChange, onMount, readOnly, placeholder, autoFocus, updateStats]);
+  }, [onChange, onMount, readOnly, autoFocus, updateStats]);
 
   // 处理外部value变化（避免光标跳转）
   const isInitialValueSet = useRef(false);
