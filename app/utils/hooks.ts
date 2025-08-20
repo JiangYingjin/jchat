@@ -142,6 +142,7 @@ export function usePasteImageUpload(
   setAttachImages: (images: string[]) => void,
   setUploading: (uploading: boolean) => void,
   onContentChange?: (content: string) => void,
+  getCurrentContent?: () => string, // 🔥 新增参数：获取当前内容的函数
 ) {
   const chatStore = useChatStore();
 
@@ -152,11 +153,14 @@ export function usePasteImageUpload(
       const imageFiles: File[] = [];
 
       // 收集所有图片文件
-      for (const item of items) {
-        if (item.kind === "file" && item.type.startsWith("image/")) {
-          const file = item.getAsFile();
-          if (file) {
-            imageFiles.push(file);
+      if (items) {
+        for (let i = 0; i < items.length; i++) {
+          const item = items[i];
+          if (item.kind === "file" && item.type.startsWith("image/")) {
+            const file = item.getAsFile();
+            if (file) {
+              imageFiles.push(file);
+            }
           }
         }
       }
@@ -169,13 +173,50 @@ export function usePasteImageUpload(
 
         try {
           setUploading(true);
+          console.log("📤 [usePasteImageUpload] 开始上传图像:", {
+            filesCount: imageFiles.length,
+            currentImagesCount: attachImages.length,
+          });
+
           const uploadPromises = imageFiles.map((file) =>
             uploadImageRemote(file),
           );
           const uploadedImages = await Promise.all(uploadPromises);
           images.push(...uploadedImages);
 
+          console.log("✅ [usePasteImageUpload] 图像上传成功，更新图像列表:", {
+            uploadedCount: uploadedImages.length,
+            totalImagesAfter: images.length,
+            uploadedImages,
+          });
+
+          // 🔥 关键修复：图像上传成功后，同时保持文本内容和更新图像
+          if (getCurrentContent) {
+            const currentContent = getCurrentContent();
+            console.log("📝 [usePasteImageUpload] 获取当前文本内容:", {
+              contentLength: currentContent?.length || 0,
+              hasContent: !!currentContent,
+            });
+
+            console.log(
+              "🔄 [usePasteImageUpload] 将同时更新内容和图像 - 避免时序问题",
+            );
+
+            // 🔥 关键修复：使用专门的回调函数，同时传递内容和图像，避免分离状态更新
+            if (onContentChange) {
+              console.log(
+                "📋 [usePasteImageUpload] 调用onContentChange - 保持文本内容",
+              );
+              onContentChange(currentContent);
+            }
+          } else {
+            console.warn("⚠️ [usePasteImageUpload] 无法获取当前文本内容");
+          }
+
+          // 更新图像列表
+          console.log("🖼️ [usePasteImageUpload] 更新图像列表");
           setAttachImages(images);
+          console.log("💾 [usePasteImageUpload] setAttachImages 调用完成");
         } catch (e) {
           console.error("上传粘贴图片失败:", e);
           showToast("图片上传失败，请重试");
@@ -193,7 +234,14 @@ export function usePasteImageUpload(
         }, 0);
       }
     },
-    [attachImages, chatStore, setAttachImages, setUploading, onContentChange],
+    [
+      attachImages,
+      chatStore,
+      setAttachImages,
+      setUploading,
+      onContentChange,
+      getCurrentContent,
+    ],
   );
 
   return handlePaste;

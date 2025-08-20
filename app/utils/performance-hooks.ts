@@ -161,7 +161,7 @@ export function useThrottle<T extends (...args: any[]) => any>(
  * 大文本内存优化Hook
  * 监控文本长度，在超过阈值时提供警告和优化建议
  */
-export function useTextMemoryMonitor(text: string) {
+export function useTextMemoryMonitor(text: string | undefined) {
   const [memoryStatus, setMemoryStatus] = useState<{
     level: "normal" | "warning" | "critical";
     message?: string;
@@ -169,6 +169,12 @@ export function useTextMemoryMonitor(text: string) {
   }>({ level: "normal" });
 
   useEffect(() => {
+    // 🛡️ 安全检查：确保text存在且为字符串
+    if (!text || typeof text !== "string") {
+      setMemoryStatus({ level: "normal" });
+      return;
+    }
+
     const length = text.length;
 
     if (length > 5000000) {
@@ -188,7 +194,8 @@ export function useTextMemoryMonitor(text: string) {
     } else {
       setMemoryStatus({ level: "normal" });
     }
-  }, [text.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [text?.length]); // 🛡️ 使用可选链操作符
 
   return memoryStatus;
 }

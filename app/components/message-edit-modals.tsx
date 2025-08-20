@@ -47,17 +47,90 @@ const SystemPromptEditModalComponent = React.memo(
       props.initialSelection || { start: 0, end: 0 },
     );
 
+    // 🔍 在每次渲染时打印当前状态
+    console.log("🔄 [SystemPromptEditModal] 组件重新渲染:", {
+      contentLength: content?.length || 0,
+      contentType: typeof content,
+      imagesCount: attachImages?.length || 0,
+      uploading,
+      renderTimestamp: Date.now(),
+    });
+
+    // 🔍 追踪content状态变化
+    useEffect(() => {
+      console.log("📊 [SystemPromptEditModal] content状态变化:", {
+        contentLength: content?.length || 0,
+        contentType: typeof content,
+        contentPreview: content
+          ? content.substring(0, 50) + (content.length > 50 ? "..." : "")
+          : "undefined",
+        timestamp: Date.now(),
+      });
+    }, [content]);
+
+    // 🔍 追踪attachImages状态变化
+    useEffect(() => {
+      console.log("🖼️ [SystemPromptEditModal] attachImages状态变化:", {
+        imagesCount: attachImages?.length || 0,
+        imagesList: attachImages,
+        timestamp: Date.now(),
+      });
+    }, [attachImages]);
+
     // 🚀 性能优化：内存监控（Monaco Editor自带性能优化，无需防抖）
     const memoryStatus = useTextMemoryMonitor(content);
 
     // 🚀 性能优化：稳定的事件处理函数
     const handleContentChange = useCallback(
       (newContent: string, newImages: string[]) => {
-        // 调试信息已移除，Monaco Editor内容同步正常
+        console.log("🔄 [SystemPromptEditModal] handleContentChange 被调用:", {
+          newContentLength: newContent?.length || 0,
+          newImagesCount: newImages?.length || 0,
+          currentContentLength: content?.length || 0,
+          currentImagesCount: attachImages?.length || 0,
+          contentChanged: newContent !== content,
+          imagesChanged:
+            JSON.stringify(newImages) !== JSON.stringify(attachImages),
+          pasteInProgress: pasteInProgressRef.current,
+          callStack: new Error().stack?.split("\n").slice(1, 4), // 🔍 追踪调用栈
+        });
+
+        // 🛡️ 如果正在粘贴过程中，且新内容为空而当前内容不为空，则忽略
+        if (
+          pasteInProgressRef.current &&
+          (!newContent || newContent.length === 0) &&
+          content &&
+          content.length > 0
+        ) {
+          console.warn(
+            "⚠️ [SystemPromptEditModal] 粘贴过程中检测到空内容更新，忽略以保护现有内容",
+            {
+              currentContentLength: content.length,
+              newContentLength: newContent?.length || 0,
+            },
+          );
+          return;
+        }
+
+        console.log("📝 [SystemPromptEditModal] 即将更新状态:", {
+          willSetContent: newContent?.length || 0,
+          willSetImages: newImages?.length || 0,
+        });
+
         setContent(newContent);
         setAttachImages(newImages);
+
+        // 🔍 验证状态更新（异步）
+        setTimeout(() => {
+          console.log("⏱️ [SystemPromptEditModal] 状态更新后检查:", {
+            actualContentLength: content?.length || 0,
+            actualImagesLength: attachImages?.length || 0,
+            expectedContentLength: newContent?.length || 0,
+            expectedImagesLength: newImages?.length || 0,
+          });
+        }, 0);
       },
-      [],
+      [content, attachImages],
     );
 
     // Monaco Editor实例引用
@@ -90,12 +163,65 @@ const SystemPromptEditModalComponent = React.memo(
       [scrollTop, selection],
     );
 
+    // 🔥 获取当前Monaco Editor内容的函数
+    const getCurrentContent = useCallback(() => {
+      if (monacoEditorRef.current) {
+        const currentContent = monacoEditorRef.current.getValue();
+        console.log(
+          "🎯 [SystemPromptEditModalComponent] getCurrentContent 被调用:",
+          {
+            contentLength: currentContent?.length || 0,
+            hasMonacoRef: !!monacoEditorRef.current,
+          },
+        );
+        return currentContent;
+      }
+      console.warn(
+        "⚠️ [SystemPromptEditModalComponent] getCurrentContent: Monaco Editor ref 不可用",
+      );
+      return content; // 回退到state中的内容
+    }, [content]);
+
+    // 🔥 专门用于粘贴时保持内容的回调函数
+    const pasteInProgressRef = useRef(false); // 防重复调用标志
+
+    const handlePasteContentChange = useCallback(
+      (newContent: string) => {
+        console.log(
+          "🔧 [SystemPromptEditModal] handlePasteContentChange 被调用:",
+          {
+            newContentLength: newContent?.length || 0,
+            currentContentLength: content?.length || 0,
+            currentImagesLength: attachImages?.length || 0,
+            pasteInProgress: pasteInProgressRef.current,
+            callStack: new Error().stack?.split("\n").slice(1, 6), // 🔍 追踪调用栈
+          },
+        );
+
+        // 🛡️ 防重复调用：如果正在粘贴过程中且新内容为空，则忽略
+        if (
+          pasteInProgressRef.current &&
+          (!newContent || newContent.length === 0)
+        ) {
+          console.warn(
+            "⚠️ [SystemPromptEditModal] 检测到重复调用，忽略空内容更新",
+          );
+          return;
+        }
+
+        // 只更新内容，保持当前图像不变
+        setContent(newContent);
+      },
+      [content, attachImages],
+    );
+
     // 🚀 性能优化：使用自定义 hook 处理粘贴上传图片
     const handlePaste = usePasteImageUpload(
       attachImages,
       setAttachImages,
       setUploading,
-      setContent,
+      handlePasteContentChange, // 🔥 使用专门的回调函数
+      getCurrentContent, // 🔥 传入获取当前内容的函数
     );
 
     // 🚀 性能优化：保存处理函数缓存
@@ -208,7 +334,31 @@ const SystemPromptEditModalComponent = React.memo(
               value={content}
               images={attachImages}
               onChange={handleContentChange}
-              handlePaste={(e) => handlePaste(e as any)}
+              handlePaste={(e) => {
+                console.log(
+                  "🖼️ [SystemPromptEditModal] handlePaste 触发前状态检查:",
+                  {
+                    currentContentLength: content?.length || 0,
+                    currentContentType: typeof content,
+                    currentImagesCount: attachImages?.length || 0,
+                  },
+                );
+
+                // 🔥 设置粘贴进行中标志
+                pasteInProgressRef.current = true;
+                console.log("🚩 [SystemPromptEditModal] 设置粘贴进行中标志");
+
+                // 执行粘贴处理
+                const result = handlePaste(e as any);
+
+                // 🔥 延迟清除粘贴进行中标志，确保所有异步操作完成
+                setTimeout(() => {
+                  pasteInProgressRef.current = false;
+                  console.log("🏁 [SystemPromptEditModal] 清除粘贴进行中标志");
+                }, 1000); // 给足够的时间让异步操作完成
+
+                return result;
+              }}
               onConfirm={handleSave}
               onMount={handleMonacoMount}
             />
@@ -239,11 +389,15 @@ export function EditMessageWithImageModal(props: {
     props.initialImages,
   );
   const [uploading, setUploading] = useState(false);
+  // 🚀 性能优化：使用自定义 hook 处理粘贴上传图片
+  // 注意：此组件使用textarea-based编辑器，不是Monaco Editor
   const handlePaste = usePasteImageUpload(
     attachImages,
     setAttachImages,
     setUploading,
     setContent,
+    // 对于textarea-based编辑器，getCurrentContent可以简单地返回当前state
+    () => content,
   );
   // ctrl+enter 触发 retry
   const handleConfirm = () => {

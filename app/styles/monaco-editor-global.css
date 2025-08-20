@@ -1,0 +1,99 @@
+/* Monaco Editor 全局样式 - 独立的全局CSS文件 */
+
+/* 自定义Monaco Editor滚动条 */
+.monaco-scrollable-element .scrollbar .slider {
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  transition: background 0.2s ease;
+}
+
+.monaco-scrollable-element .scrollbar .slider:hover {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+/* 优化选择样式 */
+.monaco-editor .selected-text {
+  background-color: var(--primary-light) !important;
+}
+
+/* 光标样式 */
+.monaco-editor .cursor {
+  background-color: var(--primary) !important;
+}
+
+/* 行号区域（虽然我们禁用了，但保留样式以防启用） */
+.monaco-editor .margin {
+  background-color: var(--gray-50);
+}
+
+/* 焦点状态 */
+.monaco-editor.focused {
+  outline: none;
+}
+
+/* Monaco Editor容器的额外样式优化 */
+.monaco-editor .view-overlays .current-line {
+  border: none !important;
+}
+
+.monaco-editor .view-overlays .current-line-margin {
+  border: none !important;
+}
+
+/* 优化Monaco Editor的选择高亮 */
+.monaco-editor .view-overlays .selected-text {
+  background-color: rgba(173, 214, 255, 0.3) !important;
+}
+
+/* 自定义Monaco Editor主题变量支持 */
+.monaco-editor {
+  --monaco-primary: var(--primary);
+  --monaco-background: var(--white);
+  --monaco-foreground: var(--text-color);
+  --monaco-border: var(--border-in-light);
+}
+
+/* Monaco Editor的tooltip样式优化 */
+.monaco-editor .suggest-widget {
+  border: 1px solid var(--border-in-light);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 6px;
+}
+
+/* Monaco Editor的上下文菜单样式 */
+.monaco-editor .context-view {
+  border: 1px solid var(--border-in-light);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 禁用Monaco Editor的一些不需要的功能的视觉效果 */
+.monaco-editor .find-widget {
+  display: none !important;
+}
+
+.monaco-editor .monaco-editor-hover {
+  display: none !important;
+}
+
+/* 确保Monaco Editor在模态框中的表现 */
+.modal-mask .monaco-editor {
+  font-family: "Menlo", "Monaco", "Courier New", monospace;
+}
+
+/* 优化Monaco Editor在不同主题下的表现 */
+@media (prefers-color-scheme: dark) {
+  .monaco-editor {
+    --monaco-background: #1e1e1e;
+    --monaco-foreground: #d4d4d4;
+    --monaco-border: #3e3e3e;
+  }
+
+  .monaco-scrollable-element .scrollbar .slider {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .monaco-scrollable-element .scrollbar .slider:hover {
+    background: rgba(255, 255, 255, 0.4);
+  }
+}
