@@ -879,8 +879,11 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  max-height: 92vh;
-  overflow: auto;
+  max-height: 100%;
+  overflow: hidden;
+  min-height: 0; // 关键：在flex布局中允许子元素按需收缩，避免高度塌缩
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0));
+  border-radius: 12px;
 }
 
 .system-prompt-input-panel {
@@ -889,20 +892,38 @@
   flex: 1 1 auto;
   height: 100%;
   max-height: 100%;
-  min-height: 200px;
+  min-height: 280px;
   overflow: hidden;
-  border-radius: 10px;
-  border: var(--border-in-light);
+  border-radius: 12px;
+  border: 1px solid var(--border-in-light);
   position: relative;
   background-color: var(--white);
+  box-shadow: var(--card-shadow);
 }
 
-.system-prompt-input-panel-attach {
-  padding-bottom: 80px;
-}
+// .system-prompt-input-panel-attach {
+//   padding-bottom: 80px;
+// }
 
 .system-prompt-input-panel:has(.system-prompt-input:focus) {
   border: 1px solid var(--primary);
+}
+
+// 让 Monaco 编辑器所在容器正确占满剩余空间，并提供左右留白
+.monaco-wrapper {
+  flex: 1 1 auto;
+  min-height: 0; // 关键：允许子元素在flex容器内正确收缩，避免双滚动条
+  padding-left: 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+}
+
+// 应用于 MonacoSystemPromptEditor 根元素的类名
+.system-prompt-monaco {
+  height: 100%;
+  border-radius: 12px;
+  overflow: hidden;
 }
 
 .system-prompt-input {
@@ -966,10 +987,17 @@
 }
 
 .performance-status {
-  margin-bottom: 12px;
-  padding: 12px;
-  border-radius: 8px;
-  font-size: 14px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 0 4px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  backdrop-filter: blur(6px);
+  background: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--border-in-light);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
 
   .memory-warning {
     background: rgba(255, 165, 0, 0.1);
@@ -1021,7 +1049,6 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 400px;
   border-radius: 8px;
   border: 1px solid var(--border-in-light);
   background: var(--white);
@@ -1038,7 +1065,6 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 12px;
   background: var(--gray-50);
   border-bottom: 1px solid var(--border-in-light);
   font-size: 12px;
@@ -1101,7 +1127,6 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  min-height: 400px;
   padding: 24px;
   text-align: center;
   border: 1px solid var(--border-in-light);
@@ -1149,7 +1174,7 @@
   // 确保容器有合理的高度限制
   height: 100%;
   max-height: calc(85vh - 150px); // 适应模态框高度，预留头部和按钮空间
-  min-height: 400px; // 确保足够的编辑空间
+  min-height: 380px; // 确保足够的编辑空间
   display: flex;
   flex-direction: column;
   overflow: hidden;

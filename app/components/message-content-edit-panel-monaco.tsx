@@ -227,7 +227,15 @@ export const MessageContentEditPanelMonaco: React.FC<MessageContentEditPanelMona
             <MonacoSystemPromptEditor
               value={value}
               onChange={handleContentChange}
-              onMount={handleMonacoMount}
+              onMount={(editor) => {
+                handleMonacoMount(editor);
+                // 保障首次可见后进行一次布局，避免容器初始高度为0时内容未铺满
+                setTimeout(() => {
+                  try {
+                    editor.layout();
+                  } catch {}
+                }, 0);
+              }}
               autoFocus={autoFocus}
               className={styles["system-prompt-monaco"]}
             />

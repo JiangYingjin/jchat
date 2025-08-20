@@ -86,23 +86,24 @@
   animation: slide-in ease 0.3s;
   display: flex;
   flex-direction: column;
+  box-shadow: var(--card-shadow);
 
   --modal-padding: 16px;
   --modal-header-height: 60px; /* 头部高度 */
   --modal-footer-height: 60px; /* 底部高度 */
 
   &-max {
-    width: 95vw;
-    max-width: 760px; /* 全屏时最大宽度760px */
-    max-height: 860px; /* 全屏时最大高度860px */
-    height: 95vh;
+    width: 96vw;
+    max-width: 1200px; /* 全屏时最大宽度更大，适配大文本编辑 */
+    max-height: 92vh; /* 全屏时最大高度更大，减少压迫感 */
+    height: 92vh;
     display: flex;
     flex-direction: column;
 
     .modal-content {
-      /* 全屏模式下的动态计算：95vh - 头部高度 - 底部高度 - 安全边距 */
+      /* 全屏模式下的动态计算：92vh - 头部高度 - 底部高度 - 安全边距 */
       max-height: calc(
-        95vh - var(--modal-header-height) - var(--modal-footer-height) - 40px
+        92vh - var(--modal-header-height) - var(--modal-footer-height) - 40px
       ) !important;
       flex-grow: 1;
     }
@@ -146,9 +147,11 @@
       550px - var(--modal-header-height) - var(--modal-footer-height) - 32px
     );
     padding: var(--modal-padding);
-    overflow: auto;
+    overflow: hidden; /* 由内部内容自行处理滚动，避免双滚动条与高度计算异常 */
     flex-grow: 1;
     min-height: 0; /* 允许内容收缩 */
+    display: flex; /* 使子元素能基于弹性布局按剩余空间伸展 */
+    flex-direction: column;
 
     /* 美化滚动条 */
     &::-webkit-scrollbar {
