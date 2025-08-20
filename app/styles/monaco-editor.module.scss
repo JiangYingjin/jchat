@@ -1,0 +1,348 @@
+/* Monaco Editor 样式模块 */
+
+// 🎯 全局Monaco Editor样式
+/* 自定义Monaco Editor滚动条 */
+.monaco-scrollable-element .scrollbar .slider {
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.2);
+  transition: background 0.2s ease;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.4);
+  }
+}
+
+/* 优化选择样式 */
+.monaco-editor .selected-text {
+  background-color: var(--primary-light) !important;
+}
+
+/* 光标样式 */
+.monaco-editor .cursor {
+  background-color: var(--primary) !important;
+}
+
+/* 行号区域（虽然我们禁用了，但保留样式以防启用） */
+.monaco-editor .margin {
+  background-color: var(--gray-50);
+}
+
+/* 焦点状态 */
+.monaco-editor.focused {
+  outline: none;
+}
+
+/* Monaco Editor容器的额外样式优化 */
+.monaco-editor {
+  .view-overlays .current-line {
+    border: none !important;
+  }
+
+  .view-overlays .current-line-margin {
+    border: none !important;
+  }
+
+  /* 优化Monaco Editor的选择高亮 */
+  .view-overlays .selected-text {
+    background-color: rgba(173, 214, 255, 0.3) !important;
+  }
+
+  /* 自定义Monaco Editor主题变量支持 */
+  --monaco-primary: var(--primary);
+  --monaco-background: var(--white);
+  --monaco-foreground: var(--text-color);
+  --monaco-border: var(--border-in-light);
+
+  /* Monaco Editor的tooltip样式优化 */
+  .suggest-widget {
+    border: 1px solid var(--border-in-light);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    border-radius: 6px;
+  }
+
+  /* Monaco Editor的上下文菜单样式 */
+  .context-view {
+    border: 1px solid var(--border-in-light);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+
+  /* 禁用Monaco Editor的一些不需要的功能的视觉效果 */
+  .find-widget {
+    display: none !important;
+  }
+
+  .monaco-editor-hover {
+    display: none !important;
+  }
+}
+
+/* 确保Monaco Editor在模态框中的表现 */
+.modal-mask .monaco-editor {
+  font-family: "Menlo", "Monaco", "Courier New", monospace;
+}
+
+/* 优化Monaco Editor在不同主题下的表现 */
+@media (prefers-color-scheme: dark) {
+  .monaco-editor {
+    --monaco-background: #1e1e1e;
+    --monaco-foreground: #d4d4d4;
+    --monaco-border: #3e3e3e;
+  }
+
+  .monaco-scrollable-element .scrollbar .slider {
+    background: rgba(255, 255, 255, 0.2);
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.4);
+    }
+  }
+}
+
+// 🎨 模块化样式 - 可在组件中使用的类名
+.monaco-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border-in-light);
+  background: var(--white);
+  overflow: hidden;
+  position: relative;
+
+  &:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
+  }
+}
+
+.monaco-status-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--gray-50);
+  border-bottom: 1px solid var(--border-in-light);
+  font-size: 12px;
+  color: var(--text-color-secondary);
+  flex-shrink: 0;
+
+  .monaco-stats {
+    display: flex;
+    gap: 16px;
+
+    .stat-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+  }
+
+  .monaco-memory-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+
+    &.normal {
+      color: var(--success);
+      background: rgba(var(--success-rgb), 0.1);
+    }
+
+    &.warning {
+      color: var(--warning);
+      background: rgba(var(--warning-rgb), 0.1);
+    }
+
+    &.critical {
+      color: var(--error);
+      background: rgba(var(--error-rgb), 0.1);
+    }
+  }
+}
+
+.monaco-editor-wrapper {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.monaco-loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-color-secondary);
+
+  .loading-spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid var(--border-in-light);
+    border-top: 2px solid var(--primary);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+}
+
+.monaco-error {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  color: var(--error);
+  padding: 20px;
+
+  .error-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
+
+  .error-message {
+    font-size: 16px;
+    margin-bottom: 8px;
+  }
+
+  .error-suggestion {
+    font-size: 14px;
+    color: var(--text-color-secondary);
+  }
+}
+
+// 🎯 系统提示词编辑专用样式
+.system-prompt-editor {
+  height: 100%;
+
+  .monaco-container {
+    border: none; // 在模态框中去掉边框，使用模态框的边框
+    border-radius: 0;
+    height: 100%;
+    min-height: 350px;
+    max-height: 100%; // 让父容器控制高度
+  }
+
+  .monaco-status-bar {
+    background: var(--white);
+    border-bottom: 1px solid var(--border-in-light);
+    flex-shrink: 0; // 确保状态栏不被压缩
+  }
+
+  .monaco-editor-wrapper {
+    flex: 1;
+    overflow: hidden; // 让Monaco内部处理滚动
+  }
+}
+
+// 🖼️ Monaco版本的图像处理样式
+.monaco-images-container {
+  position: relative;
+  padding: 12px;
+  background: var(--gray-50);
+  border-top: 1px solid var(--border-in-light);
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+
+  // 自定义滚动条
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.05);
+    border-radius: 3px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 3px;
+    transition: background 0.2s ease;
+
+    &:hover {
+      background: rgba(0, 0, 0, 0.4);
+    }
+  }
+
+  .monaco-image-item {
+    position: relative;
+    width: 64px;
+    height: 64px;
+    border-radius: 8px;
+    background-size: cover;
+    background-position: center;
+    cursor: pointer;
+    border: 2px solid var(--white);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+
+    &:hover {
+      transform: scale(1.05);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+
+      .monaco-image-mask {
+        opacity: 1;
+      }
+    }
+
+    .monaco-image-mask {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+  }
+
+  // 空状态提示
+  .monaco-images-empty {
+    color: var(--text-color-secondary);
+    font-size: 14px;
+    font-style: italic;
+    text-align: center;
+    padding: 20px;
+  }
+}
+
+// 📱 响应式设计
+@media (max-width: 768px) {
+  .monaco-container {
+    min-height: 300px;
+    border-radius: 0;
+  }
+
+  .monaco-status-bar {
+    padding: 6px 8px;
+    font-size: 11px;
+
+    .monaco-stats {
+      gap: 12px;
+    }
+  }
+}
+
+// 🎨 动画
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}

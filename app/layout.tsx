@@ -2,6 +2,7 @@
 import "./styles/globals.scss";
 import "./styles/markdown.scss";
 import "./styles/highlight.scss";
+import "./styles/monaco-editor.module.scss"; // 🚀 Monaco Editor模块化样式
 import type { Metadata, Viewport } from "next";
 
 export const metadata: Metadata = {

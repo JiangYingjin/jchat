@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useMemo } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useMemo,
+  useCallback,
+} from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { isEmpty } from "lodash-es";
 import { nanoid } from "nanoid";
@@ -104,13 +110,16 @@ const Chat = React.memo(function Chat() {
   // --- Core Logic Handlers ---
 
   // 根据会话类型选择正确的更新方法
-  const updateSession = (updater: (session: ChatSession) => void) => {
-    if (session.groupId) {
-      chatStore.updateGroupSession(session, updater);
-    } else {
-      chatStore.updateSession(session, updater);
-    }
-  };
+  const updateSession = useCallback(
+    (updater: (session: ChatSession) => void) => {
+      if (session.groupId) {
+        chatStore.updateGroupSession(session, updater);
+      } else {
+        chatStore.updateSession(session, updater);
+      }
+    },
+    [session, chatStore],
+  );
 
   const handleSubmit = (text: string, images: string[]) => {
     if (text.trim() === "" && isEmpty(images)) return;
@@ -497,55 +506,79 @@ const Chat = React.memo(function Chat() {
     }
   };
 
-  const handleSystemPromptSave = async (
-    content: string,
-    images: string[],
-    scrollTop?: number,
-    selection?: { start: number; end: number }, // 修改这里 end: 0 => end: number
-  ) => {
-    // 先保存系统提示词到存储
-    if (content.trim() || images.length > 0) {
-      await systemMessageStorage.save(session.id, {
-        text: content.trim(),
-        images,
-        scrollTop: scrollTop || 0,
-        selection: selection || { start: 0, end: 0 },
-        updateAt: Date.now(),
-      });
-    } else {
-      // 如果系统提示词被清空，删除存储的系统提示词
-      await systemMessageStorage.delete(session.id);
-    }
+  const handleSystemPromptSave = useCallback(
+    async (
+      content: string,
+      images: string[],
+      scrollTop?: number,
+      selection?: { start: number; end: number },
+    ) => {
+      try {
+        // 系统提示词保存处理
 
-    updateSession((session) => {
-      session.messages = session.messages.filter((m) => m.role !== "system");
+        // 🚀 性能优化：批量处理存储操作，避免重复的async等待
+        const savePromises: Promise<any>[] = [];
 
-      const newModel = determineModelForSystemPrompt(
-        content.trim(),
-        session.model,
-        allModels,
-        session.isModelManuallySelected ?? false,
-      );
-      if (newModel) {
-        session.model = newModel;
-        session.isModelManuallySelected = true;
-        console.log(
-          `[AutoSwitch] Switched to ${newModel} due to system prompt.`,
-        );
+        // 先保存系统提示词到存储
+        if (content.trim() || images.length > 0) {
+          savePromises.push(
+            systemMessageStorage.save(session.id, {
+              text: content.trim(),
+              images,
+              scrollTop: scrollTop || 0,
+              selection: selection || { start: 0, end: 0 },
+              updateAt: Date.now(),
+            }),
+          );
+        } else {
+          // 如果系统提示词被清空，删除存储的系统提示词
+          savePromises.push(systemMessageStorage.delete(session.id));
+        }
+
+        // 🚀 性能优化：先同步更新会话状态，减少UI阻塞
+        updateSession((session) => {
+          session.messages = session.messages.filter(
+            (m) => m.role !== "system",
+          );
+
+          const newModel = determineModelForSystemPrompt(
+            content.trim(),
+            session.model,
+            allModels,
+            session.isModelManuallySelected ?? false,
+          );
+          if (newModel) {
+            session.model = newModel;
+            session.isModelManuallySelected = true;
+            console.log(
+              `[AutoSwitch] Switched to ${newModel} due to system prompt.`,
+            );
+          }
+
+          // 🚀 性能优化：立即更新基础统计信息，不等待异步操作
+          updateSessionStatsBasic(session);
+        });
+
+        // 🚀 性能优化：并行执行存储和统计更新，不阻塞UI
+        const currentSession = chatStore.currentSession();
+        savePromises.push(updateSessionStats(currentSession));
+
+        // 等待所有操作完成
+        await Promise.all(savePromises);
+
+        // 🚀 性能优化：最后统一更新状态，减少重复渲染
+        if (currentSession.groupId) {
+          chatStore.updateGroupSession(currentSession, (session) => {});
+        } else {
+          chatStore.updateSession(currentSession, (session) => {});
+        }
+      } catch (error) {
+        console.error("[SystemPromptSave] 保存系统提示词失败:", error);
+        // 可以在这里添加错误处理逻辑，比如显示错误提示
       }
-    });
-
-    // 等待系统提示词保存完成后再更新会话统计信息
-    const currentSession = chatStore.currentSession();
-    await updateSessionStats(currentSession);
-
-    // 根据会话类型更新状态
-    if (currentSession.groupId) {
-      chatStore.updateGroupSession(currentSession, (session) => {});
-    } else {
-      chatStore.updateSession(currentSession, (session) => {});
-    }
-  };
+    },
+    [session.id, updateSession, allModels, chatStore],
+  );
 
   const handleEditMessage = async (
     message: ChatMessage,

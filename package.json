@@ -21,6 +21,7 @@
     "localforage": "^1.10.0",
     "mermaid": "^10.6.1",
     "mime": "^4.0.1",
+    "monaco-editor": "^0.52.2",
     "nanoid": "^5.0.3",
     "next": "15",
     "p-limit": "^6.2.0",

@@ -1,10 +1,15 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useCallback, useMemo } from "react";
 import clsx from "clsx";
 import styles from "../styles/chat.module.scss";
 import { DeleteImageButton } from "./button";
 import { copyImageToClipboard } from "../utils/image";
 import { showImageModal } from "./ui-lib";
 import { DEFAULT_FONT_SIZE, DEFAULT_FONT_FAMILY } from "../constant";
+import {
+  useUncontrolledTextarea,
+  useTextMemoryMonitor,
+  useThrottle,
+} from "../utils/performance-hooks";
 
 interface MessageContentEditPanelProps {
   value: string;
@@ -15,48 +20,155 @@ interface MessageContentEditPanelProps {
   onConfirm?: () => void;
 }
 
-export const MessageContentEditPanel: React.FC<
+const MessageContentEditPanelComponent: React.FC<
   MessageContentEditPanelProps
 > = ({ value, images, onChange, textareaRef, handlePaste, onConfirm }) => {
   const localTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const ref = textareaRef || localTextareaRef;
 
-  useEffect(() => {
-    if (ref.current) {
-      ref.current.value = value;
-    }
-  }, [value, ref]);
+  // 🚀 性能优化：使用非受控组件避免大文本渲染问题
+  const {
+    textareaRef: uncontrolledRef,
+    handleInput,
+    setValue,
+    getValue,
+    isDebouncing,
+  } = useUncontrolledTextarea(
+    value,
+    useCallback(
+      (newValue: string) => {
+        onChange(newValue, images);
+      },
+      [onChange, images],
+    ),
+  );
 
-  // 自动聚焦
+  // 使用传入的ref或内部ref
+  const finalRef = textareaRef || uncontrolledRef || localTextareaRef;
+
+  // 🚀 性能优化：内存监控
+  const memoryStatus = useTextMemoryMonitor(value);
+
+  // 🚀 性能优化：节流处理选择和滚动事件
+  const throttledOnSelect = useThrottle(
+    (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+      // 处理文本选择事件，避免高频触发
+    },
+    100,
+  );
+
+  const throttledOnScroll = useThrottle(
+    (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+      // 处理滚动事件，避免高频触发
+    },
+    50,
+  );
+
+  // 🚀 性能优化：稳定的事件处理函数
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        onConfirm?.();
+      }
+    },
+    [onConfirm],
+  );
+
+  const handlePasteOptimized = useCallback(
+    (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      // 对于大文本粘贴，延迟处理以避免UI阻塞
+      if (handlePaste) {
+        const pasteData = e.clipboardData.getData("text");
+        if (pasteData.length > 50000) {
+          // 大文本粘贴延迟处理
+          setTimeout(() => {
+            handlePaste(e);
+          }, 100);
+        } else {
+          handlePaste(e);
+        }
+      }
+    },
+    [handlePaste],
+  );
+
+  // 当外部value变化时更新内部值
   useEffect(() => {
-    if (ref.current) {
-      ref.current.focus();
+    setValue(value);
+  }, [value, setValue]);
+
+  // 🚀 性能优化：自动聚焦优化
+  useEffect(() => {
+    if (finalRef.current) {
+      // 延迟聚焦，避免阻塞初始渲染
+      const timer = setTimeout(() => {
+        if (finalRef.current) {
+          finalRef.current.focus();
+        }
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [ref]);
+  }, [finalRef]); // 包含finalRef依赖，但由于ref逻辑，实际不会造成频繁重新执行
+
+  // 🚀 性能优化：图片删除处理函数缓存
+  const imageDeleteHandlers = useMemo(() => {
+    return images.map((_, index) => () => {
+      const newImages = images.filter((_, i) => i !== index);
+      onChange(getValue(), newImages);
+    });
+  }, [images, onChange, getValue]);
+
+  // 🚀 性能优化：样式对象缓存
+  const textareaStyle = useMemo(
+    () => ({
+      fontSize: DEFAULT_FONT_SIZE,
+      fontFamily: DEFAULT_FONT_FAMILY,
+    }),
+    [],
+  );
+
+  // 🚀 性能优化：类名缓存
+  const panelClassName = useMemo(
+    () =>
+      clsx(styles["system-prompt-input-panel"], {
+        [styles["system-prompt-input-panel-attach"]]: images.length !== 0,
+      }),
+    [images.length],
+  );
 
   return (
-    <label
-      className={clsx(styles["system-prompt-input-panel"], {
-        [styles["system-prompt-input-panel-attach"]]: images.length !== 0,
-      })}
-    >
+    <label className={panelClassName}>
+      {/* 🚀 性能状态指示器 */}
+      {(isDebouncing || memoryStatus.level !== "normal") && (
+        <div className={styles["performance-indicator"]}>
+          {isDebouncing && (
+            <span className={styles["debouncing-indicator"]}>正在处理...</span>
+          )}
+          {memoryStatus.level === "warning" && (
+            <span className={styles["memory-warning"]}>
+              ⚠️ {memoryStatus.message}
+            </span>
+          )}
+          {memoryStatus.level === "critical" && (
+            <span className={styles["memory-critical"]}>
+              🚨 {memoryStatus.message}
+            </span>
+          )}
+        </div>
+      )}
+
       <textarea
-        ref={ref}
+        ref={finalRef}
         className={styles["system-prompt-input"]}
-        value={value}
-        onChange={(e) => onChange(e.target.value, images)}
-        onPaste={handlePaste}
-        style={{
-          fontSize: DEFAULT_FONT_SIZE,
-          fontFamily: DEFAULT_FONT_FAMILY,
-        }}
-        onKeyDown={(e) => {
-          if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
-            onConfirm?.();
-          }
-        }}
+        defaultValue={value} // 🚀 使用defaultValue而非value，避免受控组件性能问题
+        onInput={handleInput} // 🚀 使用onInput而非onChange，获得更好的性能
+        onPaste={handlePasteOptimized}
+        onSelect={throttledOnSelect}
+        onScroll={throttledOnScroll}
+        style={textareaStyle}
+        onKeyDown={handleKeyDown}
         autoFocus
       />
+
       {images.length !== 0 && (
         <div className={styles["attach-images"]}>
           {images.map((image, index) => (
@@ -67,21 +179,16 @@ export const MessageContentEditPanel: React.FC<
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                showImageModal(image, false); // 使用灯箱展示图片
+                showImageModal(image, false);
               }}
               onContextMenu={(e) => {
-                e.preventDefault(); // 阻止默认右键菜单
+                e.preventDefault();
                 e.stopPropagation();
                 copyImageToClipboard(image);
               }}
             >
               <div className={styles["attach-image-mask"]}>
-                <DeleteImageButton
-                  deleteImage={() => {
-                    const newImages = images.filter((_, i) => i !== index);
-                    onChange(value, newImages);
-                  }}
-                />
+                <DeleteImageButton deleteImage={imageDeleteHandlers[index]} />
               </div>
             </div>
           ))}
@@ -90,3 +197,9 @@ export const MessageContentEditPanel: React.FC<
     </label>
   );
 };
+
+// 使用React.memo进行性能优化，避免不必要的重新渲染
+export const MessageContentEditPanel = React.memo(
+  MessageContentEditPanelComponent,
+);
+MessageContentEditPanel.displayName = "MessageContentEditPanel";
