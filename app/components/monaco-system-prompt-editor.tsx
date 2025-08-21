@@ -7,16 +7,238 @@ import React, {
 } from "react";
 // 使用核心 API 而不是完整的 monaco-editor 包
 // 这是一个专门为大文本优化的纯文本编辑器，移除了所有代码编辑特性
-import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
+// import monaco from "monaco-editor/esm/vs/editor/editor.api";
 import styles from "../styles/chat.module.scss";
+import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import monacoStyles from "../styles/monaco-editor.module.scss";
+import {
+  getMonaco,
+  isMonacoLoaded,
+  monacoPreloader,
+} from "../utils/monaco-preloader";
 
-// 动态导入Monaco Editor，避免SSR问题
+// 🚀 使用预加载的Monaco Editor，提升加载性能
 let Monaco: any = null;
 const loadMonaco = async () => {
+  // 首先尝试使用预加载的Monaco实例
+  if (isMonacoLoaded()) {
+    Monaco = getMonaco();
+    console.log("✅ 使用预加载的Monaco Editor实例");
+    return Monaco;
+  }
+
+  // 如果预加载器正在加载中，等待它完成
+  if (monacoPreloader.isMonacoLoading()) {
+    console.log("⏳ 等待Monaco Editor预加载完成...");
+    Monaco = await monacoPreloader.preload();
+    return Monaco;
+  }
+
+  // 兜底方案：如果预加载失败或未启动，使用传统的加载方式
   if (!Monaco && typeof window !== "undefined") {
+    console.log("🔄 使用传统方式加载Monaco Editor...");
     // 动态导入monaco-editor核心API
-    Monaco = await import("monaco-editor/esm/vs/editor/editor.api");
+    Monaco = await import("monaco-editor");
+
+    // 🚫 关键修复：最根本的解决方案
+    // 在Monaco加载时就拦截所有可能导致依赖服务错误的贡献点
+    try {
+      // 1. 拦截编辑器创建前的贡献点注册
+      if (Monaco.editor && Monaco.editor.create) {
+        const originalCreate = Monaco.editor.create;
+        Monaco.editor.create = function (
+          domElement: HTMLElement,
+          options: any,
+          override: any,
+        ) {
+          // 强制禁用所有可能导致问题的功能
+          const safeOptions = {
+            ...options,
+            // 禁用所有可能导致依赖服务错误的功能
+            codeLens: false,
+            inlayHints: { enabled: false },
+            dropIntoEditor: { enabled: false },
+            lightbulb: { enabled: false },
+            quickSuggestions: false,
+            suggestOnTriggerCharacters: false,
+            parameterHints: { enabled: false },
+            hover: { enabled: false },
+            wordBasedSuggestions: "off",
+            suggest: {
+              showKeywords: false,
+              showSnippets: false,
+              showClasses: false,
+              showFunctions: false,
+              showVariables: false,
+              showModules: false,
+              showProperties: false,
+              showEvents: false,
+              showOperators: false,
+              showUnits: false,
+              showValues: false,
+              showConstants: false,
+              showEnums: false,
+              showEnumMembers: false,
+              showColors: false,
+              showFiles: false,
+              showReferences: false,
+              showFolders: false,
+              showTypeParameters: false,
+              showWords: false,
+              enabled: false,
+            },
+            // 禁用其他可能导致问题的功能
+            contextmenu: false,
+            links: false,
+            mouseWheelZoom: false,
+            selectionClipboard: false,
+            dragAndDrop: false,
+            find: { addExtraSpaceOnTop: false },
+            formatOnPaste: false,
+            formatOnType: false,
+            glyphMargin: false,
+            folding: false,
+            lineDecorationsWidth: 0,
+            lineNumbersMinChars: 0,
+            autoClosingBrackets: "never",
+            autoClosingQuotes: "never",
+            autoSurround: "never",
+            autoIndent: "none",
+            renderValidationDecorations: "off",
+            occurrencesHighlight: "off",
+            overviewRulerBorder: false,
+            definitionLinkOpensInPeek: false,
+            semanticValidation: false,
+            syntaxValidation: false,
+          };
+
+          return originalCreate.call(this, domElement, safeOptions, override);
+        };
+      }
+
+      // 2. 拦截贡献点实例化系统
+      const interceptContributionSystem = () => {
+        try {
+          // 拦截InstantiationService的_createInstance方法
+          if ((Monaco as any).InstantiationService) {
+            const InstantiationService = (Monaco as any).InstantiationService;
+            if (InstantiationService && InstantiationService.prototype) {
+              const originalCreateInstance =
+                InstantiationService.prototype.createInstance;
+              if (originalCreateInstance) {
+                InstantiationService.prototype.createInstance = function (
+                  ctor: any,
+                  ...args: any[]
+                ) {
+                  // 检查是否是导致问题的贡献点
+                  const ctorName = ctor?.name || ctor?.constructor?.name || "";
+                  if (
+                    ctorName.includes("CodeLensContribution") ||
+                    ctorName.includes("InlayHintsController") ||
+                    ctorName.includes("DropIntoEditorController") ||
+                    ctorName.includes("SuggestController") ||
+                    ctorName.includes("CodeActionController")
+                  ) {
+                    // 返回一个空的实例，避免依赖服务错误
+                    return {
+                      dispose: () => {},
+                      id: ctorName,
+                      enabled: false,
+                    };
+                  }
+                  return originalCreateInstance.call(this, ctor, ...args);
+                };
+              }
+            }
+          }
+
+          // 拦截CodeEditorContributions
+          if ((Monaco.editor as any).CodeEditorContributions) {
+            const CodeEditorContributions = (Monaco.editor as any)
+              .CodeEditorContributions;
+            if (CodeEditorContributions && CodeEditorContributions.prototype) {
+              const originalInstantiateById =
+                CodeEditorContributions.prototype._instantiateById;
+              if (originalInstantiateById) {
+                CodeEditorContributions.prototype._instantiateById = function (
+                  id: string,
+                  ...args: any[]
+                ) {
+                  // 阻止这些贡献点被实例化
+                  if (
+                    id === "codeLens" ||
+                    id === "inlayHints" ||
+                    id === "dropIntoEditor" ||
+                    id === "suggest" ||
+                    id === "codeActions" ||
+                    id === "parameterHints" ||
+                    id === "hover"
+                  ) {
+                    return {
+                      dispose: () => {},
+                      id: id,
+                      enabled: false,
+                    };
+                  }
+                  return originalInstantiateById.call(this, id, ...args);
+                };
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("⚠️ [Monaco] 拦截贡献点系统时出现警告:", e);
+        }
+      };
+
+      // 3. 延迟执行拦截，确保Monaco完全加载
+      setTimeout(interceptContributionSystem, 100);
+
+      // 4. 直接禁用全局贡献点注册
+      const disableGlobalContributions = () => {
+        try {
+          if ((window as any).monaco) {
+            const monacoGlobal = (window as any).monaco;
+
+            // 禁用全局服务注册
+            if (
+              monacoGlobal.services &&
+              monacoGlobal.services.ServiceCollection
+            ) {
+              const ServiceCollection = monacoGlobal.services.ServiceCollection;
+              if (ServiceCollection && ServiceCollection.prototype) {
+                const originalSet = ServiceCollection.prototype.set;
+                if (originalSet) {
+                  ServiceCollection.prototype.set = function (
+                    serviceId: any,
+                    instance: any,
+                  ) {
+                    // 阻止注册可能导致问题的服务
+                    const serviceName =
+                      serviceId?._serviceBrand || serviceId?.name || "";
+                    if (
+                      serviceName.includes("ICodeLensCache") ||
+                      serviceName.includes("IInlayHintsCache") ||
+                      serviceName.includes("treeViewsDndService") ||
+                      serviceName.includes("ISuggestMemories") ||
+                      serviceName.includes("actionWidgetService")
+                    ) {
+                      return this; // 不注册这些服务
+                    }
+                    return originalSet.call(this, serviceId, instance);
+                  };
+                }
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("⚠️ [Monaco] 禁用全局贡献点时出现警告:", e);
+        }
+      };
+
+      setTimeout(disableGlobalContributions, 200);
+    } catch (e) {
+      console.warn("⚠️ [Monaco] 禁用贡献点时出现警告:", e);
+    }
 
     // 配置Monaco Editor - 简化为纯文本主题
     Monaco.editor.defineTheme("system-prompt-theme", {
@@ -47,147 +269,148 @@ interface MonacoSystemPromptEditorProps {
 
 // 性能优化配置 - 专门为大文本系统提示词优化
 // 已禁用所有语言服务功能（跳转、悬停、补全等）
-const PERFORMANCE_OPTIONS: monaco.editor.IStandaloneEditorConstructionOptions =
-  {
-    // 🚀 核心性能优化
-    automaticLayout: true,
-    wordWrap: "on",
-    scrollBeyondLastLine: false,
-    smoothScrolling: true,
+const PERFORMANCE_OPTIONS = {
+  // 🚀 核心性能优化
+  automaticLayout: true,
+  wordWrap: "on",
+  scrollBeyondLastLine: false,
+  smoothScrolling: true,
 
-    // 🎯 渲染优化
-    renderLineHighlight: "none",
-    renderWhitespace: "none",
-    renderControlCharacters: false,
-    renderFinalNewline: "off",
+  // 🎯 渲染优化
+  renderLineHighlight: "none",
+  renderWhitespace: "none",
+  renderControlCharacters: false,
+  renderFinalNewline: "off",
 
-    // 💾 内存优化 - 专门为大文件优化
-    maxTokenizationLineLength: 100000, // 增加最大标记化行长度
-    stopRenderingLineAfter: 50000, // 增加停止渲染的行数阈值
+  // 💾 内存优化 - 专门为大文件优化
+  maxTokenizationLineLength: 100000, // 增加最大标记化行长度
+  stopRenderingLineAfter: 50000, // 增加停止渲染的行数阈值
 
-    // 🚀 大文件性能优化
-    largeFileOptimizations: true, // 启用大文件优化
+  // 🚀 大文件性能优化
+  largeFileOptimizations: true, // 启用大文件优化
 
-    // 📊 虚拟化优化
-    renderLineHighlightOnlyWhenFocus: true, // 只在聚焦时渲染行高亮
+  // 📊 虚拟化优化
+  renderLineHighlightOnlyWhenFocus: true, // 只在聚焦时渲染行高亮
 
-    // 🚀 额外的大文件优化
-    // 禁用不必要的计算和渲染
-    bracketPairColorization: { enabled: false }, // 禁用括号对颜色化
-    guides: { bracketPairs: false, indentation: false }, // 禁用括号对和缩进指南
-    unicodeHighlight: {
-      ambiguousCharacters: false,
-      invisibleCharacters: false,
-    }, // 禁用Unicode高亮
-    // inlayHints: { enabled: false }, // 暂时注释掉，避免类型错误
+  // 🚀 额外的大文件优化
+  // 禁用不必要的计算和渲染
+  bracketPairColorization: { enabled: false }, // 禁用括号对颜色化
+  guides: { bracketPairs: false, indentation: false }, // 禁用括号对和缩进指南
+  unicodeHighlight: {
+    ambiguousCharacters: false,
+    invisibleCharacters: false,
+  }, // 禁用Unicode高亮
 
-    // 🚀 滚动和渲染优化
-    fastScrollSensitivity: 5, // 增加快速滚动灵敏度
-    mouseWheelScrollSensitivity: 1, // 鼠标滚轮滚动灵敏度
+  // 🚀 滚动和渲染优化
+  fastScrollSensitivity: 5, // 增加快速滚动灵敏度
+  mouseWheelScrollSensitivity: 1, // 鼠标滚轮滚动灵敏度
 
-    // ⚡ 输入优化 - 完全禁用所有智能功能
-    acceptSuggestionOnEnter: "off",
-    quickSuggestions: false,
-    suggestOnTriggerCharacters: false,
-    parameterHints: { enabled: false },
-    hover: { enabled: false },
-    wordBasedSuggestions: "off", // 禁用基于词语的建议
-    suggest: {
-      // 完全禁用建议功能
-      showKeywords: false,
-      showSnippets: false,
-      showClasses: false,
-      showFunctions: false,
-      showVariables: false,
-      showModules: false,
-      showProperties: false,
-      showEvents: false,
-      showOperators: false,
-      showUnits: false,
-      showValues: false,
-      showConstants: false,
-      showEnums: false,
-      showEnumMembers: false,
-      showColors: false,
-      showFiles: false,
-      showReferences: false,
-      showFolders: false,
-      showTypeParameters: false,
-      showWords: false,
-    },
+  // ⚡ 输入优化 - 完全禁用所有智能功能
+  acceptSuggestionOnEnter: "off",
+  quickSuggestions: false,
+  suggestOnTriggerCharacters: false,
+  parameterHints: { enabled: false },
+  hover: { enabled: false },
+  wordBasedSuggestions: "off", // 禁用基于词语的建议
+  suggest: {
+    // 完全禁用建议功能
+    showKeywords: false,
+    showSnippets: false,
+    showClasses: false,
+    showFunctions: false,
+    showVariables: false,
+    showModules: false,
+    showProperties: false,
+    showEvents: false,
+    showOperators: false,
+    showUnits: false,
+    showValues: false,
+    showConstants: false,
+    showEnums: false,
+    showEnumMembers: false,
+    showColors: false,
+    showFiles: false,
+    showReferences: false,
+    showFolders: false,
+    showTypeParameters: false,
+    showWords: false,
+  },
 
-    // 🎨 界面优化 - 移除所有不必要的UI元素
-    minimap: { enabled: false },
-    scrollbar: {
-      vertical: "visible",
-      horizontal: "visible",
-      verticalScrollbarSize: 12,
-      horizontalScrollbarSize: 12,
-    },
+  // 🎨 界面优化 - 移除所有不必要的UI元素
+  minimap: { enabled: false },
+  scrollbar: {
+    vertical: "visible",
+    horizontal: "visible",
+    verticalScrollbarSize: 12,
+    horizontalScrollbarSize: 12,
+  },
 
-    // 📝 编辑器行为 - 纯文本模式
-    fontSize: 14,
-    lineHeight: 22,
-    fontFamily:
-      'system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"',
-    tabSize: 2,
-    insertSpaces: true,
-    detectIndentation: false,
+  // 📝 编辑器行为 - 纯文本模式
+  fontSize: 14,
+  lineHeight: 22,
+  fontFamily:
+    'system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji"',
+  tabSize: 2,
+  insertSpaces: true,
+  detectIndentation: false,
 
-    // 🛡️ 功能禁用（减少开销）
-    codeLens: false,
-    contextmenu: false, // 禁用右键菜单
-    copyWithSyntaxHighlighting: false,
-    emptySelectionClipboard: false,
-    links: false,
-    mouseWheelZoom: false,
-    selectionClipboard: false,
+  // 🛡️ 功能禁用（减少开销）- 修复依赖服务错误
+  codeLens: false, // 禁用CodeLens，避免ICodeLensCache依赖
+  contextmenu: false, // 禁用右键菜单
+  copyWithSyntaxHighlighting: false,
+  emptySelectionClipboard: false,
+  links: false,
+  mouseWheelZoom: false,
+  selectionClipboard: false,
 
-    // 🖱️ 鼠标中键功能 - 启用原始效果
-    // 启用鼠标中键点击后的快速滚动和选择功能
-    multiCursorModifier: "alt", // 使用 Alt 键进行多光标操作
+  // 🖱️ 鼠标中键功能 - 启用原始效果
+  // 启用鼠标中键点击后的快速滚动和选择功能
+  multiCursorModifier: "alt", // 使用 Alt 键进行多光标操作
 
-    // 🖱️ 鼠标中键拖拽和选择功能
-    // 启用鼠标中键拖拽选择文本
-    dragAndDrop: true, // 启用拖拽功能
-    // 启用鼠标中键点击后的快速滚动
-    // 启用鼠标中键选择文本（按住中键拖拽）
-    // 启用鼠标中键点击后的快速定位
+  // 🖱️ 鼠标中键拖拽和选择功能
+  // 启用鼠标中键拖拽选择文本
+  dragAndDrop: false, // 禁用拖拽功能，避免treeViewsDndService依赖
 
-    // 🚫 完全禁用语言服务功能
-    find: { addExtraSpaceOnTop: false }, // 禁用查找功能
-    formatOnPaste: false, // 禁用粘贴时格式化
-    formatOnType: false, // 禁用输入时格式化
+  // 🚫 完全禁用语言服务功能
+  find: { addExtraSpaceOnTop: false }, // 禁用查找功能
+  formatOnPaste: false, // 禁用粘贴时格式化
+  formatOnType: false, // 禁用输入时格式化
 
-    // 📐 布局 - 最小化装饰区域
-    padding: { top: 16, bottom: 16 },
-    lineNumbers: "off",
-    glyphMargin: false,
-    folding: false,
-    lineDecorationsWidth: 0,
-    lineNumbersMinChars: 0,
+  // 📐 布局 - 最小化装饰区域
+  padding: { top: 16, bottom: 16 },
+  lineNumbers: "off",
+  glyphMargin: false,
+  folding: false,
+  lineDecorationsWidth: 0,
+  lineNumbersMinChars: 0,
 
-    // 🚫 禁用所有自动行为
-    autoClosingBrackets: "never",
-    autoClosingQuotes: "never",
-    autoSurround: "never",
-    autoIndent: "none",
+  // 🚫 禁用所有自动行为
+  autoClosingBrackets: "never",
+  autoClosingQuotes: "never",
+  autoSurround: "never",
+  autoIndent: "none",
 
-    // 🚫 禁用所有验证和装饰
-    renderValidationDecorations: "off",
-    occurrencesHighlight: "off",
-    overviewRulerBorder: false,
+  // 🚫 禁用所有验证和装饰
+  renderValidationDecorations: "off",
+  occurrencesHighlight: "off",
+  overviewRulerBorder: false,
 
-    // 🚫 禁用所有跳转和导航功能
-    // definitionLinkOpensInPeek: false, // 暂时注释掉，避免类型错误
+  // 🚫 禁用所有跳转和导航功能
+  definitionLinkOpensInPeek: false,
 
-    // 🚫 禁用所有代码操作
-    // lightbulb: { enabled: false }, // 暂时注释掉，避免类型错误
+  // 🚫 禁用所有代码操作
+  lightbulb: { enabled: false }, // 禁用代码操作，避免actionWidgetService依赖
 
-    // 🚫 禁用所有语义功能
-    // semanticValidation: false, // 暂时注释掉，避免类型错误
-    // syntaxValidation: false, // 暂时注释掉，避免类型错误
-  };
+  // 🚫 禁用所有语义功能
+  semanticValidation: false, // 禁用语义验证
+  syntaxValidation: false, // 禁用语法验证
+
+  // 🚫 禁用InlayHints，避免IInlayHintsCache依赖
+  inlayHints: { enabled: false },
+
+  // 🚫 禁用拖放功能，避免treeViewsDndService依赖
+  dropIntoEditor: { enabled: false },
+} as unknown as monaco.editor.IStandaloneEditorConstructionOptions;
 
 export const MonacoSystemPromptEditor: React.FC<
   MonacoSystemPromptEditorProps
@@ -206,6 +429,9 @@ export const MonacoSystemPromptEditor: React.FC<
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({ characters: 0, lines: 0, words: 0 });
+  const [monacoLoadMethod, setMonacoLoadMethod] = useState<
+    "preloaded" | "loading" | "fallback"
+  >("fallback");
 
   // 🚀 性能监控
   const updateStats = useCallback((text: string | undefined) => {
@@ -238,7 +464,21 @@ export const MonacoSystemPromptEditor: React.FC<
 
     const initMonaco = async () => {
       try {
-        const monaco = await loadMonaco();
+        // 🚀 智能加载策略：优先使用预加载实例
+        let monaco;
+        if (isMonacoLoaded()) {
+          monaco = getMonaco();
+          setMonacoLoadMethod("preloaded");
+          console.log("🚀 使用预加载的Monaco实例，编辑器启动速度提升！");
+        } else if (monacoPreloader.isMonacoLoading()) {
+          setMonacoLoadMethod("loading");
+          console.log("⏳ Monaco预加载中，等待完成...");
+          monaco = await monacoPreloader.preload();
+        } else {
+          setMonacoLoadMethod("fallback");
+          console.log("🔄 使用传统加载方式");
+          monaco = await loadMonaco();
+        }
 
         if (!isMounted || !containerRef.current) return;
 
@@ -251,11 +491,12 @@ export const MonacoSystemPromptEditor: React.FC<
         // 移除可能存在的Monaco相关属性
         const monacoAttributes = Array.from(container.attributes).filter(
           (attr) =>
-            attr.name.includes("monaco") || attr.name.includes("context"),
+            (attr as Attr).name.includes("monaco") ||
+            (attr as Attr).name.includes("context"),
         );
         monacoAttributes.forEach((attr) => {
           try {
-            container.removeAttribute(attr.name);
+            container.removeAttribute((attr as Attr).name);
           } catch (e) {
             // 忽略移除属性时的错误
           }
@@ -272,6 +513,75 @@ export const MonacoSystemPromptEditor: React.FC<
           theme: "system-prompt-theme",
           readOnly,
         });
+
+        // 🚫 关键修复：在编辑器创建后立即禁用所有导致依赖服务错误的贡献点
+        try {
+          // 通过覆盖编辑器的内部方法来禁用这些功能
+          const editorModel = editorInstance.getModel();
+          if (editorModel) {
+            // 禁用语义验证
+            editorModel.updateOptions({
+              semanticValidation: false,
+              syntaxValidation: false,
+            } as any);
+          }
+
+          // 禁用编辑器的贡献点
+          const contributions = (editorInstance as any)._contributions;
+          if (contributions) {
+            // 禁用CodeLens贡献点
+            if (contributions.codeLens) {
+              try {
+                contributions.codeLens.dispose();
+                delete contributions.codeLens;
+              } catch (e) {
+                // 忽略错误
+              }
+            }
+
+            // 禁用InlayHints贡献点
+            if (contributions.inlayHints) {
+              try {
+                contributions.inlayHints.dispose();
+                delete contributions.inlayHints;
+              } catch (e) {
+                // 忽略错误
+              }
+            }
+
+            // 禁用拖放贡献点
+            if (contributions.dropIntoEditor) {
+              try {
+                contributions.dropIntoEditor.dispose();
+                delete contributions.dropIntoEditor;
+              } catch (e) {
+                // 忽略错误
+              }
+            }
+
+            // 禁用建议贡献点
+            if (contributions.suggest) {
+              try {
+                contributions.suggest.dispose();
+                delete contributions.suggest;
+              } catch (e) {
+                // 忽略错误
+              }
+            }
+
+            // 禁用代码操作贡献点
+            if (contributions.codeActions) {
+              try {
+                contributions.codeActions.dispose();
+                delete contributions.codeActions;
+              } catch (e) {
+                // 忽略错误
+              }
+            }
+          }
+        } catch (e) {
+          console.warn("⚠️ [Monaco] 禁用编辑器贡献点时出现警告:", e);
+        }
 
         // 🖱️ 禁用 Monaco 的中键多光标/列选择处理，恢复浏览器默认中键滚动
         // 通过捕获阶段拦截中键事件，阻止事件冒泡到 Monaco，但不阻止默认行为
@@ -474,9 +784,38 @@ export const MonacoSystemPromptEditor: React.FC<
           .monaco-editor .contentWidgets .definition-link,
           .monaco-editor .contentWidgets .reference-link,
           .monaco-editor .contentWidgets .hover-decoration,
-          .monaco-editor .decorationsOverviewRuler {
+          .monaco-editor .decorationsOverviewRuler,
+          .monaco-editor .codelens-decoration,
+          .monaco-editor .inlay-hint,
+          .monaco-editor .suggest-widget,
+          .monaco-editor .lightbulb-glyph,
+          .monaco-editor .drop-into-editor,
+          .monaco-editor .code-action-widget,
+          .monaco-editor .parameter-hints-widget,
+          .monaco-editor .hover-widget,
+          .monaco-editor .context-view,
+          .monaco-editor .find-widget,
+          .monaco-editor .rename-box,
+          .monaco-editor .suggest-details,
+          .monaco-editor .suggest-details .monaco-list,
+          .monaco-editor .suggest-details .monaco-list .monaco-list-row,
+          .monaco-editor .suggest-details .monaco-list .monaco-list-row .monaco-list-row-contents,
+          .monaco-editor .suggest-details .monaco-list .monaco-list-row .monaco-list-row-contents .monaco-list-row-label,
+          .monaco-editor .suggest-details .monaco-list .monaco-list-row .monaco-list-row-contents .monaco-list-row-label .monaco-highlighted-label,
+          .monaco-editor .suggest-details .monaco-list .monaco-list-row .monaco-list-row-contents .monaco-list-row-label .monaco-highlighted-label .highlight,
+          .monaco-editor .suggest-details .monaco-list .monaco-list-row .monaco-list-row-contents .monaco-list-row-label .monaco-highlighted-label .highlight .highlight,
+          .monaco-editor .suggest-details .monaco-list .monaco-list-row .monaco-list-row-contents .monaco-list-row-label .monaco-highlighted-label .highlight .highlight .highlight,
+          .monaco-editor .suggest-details .monaco-list .monaco-list-row .monaco-list-row-contents .monaco-list-row-label .monaco-highlighted-label .highlight .highlight .highlight .highlight,
+          .monaco-editor .suggest-details .monaco-list .monaco-list-row .monaco-list-row-contents .monaco-list-row-label .monaco-highlighted-label .highlight .highlight .highlight .highlight .highlight {
             display: none !important;
             pointer-events: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            width: 0 !important;
+            height: 0 !important;
+            position: absolute !important;
+            left: -9999px !important;
+            top: -9999px !important;
           }
         `;
         document.head.appendChild(style);
@@ -574,6 +913,31 @@ export const MonacoSystemPromptEditor: React.FC<
     return () => {
       isMounted = false;
 
+      // 🚫 组件卸载时的最终清理
+      try {
+        // 清理全局Monaco状态
+        if ((window as any).monaco) {
+          const monacoGlobal = (window as any).monaco;
+          // 清理可能存在的全局缓存和状态
+          if (monacoGlobal.services) {
+            Object.keys(monacoGlobal.services).forEach((key) => {
+              try {
+                if (
+                  monacoGlobal.services[key] &&
+                  typeof monacoGlobal.services[key].dispose === "function"
+                ) {
+                  monacoGlobal.services[key].dispose();
+                }
+              } catch (e) {
+                // 忽略清理错误
+              }
+            });
+          }
+        }
+      } catch (e) {
+        console.warn("⚠️ [Monaco] 组件卸载时全局清理出现警告:", e);
+      }
+
       // 安全地清理资源，避免Runtime Canceled错误
       if (!isDisposedRef.current) {
         isDisposedRef.current = true;
@@ -636,9 +1000,68 @@ export const MonacoSystemPromptEditor: React.FC<
         // 清理编辑器实例
         if (editorRef.current) {
           try {
+            // 🚫 在销毁编辑器之前，确保所有贡献点都被清理
+            const contributions = (editorRef.current as any)._contributions;
+            if (contributions) {
+              // 强制清理所有贡献点
+              Object.keys(contributions).forEach((key) => {
+                try {
+                  if (
+                    contributions[key] &&
+                    typeof contributions[key].dispose === "function"
+                  ) {
+                    contributions[key].dispose();
+                  }
+                } catch (e) {
+                  // 忽略清理错误
+                }
+              });
+            }
+
+            // 清理DOM节点
+            const domNode = editorRef.current.getDomNode();
+            if (domNode && domNode.parentNode) {
+              // 移除所有可能存在的Monaco相关属性
+              const allAttributes = Array.from(domNode.attributes);
+              allAttributes.forEach((attr) => {
+                if (
+                  (attr as Attr).name.includes("monaco") ||
+                  (attr as Attr).name.includes("context") ||
+                  (attr as Attr).name.includes("data")
+                ) {
+                  try {
+                    domNode.removeAttribute((attr as Attr).name);
+                  } catch (e) {
+                    // 忽略错误
+                  }
+                }
+              });
+
+              // 清空DOM节点内容
+              domNode.innerHTML = "";
+            }
+
+            // 销毁编辑器
             editorRef.current.dispose();
+
+            // 额外清理：确保全局Monaco状态也被清理
+            try {
+              if ((window as any).monaco) {
+                const monacoGlobal = (window as any).monaco;
+                // 清理可能存在的全局缓存
+                if (
+                  monacoGlobal.services &&
+                  monacoGlobal.services.StaticServices
+                ) {
+                  delete monacoGlobal.services.StaticServices;
+                }
+              }
+            } catch (e) {
+              // 忽略全局清理错误
+            }
           } catch (e) {
             // 静默处理disposal错误，避免Runtime Canceled
+            console.warn("⚠️ [Monaco] 销毁编辑器时出现警告:", e);
           }
           editorRef.current = null;
         }

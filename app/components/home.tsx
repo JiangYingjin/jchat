@@ -22,6 +22,7 @@ import { useAppReady } from "../hooks/app-ready";
 import { Path, SlotID, DEFAULT_THEME } from "../constant";
 import { checkAndHandleAuth } from "../utils/auth";
 import { storageManager } from "../utils/storage-manager";
+import { preloadMonaco } from "../utils/monaco-preloader";
 
 // 静态资源
 import BotIcon from "../icons/bot.svg";
@@ -310,6 +311,19 @@ export function Home() {
   // 应用启动时获取全局数据并初始化存储健康检查
   useEffect(() => {
     useChatStore.getState().fetchModels();
+
+    // 🚀 应用启动时预加载Monaco Editor，提升编辑器加载性能
+    const preloadEditor = async () => {
+      try {
+        await preloadMonaco();
+        console.log("🚀 Monaco Editor 预加载成功");
+      } catch (error) {
+        console.warn("⚠️ Monaco Editor 预加载失败，但不影响应用运行:", error);
+      }
+    };
+
+    // 立即开始预加载，不阻塞其他初始化
+    preloadEditor();
 
     // 延迟启动存储健康检查，确保应用已经完全初始化
     const timer = setTimeout(() => {
