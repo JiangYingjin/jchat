@@ -855,8 +855,1034 @@ export const MonacoSystemPromptEditor: React.FC<
 
         editorRef.current = editorInstance;
 
+        // 🔍 Unicode字符分析工具
+        const analyzeUnicodeString = (str: string, label: string = "") => {
+          if (!str) return null;
+
+          const analysis = {
+            length: str.length,
+            codeUnits: str.length,
+            codePoints: Array.from(str).length, // 使用Array.from正确计算Unicode码点数量
+            chars: [] as any[],
+            hasSurrogatePairs: false,
+            hasCombiningMarks: false,
+            hasEmoji: false,
+            hasZWJ: false, // Zero Width Joiner
+            hasVSel: false, // Variation Selectors
+          };
+
+          // 分析每个字符
+          for (let i = 0; i < str.length; i++) {
+            const char = str[i];
+            const code = str.charCodeAt(i);
+            const charInfo = {
+              index: i,
+              char: char,
+              codeUnit: code,
+              isHighSurrogate: code >= 0xd800 && code <= 0xdbff,
+              isLowSurrogate: code >= 0xdc00 && code <= 0xdfff,
+              isCombiningMark: code >= 0x0300 && code <= 0x036f,
+              isZWJ: code === 0x200d,
+              isVariationSelector:
+                (code >= 0xfe00 && code <= 0xfe0f) ||
+                (code >= 0xe0100 && code <= 0xe01ef),
+            };
+
+            analysis.chars.push(charInfo);
+
+            if (charInfo.isHighSurrogate || charInfo.isLowSurrogate) {
+              analysis.hasSurrogatePairs = true;
+            }
+            if (charInfo.isCombiningMark) {
+              analysis.hasCombiningMarks = true;
+            }
+            if (charInfo.isZWJ) {
+              analysis.hasZWJ = true;
+            }
+            if (charInfo.isVariationSelector) {
+              analysis.hasVSel = true;
+            }
+          }
+
+          // 检测表情符号
+          analysis.hasEmoji =
+            /[\u{1F600}-\u{1F6FF}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F700}-\u{1F77F}]|[\u{1F780}-\u{1F7FF}]|[\u{1F800}-\u{1F8FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(
+              str,
+            );
+
+          console.log(`🔤 [Unicode分析] ${label}:`, analysis);
+          return analysis;
+        };
+
+        // 🎯 智能记忆系统：记住最大列位置和连续操作状态
+        let lastNonEmptyLineColumn = 1; // 记住上一个非空行的列位置
+        let maxColumnPosition = 1; // 连续操作中的最大列位置
+        let lastArrowKeyTime = 0; // 上次上下键操作的时间戳
+        let lastArrowKeyDirection = ""; // 上次上下键的方向
+        const CONTINUOUS_OPERATION_THRESHOLD = 500; // 连续操作的时间阈值（毫秒）
+
+        // 🎯 视觉行移动辅助函数
+        const getVisualLineInfo = (editor: any, position: any) => {
+          try {
+            console.log("👁️ [Visual Line] 开始获取视觉行信息:", {
+              position: position,
+              editorType: typeof editor,
+            });
+
+            // 获取当前光标的像素位置
+            const cursorCoords = editor.getScrolledVisiblePosition(position);
+            console.log("👁️ [Visual Line] 光标像素坐标:", cursorCoords);
+
+            if (!cursorCoords) {
+              console.warn("❌ [Visual Line] 无法获取光标像素坐标");
+              return null;
+            }
+
+            const lineHeight = editor.getOption(51); // lineHeight
+            console.log("👁️ [Visual Line] 行高:", lineHeight);
+
+            const currentVisualLineTop = Math.floor(
+              cursorCoords.top / lineHeight,
+            );
+            console.log("👁️ [Visual Line] 当前视觉行号:", currentVisualLineTop);
+
+            // 获取可见范围
+            const visibleRanges = editor.getVisibleRanges();
+            console.log("👁️ [Visual Line] 可见范围:", visibleRanges);
+
+            if (!visibleRanges || visibleRanges.length === 0) {
+              console.warn("❌ [Visual Line] 无法获取可见范围");
+              return null;
+            }
+
+            const visibleRange = visibleRanges[0];
+            console.log("👁️ [Visual Line] 当前可见范围:", visibleRange);
+
+            return {
+              cursorCoords,
+              lineHeight,
+              currentVisualLineTop,
+              visibleRange,
+            };
+          } catch (error) {
+            console.warn("❌ [Visual Line] 获取视觉行信息失败:", error);
+            return null;
+          }
+        };
+
+        // 计算目标视觉行位置
+        const calculateVisualLinePosition = (
+          editor: any,
+          currentPosition: any,
+          direction: string,
+          effectiveOffset: number,
+        ) => {
+          try {
+            console.log("🎯 [Visual Line] 开始计算视觉行位置:", {
+              direction,
+              currentPosition,
+              effectiveOffset,
+            });
+
+            const visualInfo = getVisualLineInfo(editor, currentPosition);
+            if (!visualInfo) {
+              console.log(
+                "🔄 [Visual Line] 降级到逻辑行移动：无法获取视觉行信息",
+              );
+              // 直接在这里实现逻辑行移动
+              const model = editor.getModel();
+              if (!model) return null;
+
+              let targetLineNumber: number;
+              if (direction === "ArrowUp") {
+                if (currentPosition.lineNumber <= 1) return null;
+                targetLineNumber = currentPosition.lineNumber - 1;
+              } else {
+                const maxLineNumber = model.getLineCount();
+                if (currentPosition.lineNumber >= maxLineNumber) return null;
+                targetLineNumber = currentPosition.lineNumber + 1;
+              }
+
+              const targetLineContent = model.getLineContent(targetLineNumber);
+              const targetLineLength = targetLineContent.length;
+              const targetColumn = Math.max(
+                1,
+                Math.min(effectiveOffset + 1, targetLineLength + 1),
+              );
+
+              return { lineNumber: targetLineNumber, column: targetColumn };
+            }
+
+            const { cursorCoords } = visualInfo;
+            // 1) 获取可靠的行高
+            let resolvedLineHeight: number | undefined = undefined;
+            try {
+              const opt = (monaco as any).editor.EditorOption
+                ? editor.getOption(
+                    (monaco as any).editor.EditorOption.lineHeight,
+                  )
+                : undefined;
+              if (typeof opt === "number" && isFinite(opt)) {
+                resolvedLineHeight = opt;
+              }
+            } catch {}
+            if (!resolvedLineHeight) {
+              const cfg = (editor as any).getConfiguration?.();
+              if (cfg && typeof cfg.lineHeight === "number") {
+                resolvedLineHeight = cfg.lineHeight;
+              }
+            }
+            if (!resolvedLineHeight) {
+              resolvedLineHeight = 22; // 安全兜底
+            }
+
+            // 2) 计算内容坐标下的目标像素
+            const layoutInfo = editor.getLayoutInfo();
+            const scrollTop = editor.getScrollTop();
+            const scrollHeight =
+              editor.getScrollHeight?.() ??
+              scrollTop + (layoutInfo?.height || 0);
+            const contentWidth = layoutInfo?.contentWidth || 0;
+            const clamp = (v: number, lo: number, hi: number) =>
+              Math.max(lo, Math.min(hi, v));
+
+            const xContent = clamp(
+              cursorCoords.left,
+              0,
+              Math.max(0, contentWidth - 1),
+            );
+            const yContent = clamp(
+              cursorCoords.top +
+                (direction === "ArrowUp"
+                  ? -resolvedLineHeight
+                  : resolvedLineHeight),
+              0,
+              Math.max(0, scrollHeight - 1),
+            );
+
+            // 3) 首选：内容坐标命中
+            try {
+              const pos = editor.getPositionAt(xContent, yContent);
+              if (pos) return pos;
+            } catch {}
+
+            // 4) 兜底：客户端坐标命中
+            try {
+              const rect = editor.getDomNode().getBoundingClientRect();
+              const clientX =
+                rect.left + (layoutInfo?.contentLeft || 0) + xContent;
+              const clientY = rect.top + (yContent - scrollTop);
+              const hit = (editor as any).getTargetAtClientPoint?.(
+                clientX,
+                clientY,
+              );
+              if (hit && hit.position) return hit.position;
+            } catch {}
+
+            // 5) 再兜底：如果目标位置可能在视口外，尝试 reveal 后再用内容坐标重试一次
+            try {
+              editor.revealPositionInCenterIfOutsideViewport?.(currentPosition);
+              const pos2 = editor.getPositionAt(xContent, yContent);
+              if (pos2) return pos2;
+            } catch {}
+
+            // 如果上面的方法失败，降级到逻辑行移动
+            console.log("🔄 [Visual Line] 降级到逻辑行移动");
+            // 直接在这里实现逻辑行移动
+            const model = editor.getModel();
+            if (!model) return null;
+
+            let targetLineNumber: number;
+            if (direction === "ArrowUp") {
+              if (currentPosition.lineNumber <= 1) return null;
+              targetLineNumber = currentPosition.lineNumber - 1;
+            } else {
+              const maxLineNumber = model.getLineCount();
+              if (currentPosition.lineNumber >= maxLineNumber) return null;
+              targetLineNumber = currentPosition.lineNumber + 1;
+            }
+
+            const targetLineContent = model.getLineContent(targetLineNumber);
+            const targetLineLength = targetLineContent.length;
+            const targetColumn = Math.max(
+              1,
+              Math.min(effectiveOffset + 1, targetLineLength + 1),
+            );
+
+            return { lineNumber: targetLineNumber, column: targetColumn };
+          } catch (error) {
+            console.warn("❌ [Visual Line] 计算视觉行位置失败:", error);
+            // 降级到逻辑行移动
+            // 直接在这里实现逻辑行移动
+            const model = editor.getModel();
+            if (!model) return null;
+
+            let targetLineNumber: number;
+            if (direction === "ArrowUp") {
+              if (currentPosition.lineNumber <= 1) return null;
+              targetLineNumber = currentPosition.lineNumber - 1;
+            } else {
+              const maxLineNumber = model.getLineCount();
+              if (currentPosition.lineNumber >= maxLineNumber) return null;
+              targetLineNumber = currentPosition.lineNumber + 1;
+            }
+
+            const targetLineContent = model.getLineContent(targetLineNumber);
+            const targetLineLength = targetLineContent.length;
+            const targetColumn = Math.max(
+              1,
+              Math.min(effectiveOffset + 1, targetLineLength + 1),
+            );
+
+            return { lineNumber: targetLineNumber, column: targetColumn };
+          }
+        };
+
+        // 🔍 Monaco编辑器配置诊断
+        const diagnoseEditorConfiguration = () => {
+          console.log("🔧 [Monaco CONFIG] 编辑器配置诊断:");
+
+          const options = editorInstance.getOptions();
+          const model = editorInstance.getModel();
+
+          console.log("📋 [Monaco CONFIG] 编辑器选项:", {
+            fontSize: options.get(38), // fontSize
+            lineHeight: options.get(51), // lineHeight
+            fontFamily: options.get(36), // fontFamily
+            wordWrap: options.get(117), // wordWrap
+            tabSize: options.get(99), // tabSize
+            insertSpaces: options.get(47), // insertSpaces
+            autoIndent: options.get(8), // autoIndent
+            autoClosingBrackets: options.get(5), // autoClosingBrackets
+            autoClosingQuotes: options.get(7), // autoClosingQuotes
+            autoSurround: options.get(10), // autoSurround
+            cursorStyle: options.get(17), // cursorStyle
+            cursorWidth: options.get(19), // cursorWidth
+            cursorBlinking: options.get(16), // cursorBlinking
+            // 可能影响光标移动的选项
+            wordBasedSuggestions: options.get(116), // wordBasedSuggestions
+            quickSuggestions: options.get(73), // quickSuggestions
+            acceptSuggestionOnEnter: options.get(1), // acceptSuggestionOnEnter
+            unicodeHighlight: options.get(105), // unicodeHighlight
+            bracketPairColorization: options.get(14), // bracketPairColorization
+          });
+
+          if (model) {
+            console.log("📄 [Monaco CONFIG] 模型配置:", {
+              language: model.getLanguageId(),
+              uri: model.uri.toString(),
+              versionId: model.getVersionId(),
+              lineCount: model.getLineCount(),
+              valueLength: model.getValueLength(),
+              eol: model.getEOL(),
+              // 检查模型选项
+              tabSize: model.getOptions().tabSize,
+              insertSpaces: model.getOptions().insertSpaces,
+              trimAutoWhitespace: model.getOptions().trimAutoWhitespace,
+            });
+
+            // 检查第一行内容的详细信息
+            if (model.getLineCount() > 0) {
+              const firstLine = model.getLineContent(1);
+              if (firstLine.length > 0) {
+                analyzeUnicodeString(
+                  firstLine.substring(0, 20),
+                  "第一行前20字符",
+                );
+              }
+            }
+          }
+
+          // 检查DOM节点信息
+          const domNode = editorInstance.getDomNode();
+          if (domNode) {
+            const computedStyle = window.getComputedStyle(domNode);
+            console.log("🎨 [Monaco CONFIG] DOM样式信息:", {
+              fontFamily: computedStyle.fontFamily,
+              fontSize: computedStyle.fontSize,
+              lineHeight: computedStyle.lineHeight,
+              letterSpacing: computedStyle.letterSpacing,
+              wordSpacing: computedStyle.wordSpacing,
+              direction: computedStyle.direction,
+              writingMode: computedStyle.writingMode,
+              textAlign: computedStyle.textAlign,
+            });
+          }
+
+          // 检查浏览器和设备信息
+          console.log("🌐 [Monaco CONFIG] 环境信息:", {
+            userAgent: navigator.userAgent,
+            platform: navigator.platform,
+            language: navigator.language,
+            hardwareConcurrency: navigator.hardwareConcurrency,
+            devicePixelRatio: window.devicePixelRatio,
+            // 检查输入法状态
+            isComposing:
+              document.querySelector('[data-mode-id="composing"]') !== null,
+          });
+
+          return true;
+        };
+
+        // 执行配置诊断
+        setTimeout(() => {
+          try {
+            diagnoseEditorConfiguration();
+          } catch (error) {
+            console.warn("⚠️ [Monaco CONFIG] 配置诊断失败:", error);
+          }
+        }, 1000);
+
+        // 🔧 强化修复：全面阻止重复光标移动的补丁
+        const applyDuplicateCursorMovementFix = () => {
+          console.log("🔧 [Monaco FIX] 应用强化版重复光标移动修复补丁...");
+
+          // 🎯 全局光标移动拦截器
+          let lastMoveTime = 0;
+          let lastMovePosition = { lineNumber: 0, column: 0 };
+          let moveBlockCount = 0;
+
+          const shouldBlockMove = (
+            position: any,
+            source: string = "unknown",
+          ) => {
+            const currentTime = performance.now();
+            const timeDiff = currentTime - lastMoveTime;
+
+            // 如果是50ms内的重复移动到相邻位置，阻止它
+            const isDuplicateMove =
+              timeDiff < 50 &&
+              Math.abs(position.lineNumber - lastMovePosition.lineNumber) <=
+                1 &&
+              Math.abs(position.column - lastMovePosition.column) <= 2 &&
+              !(
+                position.lineNumber === lastMovePosition.lineNumber &&
+                position.column === lastMovePosition.column
+              );
+
+            if (isDuplicateMove) {
+              moveBlockCount++;
+              console.warn(
+                `🚫 [Monaco FIX] 阻止重复光标移动 #${moveBlockCount} (${source}):`,
+                {
+                  from: lastMovePosition,
+                  to: position,
+                  timeDiff: timeDiff,
+                  blocked: true,
+                  source: source,
+                },
+              );
+              return true; // 阻止移动
+            }
+
+            // 记录移动信息
+            lastMoveTime = currentTime;
+            lastMovePosition = {
+              lineNumber: position.lineNumber,
+              column: position.column,
+            };
+
+            console.log(`✅ [Monaco FIX] 允许光标移动 (${source}):`, {
+              to: position,
+              timeDiff: timeDiff,
+            });
+
+            return false; // 允许移动
+          };
+
+          // 1. 拦截 setPosition 方法
+          const originalSetPosition = (editorInstance as any).setPosition;
+          if (originalSetPosition) {
+            (editorInstance as any).setPosition = function (position: any) {
+              if (shouldBlockMove(position, "setPosition")) {
+                return; // 阻止重复移动
+              }
+              return originalSetPosition.call(this, position);
+            };
+            console.log("✅ [Monaco FIX] 已拦截 setPosition 方法");
+          }
+
+          // 2. 拦截 reveal 方法
+          const originalRevealPosition = (editorInstance as any).revealPosition;
+          if (originalRevealPosition) {
+            (editorInstance as any).revealPosition = function (
+              position: any,
+              ...args: any[]
+            ) {
+              if (shouldBlockMove(position, "revealPosition")) {
+                return; // 阻止重复移动
+              }
+              return originalRevealPosition.call(this, position, ...args);
+            };
+            console.log("✅ [Monaco FIX] 已拦截 revealPosition 方法");
+          }
+
+          // 3. 拦截光标选择设置
+          const originalSetSelection = (editorInstance as any).setSelection;
+          if (originalSetSelection) {
+            (editorInstance as any).setSelection = function (selection: any) {
+              if (selection && selection.startLineNumber) {
+                if (
+                  shouldBlockMove(
+                    {
+                      lineNumber: selection.startLineNumber,
+                      column: selection.startColumn,
+                    },
+                    "setSelection",
+                  )
+                ) {
+                  return; // 阻止重复移动
+                }
+              }
+              return originalSetSelection.call(this, selection);
+            };
+            console.log("✅ [Monaco FIX] 已拦截 setSelection 方法");
+          }
+
+          // 4. 拦截光标选择变化事件的触发
+          const originalCursor = (editorInstance as any)._cursor;
+          if (originalCursor) {
+            // 尝试拦截光标控制器的核心方法
+            if (originalCursor.setSelections) {
+              const originalSetSelections = originalCursor.setSelections;
+              originalCursor.setSelections = function (selections: any) {
+                if (selections && selections[0]) {
+                  const selection = selections[0];
+                  if (
+                    shouldBlockMove(
+                      {
+                        lineNumber: selection.startLineNumber,
+                        column: selection.startColumn,
+                      },
+                      "cursor.setSelections",
+                    )
+                  ) {
+                    return; // 阻止重复移动
+                  }
+                }
+                return originalSetSelections.call(this, selections);
+              };
+              console.log("✅ [Monaco FIX] 已拦截 cursor.setSelections 方法");
+            }
+          }
+
+          // 5. 拦截更深层的视图控制器
+          const originalController = (editorInstance as any)._contributions
+            ?.viewController;
+          if (originalController && originalController.moveTo) {
+            const originalMoveTo = originalController.moveTo;
+            originalController.moveTo = function (position: any) {
+              if (shouldBlockMove(position, "viewController.moveTo")) {
+                return; // 阻止重复移动
+              }
+              return originalMoveTo.call(this, position);
+            };
+            console.log("✅ [Monaco FIX] 已拦截 viewController.moveTo 方法");
+          }
+
+          // 🚨 修正版键盘事件修复 - 区分真正的重复事件 vs 同一事件的不同阶段
+          let lastKeyTime = 0;
+          let lastKeyCode = 0;
+          let lastKeyStage = "";
+          let currentKeyEventId = 0; // 用于标识同一个按键事件
+          let processedKeyEvents = new Set(); // 记录已处理的事件
+
+          const keyboardEventFilter = (
+            e: KeyboardEvent,
+            stage: string = "unknown",
+          ) => {
+            const currentTime = performance.now();
+            const timeDiff = currentTime - lastKeyTime;
+
+            // 🎯 为每个原生事件分配唯一ID（基于时间戳和keyCode）
+            const eventId = `${e.timeStamp}_${e.keyCode}_${e.key}`;
+
+            console.log(`🎹 [Monaco FIX] 键盘事件过滤器 (${stage}):`, {
+              key: e.key,
+              code: e.code,
+              keyCode: e.keyCode,
+              timeDiff: timeDiff,
+              stage: stage,
+              eventId: eventId,
+              timeStamp: e.timeStamp,
+              isProcessed: processedKeyEvents.has(eventId),
+            });
+
+            // 🎯 检测所有可能导致重复移动的键
+            const isNavigationOrDeleteKey = [
+              "ArrowRight",
+              "ArrowLeft",
+              "ArrowUp",
+              "ArrowDown",
+              "Backspace",
+              "Delete",
+              "Home",
+              "End",
+              "PageUp",
+              "PageDown",
+            ].includes(e.key);
+
+            if (isNavigationOrDeleteKey) {
+              // 🚨 如果这是一个已经处理过的事件，直接阻止
+              if (processedKeyEvents.has(eventId)) {
+                console.warn(
+                  `🚫 [Monaco FIX] 阻止已处理的${e.key}事件 (${stage}):`,
+                  {
+                    key: e.key,
+                    keyCode: e.keyCode,
+                    eventId: eventId,
+                    stage: stage,
+                    reason: "事件已在其他阶段处理",
+                  },
+                );
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+              }
+
+              // 🚨 检测真正的重复按键（不同的事件，但是时间很近且keyCode相同）
+              const isRealDuplicateKey =
+                timeDiff < 100 && // 100ms内
+                lastKeyCode === e.keyCode &&
+                lastKeyStage !== "" && // 确保不是第一次
+                !processedKeyEvents.has(eventId); // 且不是同一个事件
+
+              if (isRealDuplicateKey) {
+                console.warn(
+                  `🚫 [Monaco FIX] 检测到真正的重复${e.key}事件 (${stage}):`,
+                  {
+                    key: e.key,
+                    keyCode: e.keyCode,
+                    timeDiff: timeDiff,
+                    lastStage: lastKeyStage,
+                    currentStage: stage,
+                    blocked: true,
+                  },
+                );
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+              }
+
+              // 🚨 检测各种键的异常keyCode情况
+              const expectedKeyCodes: { [key: string]: number } = {
+                ArrowRight: 39,
+                ArrowLeft: 37,
+                ArrowUp: 38,
+                ArrowDown: 40,
+                Backspace: 8,
+                Delete: 46,
+                Home: 36,
+                End: 35,
+                PageUp: 33,
+                PageDown: 34,
+              };
+
+              const expectedKeyCode = expectedKeyCodes[e.key];
+              if (expectedKeyCode && e.keyCode !== expectedKeyCode) {
+                console.warn(
+                  `🔧 [Monaco FIX] 检测到${e.key}键异常，阻止错误事件 (${stage}):`,
+                  {
+                    key: e.key,
+                    expectedKeyCode: expectedKeyCode,
+                    actualKeyCode: e.keyCode,
+                    stage: stage,
+                  },
+                );
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+              }
+
+              // ✅ 记录这个事件为已处理，防止在其他阶段重复处理
+              processedKeyEvents.add(eventId);
+
+              // 清理旧的事件记录（防止内存泄漏）
+              if (processedKeyEvents.size > 20) {
+                processedKeyEvents.clear();
+              }
+
+              console.log(`✅ [Monaco FIX] 允许${e.key}事件 (${stage}):`, {
+                key: e.key,
+                keyCode: e.keyCode,
+                timeDiff: timeDiff,
+                eventId: eventId,
+                stage: stage,
+              });
+            }
+
+            // 更新最后按键信息
+            lastKeyTime = currentTime;
+            lastKeyCode = e.keyCode;
+            lastKeyStage = stage;
+            return true;
+          };
+
+          // 🎯 简化为单点拦截策略 - 只在最早阶段进行重复检测
+          const editorDomNode = editorInstance.getDomNode();
+          if (editorDomNode) {
+            // 🚨 选择性接管策略：只拦截问题键，保留上下键原生视觉行移动
+            editorDomNode.addEventListener(
+              "keydown",
+              (e: Event) => {
+                const keyEvent = e as KeyboardEvent;
+                const currentTime = performance.now();
+                const timeDiff = currentTime - lastKeyTime;
+
+                console.log(`🎹 [Monaco FIX] 完全拦截策略检测:`, {
+                  key: keyEvent.key,
+                  keyCode: keyEvent.keyCode,
+                  timeDiff: timeDiff,
+                  timeStamp: keyEvent.timeStamp,
+                });
+
+                // 🎯 只拦截确认有问题的键，让上下键正常传递给Monaco
+                const isTargetKey = [
+                  "ArrowRight", // 有keyCode异常问题
+                  "ArrowLeft", // 有重复移动问题
+                  "Backspace", // 有重复删除问题
+                  "Delete", // 可能有重复删除问题
+                  "Home", // 简单的行首跳转
+                  "End", // 简单的行尾跳转
+                ].includes(keyEvent.key);
+
+                if (isTargetKey) {
+                  // 🚨 检测重复事件
+                  const isDuplicateEvent = timeDiff < 100 && timeDiff > 0;
+
+                  if (isDuplicateEvent) {
+                    console.warn(
+                      `🚫 [Monaco FIX] 阻止重复${keyEvent.key}事件:`,
+                      {
+                        key: keyEvent.key,
+                        timeDiff: timeDiff,
+                        blocked: true,
+                      },
+                    );
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+                    return false;
+                  }
+
+                  // 🎯 完全阻止原生事件，自行处理
+                  console.log(
+                    `🔒 [Monaco FIX] 完全接管${keyEvent.key}事件处理:`,
+                    {
+                      key: keyEvent.key,
+                      keyCode: keyEvent.keyCode,
+                      currentPosition: editorInstance.getPosition(),
+                    },
+                  );
+
+                  e.preventDefault();
+                  e.stopImmediatePropagation();
+
+                  // 🎯 自行实现光标移动逻辑
+                  const currentPosition = editorInstance.getPosition();
+                  if (!currentPosition) {
+                    console.warn("❌ [Monaco FIX] 无法获取当前位置");
+                    return false;
+                  }
+
+                  let newPosition: {
+                    lineNumber: number;
+                    column: number;
+                  } | null = null;
+                  const model = editorInstance.getModel();
+                  if (!model) {
+                    console.warn("❌ [Monaco FIX] 无法获取编辑器模型");
+                    return false;
+                  }
+
+                  const maxLineNumber = model.getLineCount();
+                  const currentLineLength = model.getLineLength(
+                    currentPosition.lineNumber,
+                  );
+                  let handledKeyCount = (window as any)._monacoKeyCount || 0;
+                  (window as any)._monacoKeyCount = ++handledKeyCount;
+
+                  switch (keyEvent.key) {
+                    case "ArrowRight":
+                      if (currentPosition.column <= currentLineLength) {
+                        newPosition = {
+                          lineNumber: currentPosition.lineNumber,
+                          column: currentPosition.column + 1,
+                        };
+                      } else if (currentPosition.lineNumber < maxLineNumber) {
+                        // 移动到下一行开头
+                        newPosition = {
+                          lineNumber: currentPosition.lineNumber + 1,
+                          column: 1,
+                        };
+                      }
+                      break;
+
+                    case "ArrowLeft":
+                      if (currentPosition.column > 1) {
+                        newPosition = {
+                          lineNumber: currentPosition.lineNumber,
+                          column: currentPosition.column - 1,
+                        };
+                      } else if (currentPosition.lineNumber > 1) {
+                        // 移动到上一行末尾
+                        const prevLineLength = model.getLineLength(
+                          currentPosition.lineNumber - 1,
+                        );
+                        newPosition = {
+                          lineNumber: currentPosition.lineNumber - 1,
+                          column: prevLineLength + 1,
+                        };
+                      }
+                      break;
+
+                    // 上下键已经被提前处理，不会到达这里
+
+                    case "Home":
+                      newPosition = {
+                        lineNumber: currentPosition.lineNumber,
+                        column: 1,
+                      };
+                      break;
+
+                    case "End":
+                      newPosition = {
+                        lineNumber: currentPosition.lineNumber,
+                        column: currentLineLength + 1,
+                      };
+                      break;
+
+                    case "Backspace":
+                      if (currentPosition.column > 1) {
+                        // 删除当前位置前的字符
+                        const range = {
+                          startLineNumber: currentPosition.lineNumber,
+                          startColumn: currentPosition.column - 1,
+                          endLineNumber: currentPosition.lineNumber,
+                          endColumn: currentPosition.column,
+                        };
+
+                        console.log(`⌫ [Monaco FIX] 执行退格删除:`, {
+                          range: range,
+                          beforeText: model.getValueInRange(range),
+                        });
+
+                        editorInstance.executeEdits("backspace", [
+                          {
+                            range: range,
+                            text: "",
+                          },
+                        ]);
+
+                        newPosition = {
+                          lineNumber: currentPosition.lineNumber,
+                          column: currentPosition.column - 1,
+                        };
+                      } else if (currentPosition.lineNumber > 1) {
+                        // 删除换行符，合并到上一行
+                        const prevLineLength = model.getLineLength(
+                          currentPosition.lineNumber - 1,
+                        );
+                        const range = {
+                          startLineNumber: currentPosition.lineNumber - 1,
+                          startColumn: prevLineLength + 1,
+                          endLineNumber: currentPosition.lineNumber,
+                          endColumn: 1,
+                        };
+
+                        editorInstance.executeEdits("backspace", [
+                          {
+                            range: range,
+                            text: "",
+                          },
+                        ]);
+
+                        newPosition = {
+                          lineNumber: currentPosition.lineNumber - 1,
+                          column: prevLineLength + 1,
+                        };
+                      }
+                      break;
+
+                    case "Delete":
+                      if (currentPosition.column <= currentLineLength) {
+                        // 删除当前位置的字符
+                        const range = {
+                          startLineNumber: currentPosition.lineNumber,
+                          startColumn: currentPosition.column,
+                          endLineNumber: currentPosition.lineNumber,
+                          endColumn: currentPosition.column + 1,
+                        };
+
+                        console.log(`🗑️ [Monaco FIX] 执行Delete删除:`, {
+                          range: range,
+                          beforeText: model.getValueInRange(range),
+                        });
+
+                        editorInstance.executeEdits("delete", [
+                          {
+                            range: range,
+                            text: "",
+                          },
+                        ]);
+                        // Delete操作后光标位置不变
+                        newPosition = currentPosition;
+                      } else if (currentPosition.lineNumber < maxLineNumber) {
+                        // 删除换行符，合并下一行
+                        const range = {
+                          startLineNumber: currentPosition.lineNumber,
+                          startColumn: currentPosition.column,
+                          endLineNumber: currentPosition.lineNumber + 1,
+                          endColumn: 1,
+                        };
+
+                        editorInstance.executeEdits("delete", [
+                          {
+                            range: range,
+                            text: "",
+                          },
+                        ]);
+                        newPosition = currentPosition;
+                      }
+                      break;
+                  }
+
+                  // 🎯 设置新的光标位置
+                  if (
+                    newPosition &&
+                    (newPosition.lineNumber !== currentPosition.lineNumber ||
+                      newPosition.column !== currentPosition.column)
+                  ) {
+                    console.log(
+                      `📍 [Monaco FIX] 手动设置光标位置 #${handledKeyCount}:`,
+                      {
+                        key: keyEvent.key,
+                        from: currentPosition,
+                        to: newPosition,
+                        handledCount: handledKeyCount,
+                      },
+                    );
+
+                    // 临时禁用我们的拦截器，避免递归
+                    setTimeout(() => {
+                      editorInstance.setPosition(newPosition);
+                      editorInstance.revealPosition(newPosition);
+                    }, 1);
+                  } else {
+                    console.log(
+                      `📍 [Monaco FIX] ${keyEvent.key}操作完成，位置无需改变:`,
+                      {
+                        position: currentPosition,
+                        handledCount: handledKeyCount,
+                      },
+                    );
+                  }
+
+                  lastKeyTime = currentTime;
+                  return false;
+                }
+
+                // 非目标键，允许正常传播
+                return true;
+              },
+              true, // 捕获阶段，确保最早拦截
+            );
+
+            console.log(
+              "✅ [Monaco FIX] 已应用选择性接管策略（上下键保留原生视觉行移动）",
+            );
+          }
+
+          // 🎯 修复Monaco内部事件的异常keyCode
+          const originalOnKeyDown = (editorInstance as any).onKeyDown;
+          if (originalOnKeyDown) {
+            (editorInstance as any).onKeyDown = function (keyboardEvent: any) {
+              const browserEvent = keyboardEvent.browserEvent;
+
+              console.log("🎯 [Monaco Internal] Monaco.onKeyDown接收到事件:", {
+                keyCode: keyboardEvent.keyCode,
+                code: keyboardEvent.code,
+                key: browserEvent?.key,
+                timestamp: browserEvent?.timeStamp,
+                browserEventKeyCode: browserEvent?.keyCode,
+              });
+
+              // 🚨 检测并修复异常的keyCode
+              if (browserEvent) {
+                const expectedKeyCodes: { [key: string]: number } = {
+                  ArrowRight: 39,
+                  ArrowLeft: 37,
+                  ArrowUp: 38,
+                  ArrowDown: 40,
+                  Backspace: 8,
+                  Delete: 46,
+                  Home: 36,
+                  End: 35,
+                  PageUp: 33,
+                  PageDown: 34,
+                };
+
+                const expectedKeyCode = expectedKeyCodes[browserEvent.key];
+
+                // 如果Monaco接收到的keyCode与浏览器原生keyCode不一致，修复它
+                if (
+                  expectedKeyCode &&
+                  keyboardEvent.keyCode !== expectedKeyCode
+                ) {
+                  console.warn(`🔧 [Monaco Internal] 修复异常keyCode:`, {
+                    key: browserEvent.key,
+                    originalKeyCode: keyboardEvent.keyCode,
+                    correctKeyCode: expectedKeyCode,
+                    browserKeyCode: browserEvent.keyCode,
+                  });
+
+                  // 修正keyCode
+                  keyboardEvent.keyCode = expectedKeyCode;
+                }
+
+                // 🚨 如果是特定的异常组合，直接阻止
+                const isProblematicEvent =
+                  (browserEvent.key === "ArrowRight" &&
+                    keyboardEvent.keyCode === 17) ||
+                  (browserEvent.key === "ArrowLeft" &&
+                    keyboardEvent.keyCode === 15) ||
+                  (browserEvent.key === "Backspace" &&
+                    keyboardEvent.keyCode === 1);
+
+                if (isProblematicEvent) {
+                  console.warn(`🚫 [Monaco Internal] 阻止已知问题事件:`, {
+                    key: browserEvent.key,
+                    problematicKeyCode: keyboardEvent.keyCode,
+                    reason: "已知会导致重复移动的异常keyCode",
+                  });
+                  return; // 直接阻止这个事件
+                }
+
+                console.log("✅ [Monaco Internal] 事件已修复，继续处理:", {
+                  key: browserEvent.key,
+                  keyCode: keyboardEvent.keyCode,
+                });
+              }
+
+              // 继续处理修复后的事件
+              return originalOnKeyDown.call(this, keyboardEvent);
+            };
+            console.log("✅ [Monaco FIX] 已添加Monaco内部事件修复");
+          }
+        };
+
+        // 延迟应用修复补丁，确保Monaco完全初始化
+        setTimeout(() => {
+          try {
+            applyDuplicateCursorMovementFix();
+          } catch (error) {
+            console.warn("⚠️ [Monaco FIX] 应用修复补丁失败:", error);
+          }
+        }, 500);
+
+        const debugDisposables = null;
+
         // 监听内容变化
-        const disposable = editorInstance.onDidChangeModelContent(() => {
+        const disposable = editorInstance.onDidChangeModelContent((e: any) => {
           // 检查组件状态
           if (isDisposedRef.current || !isMounted) return;
 
@@ -867,6 +1893,7 @@ export const MonacoSystemPromptEditor: React.FC<
           }
 
           const currentValue = editorInstance.getValue(); // ✅ Monaco getValue() 总是返回字符串
+
           onChange(currentValue);
           updateStats(currentValue); // ✅ 这里是安全的
         });
@@ -874,6 +1901,7 @@ export const MonacoSystemPromptEditor: React.FC<
         // 保存disposable与中键拦截器以便清理
         disposableRef.current = {
           contentChange: disposable,
+          debugDisposables: debugDisposables,
           middleClickInterceptor,
           stopAutoScroll,
           onMouseMove,
@@ -947,6 +1975,18 @@ export const MonacoSystemPromptEditor: React.FC<
           try {
             // 清理内容变化监听
             disposableRef.current.contentChange?.dispose?.();
+
+            // 清理调试监听器
+            if (disposableRef.current.debugDisposables) {
+              try {
+                disposableRef.current.debugDisposables.cursorDisposable?.dispose?.();
+                disposableRef.current.debugDisposables.selectionDisposable?.dispose?.();
+                disposableRef.current.debugDisposables.keyDownDisposable?.dispose?.();
+                disposableRef.current.debugDisposables.keyUpDisposable?.dispose?.();
+              } catch (e) {
+                console.warn("⚠️ [Monaco DEBUG] 清理调试监听器时出现警告:", e);
+              }
+            }
           } catch (e) {
             // 静默处理
           }
