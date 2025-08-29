@@ -29,6 +29,7 @@ import {
 } from "../utils/session";
 import { parseGroupMessageId } from "../utils/group";
 import { calculateGroupStatus } from "../utils/group";
+import { determineModelForGroupSession } from "../utils/model";
 
 let fetchState = 0; // 0 not fetch, 1 fetching, 2 done
 
@@ -974,12 +975,16 @@ export const useChatStore = createPersistStore(
       },
 
       async newGroup(group: ChatGroup) {
-        const { groups, groupSessions } = get();
-
         // 创建组内第一个会话
         const firstSession = createEmptySession();
         firstSession.groupId = group.id;
         firstSession.title = group.title;
+
+        // 为组会话设置默认模型和长文本模式
+        const state = get();
+        firstSession.model = determineModelForGroupSession(state.models);
+        firstSession.longInputMode = true;
+        firstSession.isModelManuallySelected = false;
 
         // 保存会话消息
         await get().saveSessionMessages(firstSession);
@@ -1024,6 +1029,12 @@ export const useChatStore = createPersistStore(
         const newSession = createEmptySession();
         newSession.groupId = currentGroup.id;
         newSession.title = Locale.Session.Title.DefaultGroup;
+
+        // 为组会话设置默认模型和长文本模式
+        const state = get();
+        newSession.model = determineModelForGroupSession(state.models);
+        newSession.longInputMode = true;
+        newSession.isModelManuallySelected = false;
 
         // 保存会话消息
         await get().saveSessionMessages(newSession);
@@ -1493,6 +1504,12 @@ export const useChatStore = createPersistStore(
           newSessionToAdd = createEmptySession();
           newSessionToAdd.groupId = currentGroup.id;
           newSessionToAdd.title = Locale.Session.Title.DefaultGroup;
+
+          // 为组会话设置默认模型和长文本模式
+          const state = get();
+          newSessionToAdd.model = determineModelForGroupSession(state.models);
+          newSessionToAdd.longInputMode = true;
+          newSessionToAdd.isModelManuallySelected = false;
 
           // 保存会话消息
           await get().saveSessionMessages(newSessionToAdd);
@@ -2837,12 +2854,14 @@ export const useChatStore = createPersistStore(
               id: sessionId,
               title: Locale.Session.Title.DefaultGroup,
               sourceName: file.name, // 记录源文件名
-              model: get().models[0], // 使用第一个可用模型
+              model: determineModelForGroupSession(get().models), // 使用第一个可用模型
               messageCount: 0,
               status: "normal",
               groupId: groupId,
               lastUpdate: Date.now(),
               messages: [],
+              longInputMode: true,
+              isModelManuallySelected: false,
             };
 
             // 处理文件内容并设置为系统提示词

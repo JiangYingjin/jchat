@@ -37,6 +37,7 @@ export const EXPORT_MESSAGE_CLASS_NAME = "export-markdown";
 export const FALLBACK_BASE_URL = "oneapi.jyj.cx";
 export const FALLBACK_MODEL = "jyj.cx/flash";
 export const PRO_MODEL = "jyj.cx/pro";
+export const GROUP_SESSION_PREFERRED_MODEL = "jyj.cx/think";
 
 export const CHAT_PAGE_SIZE = 15;
 export const MAX_RENDER_MSG_COUNT = 45;

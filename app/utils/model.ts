@@ -1,4 +1,8 @@
-import { PRO_MODEL } from "../constant";
+import {
+  PRO_MODEL,
+  GROUP_SESSION_PREFERRED_MODEL,
+  FALLBACK_MODEL,
+} from "../constant";
 
 /**
  * 检查是否应该自动切换模型
@@ -61,4 +65,41 @@ export function determineModelForSystemPrompt(
     }
   }
   return null;
+}
+
+/**
+ * 确定组会话的默认模型
+ * @param availableModels 可用的模型列表
+ * @returns 选择的模型名称
+ */
+export function determineModelForGroupSession(
+  availableModels: string[],
+): string {
+  // 优先使用 GROUP_SESSION_PREFERRED_MODEL
+  const preferredModel = availableModels.find(
+    (m) => m === GROUP_SESSION_PREFERRED_MODEL,
+  );
+  if (preferredModel) {
+    console.log(`[GroupSession] 使用首选模型 ${preferredModel}`);
+    return preferredModel;
+  }
+
+  // 如果首选模型不存在，使用 FALLBACK_MODEL
+  const fallbackModel = availableModels.find((m) => m === FALLBACK_MODEL);
+  if (fallbackModel) {
+    console.log(`[GroupSession] 首选模型不可用，使用备用模型 ${fallbackModel}`);
+    return fallbackModel;
+  }
+
+  // 如果连备用模型都不存在，返回第一个可用模型
+  if (availableModels.length > 0) {
+    console.log(
+      `[GroupSession] 备用模型不可用，使用第一个可用模型 ${availableModels[0]}`,
+    );
+    return availableModels[0];
+  }
+
+  // 如果没有任何可用模型，返回备用模型（即使不可用，让上层处理）
+  console.log(`[GroupSession] 没有可用模型，返回备用模型 ${FALLBACK_MODEL}`);
+  return FALLBACK_MODEL;
 }

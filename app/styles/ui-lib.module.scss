@@ -147,7 +147,7 @@
       550px - var(--modal-header-height) - var(--modal-footer-height) - 32px
     );
     padding: var(--modal-padding);
-    overflow: hidden; /* 由内部内容自行处理滚动，避免双滚动条与高度计算异常 */
+    overflow: auto; /* 由内部内容自行处理滚动，避免双滚动条与高度计算异常 */
     flex-grow: 1;
     min-height: 0; /* 允许内容收缩 */
     display: flex; /* 使子元素能基于弹性布局按剩余空间伸展 */
