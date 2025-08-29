@@ -80,20 +80,3 @@
 .modal-mask .monaco-editor {
   font-family: "Menlo", "Monaco", "Courier New", monospace;
 }
-
-/* 优化Monaco Editor在不同主题下的表现 */
-@media (prefers-color-scheme: dark) {
-  .monaco-editor {
-    --monaco-background: #1e1e1e;
-    --monaco-foreground: #d4d4d4;
-    --monaco-border: #3e3e3e;
-  }
-
-  .monaco-scrollable-element .scrollbar .slider {
-    background: rgba(255, 255, 255, 0.2);
-  }
-
-  .monaco-scrollable-element .scrollbar .slider:hover {
-    background: rgba(255, 255, 255, 0.4);
-  }
-}

@@ -69,25 +69,6 @@
   }
 }
 
-// 深色模式适配
-@media (prefers-color-scheme: dark) {
-  .chat-item-index-prefix {
-    background-color: rgba(59, 130, 246, 0.12);
-    color: #60a5fa;
-    border-color: rgba(59, 130, 246, 0.2);
-
-    .chat-item:hover & {
-      background-color: rgba(59, 130, 246, 0.18);
-      border-color: rgba(59, 130, 246, 0.3);
-    }
-
-    .chat-item-selected & {
-      background-color: rgba(59, 130, 246, 0.22);
-      border-color: rgba(59, 130, 246, 0.35);
-    }
-  }
-}
-
 // 组项目数量前缀样式 - 与会话序号前缀样式统一，仅颜色不同
 .group-item-count-prefix {
   display: inline-flex;
@@ -121,25 +102,6 @@
   .chat-item-selected & {
     background-color: rgba(168, 85, 247, 0.15);
     border-color: rgba(168, 85, 247, 0.25);
-  }
-}
-
-// 深色模式适配 - 组项目数量前缀
-@media (prefers-color-scheme: dark) {
-  .group-item-count-prefix {
-    background-color: rgba(168, 85, 247, 0.12);
-    color: #c084fc;
-    border-color: rgba(168, 85, 247, 0.2);
-
-    .chat-item:hover & {
-      background-color: rgba(168, 85, 247, 0.18);
-      border-color: rgba(168, 85, 247, 0.3);
-    }
-
-    .chat-item-selected & {
-      background-color: rgba(168, 85, 247, 0.22);
-      border-color: rgba(168, 85, 247, 0.35);
-    }
   }
 }
 

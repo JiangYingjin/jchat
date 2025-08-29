@@ -1054,6 +1054,7 @@
   background: var(--white);
   overflow: hidden;
   position: relative;
+  min-height: 300px;
 
   &:focus-within {
     border-color: var(--primary);
@@ -1064,7 +1065,9 @@
 .monaco-status-bar {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
   background: var(--gray-50);
   border-bottom: 1px solid var(--border-in-light);
   font-size: 12px;
@@ -1072,7 +1075,7 @@
 
   .monaco-stats {
     display: flex;
-    gap: 16px;
+    gap: 12px;
 
     span {
       &:hover {
@@ -1248,24 +1251,6 @@
     transition: opacity 0.2s ease;
   }
 }
-
-// 🚀 响应式设计
-@media (max-width: 768px) {
-  .monaco-status-bar {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 8px;
-
-    .monaco-stats {
-      gap: 12px;
-    }
-  }
-
-  .monaco-container {
-    min-height: 300px;
-  }
-}
-
 // 复用现有的图片附件样式，但调整位置
 .system-prompt-input-panel {
   .attach-images {
