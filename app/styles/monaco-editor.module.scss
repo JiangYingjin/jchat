@@ -200,9 +200,11 @@
   }
 }
 
-/* 当同一元素同时具有 system-prompt-editor 与 system-prompt-monaco 类时，确保高度规则生效 */
-.system-prompt-editor.system-prompt-monaco {
-  height: 100%;
+// 🔧 Monaco Editor 核心样式（从chat.module.scss迁移）
+.monaco-editor {
+  flex: 1;
+  position: relative;
+  // Monaco Editor样式将通过独立的全局CSS文件处理
 }
 
 // 🖼️ Monaco版本的图像处理样式
