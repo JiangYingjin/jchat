@@ -1184,17 +1184,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
             // 🎯 为每个原生事件分配唯一ID（基于时间戳和keyCode）
             const eventId = `${e.timeStamp}_${e.keyCode}_${e.key}`;
 
-            console.log(`🎹 [Monaco FIX] 键盘事件过滤器 (${stage}):`, {
-              key: e.key,
-              code: e.code,
-              keyCode: e.keyCode,
-              timeDiff: timeDiff,
-              stage: stage,
-              eventId: eventId,
-              timeStamp: e.timeStamp,
-              isProcessed: processedKeyEvents.has(eventId),
-            });
-
             // 🎯 检测所有可能导致重复移动的键
             const isNavigationOrDeleteKey = [
               "ArrowRight",
@@ -1212,16 +1201,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
             if (isNavigationOrDeleteKey) {
               // 🚨 如果这是一个已经处理过的事件，直接阻止
               if (processedKeyEvents.has(eventId)) {
-                console.warn(
-                  `🚫 [Monaco FIX] 阻止已处理的${e.key}事件 (${stage}):`,
-                  {
-                    key: e.key,
-                    keyCode: e.keyCode,
-                    eventId: eventId,
-                    stage: stage,
-                    reason: "事件已在其他阶段处理",
-                  },
-                );
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 return false;
@@ -1235,17 +1214,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                 !processedKeyEvents.has(eventId); // 且不是同一个事件
 
               if (isRealDuplicateKey) {
-                console.warn(
-                  `🚫 [Monaco FIX] 检测到真正的重复${e.key}事件 (${stage}):`,
-                  {
-                    key: e.key,
-                    keyCode: e.keyCode,
-                    timeDiff: timeDiff,
-                    lastStage: lastKeyStage,
-                    currentStage: stage,
-                    blocked: true,
-                  },
-                );
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 return false;
@@ -1267,15 +1235,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
               const expectedKeyCode = expectedKeyCodes[e.key];
               if (expectedKeyCode && e.keyCode !== expectedKeyCode) {
-                console.warn(
-                  `🔧 [Monaco FIX] 检测到${e.key}键异常，阻止错误事件 (${stage}):`,
-                  {
-                    key: e.key,
-                    expectedKeyCode: expectedKeyCode,
-                    actualKeyCode: e.keyCode,
-                    stage: stage,
-                  },
-                );
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 return false;
@@ -1288,14 +1247,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
               if (processedKeyEvents.size > 20) {
                 processedKeyEvents.clear();
               }
-
-              console.log(`✅ [Monaco FIX] 允许${e.key}事件 (${stage}):`, {
-                key: e.key,
-                keyCode: e.keyCode,
-                timeDiff: timeDiff,
-                eventId: eventId,
-                stage: stage,
-              });
             }
 
             // 更新最后按键信息
@@ -1316,13 +1267,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                 const currentTime = performance.now();
                 const timeDiff = currentTime - lastKeyTime;
 
-                console.log(`🎹 [Monaco FIX] 完全拦截策略检测:`, {
-                  key: keyEvent.key,
-                  keyCode: keyEvent.keyCode,
-                  timeDiff: timeDiff,
-                  timeStamp: keyEvent.timeStamp,
-                });
-
                 // 🎯 只拦截确认有问题的键，让上下键正常传递给Monaco
                 const isTargetKey = [
                   "ArrowRight", // 有keyCode异常问题
@@ -1338,28 +1282,12 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                   const isDuplicateEvent = timeDiff < 100 && timeDiff > 0;
 
                   if (isDuplicateEvent) {
-                    console.warn(
-                      `🚫 [Monaco FIX] 阻止重复${keyEvent.key}事件:`,
-                      {
-                        key: keyEvent.key,
-                        timeDiff: timeDiff,
-                        blocked: true,
-                      },
-                    );
                     e.preventDefault();
                     e.stopImmediatePropagation();
                     return false;
                   }
 
                   // 🎯 完全阻止原生事件，自行处理
-                  console.log(
-                    `🔒 [Monaco FIX] 完全接管${keyEvent.key}事件处理:`,
-                    {
-                      key: keyEvent.key,
-                      keyCode: keyEvent.keyCode,
-                      currentPosition: editorInstance.getPosition(),
-                    },
-                  );
 
                   e.preventDefault();
                   e.stopImmediatePropagation();
@@ -1367,7 +1295,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                   // 🎯 自行实现光标移动逻辑
                   const currentPosition = editorInstance.getPosition();
                   if (!currentPosition) {
-                    console.warn("❌ [Monaco FIX] 无法获取当前位置");
                     return false;
                   }
 
@@ -1377,7 +1304,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                   } | null = null;
                   const model = editorInstance.getModel();
                   if (!model) {
-                    console.warn("❌ [Monaco FIX] 无法获取编辑器模型");
                     return false;
                   }
 
@@ -1448,11 +1374,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                           endColumn: currentPosition.column,
                         };
 
-                        console.log(`⌫ [Monaco FIX] 执行退格删除:`, {
-                          range: range,
-                          beforeText: model.getValueInRange(range),
-                        });
-
                         editorInstance.executeEdits("backspace", [
                           {
                             range: range,
@@ -1500,11 +1421,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                           endColumn: currentPosition.column + 1,
                         };
 
-                        console.log(`🗑️ [Monaco FIX] 执行Delete删除:`, {
-                          range: range,
-                          beforeText: model.getValueInRange(range),
-                        });
-
                         editorInstance.executeEdits("delete", [
                           {
                             range: range,
@@ -1539,29 +1455,11 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                     (newPosition.lineNumber !== currentPosition.lineNumber ||
                       newPosition.column !== currentPosition.column)
                   ) {
-                    console.log(
-                      `📍 [Monaco FIX] 手动设置光标位置 #${handledKeyCount}:`,
-                      {
-                        key: keyEvent.key,
-                        from: currentPosition,
-                        to: newPosition,
-                        handledCount: handledKeyCount,
-                      },
-                    );
-
                     // 临时禁用我们的拦截器，避免递归
                     setTimeout(() => {
                       editorInstance.setPosition(newPosition);
                       editorInstance.revealPosition(newPosition);
                     }, 1);
-                  } else {
-                    console.log(
-                      `📍 [Monaco FIX] ${keyEvent.key}操作完成，位置无需改变:`,
-                      {
-                        position: currentPosition,
-                        handledCount: handledKeyCount,
-                      },
-                    );
                   }
 
                   lastKeyTime = currentTime;
@@ -1573,10 +1471,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
               },
               true, // 捕获阶段，确保最早拦截
             );
-
-            console.log(
-              "✅ [Monaco FIX] 已应用选择性接管策略（上下键保留原生视觉行移动）",
-            );
           }
 
           // 🎯 修复Monaco内部事件的异常keyCode
@@ -1584,14 +1478,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
           if (originalOnKeyDown) {
             (editorInstance as any).onKeyDown = function (keyboardEvent: any) {
               const browserEvent = keyboardEvent.browserEvent;
-
-              console.log("🎯 [Monaco Internal] Monaco.onKeyDown接收到事件:", {
-                keyCode: keyboardEvent.keyCode,
-                code: keyboardEvent.code,
-                key: browserEvent?.key,
-                timestamp: browserEvent?.timeStamp,
-                browserEventKeyCode: browserEvent?.keyCode,
-              });
 
               // 🚨 检测并修复异常的keyCode
               if (browserEvent) {
@@ -1615,13 +1501,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                   expectedKeyCode &&
                   keyboardEvent.keyCode !== expectedKeyCode
                 ) {
-                  console.warn(`🔧 [Monaco Internal] 修复异常keyCode:`, {
-                    key: browserEvent.key,
-                    originalKeyCode: keyboardEvent.keyCode,
-                    correctKeyCode: expectedKeyCode,
-                    browserKeyCode: browserEvent.keyCode,
-                  });
-
                   // 修正keyCode
                   keyboardEvent.keyCode = expectedKeyCode;
                 }
@@ -1636,24 +1515,13 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                     keyboardEvent.keyCode === 1);
 
                 if (isProblematicEvent) {
-                  console.warn(`🚫 [Monaco Internal] 阻止已知问题事件:`, {
-                    key: browserEvent.key,
-                    problematicKeyCode: keyboardEvent.keyCode,
-                    reason: "已知会导致重复移动的异常keyCode",
-                  });
                   return; // 直接阻止这个事件
                 }
-
-                console.log("✅ [Monaco Internal] 事件已修复，继续处理:", {
-                  key: browserEvent.key,
-                  keyCode: keyboardEvent.keyCode,
-                });
               }
 
               // 继续处理修复后的事件
               return originalOnKeyDown.call(this, keyboardEvent);
             };
-            console.log("✅ [Monaco FIX] 已添加Monaco内部事件修复");
           }
         };
 
@@ -1661,9 +1529,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
         setTimeout(() => {
           try {
             applyDuplicateCursorMovementFix();
-          } catch (error) {
-            console.warn("⚠️ [Monaco FIX] 应用修复补丁失败:", error);
-          }
+          } catch (error) {}
         }, 500);
 
         const debugDisposables = null;
