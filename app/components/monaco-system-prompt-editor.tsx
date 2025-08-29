@@ -426,6 +426,7 @@ export const MonacoSystemPromptEditor: React.FC<
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
   const disposableRef = useRef<any>(null);
   const isDisposedRef = useRef(false);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({ characters: 0, lines: 0, words: 0 });
@@ -1912,18 +1913,111 @@ export const MonacoSystemPromptEditor: React.FC<
         // 初始统计 - 🛡️ 使用安全值
         updateStats(safeInitialValue);
 
-        // 自动聚焦
+        // 自动聚焦 - 优化聚焦逻辑，确保编辑器完全准备好
         if (autoFocus && isMounted) {
-          setTimeout(() => {
+          // 使用多个时间点尝试聚焦，确保成功
+          const focusEditor = () => {
             if (isMounted && editorInstance && !isDisposedRef.current) {
-              editorInstance.focus();
+              try {
+                // 检查 DOM 节点是否完全准备好
+                const domNode = editorInstance.getDomNode();
+                if (
+                  domNode &&
+                  domNode.offsetHeight > 0 &&
+                  domNode.offsetWidth > 0
+                ) {
+                  editorInstance.focus();
+                  console.log("✅ Monaco Editor 自动聚焦成功");
+                  return true; // 聚焦成功
+                } else {
+                  console.log(
+                    "⏳ Monaco Editor DOM 节点尚未完全准备好，等待...",
+                  );
+                  return false; // 聚焦失败
+                }
+              } catch (error) {
+                console.warn("⚠️ Monaco Editor 自动聚焦失败:", error);
+                return false;
+              }
             }
-          }, 100);
+            return false;
+          };
+
+          // 立即尝试聚焦
+          if (focusEditor()) return;
+
+          // 延迟 50ms 再次尝试（处理快速渲染情况）
+          setTimeout(() => {
+            if (focusEditor()) return;
+
+            // 延迟 150ms 再次尝试（处理慢速渲染情况）
+            setTimeout(() => {
+              if (focusEditor()) return;
+
+              // 延迟 300ms 最后尝试（处理最慢的渲染情况）
+              setTimeout(focusEditor, 150);
+            }, 100);
+          }, 50);
         }
 
         // 调用onMount回调
         if (isMounted) {
           onMount?.(editorInstance);
+        }
+
+        // 设置 ResizeObserver 监听容器大小变化，在变化后尝试聚焦
+        if (autoFocus && containerRef.current) {
+          try {
+            resizeObserverRef.current = new ResizeObserver(() => {
+              if (isMounted && editorInstance && !isDisposedRef.current) {
+                setTimeout(() => {
+                  try {
+                    editorInstance.focus();
+                    console.log("✅ Monaco Editor 容器大小变化后聚焦成功");
+                  } catch (error) {
+                    console.warn(
+                      "⚠️ Monaco Editor 容器大小变化后聚焦失败:",
+                      error,
+                    );
+                  }
+                }, 100);
+              }
+            });
+            resizeObserverRef.current.observe(containerRef.current);
+          } catch (error) {
+            console.warn("⚠️ Monaco Editor ResizeObserver 设置失败:", error);
+          }
+        }
+
+        // 在编辑器布局完成后再次尝试聚焦（处理布局延迟的情况）
+        if (autoFocus && isMounted) {
+          // 使用 requestAnimationFrame 确保在下一帧渲染时聚焦
+          requestAnimationFrame(() => {
+            if (isMounted && editorInstance && !isDisposedRef.current) {
+              try {
+                // 强制重新布局并聚焦
+                editorInstance.layout();
+                editorInstance.focus();
+                console.log("✅ Monaco Editor 布局后聚焦成功");
+              } catch (error) {
+                console.warn("⚠️ Monaco Editor 布局后聚焦失败:", error);
+              }
+            }
+          });
+
+          // 延迟 200ms 再次尝试（处理布局延迟的情况）
+          setTimeout(() => {
+            if (isMounted && editorInstance && !isDisposedRef.current) {
+              try {
+                // 强制重新布局并聚焦
+                editorInstance.layout();
+                editorInstance.focus();
+                console.log("✅ Monaco Editor 延迟布局后聚焦成功");
+              } catch (error) {
+                console.warn("⚠️ Monaco Editor 延迟布局后聚焦失败:", error);
+              }
+            }
+          }, 200);
         }
 
         if (isMounted) {
@@ -1969,6 +2063,16 @@ export const MonacoSystemPromptEditor: React.FC<
       // 安全地清理资源，避免Runtime Canceled错误
       if (!isDisposedRef.current) {
         isDisposedRef.current = true;
+
+        // 清理 ResizeObserver
+        if (resizeObserverRef.current) {
+          try {
+            resizeObserverRef.current.disconnect();
+            resizeObserverRef.current = null;
+          } catch (error) {
+            console.warn("⚠️ Monaco Editor ResizeObserver 清理失败:", error);
+          }
+        }
 
         // 清理事件监听器
         if (disposableRef.current) {
@@ -2168,6 +2272,20 @@ export const MonacoSystemPromptEditor: React.FC<
 
           updateStats(safeValue);
           isInitialValueSet.current = true;
+
+          // 在值更新后，如果启用了自动聚焦，尝试聚焦编辑器
+          if (autoFocus) {
+            setTimeout(() => {
+              if (editorRef.current && !isDisposedRef.current) {
+                try {
+                  editorRef.current.focus();
+                  console.log("✅ Monaco Editor 值更新后聚焦成功");
+                } catch (error) {
+                  console.warn("⚠️ Monaco Editor 值更新后聚焦失败:", error);
+                }
+              }
+            }, 50);
+          }
         } catch (error) {
           console.error(
             "Monaco Editor setValue 错误:",
@@ -2183,7 +2301,26 @@ export const MonacoSystemPromptEditor: React.FC<
         }
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, updateStats]);
+
+  // 额外的聚焦机制：当组件挂载后，如果启用了自动聚焦，尝试聚焦编辑器
+  useEffect(() => {
+    if (autoFocus && editorRef.current && !isDisposedRef.current) {
+      const timer = setTimeout(() => {
+        if (editorRef.current && !isDisposedRef.current) {
+          try {
+            editorRef.current.focus();
+            console.log("✅ Monaco Editor 组件挂载后聚焦成功");
+          } catch (error) {
+            console.warn("⚠️ Monaco Editor 组件挂载后聚焦失败:", error);
+          }
+        }
+      }, 100);
+
+      return () => clearTimeout(timer);
+    }
+  }, [autoFocus]);
 
   // 获取内存状态提示
   const getMemoryLevel = useMemo(() => {

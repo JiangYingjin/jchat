@@ -239,36 +239,36 @@ export const MessageContentEditPanelMonaco: React.FC<MessageContentEditPanelMona
               autoFocus={autoFocus}
               className={styles["system-prompt-monaco"]}
             />
-          </div>
 
-          {/* 🚀 图片附件区域 */}
-          {images.length !== 0 && (
-            <div className={monacoStyles["monaco-images-container"]}>
-              {images.map((image, index) => (
-                <div
-                  key={index}
-                  className={monacoStyles["monaco-image-item"]}
-                  style={{ backgroundImage: `url("${image}")` }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showImageModal(image, false);
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    copyImageToClipboard(image);
-                  }}
-                >
-                  <div className={monacoStyles["monaco-image-mask"]}>
-                    <DeleteImageButton
-                      deleteImage={imageDeleteHandlers[index]}
-                    />
+            {/* 🚀 图片附件区域 */}
+            {images.length !== 0 && (
+              <div className={monacoStyles["monaco-images-container"]}>
+                {images.map((image, index) => (
+                  <div
+                    key={index}
+                    className={monacoStyles["monaco-image-item"]}
+                    style={{ backgroundImage: `url("${image}")` }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      showImageModal(image, false);
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      copyImageToClipboard(image);
+                    }}
+                  >
+                    <div className={monacoStyles["monaco-image-mask"]}>
+                      <DeleteImageButton
+                        deleteImage={imageDeleteHandlers[index]}
+                      />
+                    </div>
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       );
     },
