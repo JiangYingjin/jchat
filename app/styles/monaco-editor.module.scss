@@ -53,6 +53,8 @@
 }
 
 .monaco-editor-wrapper {
+  margin-left: 8px;
+  // padding-left: 8px;
   flex: 1 1 auto;
   position: relative;
   overflow: hidden; // 由 Monaco 内部处理滚动，避免父级产生第二个滚动条
@@ -172,6 +174,8 @@
   flex: 1;
   position: relative;
 
+  overflow: hidden;
+
   // 从 monaco-container 继承的基础样式
   display: flex;
   flex-direction: column;
@@ -179,14 +183,11 @@
   background: var(--white);
   overflow: hidden;
   // 移除固定的 min-height，让 flexbox 自由控制
-  min-height: 100px; // 关键：允许在 flex 布局中自由收缩
+  min-height: 0px; // 关键：允许在 flex 布局中自由收缩
   max-height: 100%; // 让父容器控制高度
 
   // 从 system-prompt-editor .monaco-container 继承的样式
   border: none; // 在模态框中去掉边框，使用模态框的边框
-
-  // 从 chat.module.scss system-prompt-monaco 继承的样式
-  border-radius: 12px;
 
   &:focus-within {
     border-color: var(--primary);
@@ -224,7 +225,7 @@
   }
 
   position: relative;
-  padding: 12px;
+  padding: 8px;
   background: var(--gray-50);
   border-top: 1px solid var(--border-in-light);
 
@@ -309,9 +310,11 @@
 
 // 🔧 Monaco Editor 包装器样式（从 chat.module.scss 迁移）
 .monaco-wrapper {
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
+  overflow: hidden;
   min-height: 0; // 关键：在flex布局中允许子元素按需收缩，避免高度塌缩
-  padding-left: 8px;
   box-sizing: border-box;
   border: 1px solid var(--primary);
   border-radius: 12px;

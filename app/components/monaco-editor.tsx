@@ -23,20 +23,17 @@ const loadMonaco = async () => {
   // 首先尝试使用预加载的Monaco实例
   if (isMonacoLoaded()) {
     Monaco = getMonaco();
-    console.log("✅ 使用预加载的Monaco Editor实例");
     return Monaco;
   }
 
   // 如果预加载器正在加载中，等待它完成
   if (monacoPreloader.isMonacoLoading()) {
-    console.log("⏳ 等待Monaco Editor预加载完成...");
     Monaco = await monacoPreloader.preload();
     return Monaco;
   }
 
   // 兜底方案：如果预加载失败或未启动，使用传统的加载方式
   if (!Monaco && typeof window !== "undefined") {
-    console.log("🔄 使用传统方式加载Monaco Editor...");
     // 动态导入monaco-editor核心API
     Monaco = await import("monaco-editor");
 
@@ -186,7 +183,7 @@ const loadMonaco = async () => {
             }
           }
         } catch (e) {
-          console.warn("⚠️ [Monaco] 拦截贡献点系统时出现警告:", e);
+          // 忽略拦截贡献点时的警告
         }
       };
 
@@ -231,13 +228,13 @@ const loadMonaco = async () => {
             }
           }
         } catch (e) {
-          console.warn("⚠️ [Monaco] 禁用全局贡献点时出现警告:", e);
+          // 忽略禁用全局贡献点时的警告
         }
       };
 
       setTimeout(disableGlobalContributions, 200);
     } catch (e) {
-      console.warn("⚠️ [Monaco] 禁用贡献点时出现警告:", e);
+      // 忽略禁用贡献点时的警告
     }
 
     // 配置Monaco Editor - 简化为纯文本主题
@@ -432,16 +429,10 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
     "preloaded" | "loading" | "fallback"
   >("fallback");
 
-  // 🚀 性能监控
+  // 性能监控
   const updateStats = useCallback((text: string | undefined) => {
-    // 🛡️ 安全检查：确保text是有效字符串
+    // 安全检查：确保text是有效字符串
     if (typeof text !== "string") {
-      console.warn(
-        "⚠️ [Monaco] updateStats 收到非字符串参数:",
-        text,
-        "类型:",
-        typeof text,
-      );
       setStats({ characters: 0, lines: 0, words: 0 });
       return;
     }
@@ -452,7 +443,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
       const words = text.trim() ? text.trim().split(/\s+/).length : 0;
       setStats({ characters, lines, words });
     } catch (error) {
-      console.error("❌ [Monaco] updateStats 执行失败:", error, "text:", text);
       setStats({ characters: 0, lines: 0, words: 0 });
     }
   }, []);
@@ -463,19 +453,16 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
     const initMonaco = async () => {
       try {
-        // 🚀 智能加载策略：优先使用预加载实例
+        // 智能加载策略：优先使用预加载实例
         let monaco;
         if (isMonacoLoaded()) {
           monaco = getMonaco();
           setMonacoLoadMethod("preloaded");
-          console.log("🚀 使用预加载的Monaco实例，编辑器启动速度提升！");
         } else if (monacoPreloader.isMonacoLoading()) {
           setMonacoLoadMethod("loading");
-          console.log("⏳ Monaco预加载中，等待完成...");
           monaco = await monacoPreloader.preload();
         } else {
           setMonacoLoadMethod("fallback");
-          console.log("🔄 使用传统加载方式");
           monaco = await loadMonaco();
         }
 
@@ -579,7 +566,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
             }
           }
         } catch (e) {
-          console.warn("⚠️ [Monaco] 禁用编辑器贡献点时出现警告:", e);
+          // Ignore warnings when disabling editor contributions
         }
 
         // 🖱️ 禁用 Monaco 的中键多光标/列选择处理，恢复浏览器默认中键滚动
@@ -854,65 +841,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
         editorRef.current = editorInstance;
 
-        // 🔍 Unicode字符分析工具
-        const analyzeUnicodeString = (str: string, label: string = "") => {
-          if (!str) return null;
-
-          const analysis = {
-            length: str.length,
-            codeUnits: str.length,
-            codePoints: Array.from(str).length, // 使用Array.from正确计算Unicode码点数量
-            chars: [] as any[],
-            hasSurrogatePairs: false,
-            hasCombiningMarks: false,
-            hasEmoji: false,
-            hasZWJ: false, // Zero Width Joiner
-            hasVSel: false, // Variation Selectors
-          };
-
-          // 分析每个字符
-          for (let i = 0; i < str.length; i++) {
-            const char = str[i];
-            const code = str.charCodeAt(i);
-            const charInfo = {
-              index: i,
-              char: char,
-              codeUnit: code,
-              isHighSurrogate: code >= 0xd800 && code <= 0xdbff,
-              isLowSurrogate: code >= 0xdc00 && code <= 0xdfff,
-              isCombiningMark: code >= 0x0300 && code <= 0x036f,
-              isZWJ: code === 0x200d,
-              isVariationSelector:
-                (code >= 0xfe00 && code <= 0xfe0f) ||
-                (code >= 0xe0100 && code <= 0xe01ef),
-            };
-
-            analysis.chars.push(charInfo);
-
-            if (charInfo.isHighSurrogate || charInfo.isLowSurrogate) {
-              analysis.hasSurrogatePairs = true;
-            }
-            if (charInfo.isCombiningMark) {
-              analysis.hasCombiningMarks = true;
-            }
-            if (charInfo.isZWJ) {
-              analysis.hasZWJ = true;
-            }
-            if (charInfo.isVariationSelector) {
-              analysis.hasVSel = true;
-            }
-          }
-
-          // 检测表情符号
-          analysis.hasEmoji =
-            /[\u{1F600}-\u{1F6FF}]|[\u{1F300}-\u{1F5FF}]|[\u{1F680}-\u{1F6FF}]|[\u{1F700}-\u{1F77F}]|[\u{1F780}-\u{1F7FF}]|[\u{1F800}-\u{1F8FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/u.test(
-              str,
-            );
-
-          console.log(`🔤 [Unicode分析] ${label}:`, analysis);
-          return analysis;
-        };
-
         // 🎯 智能记忆系统：记住最大列位置和连续操作状态
         let lastNonEmptyLineColumn = 1; // 记住上一个非空行的列位置
         let maxColumnPosition = 1; // 连续操作中的最大列位置
@@ -923,39 +851,27 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
         // 🎯 视觉行移动辅助函数
         const getVisualLineInfo = (editor: any, position: any) => {
           try {
-            console.log("👁️ [Visual Line] 开始获取视觉行信息:", {
-              position: position,
-              editorType: typeof editor,
-            });
-
             // 获取当前光标的像素位置
             const cursorCoords = editor.getScrolledVisiblePosition(position);
-            console.log("👁️ [Visual Line] 光标像素坐标:", cursorCoords);
 
             if (!cursorCoords) {
-              console.warn("❌ [Visual Line] 无法获取光标像素坐标");
               return null;
             }
 
             const lineHeight = editor.getOption(51); // lineHeight
-            console.log("👁️ [Visual Line] 行高:", lineHeight);
 
             const currentVisualLineTop = Math.floor(
               cursorCoords.top / lineHeight,
             );
-            console.log("👁️ [Visual Line] 当前视觉行号:", currentVisualLineTop);
 
             // 获取可见范围
             const visibleRanges = editor.getVisibleRanges();
-            console.log("👁️ [Visual Line] 可见范围:", visibleRanges);
 
             if (!visibleRanges || visibleRanges.length === 0) {
-              console.warn("❌ [Visual Line] 无法获取可见范围");
               return null;
             }
 
             const visibleRange = visibleRanges[0];
-            console.log("👁️ [Visual Line] 当前可见范围:", visibleRange);
 
             return {
               cursorCoords,
@@ -964,7 +880,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
               visibleRange,
             };
           } catch (error) {
-            console.warn("❌ [Visual Line] 获取视觉行信息失败:", error);
             return null;
           }
         };
@@ -977,17 +892,8 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
           effectiveOffset: number,
         ) => {
           try {
-            console.log("🎯 [Visual Line] 开始计算视觉行位置:", {
-              direction,
-              currentPosition,
-              effectiveOffset,
-            });
-
             const visualInfo = getVisualLineInfo(editor, currentPosition);
             if (!visualInfo) {
-              console.log(
-                "🔄 [Visual Line] 降级到逻辑行移动：无法获取视觉行信息",
-              );
               // 直接在这里实现逻辑行移动
               const model = editor.getModel();
               if (!model) return null;
@@ -1086,7 +992,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
             } catch {}
 
             // 如果上面的方法失败，降级到逻辑行移动
-            console.log("🔄 [Visual Line] 降级到逻辑行移动");
+
             // 直接在这里实现逻辑行移动
             const model = editor.getModel();
             if (!model) return null;
@@ -1110,7 +1016,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
             return { lineNumber: targetLineNumber, column: targetColumn };
           } catch (error) {
-            console.warn("❌ [Visual Line] 计算视觉行位置失败:", error);
             // 降级到逻辑行移动
             // 直接在这里实现逻辑行移动
             const model = editor.getModel();
@@ -1137,105 +1042,8 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
           }
         };
 
-        // 🔍 Monaco编辑器配置诊断
-        const diagnoseEditorConfiguration = () => {
-          console.log("🔧 [Monaco CONFIG] 编辑器配置诊断:");
-
-          const options = editorInstance.getOptions();
-          const model = editorInstance.getModel();
-
-          console.log("📋 [Monaco CONFIG] 编辑器选项:", {
-            fontSize: options.get(38), // fontSize
-            lineHeight: options.get(51), // lineHeight
-            fontFamily: options.get(36), // fontFamily
-            wordWrap: options.get(117), // wordWrap
-            tabSize: options.get(99), // tabSize
-            insertSpaces: options.get(47), // insertSpaces
-            autoIndent: options.get(8), // autoIndent
-            autoClosingBrackets: options.get(5), // autoClosingBrackets
-            autoClosingQuotes: options.get(7), // autoClosingQuotes
-            autoSurround: options.get(10), // autoSurround
-            cursorStyle: options.get(17), // cursorStyle
-            cursorWidth: options.get(19), // cursorWidth
-            cursorBlinking: options.get(16), // cursorBlinking
-            // 可能影响光标移动的选项
-            wordBasedSuggestions: options.get(116), // wordBasedSuggestions
-            quickSuggestions: options.get(73), // quickSuggestions
-            acceptSuggestionOnEnter: options.get(1), // acceptSuggestionOnEnter
-            unicodeHighlight: options.get(105), // unicodeHighlight
-            bracketPairColorization: options.get(14), // bracketPairColorization
-          });
-
-          if (model) {
-            console.log("📄 [Monaco CONFIG] 模型配置:", {
-              language: model.getLanguageId(),
-              uri: model.uri.toString(),
-              versionId: model.getVersionId(),
-              lineCount: model.getLineCount(),
-              valueLength: model.getValueLength(),
-              eol: model.getEOL(),
-              // 检查模型选项
-              tabSize: model.getOptions().tabSize,
-              insertSpaces: model.getOptions().insertSpaces,
-              trimAutoWhitespace: model.getOptions().trimAutoWhitespace,
-            });
-
-            // 检查第一行内容的详细信息
-            if (model.getLineCount() > 0) {
-              const firstLine = model.getLineContent(1);
-              if (firstLine.length > 0) {
-                analyzeUnicodeString(
-                  firstLine.substring(0, 20),
-                  "第一行前20字符",
-                );
-              }
-            }
-          }
-
-          // 检查DOM节点信息
-          const domNode = editorInstance.getDomNode();
-          if (domNode) {
-            const computedStyle = window.getComputedStyle(domNode);
-            console.log("🎨 [Monaco CONFIG] DOM样式信息:", {
-              fontFamily: computedStyle.fontFamily,
-              fontSize: computedStyle.fontSize,
-              lineHeight: computedStyle.lineHeight,
-              letterSpacing: computedStyle.letterSpacing,
-              wordSpacing: computedStyle.wordSpacing,
-              direction: computedStyle.direction,
-              writingMode: computedStyle.writingMode,
-              textAlign: computedStyle.textAlign,
-            });
-          }
-
-          // 检查浏览器和设备信息
-          console.log("🌐 [Monaco CONFIG] 环境信息:", {
-            userAgent: navigator.userAgent,
-            platform: navigator.platform,
-            language: navigator.language,
-            hardwareConcurrency: navigator.hardwareConcurrency,
-            devicePixelRatio: window.devicePixelRatio,
-            // 检查输入法状态
-            isComposing:
-              document.querySelector('[data-mode-id="composing"]') !== null,
-          });
-
-          return true;
-        };
-
-        // 执行配置诊断
-        setTimeout(() => {
-          try {
-            diagnoseEditorConfiguration();
-          } catch (error) {
-            console.warn("⚠️ [Monaco CONFIG] 配置诊断失败:", error);
-          }
-        }, 1000);
-
         // 🔧 强化修复：全面阻止重复光标移动的补丁
         const applyDuplicateCursorMovementFix = () => {
-          console.log("🔧 [Monaco FIX] 应用强化版重复光标移动修复补丁...");
-
           // 🎯 全局光标移动拦截器
           let lastMoveTime = 0;
           let lastMovePosition = { lineNumber: 0, column: 0 };
@@ -1261,16 +1069,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
             if (isDuplicateMove) {
               moveBlockCount++;
-              console.warn(
-                `🚫 [Monaco FIX] 阻止重复光标移动 #${moveBlockCount} (${source}):`,
-                {
-                  from: lastMovePosition,
-                  to: position,
-                  timeDiff: timeDiff,
-                  blocked: true,
-                  source: source,
-                },
-              );
               return true; // 阻止移动
             }
 
@@ -1280,11 +1078,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
               lineNumber: position.lineNumber,
               column: position.column,
             };
-
-            console.log(`✅ [Monaco FIX] 允许光标移动 (${source}):`, {
-              to: position,
-              timeDiff: timeDiff,
-            });
 
             return false; // 允许移动
           };
@@ -1298,7 +1091,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
               }
               return originalSetPosition.call(this, position);
             };
-            console.log("✅ [Monaco FIX] 已拦截 setPosition 方法");
           }
 
           // 2. 拦截 reveal 方法
@@ -1313,7 +1105,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
               }
               return originalRevealPosition.call(this, position, ...args);
             };
-            console.log("✅ [Monaco FIX] 已拦截 revealPosition 方法");
           }
 
           // 3. 拦截光标选择设置
@@ -1335,7 +1126,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
               }
               return originalSetSelection.call(this, selection);
             };
-            console.log("✅ [Monaco FIX] 已拦截 setSelection 方法");
           }
 
           // 4. 拦截光标选择变化事件的触发
@@ -1361,7 +1151,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                 }
                 return originalSetSelections.call(this, selections);
               };
-              console.log("✅ [Monaco FIX] 已拦截 cursor.setSelections 方法");
             }
           }
 
@@ -1376,7 +1165,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
               }
               return originalMoveTo.call(this, position);
             };
-            console.log("✅ [Monaco FIX] 已拦截 viewController.moveTo 方法");
           }
 
           // 🚨 修正版键盘事件修复 - 区分真正的重复事件 vs 同一事件的不同阶段
@@ -1925,16 +1713,11 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                   domNode.offsetWidth > 0
                 ) {
                   editorInstance.focus();
-                  console.log("✅ Monaco Editor 自动聚焦成功");
                   return true; // 聚焦成功
                 } else {
-                  console.log(
-                    "⏳ Monaco Editor DOM 节点尚未完全准备好，等待...",
-                  );
                   return false; // 聚焦失败
                 }
               } catch (error) {
-                console.warn("⚠️ Monaco Editor 自动聚焦失败:", error);
                 return false;
               }
             }
@@ -1971,19 +1754,15 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                 setTimeout(() => {
                   try {
                     editorInstance.focus();
-                    console.log("✅ Monaco Editor 容器大小变化后聚焦成功");
                   } catch (error) {
-                    console.warn(
-                      "⚠️ Monaco Editor 容器大小变化后聚焦失败:",
-                      error,
-                    );
+                    // 忽略聚焦错误
                   }
                 }, 100);
               }
             });
             resizeObserverRef.current.observe(containerRef.current);
           } catch (error) {
-            console.warn("⚠️ Monaco Editor ResizeObserver 设置失败:", error);
+            // 忽略ResizeObserver设置错误
           }
         }
 
@@ -1996,9 +1775,8 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                 // 强制重新布局并聚焦
                 editorInstance.layout();
                 editorInstance.focus();
-                console.log("✅ Monaco Editor 布局后聚焦成功");
               } catch (error) {
-                console.warn("⚠️ Monaco Editor 布局后聚焦失败:", error);
+                // 忽略聚焦错误
               }
             }
           });
@@ -2010,9 +1788,8 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                 // 强制重新布局并聚焦
                 editorInstance.layout();
                 editorInstance.focus();
-                console.log("✅ Monaco Editor 延迟布局后聚焦成功");
               } catch (error) {
-                console.warn("⚠️ Monaco Editor 延迟布局后聚焦失败:", error);
+                // 忽略聚焦错误
               }
             }
           }, 200);
@@ -2022,7 +1799,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
           setIsLoading(false);
         }
       } catch (err) {
-        console.error("Monaco Editor initialization failed:", err);
         setError("编辑器加载失败，请刷新页面重试");
         setIsLoading(false);
       }
@@ -2055,7 +1831,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
           }
         }
       } catch (e) {
-        console.warn("⚠️ [Monaco] 组件卸载时全局清理出现警告:", e);
+        // 忽略清理错误
       }
 
       // 安全地清理资源，避免Runtime Canceled错误
@@ -2068,7 +1844,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
             resizeObserverRef.current.disconnect();
             resizeObserverRef.current = null;
           } catch (error) {
-            console.warn("⚠️ Monaco Editor ResizeObserver 清理失败:", error);
+            // 忽略清理错误
           }
         }
 
@@ -2086,7 +1862,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                 disposableRef.current.debugDisposables.keyDownDisposable?.dispose?.();
                 disposableRef.current.debugDisposables.keyUpDisposable?.dispose?.();
               } catch (e) {
-                console.warn("⚠️ [Monaco DEBUG] 清理调试监听器时出现警告:", e);
+                // 忽略清理错误
               }
             }
           } catch (e) {
@@ -2203,7 +1979,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
             }
           } catch (e) {
             // 静默处理disposal错误，避免Runtime Canceled
-            console.warn("⚠️ [Monaco] 销毁编辑器时出现警告:", e);
           }
           editorRef.current = null;
         }
@@ -2221,17 +1996,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
       // 🛡️ 安全检查：确保value是有效的字符串
       const safeValue = typeof value === "string" ? value : "";
 
-      console.log("🔄 [Monaco] useEffect value变化检查:", {
-        isInitialValueSet: isInitialValueSet.current,
-        currentValueLength: currentValue?.length || 0,
-        propValueLength: safeValue?.length || 0,
-        propValueType: typeof value,
-        valuesEqual: currentValue === safeValue,
-        willUpdate:
-          !isInitialValueSet.current ||
-          (currentValue !== safeValue && safeValue !== currentValue),
-      });
-
       // 🛡️ 关键修复：如果value是undefined/null且编辑器有内容，不要清空编辑器
       if (
         (typeof value === "undefined" || value === null) &&
@@ -2239,13 +2003,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
         currentValue.length > 0 &&
         isInitialValueSet.current
       ) {
-        console.warn(
-          "⚠️ [Monaco] 检测到value prop为undefined但编辑器有内容，跳过更新避免内容丢失:",
-          {
-            currentValueLength: currentValue.length,
-            propValue: value,
-          },
-        );
         return;
       }
 
@@ -2277,22 +2034,13 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
               if (editorRef.current && !isDisposedRef.current) {
                 try {
                   editorRef.current.focus();
-                  console.log("✅ Monaco Editor 值更新后聚焦成功");
                 } catch (error) {
-                  console.warn("⚠️ Monaco Editor 值更新后聚焦失败:", error);
+                  // 忽略聚焦错误
                 }
               }
             }, 50);
           }
         } catch (error) {
-          console.error(
-            "Monaco Editor setValue 错误:",
-            error,
-            "value:",
-            value,
-            "safeValue:",
-            safeValue,
-          );
           // 如果设置失败，至少更新统计信息
           updateStats(safeValue);
           isInitialValueSet.current = true;
@@ -2309,9 +2057,8 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
         if (editorRef.current && !isDisposedRef.current) {
           try {
             editorRef.current.focus();
-            console.log("✅ Monaco Editor 组件挂载后聚焦成功");
           } catch (error) {
-            console.warn("⚠️ Monaco Editor 组件挂载后聚焦失败:", error);
+            // 忽略聚焦错误
           }
         }
       }, 100);
