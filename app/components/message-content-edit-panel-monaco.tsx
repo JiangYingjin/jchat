@@ -1,11 +1,9 @@
 import React, { useCallback, useMemo, useRef } from "react";
-import clsx from "clsx";
 import styles from "../styles/chat.module.scss";
 import monacoStyles from "../styles/monaco-editor.module.scss";
 import { DeleteImageButton } from "./button";
-import { copyImageToClipboard } from "../utils/image";
-import { showImageModal } from "./ui-lib";
 import MonacoSystemPromptEditor from "./monaco-system-prompt-editor";
+import { useImageManagement } from "../hooks/use-image-management";
 
 interface MessageContentEditPanelMonacoProps {
   value: string;
@@ -61,38 +59,17 @@ export const MessageContentEditPanelMonaco: React.FC<MessageContentEditPanelMona
         [onChange, images, value],
       );
 
-      // 🚀 性能优化：图片删除处理函数缓存
-      const imageDeleteHandlers = useMemo(() => {
-        return images.map((_, index) => () => {
-          console.log("🗑️ [Monaco] 图像删除处理开始:", {
-            deleteIndex: index,
-            totalImages: images.length,
-            currentValue:
-              value?.substring(0, 100) + (value?.length > 100 ? "..." : ""),
-            valueLength: value?.length || 0,
-          });
-
-          const newImages = images.filter((_, i) => i !== index);
-
-          console.log("🗑️ [Monaco] 调用onChange with:", {
-            valueLength: value?.length || 0,
-            newImagesCount: newImages.length,
-            originalImagesCount: images.length,
-          });
-
-          onChange(value, newImages);
-        });
-      }, [images, onChange, value]);
-
-      // 🚀 性能优化：类名缓存
-      const panelClassName = useMemo(
-        () =>
-          clsx(monacoStyles["system-prompt-input-panel"], {
-            [monacoStyles["system-prompt-input-panel-attach"]]:
-              images.length !== 0,
-          }),
-        [images.length],
-      );
+      // 🚀 使用图片管理 hook
+      const {
+        imageDeleteHandlers,
+        panelClassName,
+        handleImageClick,
+        handleImageContextMenu,
+      } = useImageManagement({
+        images,
+        value,
+        onChange,
+      });
 
       // 🚀 Monaco Editor挂载回调
       const handleMonacoMount = useCallback(
@@ -249,16 +226,8 @@ export const MessageContentEditPanelMonaco: React.FC<MessageContentEditPanelMona
                     key={index}
                     className={monacoStyles["monaco-image-item"]}
                     style={{ backgroundImage: `url("${image}")` }}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      showImageModal(image, false);
-                    }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      copyImageToClipboard(image);
-                    }}
+                    onClick={handleImageClick(image)}
+                    onContextMenu={handleImageContextMenu(image)}
                   >
                     <div className={monacoStyles["monaco-image-mask"]}>
                       <DeleteImageButton
