@@ -7,18 +7,13 @@ import React, {
 } from "react";
 import { ChatMessage } from "../store";
 import { usePasteImageUpload } from "../utils/hooks";
-import {
-  getMessageTextContent,
-  getMessageTextReasoningContent,
-  getMessageImages,
-} from "../utils";
 import { Modal } from "./ui-lib";
 import { IconButton } from "./button";
 import CancelIcon from "../icons/cancel.svg";
 import ConfirmIcon from "../icons/confirm.svg";
 import { MessageContentEditPanel } from "./message-content-edit-panel";
 import { MessageContentEditPanelMonaco } from "./message-content-edit-panel-monaco";
-import { useTextMemoryMonitor } from "../utils/performance-hooks";
+
 import Locale from "../locales";
 import styles from "../styles/chat.module.scss";
 import monacoStyles from "../styles/monaco-editor.module.scss";
@@ -77,9 +72,6 @@ const SystemPromptEditModalComponent = React.memo(
         timestamp: Date.now(),
       });
     }, [attachImages]);
-
-    // 🚀 性能优化：内存监控（Monaco Editor自带性能优化，无需防抖）
-    const memoryStatus = useTextMemoryMonitor(content);
 
     // 🚀 性能优化：稳定的事件处理函数
     const handleContentChange = useCallback(
@@ -301,36 +293,6 @@ const SystemPromptEditModalComponent = React.memo(
           actions={modalActions}
         >
           <div className={monacoStyles["system-prompt-edit-container"]}>
-            {/* 🚀 性能状态指示器 */}
-            {memoryStatus.level !== "normal" && (
-              <div className={styles["performance-status"]}>
-                {memoryStatus.level === "warning" && (
-                  <div className={styles["memory-warning"]}>
-                    ⚠️ {memoryStatus.message}
-                    {memoryStatus.suggestions && (
-                      <ul>
-                        {memoryStatus.suggestions.map((suggestion, idx) => (
-                          <li key={idx}>{suggestion}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-                {memoryStatus.level === "critical" && (
-                  <div className={styles["memory-critical"]}>
-                    🚨 {memoryStatus.message}
-                    {memoryStatus.suggestions && (
-                      <ul>
-                        {memoryStatus.suggestions.map((suggestion, idx) => (
-                          <li key={idx}>{suggestion}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
             <MessageContentEditPanelMonaco
               value={content}
               images={attachImages}

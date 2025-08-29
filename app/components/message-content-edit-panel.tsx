@@ -32,7 +32,6 @@ const MessageContentEditPanelComponent: React.FC<
     handleInput,
     setValue,
     getValue,
-    isDebouncing,
   } = useUncontrolledTextarea(
     value,
     useCallback(
@@ -45,9 +44,6 @@ const MessageContentEditPanelComponent: React.FC<
 
   // 使用传入的ref或内部ref
   const finalRef = textareaRef || uncontrolledRef || localTextareaRef;
-
-  // 🚀 性能优化：内存监控
-  const memoryStatus = useTextMemoryMonitor(value);
 
   // 🚀 性能优化：节流处理选择和滚动事件
   const throttledOnSelect = useThrottle(
@@ -138,25 +134,6 @@ const MessageContentEditPanelComponent: React.FC<
 
   return (
     <label className={panelClassName}>
-      {/* 🚀 性能状态指示器 */}
-      {(isDebouncing || memoryStatus.level !== "normal") && (
-        <div className={styles["performance-indicator"]}>
-          {isDebouncing && (
-            <span className={styles["debouncing-indicator"]}>正在处理...</span>
-          )}
-          {memoryStatus.level === "warning" && (
-            <span className={styles["memory-warning"]}>
-              ⚠️ {memoryStatus.message}
-            </span>
-          )}
-          {memoryStatus.level === "critical" && (
-            <span className={styles["memory-critical"]}>
-              🚨 {memoryStatus.message}
-            </span>
-          )}
-        </div>
-      )}
-
       <textarea
         ref={finalRef}
         className={styles["system-prompt-input"]}
