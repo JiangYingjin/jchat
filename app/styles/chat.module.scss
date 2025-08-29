@@ -826,51 +826,6 @@
   }
 }
 
-// 系统提示词编辑模态框样式
-.system-prompt-edit-container {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  max-height: 100%;
-  overflow: hidden;
-  min-height: 0; // 关键：在flex布局中允许子元素按需收缩，避免高度塌缩
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0));
-  border-radius: 12px;
-}
-
-.system-prompt-input-panel {
-  display: flex;
-  flex-direction: column;
-  flex: 1 1 auto;
-  height: 100%;
-  max-height: 100%;
-  min-height: 280px;
-  overflow: hidden;
-  border-radius: 12px;
-  border: 1px solid var(--border-in-light);
-  position: relative;
-  background-color: var(--white);
-  box-shadow: var(--card-shadow);
-}
-
-// .system-prompt-input-panel-attach {
-//   padding-bottom: 80px;
-// }
-
-.system-prompt-input-panel:has(.system-prompt-input:focus) {
-  border: 1px solid var(--primary);
-}
-
-// 让 Monaco 编辑器所在容器正确占满剩余空间，并提供左右留白
-.monaco-wrapper {
-  flex: 1 1 auto;
-  min-height: 0; // 关键：允许子元素在flex容器内正确收缩，避免双滚动条
-  padding-left: 8px;
-  box-sizing: border-box;
-  border: 1px solid var(--primary);
-  border-radius: 12px;
-}
-
 .system-prompt-input {
   flex: 1 1 auto;
   width: 100%;
@@ -990,51 +945,6 @@
 }
 
 // Monaco Editor样式已在monaco-editor.module.scss中定义，避免重复
-
-// 🚀 Monaco Editor 在系统提示词编辑模态框中的样式
-.system-prompt-edit-container {
-  // 确保容器有合理的高度限制
-  height: 100%;
-  max-height: calc(85vh - 150px); // 适应模态框高度，预留头部和按钮空间
-  min-height: 380px; // 确保足够的编辑空间
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-
-// Monaco图片附件样式已在monaco-editor.module.scss中定义，避免重复
-// 复用现有的图片附件样式，但调整位置
-.system-prompt-input-panel {
-  .attach-images {
-    position: absolute;
-    left: 14px;
-    bottom: 14px;
-    display: flex;
-    max-width: calc(100% - 28px);
-    overflow-x: auto;
-    overflow-y: hidden;
-    white-space: nowrap;
-    z-index: 1; // 确保图片在文本框之上
-
-    // 美化图片区域的滚动条
-    &::-webkit-scrollbar {
-      height: 4px;
-    }
-
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-
-    &::-webkit-scrollbar-thumb {
-      background: rgba(0, 0, 0, 0.3);
-      border-radius: 2px;
-    }
-
-    &::-webkit-scrollbar-thumb:hover {
-      background: rgba(0, 0, 0, 0.5);
-    }
-  }
-}
 
 .ui-lib_modal-container {
   max-height: 92vh !important;

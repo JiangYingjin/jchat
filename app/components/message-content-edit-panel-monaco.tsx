@@ -87,8 +87,9 @@ export const MessageContentEditPanelMonaco: React.FC<MessageContentEditPanelMona
       // 🚀 性能优化：类名缓存
       const panelClassName = useMemo(
         () =>
-          clsx(styles["system-prompt-input-panel"], {
-            [styles["system-prompt-input-panel-attach"]]: images.length !== 0,
+          clsx(monacoStyles["system-prompt-input-panel"], {
+            [monacoStyles["system-prompt-input-panel-attach"]]:
+              images.length !== 0,
           }),
         [images.length],
       );
@@ -223,7 +224,7 @@ export const MessageContentEditPanelMonaco: React.FC<MessageContentEditPanelMona
       return (
         <div className={panelClassName}>
           {/* 🚀 Monaco Editor 编辑器 */}
-          <div className={styles["monaco-wrapper"]}>
+          <div className={monacoStyles["monaco-wrapper"]}>
             <MonacoSystemPromptEditor
               value={value}
               onChange={handleContentChange}

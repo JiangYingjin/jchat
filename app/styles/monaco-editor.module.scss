@@ -261,7 +261,7 @@
 }
 
 // 🎯 系统提示词 Monaco 编辑器统一容器类
-// 合并了 monaco-container、system-prompt-editor 和 chat.module.scss 中的 system-prompt-monaco 样式
+// 合并了 monaco-container、system-prompt-editor 和 chat.module.scss 中的相关样式
 .system-prompt-monaco-container {
   // 从 monaco-container 继承的基础样式
   display: flex;
@@ -283,4 +283,88 @@
     border-color: var(--primary);
     box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.1);
   }
+}
+
+// 🔧 Monaco Editor 包装器样式（从 chat.module.scss 迁移）
+.monaco-wrapper {
+  flex: 1 1 auto;
+  min-height: 0; // 关键：在flex布局中允许子元素按需收缩，避免高度塌缩
+  padding-left: 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--primary);
+  border-radius: 12px;
+}
+
+// 📝 系统提示词输入面板样式（从 chat.module.scss 迁移）
+.system-prompt-input-panel {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  height: 100%;
+  max-height: 100%;
+  min-height: 280px;
+  overflow: hidden;
+  border-radius: 12px;
+  border: 1px solid var(--border-in-light);
+  position: relative;
+  background-color: var(--white);
+  box-shadow: var(--card-shadow);
+
+  &:has(.system-prompt-input:focus) {
+    border: 1px solid var(--primary);
+  }
+}
+
+// 📎 系统提示词输入面板附件样式
+.system-prompt-input-panel-attach {
+  // 当有附件时，可以添加特殊的样式，比如调整padding
+  padding-bottom: 80px; // 为附件区域预留空间
+}
+
+// 🖼️ Monaco版本的图片附件样式（从 chat.module.scss 迁移）
+.attach-images {
+  position: absolute;
+  left: 14px;
+  bottom: 14px;
+  display: flex;
+  max-width: calc(100% - 28px);
+  overflow-x: auto;
+  overflow-y: hidden;
+  white-space: nowrap;
+  z-index: 1; // 确保图片在文本框之上
+
+  // 美化图片区域的滚动条
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 0, 0, 0.5);
+  }
+}
+
+// 🗂️ 系统提示词编辑容器样式（从 chat.module.scss 迁移）
+.system-prompt-edit-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-height: 100%;
+  overflow: hidden;
+  min-height: 0; // 关键：在flex布局中允许子元素按需收缩，避免高度塌缩
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.02), rgba(0, 0, 0, 0));
+  border-radius: 12px;
+
+  // 确保容器有合理的高度限制
+  height: 100%;
+  max-height: calc(85vh - 150px); // 适应模态框高度，预留头部和按钮空间
+  min-height: 380px; // 确保足够的编辑空间
 }

@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useCallback, useMemo } from "react";
 import clsx from "clsx";
 import styles from "../styles/chat.module.scss";
+import monacoStyles from "../styles/monaco-editor.module.scss";
 import { DeleteImageButton } from "./button";
 import { copyImageToClipboard } from "../utils/image";
 import { showImageModal } from "./ui-lib";
@@ -129,8 +130,8 @@ const MessageContentEditPanelComponent: React.FC<
   // 🚀 性能优化：类名缓存
   const panelClassName = useMemo(
     () =>
-      clsx(styles["system-prompt-input-panel"], {
-        [styles["system-prompt-input-panel-attach"]]: images.length !== 0,
+      clsx(monacoStyles["system-prompt-input-panel"], {
+        [monacoStyles["system-prompt-input-panel-attach"]]: images.length !== 0,
       }),
     [images.length],
   );

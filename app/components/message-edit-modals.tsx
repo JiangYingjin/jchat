@@ -21,6 +21,7 @@ import { MessageContentEditPanelMonaco } from "./message-content-edit-panel-mona
 import { useTextMemoryMonitor } from "../utils/performance-hooks";
 import Locale from "../locales";
 import styles from "../styles/chat.module.scss";
+import monacoStyles from "../styles/monaco-editor.module.scss";
 
 const SystemPromptEditModalComponent = React.memo(
   (props: {
@@ -299,7 +300,7 @@ const SystemPromptEditModalComponent = React.memo(
           onClose={handleCancel}
           actions={modalActions}
         >
-          <div className={styles["system-prompt-edit-container"]}>
+          <div className={monacoStyles["system-prompt-edit-container"]}>
             {/* 🚀 性能状态指示器 */}
             {memoryStatus.level !== "normal" && (
               <div className={styles["performance-status"]}>
