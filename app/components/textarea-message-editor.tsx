@@ -12,7 +12,7 @@ import {
   useThrottle,
 } from "../utils/performance-hooks";
 
-interface MessageContentEditPanelProps {
+interface TextareaMessageEditorProps {
   value: string;
   images: string[];
   onChange: (content: string, images: string[]) => void;
@@ -21,9 +21,14 @@ interface MessageContentEditPanelProps {
   onConfirm?: () => void;
 }
 
-const MessageContentEditPanelComponent: React.FC<
-  MessageContentEditPanelProps
-> = ({ value, images, onChange, textareaRef, handlePaste, onConfirm }) => {
+const TextareaMessageEditorComponent: React.FC<TextareaMessageEditorProps> = ({
+  value,
+  images,
+  onChange,
+  textareaRef,
+  handlePaste,
+  onConfirm,
+}) => {
   const localTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   // 🚀 性能优化：使用非受控组件避免大文本渲染问题
@@ -177,7 +182,5 @@ const MessageContentEditPanelComponent: React.FC<
 };
 
 // 使用React.memo进行性能优化，避免不必要的重新渲染
-export const MessageContentEditPanel = React.memo(
-  MessageContentEditPanelComponent,
-);
-MessageContentEditPanel.displayName = "MessageContentEditPanel";
+export const TextareaMessageEditor = React.memo(TextareaMessageEditorComponent);
+TextareaMessageEditor.displayName = "MessageContentEditPanel";

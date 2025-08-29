@@ -45,9 +45,9 @@ import { ChatInputPanel } from "./chat-input-panel";
 import { ChatHeader } from "./chat-header";
 import { MessageList } from "./message-list";
 import {
-  SystemPromptEditModal,
-  EditMessageWithImageModal,
-} from "./message-edit-modals";
+  SystemPromptEditDialog,
+  MessageWithImageEditDialog,
+} from "./message-edit-dialog";
 import { SessionEditorModal } from "./session-editor-modal";
 import { ExportMessageModal } from "./exporter";
 
@@ -758,7 +758,7 @@ const Chat = React.memo(function Chat() {
         <SessionEditorModal onClose={() => setIsEditingSession(false)} />
       )}
       {showSystemPromptEdit && (
-        <SystemPromptEditModal
+        <SystemPromptEditDialog
           onClose={() => setShowSystemPromptEdit(false)}
           sessionId={session.id}
           onSave={handleSystemPromptSave}
@@ -772,7 +772,7 @@ const Chat = React.memo(function Chat() {
         <ExportMessageModal onClose={() => setShowExport(false)} />
       )}
       {showEditMessageModal && editMessageData && (
-        <EditMessageWithImageModal
+        <MessageWithImageEditDialog
           onClose={() => setShowEditMessageModal(false)}
           initialContent={
             editMessageData.type === "content"

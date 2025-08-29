@@ -2,10 +2,10 @@ import React, { useCallback, useMemo, useRef } from "react";
 import styles from "../styles/chat.module.scss";
 import monacoStyles from "../styles/monaco-editor.module.scss";
 import { DeleteImageButton } from "./button";
-import MonacoSystemPromptEditor from "./monaco-system-prompt-editor";
+import MonacoEditor from "./monaco-editor";
 import { useImageManagement } from "../hooks/use-image-management";
 
-interface MessageContentEditPanelMonacoProps {
+interface MonacoMessageEditorProps {
   value: string;
   images: string[];
   onChange: (content: string, images: string[]) => void;
@@ -15,7 +15,7 @@ interface MessageContentEditPanelMonacoProps {
   autoFocus?: boolean;
 }
 
-export const MessageContentEditPanelMonaco: React.FC<MessageContentEditPanelMonacoProps> =
+export const MonacoMessageEditor: React.FC<MonacoMessageEditorProps> =
   React.memo(
     ({
       value,
@@ -202,7 +202,7 @@ export const MessageContentEditPanelMonaco: React.FC<MessageContentEditPanelMona
         <div className={panelClassName}>
           {/* 🚀 Monaco Editor 编辑器 */}
           <div className={monacoStyles["monaco-wrapper"]}>
-            <MonacoSystemPromptEditor
+            <MonacoEditor
               value={value}
               onChange={handleContentChange}
               onMount={(editor) => {
@@ -244,4 +244,4 @@ export const MessageContentEditPanelMonaco: React.FC<MessageContentEditPanelMona
     },
   );
 
-MessageContentEditPanelMonaco.displayName = "MessageContentEditPanelMonaco";
+MonacoMessageEditor.displayName = "TextareaMessageEditor";

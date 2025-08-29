@@ -11,14 +11,13 @@ import { Modal } from "./ui-lib";
 import { IconButton } from "./button";
 import CancelIcon from "../icons/cancel.svg";
 import ConfirmIcon from "../icons/confirm.svg";
-import { MessageContentEditPanel } from "./message-content-edit-panel";
-import { MessageContentEditPanelMonaco } from "./message-content-edit-panel-monaco";
+import { MonacoMessageEditor } from "./monaco-message-editor";
 
 import Locale from "../locales";
 import styles from "../styles/chat.module.scss";
 import monacoStyles from "../styles/monaco-editor.module.scss";
 
-const SystemPromptEditModalComponent = React.memo(
+const SystemPromptEditDialog = React.memo(
   (props: {
     onClose: () => void;
     sessionId: string;
@@ -293,7 +292,7 @@ const SystemPromptEditModalComponent = React.memo(
           actions={modalActions}
         >
           <div className={monacoStyles["system-prompt-edit-container"]}>
-            <MessageContentEditPanelMonaco
+            <MonacoMessageEditor
               value={content}
               images={attachImages}
               onChange={handleContentChange}
@@ -333,12 +332,12 @@ const SystemPromptEditModalComponent = React.memo(
 );
 
 // 设置显示名称
-SystemPromptEditModalComponent.displayName = "SystemPromptEditModal";
+SystemPromptEditDialog.displayName = "SystemPromptEditDialog";
 
 // 导出组件
-export const SystemPromptEditModal = SystemPromptEditModalComponent;
+export { SystemPromptEditDialog };
 
-export function EditMessageWithImageModal(props: {
+export function MessageWithImageEditDialog(props: {
   onClose: () => void;
   initialContent: string;
   initialImages: string[];
@@ -394,14 +393,13 @@ export function EditMessageWithImageModal(props: {
         ]}
       >
         <div className={styles["system-prompt-edit-container"]}>
-          <MessageContentEditPanel
+          <MonacoMessageEditor
             value={content}
             images={attachImages}
             onChange={(newContent: string, newImages: string[]) => {
               setContent(newContent);
               setAttachImages(newImages);
             }}
-            textareaRef={props.textareaRef}
             handlePaste={handlePaste}
             onConfirm={handleConfirm}
           />

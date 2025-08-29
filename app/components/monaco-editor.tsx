@@ -257,7 +257,7 @@ const loadMonaco = async () => {
   return Monaco;
 };
 
-interface MonacoSystemPromptEditorProps {
+interface MonacoEditorProps {
   value: string;
   onChange: (value: string) => void;
   onMount?: (editor: monaco.editor.IStandaloneCodeEditor) => void;
@@ -412,9 +412,7 @@ const PERFORMANCE_OPTIONS = {
   dropIntoEditor: { enabled: false },
 } as unknown as monaco.editor.IStandaloneEditorConstructionOptions;
 
-export const MonacoSystemPromptEditor: React.FC<
-  MonacoSystemPromptEditorProps
-> = ({
+export const MonacoEditor: React.FC<MonacoEditorProps> = ({
   value,
   onChange,
   onMount,
@@ -2392,4 +2390,4 @@ export const MonacoSystemPromptEditor: React.FC<
   );
 };
 
-export default MonacoSystemPromptEditor;
+export default MonacoEditor;
