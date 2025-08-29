@@ -2347,9 +2347,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
   }
 
   return (
-    <div
-      className={`${monacoStyles["system-prompt-monaco-container"]} ${className}`}
-    >
+    <div className={`${monacoStyles["monaco-editor"]} ${className}`}>
       {/* 🚀 性能状态栏 */}
       <div className={monacoStyles["monaco-status-bar"]}>
         <div className={monacoStyles["monaco-stats"]}>
