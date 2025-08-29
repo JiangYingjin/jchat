@@ -93,46 +93,51 @@
   z-index: 99999;
   pointer-events: none;
   backdrop-filter: saturate(180%) blur(4px);
-}
 
-.auto-scroll-cross-v {
-  position: absolute;
-  left: 50%;
-  top: 6%;
-  width: 1px;
-  height: 88%;
-  background: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.45) 50%,
-    rgba(0, 0, 0, 0) 100%
-  );
-}
+  // 十字线样式
+  .auto-scroll-cross-v,
+  .auto-scroll-cross-h {
+    position: absolute;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.45) 50%,
+      rgba(0, 0, 0, 0) 100%
+    );
+  }
 
-.auto-scroll-cross-h {
-  position: absolute;
-  top: 50%;
-  left: 6%;
-  height: 1px;
-  width: 88%;
-  background: linear-gradient(
-    to right,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 0.45) 50%,
-    rgba(0, 0, 0, 0) 100%
-  );
-}
+  .auto-scroll-cross-v {
+    left: 50%;
+    top: 6%;
+    width: 1px;
+    height: 88%;
+  }
 
-.auto-scroll-center-dot {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--primary);
-  transform: translate(-50%, -50%);
-  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.15);
+  .auto-scroll-cross-h {
+    top: 50%;
+    left: 6%;
+    height: 1px;
+    width: 88%;
+    background: linear-gradient(
+      to right,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 0.45) 50%,
+      rgba(0, 0, 0, 0) 100%
+    );
+  }
+
+  // 中心点样式
+  .auto-scroll-center-dot {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--primary);
+    transform: translate(-50%, -50%);
+    box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.15);
+  }
 }
 
 .monaco-error {
@@ -169,10 +174,7 @@
 
 // 🖼️ Monaco版本的图像处理样式
 .monaco-images-container {
-  position: relative;
-  padding: 12px;
-  background: var(--gray-50);
-  border-top: 1px solid var(--border-in-light);
+  // 图片容器基础样式（内联展开）
   display: flex;
   gap: 12px;
   overflow-x: auto;
@@ -198,6 +200,11 @@
       background: rgba(0, 0, 0, 0.4);
     }
   }
+
+  position: relative;
+  padding: 12px;
+  background: var(--gray-50);
+  border-top: 1px solid var(--border-in-light);
 
   .monaco-image-item {
     position: relative;
@@ -240,15 +247,6 @@
       }
     }
   }
-
-  // 空状态提示
-  .monaco-images-empty {
-    color: var(--text-color-secondary);
-    font-size: 14px;
-    font-style: italic;
-    text-align: center;
-    padding: 20px;
-  }
 }
 // 🎨 动画
 @keyframes spin {
@@ -259,6 +257,8 @@
     transform: rotate(360deg);
   }
 }
+
+// ===== 系统提示词编辑器样式 =====
 
 // 🎯 系统提示词 Monaco 编辑器统一容器类
 // 合并了 monaco-container、system-prompt-editor 和 chat.module.scss 中的相关样式
@@ -285,17 +285,7 @@
   }
 }
 
-// 🔧 Monaco Editor 包装器样式（从 chat.module.scss 迁移）
-.monaco-wrapper {
-  flex: 1 1 auto;
-  min-height: 0; // 关键：在flex布局中允许子元素按需收缩，避免高度塌缩
-  padding-left: 8px;
-  box-sizing: border-box;
-  border: 1px solid var(--primary);
-  border-radius: 12px;
-}
-
-// 📝 系统提示词输入面板样式（从 chat.module.scss 迁移）
+// 📝 系统提示词输入面板样式（合并了基础和附件样式）
 .system-prompt-input-panel {
   display: flex;
   flex-direction: column;
@@ -313,27 +303,40 @@
   &:has(.system-prompt-input:focus) {
     border: 1px solid var(--primary);
   }
+
+  // 当有附件时的特殊样式
+  &.has-attachments {
+    padding-bottom: 80px; // 为附件区域预留空间
+  }
 }
 
-// 📎 系统提示词输入面板附件样式
-.system-prompt-input-panel-attach {
-  // 当有附件时，可以添加特殊的样式，比如调整padding
-  padding-bottom: 80px; // 为附件区域预留空间
+// 🔧 Monaco Editor 包装器样式（从 chat.module.scss 迁移）
+.monaco-wrapper {
+  flex: 1 1 auto;
+  min-height: 0; // 关键：在flex布局中允许子元素按需收缩，避免高度塌缩
+  padding-left: 8px;
+  box-sizing: border-box;
+  border: 1px solid var(--primary);
+  border-radius: 12px;
 }
 
-// 🖼️ Monaco版本的图片附件样式（从 chat.module.scss 迁移）
+// 🖼️ Monaco版本的图片附件样式
 .attach-images {
+  // 图片容器基础样式（内联展开）
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  flex-shrink: 0;
+
   position: absolute;
   left: 14px;
   bottom: 14px;
-  display: flex;
   max-width: calc(100% - 28px);
-  overflow-x: auto;
-  overflow-y: hidden;
   white-space: nowrap;
   z-index: 1; // 确保图片在文本框之上
 
-  // 美化图片区域的滚动条
+  // 覆盖滚动条样式以适应更小的尺寸
   &::-webkit-scrollbar {
     height: 4px;
   }
@@ -368,3 +371,28 @@
   max-height: calc(85vh - 150px); // 适应模态框高度，预留头部和按钮空间
   min-height: 380px; // 确保足够的编辑空间
 }
+
+/*
+ * 🎨 Monaco Editor 样式模块优化总结
+ *
+ * 已完成的优化：
+ * 1. ✅ 合并系统提示词输入面板类（.system-prompt-input-panel + .system-prompt-input-panel-attach）
+ * 2. ✅ 内联展开图片容器公共样式（移除 .image-container-base 抽象层）
+ * 3. ✅ 优化自动滚动覆盖层结构（嵌套子类）
+ * 4. ✅ 移除未使用的CSS类（.monaco-images-empty）
+ * 4. ✅ 重新组织文件结构，按功能分组：
+ *    - 基础样式类
+ *    - Monaco 编辑器核心样式
+ *    - 状态栏样式
+ *    - 加载和错误状态样式
+ *    - 自动滚动覆盖层样式
+ *    - 图片相关样式
+ *    - 系统提示词编辑器样式
+ *    - 动画
+ *
+ * 代码质量提升：
+ * - 减少了代码重复
+ * - 提高了可维护性
+ * - 改善了代码组织结构
+ * - 保持了向后兼容性
+ */
