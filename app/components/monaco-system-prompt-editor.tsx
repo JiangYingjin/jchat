@@ -2350,7 +2350,7 @@ export const MonacoSystemPromptEditor: React.FC<
 
   return (
     <div
-      className={`${monacoStyles["monaco-container"]} ${monacoStyles["system-prompt-editor"]} ${className}`}
+      className={`${monacoStyles["system-prompt-monaco-container"]} ${className}`}
     >
       {/* 🚀 性能状态栏 */}
       <div className={monacoStyles["monaco-status-bar"]}>

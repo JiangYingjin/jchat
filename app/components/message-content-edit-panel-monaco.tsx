@@ -237,7 +237,7 @@ export const MessageContentEditPanelMonaco: React.FC<MessageContentEditPanelMona
                 }, 0);
               }}
               autoFocus={autoFocus}
-              className={styles["system-prompt-monaco"]}
+              className=""
             />
 
             {/* 🚀 图片附件区域 */}
