@@ -33,6 +33,7 @@ import { prettyObject } from "../utils/format";
 import { handleUnauthorizedResponse, handleUrlAuthCode } from "../utils/auth";
 import { findMessagePairForResend } from "../utils/message";
 import { parseGroupMessageId } from "../utils/group";
+import { createSmartPositionCallback } from "../utils/editor";
 
 // --- Client & Constants ---
 import { ChatControllerPool } from "../client/controller";
@@ -591,11 +592,6 @@ const Chat = React.memo(function Chat() {
     if (message.streaming) return;
     setEditMessageData({ message, type, select });
     setShowEditMessageModal(true);
-
-    setTimeout(() => {
-      // Monaco Editor 会自动处理聚焦和光标位置，无需额外设置
-      // 这里保留空实现以保持向后兼容性
-    }, 100);
   };
 
   // --- Side Effects ---
@@ -785,6 +781,11 @@ const Chat = React.memo(function Chat() {
           title={Locale.Chat.Actions.Edit}
           textareaRef={messageEditRef}
           message={editMessageData.message}
+          onSmartPosition={createSmartPositionCallback(
+            editMessageData.select,
+            editMessageData.type,
+            editMessageData.message,
+          )}
         />
       )}
     </>

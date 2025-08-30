@@ -61,6 +61,8 @@ export interface EditorCoreProps {
   };
   // Monaco Editor容器引用（兼容性）
   textareaRef?: React.RefObject<HTMLElement>;
+  // Monaco Editor实例回调，用于智能定位
+  onEditorMount?: (editor: any) => void;
 }
 
 // 🎯 通用的消息编辑器hook
@@ -72,6 +74,7 @@ export function useMessageEditor(props: EditorCoreProps) {
     saveConfig,
     monacoConfig,
     textareaRef,
+    onEditorMount,
   } = props;
 
   // 🎯 状态管理
@@ -148,6 +151,11 @@ export function useMessageEditor(props: EditorCoreProps) {
     (editor: any) => {
       monacoEditorRef.current = editor;
 
+      // 如果有textareaRef，将editor实例保存到其中，以便外部访问
+      if (textareaRef?.current) {
+        (textareaRef.current as any)._monacoEditor = editor;
+      }
+
       // 恢复滚动位置和光标位置
       if (monacoConfig?.scrollTop && monacoConfig.scrollTop > 0) {
         editor.setScrollTop(monacoConfig.scrollTop);
@@ -196,8 +204,11 @@ export function useMessageEditor(props: EditorCoreProps) {
 
       // 调用外部传入的onMount回调
       monacoConfig?.onMount?.(editor);
+
+      // 调用智能定位回调
+      onEditorMount?.(editor);
     },
-    [monacoConfig, editorConfig.autoFocus],
+    [monacoConfig, editorConfig.autoFocus, textareaRef, onEditorMount],
   );
 
   // 🎯 保存处理
@@ -291,8 +302,14 @@ export function useMessageEditor(props: EditorCoreProps) {
 
 // 🎯 通用的编辑器核心组件
 export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
-  const { editorConfig, imageConfig, modalConfig, textareaRef, saveConfig } =
-    props;
+  const {
+    editorConfig,
+    imageConfig,
+    modalConfig,
+    textareaRef,
+    saveConfig,
+    onEditorMount,
+  } = props;
 
   const editor = useMessageEditor(props);
 
@@ -428,14 +445,35 @@ const MessageEditDialog = React.memo(
       scrollTop?: number;
       selection?: { start: number; end: number };
     };
+    // 智能定位回调
+    onSmartPosition?: (editor: any) => void;
   }) => {
-    const { title = "编辑消息", textareaRef, monacoConfig } = props;
+    const {
+      title = "编辑消息",
+      textareaRef,
+      monacoConfig,
+      onSmartPosition,
+    } = props;
 
     const editorConfig: EditorConfig = {
       type: EditorType.MONACO,
       placeholder: "请输入消息...",
       autoFocus: true,
     };
+
+    // Monaco Editor 挂载时的智能定位处理
+    const handleEditorMount = useCallback(
+      (editor: any) => {
+        // 保存编辑器实例到 ref 中，以便外部访问
+        if (textareaRef?.current) {
+          (textareaRef.current as any)._monacoEditor = editor;
+        }
+
+        // 调用外部的智能定位回调
+        onSmartPosition?.(editor);
+      },
+      [textareaRef, onSmartPosition],
+    );
 
     return (
       <EditorCore
@@ -458,6 +496,7 @@ const MessageEditDialog = React.memo(
         }}
         textareaRef={textareaRef}
         monacoConfig={monacoConfig}
+        onEditorMount={handleEditorMount}
       />
     );
   },
@@ -480,6 +519,8 @@ export function MessageWithImageEditDialog(props: {
   title?: string;
   textareaRef?: React.RefObject<HTMLElement>;
   message?: ChatMessage;
+  // 智能定位回调
+  onSmartPosition?: (editor: any) => void;
 }) {
   return (
     <MessageEditDialog
@@ -490,6 +531,7 @@ export function MessageWithImageEditDialog(props: {
       title={props.title}
       textareaRef={props.textareaRef}
       message={props.message}
+      onSmartPosition={props.onSmartPosition}
     />
   );
 }
