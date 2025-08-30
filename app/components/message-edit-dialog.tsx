@@ -341,8 +341,9 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
       onImageDelete: (index: number) =>
         stablePropsRef.current.onImageDelete(index),
     }),
-    [],
-  ); // 空依赖项，函数引用永远不变
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [], // 空依赖项，函数引用永远不变，通过 ref 访问最新值
+  );
 
   // 🎯 模态框动作按钮
   const modalActions = useMemo(
@@ -361,6 +362,7 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
         onClick={() => editor.handleSave(false)}
       />,
     ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [modalConfig.onClose, editor.handleSave], // 只依赖具体的函数，而不是整个editor对象
   );
 
