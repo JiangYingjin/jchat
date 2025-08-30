@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import styles from "../styles/chat.module.scss";
 import clsx from "clsx";
 import monacoStyles from "../styles/monaco-editor.module.scss";
@@ -30,59 +30,57 @@ export const MonacoMessageEditor: React.FC<MonacoMessageEditorProps> =
     }) => {
       // 🚀 性能优化：稳定的内容变化处理函数
       const isInternalUpdateRef = useRef(false); // 标记内部更新
+      const lastContentRef = useRef(value || ""); // 存储上一次的内容，避免依赖 value
+
+      // 🎯 同步 lastContentRef 和 props value
+      useEffect(() => {
+        lastContentRef.current = value || "";
+      }, [value]);
 
       const handleContentChange = useCallback(
         (newContent: string) => {
-          console.log("📝 [Monaco] handleContentChange 被调用:", {
-            newContentLength: newContent?.length || 0,
-            currentValueLength: value?.length || 0,
-            imagesCount: images?.length || 0,
-            contentChanged: newContent !== value,
-            isInternalUpdate: isInternalUpdateRef.current,
-            callStack: new Error().stack?.split("\n").slice(1, 5), // 🔍 追踪调用栈
-          });
+          const timestamp = performance.now();
+
+          // 🔍 调试：检查防重复调用逻辑的各个条件
+          const condition1 = isInternalUpdateRef.current;
+          const condition2 = !newContent || newContent.length === 0;
+          const condition3 =
+            lastContentRef.current && lastContentRef.current.length > 0;
+          const shouldIgnore = condition1 && condition2 && condition3;
 
           // 🛡️ 如果是内部更新导致的onChange，且内容为空，则忽略
-          if (
-            isInternalUpdateRef.current &&
-            (!newContent || newContent.length === 0) &&
-            value &&
-            value.length > 0
-          ) {
-            console.warn(
-              "⚠️ [Monaco] 检测到内部更新导致的空内容onChange，忽略以避免内容丢失",
-            );
+          if (shouldIgnore) {
             return;
           }
 
-          // Monaco内容变化处理
-          onChange(newContent, images);
+          // 🎯 准备调用父组件的onChange
+
+          // 🔍 调试：检查父组件onChange函数的调用
+          try {
+            // Monaco内容变化处理
+            onChange(newContent, images);
+
+            // 🎯 更新最后的内容引用，用于防重复调用逻辑
+            lastContentRef.current = newContent || "";
+          } catch (error) {
+            console.error(
+              `❌ [Monaco] 父组件onChange调用失败 [${timestamp.toFixed(2)}ms]:`,
+              error,
+            );
+          }
         },
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         [onChange, images, value],
       );
 
       // 🚀 性能优化：图片删除处理函数缓存
       const imageDeleteHandlers = useMemo(() => {
         return images.map((_, index) => () => {
-          console.log("🗑️ [Monaco] 图像删除处理开始:", {
-            deleteIndex: index,
-            totalImages: images.length,
-            currentValue:
-              value?.substring(0, 100) + (value?.length > 100 ? "..." : ""),
-            valueLength: value?.length || 0,
-          });
-
           const newImages = images.filter((_, i) => i !== index);
 
-          console.log("🗑️ [Monaco] 调用onChange with:", {
-            valueLength: value?.length || 0,
-            newImagesCount: newImages.length,
-            originalImagesCount: images.length,
-          });
-
-          onChange(value, newImages);
+          onChange(lastContentRef.current, newImages);
         });
-      }, [images, onChange, value]);
+      }, [images, onChange]); // 🚀 移除 value 依赖，避免不必要的重新创建
 
       // 🚀 性能优化：类名缓存
       const panelClassName = useMemo(
@@ -91,7 +89,7 @@ export const MonacoMessageEditor: React.FC<MonacoMessageEditorProps> =
             [monacoStyles["system-prompt-input-panel-attach"]]:
               images.length !== 0,
           }),
-        [images.length],
+        [images.length], // 只有 images.length 变化时才重新计算类名
       );
 
       // 🚀 Monaco Editor挂载回调

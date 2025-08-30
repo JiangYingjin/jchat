@@ -148,6 +148,14 @@ export function usePasteImageUpload(
 
   const handlePaste = useCallback(
     async (event: React.ClipboardEvent<HTMLTextAreaElement>) => {
+      // 🔍 立即尝试获取当前内容
+      let currentContentAtPaste = "";
+      if (getCurrentContent) {
+        try {
+          currentContentAtPaste = getCurrentContent();
+        } catch (error) {}
+      }
+
       const currentModel = chatStore.currentSession().model;
       const items = event.clipboardData?.items;
       const imageFiles: File[] = [];
@@ -193,30 +201,15 @@ export function usePasteImageUpload(
           // 🔥 关键修复：图像上传成功后，同时保持文本内容和更新图像
           if (getCurrentContent) {
             const currentContent = getCurrentContent();
-            console.log("📝 [usePasteImageUpload] 获取当前文本内容:", {
-              contentLength: currentContent?.length || 0,
-              hasContent: !!currentContent,
-            });
-
-            console.log(
-              "🔄 [usePasteImageUpload] 将同时更新内容和图像 - 避免时序问题",
-            );
 
             // 🔥 关键修复：使用专门的回调函数，同时传递内容和图像，避免分离状态更新
             if (onContentChange) {
-              console.log(
-                "📋 [usePasteImageUpload] 调用onContentChange - 保持文本内容",
-              );
               onContentChange(currentContent);
             }
-          } else {
-            console.warn("⚠️ [usePasteImageUpload] 无法获取当前文本内容");
           }
 
           // 更新图像列表
-          console.log("🖼️ [usePasteImageUpload] 更新图像列表");
           setAttachImages(images);
-          console.log("💾 [usePasteImageUpload] setAttachImages 调用完成");
         } catch (e) {
           console.error("上传粘贴图片失败:", e);
           showToast("图片上传失败，请重试");

@@ -3,7 +3,6 @@ import { useChatStore, type ChatSession } from "../store";
 import { showToast } from "./ui-lib";
 import { IconButton } from "./button";
 import { List, ListItem, Modal } from "./ui-lib";
-import { MessageListEditor } from "./message-list-editor";
 import Locale from "../locales";
 import ConfirmIcon from "../icons/confirm.svg";
 import CancelIcon from "../icons/cancel.svg";
@@ -86,17 +85,6 @@ export function SessionEditorModal(props: { onClose: () => void }) {
             />
           </ListItem>
         </List>
-        {/* {!isGroupSession && (
-          <MessageListEditor
-            context={messages}
-            updateContext={(updater) => {
-              const newMessages = messages.slice();
-              updater(newMessages);
-              setMessages(newMessages);
-            }}
-            onModalClose={props.onClose}
-          />
-        )} */}
       </Modal>
     </div>
   );

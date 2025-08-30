@@ -1535,6 +1535,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
         const debugDisposables = null;
 
         // 监听内容变化
+
         const disposable = editorInstance.onDidChangeModelContent((e: any) => {
           // 检查组件状态
           if (isDisposedRef.current || !isMounted) return;
@@ -1547,7 +1548,21 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
           const currentValue = editorInstance.getValue(); // ✅ Monaco getValue() 总是返回字符串
 
-          onChange(currentValue);
+          if (onChange) {
+            try {
+              onChange(currentValue);
+            } catch (error) {
+              console.error(
+                "🔧 [MonacoEditor] DEBUG: onChange call failed:",
+                error,
+              );
+            }
+          } else {
+            console.warn(
+              "🔧 [MonacoEditor] DEBUG: onChange prop is not provided!",
+            );
+          }
+
           updateStats(currentValue); // ✅ 这里是安全的
         });
 
@@ -1851,7 +1866,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onChange, onMount, readOnly, autoFocus, updateStats]);
+  }, [onChange, readOnly, autoFocus, updateStats]); // 移除 onMount 依赖，避免不必要的重新初始化
 
   // 处理外部value变化（避免光标跳转）
   const isInitialValueSet = useRef(false);

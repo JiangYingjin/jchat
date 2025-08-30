@@ -42,6 +42,19 @@ const SystemPromptEditDialog = React.memo(
       props.initialSelection || { start: 0, end: 0 },
     );
 
+    // 🎯 稳定的 onChange 回调，避免不必要的重新渲染
+    const handleEditorChange = useCallback(
+      (newContent: string, newImages: string[]) => {
+        console.log("📝 [SystemPromptEditModal] handleEditorChange 被调用:", {
+          newContentLength: newContent?.length || 0,
+          newImagesCount: newImages?.length || 0,
+        });
+        setContent(newContent);
+        setAttachImages(newImages);
+      },
+      [], // 空依赖数组，确保函数引用稳定
+    );
+
     // 🔍 在每次渲染时打印当前状态
     console.log("🔄 [SystemPromptEditModal] 组件重新渲染:", {
       contentLength: content?.length || 0,
@@ -158,19 +171,37 @@ const SystemPromptEditDialog = React.memo(
     // 🔥 获取当前Monaco Editor内容的函数
     const getCurrentContent = useCallback(() => {
       if (monacoEditorRef.current) {
-        const currentContent = monacoEditorRef.current.getValue();
-        console.log(
-          "🎯 [SystemPromptEditModalComponent] getCurrentContent 被调用:",
-          {
-            contentLength: currentContent?.length || 0,
-            hasMonacoRef: !!monacoEditorRef.current,
-          },
-        );
-        return currentContent;
+        try {
+          const currentContent = monacoEditorRef.current.getValue();
+
+          // 🔍 额外调试：检查 Monaco Editor 的内部状态
+          try {
+            const model = monacoEditorRef.current.getModel();
+            if (model) {
+              const modelValue = model.getValue();
+            } else {
+            }
+          } catch (modelError) {
+            console.error(
+              "🎯 [SystemPromptEditModalComponent] DEBUG: 获取 Monaco Model 失败:",
+              modelError,
+            );
+          }
+
+          return currentContent;
+        } catch (error) {
+          console.error(
+            "🎯 [SystemPromptEditModalComponent] DEBUG: Monaco Editor getValue() 调用失败:",
+            error,
+          );
+          return content; // 回退到state中的内容
+        }
       }
+
       console.warn(
         "⚠️ [SystemPromptEditModalComponent] getCurrentContent: Monaco Editor ref 不可用",
       );
+
       return content; // 回退到state中的内容
     }, [content]);
 
@@ -179,17 +210,6 @@ const SystemPromptEditDialog = React.memo(
 
     const handlePasteContentChange = useCallback(
       (newContent: string) => {
-        console.log(
-          "🔧 [SystemPromptEditModal] handlePasteContentChange 被调用:",
-          {
-            newContentLength: newContent?.length || 0,
-            currentContentLength: content?.length || 0,
-            currentImagesLength: attachImages?.length || 0,
-            pasteInProgress: pasteInProgressRef.current,
-            callStack: new Error().stack?.split("\n").slice(1, 6), // 🔍 追踪调用栈
-          },
-        );
-
         // 🛡️ 防重复调用：如果正在粘贴过程中且新内容为空，则忽略
         if (
           pasteInProgressRef.current &&
@@ -204,6 +224,7 @@ const SystemPromptEditDialog = React.memo(
         // 只更新内容，保持当前图像不变
         setContent(newContent);
       },
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       [content, attachImages],
     );
 
@@ -214,6 +235,33 @@ const SystemPromptEditDialog = React.memo(
       setUploading,
       handlePasteContentChange, // 🔥 使用专门的回调函数
       getCurrentContent, // 🔥 传入获取当前内容的函数
+    );
+
+    // 🎯 稳定的 handlePaste 回调，避免不必要的重新渲染
+    const handlePasteCallback = useCallback(
+      (e: React.ClipboardEvent<any>) => {
+        console.log("🖼️ [SystemPromptEditModal] handlePaste 触发前状态检查:", {
+          currentContentLength: content?.length || 0,
+          currentContentType: typeof content,
+          currentImagesCount: attachImages?.length || 0,
+        });
+
+        // 🔥 设置粘贴进行中标志
+        pasteInProgressRef.current = true;
+        console.log("🚩 [SystemPromptEditModal] 设置粘贴进行中标志");
+
+        // 执行粘贴处理
+        const result = handlePaste(e as any);
+
+        // 🔥 延迟清除粘贴进行中标志，确保所有异步操作完成
+        setTimeout(() => {
+          pasteInProgressRef.current = false;
+          console.log("🏁 [SystemPromptEditModal] 清除粘贴进行中标志");
+        }, 1000); // 给足够的时间让异步操作完成
+
+        return result;
+      },
+      [content, attachImages, handlePaste],
     );
 
     // 🚀 性能优化：保存处理函数缓存
@@ -296,31 +344,7 @@ const SystemPromptEditDialog = React.memo(
               value={content}
               images={attachImages}
               onChange={handleContentChange}
-              handlePaste={(e) => {
-                console.log(
-                  "🖼️ [SystemPromptEditModal] handlePaste 触发前状态检查:",
-                  {
-                    currentContentLength: content?.length || 0,
-                    currentContentType: typeof content,
-                    currentImagesCount: attachImages?.length || 0,
-                  },
-                );
-
-                // 🔥 设置粘贴进行中标志
-                pasteInProgressRef.current = true;
-                console.log("🚩 [SystemPromptEditModal] 设置粘贴进行中标志");
-
-                // 执行粘贴处理
-                const result = handlePaste(e as any);
-
-                // 🔥 延迟清除粘贴进行中标志，确保所有异步操作完成
-                setTimeout(() => {
-                  pasteInProgressRef.current = false;
-                  console.log("🏁 [SystemPromptEditModal] 清除粘贴进行中标志");
-                }, 1000); // 给足够的时间让异步操作完成
-
-                return result;
-              }}
+              handlePaste={handlePasteCallback}
               onConfirm={handleSave}
               onMount={handleMonacoMount}
             />
@@ -393,16 +417,42 @@ export function MessageWithImageEditDialog(props: {
         ]}
       >
         <div className={styles["system-prompt-edit-container"]}>
-          <MonacoMessageEditor
+          <textarea
+            ref={props.textareaRef}
+            className={styles["chat-input"]}
+            placeholder="请输入消息..."
             value={content}
-            images={attachImages}
-            onChange={(newContent: string, newImages: string[]) => {
-              setContent(newContent);
-              setAttachImages(newImages);
+            onChange={(e) => setContent(e.target.value)}
+            onPaste={handlePaste}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                handleConfirm();
+              }
             }}
-            handlePaste={handlePaste}
-            onConfirm={handleConfirm}
+            rows={6}
           />
+          {/* 图片附件区域 */}
+          {attachImages.length > 0 && (
+            <div className={styles["attach-images"]}>
+              {attachImages.map((image, index) => (
+                <div key={index} className={styles["attach-image-item"]}>
+                  <img src={image} alt={`attachment-${index}`} />
+                  <button
+                    className={styles["delete-image"]}
+                    onClick={() => {
+                      const newImages = attachImages.filter(
+                        (_, i) => i !== index,
+                      );
+                      setAttachImages(newImages);
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </Modal>
     </div>
