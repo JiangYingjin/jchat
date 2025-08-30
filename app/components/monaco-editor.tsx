@@ -431,21 +431,6 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
     "preloaded" | "loading" | "fallback"
   >("fallback");
 
-  // 🔧 环境检测常量
-  const isProduction = process.env.NODE_ENV === "production";
-
-  // 🔧 统一的状态更新函数
-  const updateLoadingState = useCallback(
-    (loading: boolean, forceSync = false) => {
-      if (forceSync && isProduction) {
-        flushSync(() => setIsLoading(loading));
-      } else {
-        setIsLoading(loading);
-      }
-    },
-    [isProduction],
-  );
-
   // 性能监控
   const updateStats = useCallback((text: string | undefined) => {
     // 安全检查：确保text是有效字符串
@@ -470,32 +455,58 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
     const initMonaco = async () => {
       try {
-        updateLoadingState(true);
+        console.log("[MonacoEditor] 🔄 开始初始化 Monaco 编辑器");
+        // 🔧 确保在开始加载前设置加载状态
+        setIsLoading(true);
+        console.log("[MonacoEditor] ✅ 设置 isLoading = true");
 
         // 智能加载策略：优先使用预加载实例
         let monaco: typeof import("monaco-editor");
+        console.log("[MonacoEditor] 🔍 检查 Monaco 加载状态...");
         if (isMonacoLoaded()) {
+          console.log("[MonacoEditor] 🎯 使用预加载的 Monaco 实例");
           monaco = getMonaco();
           setMonacoLoadMethod("preloaded");
         } else if (monacoPreloader.isMonacoLoading()) {
+          console.log("[MonacoEditor] ⏳ Monaco 正在加载中，等待完成...");
           setMonacoLoadMethod("loading");
           monaco = await monacoPreloader.preload();
+          console.log("[MonacoEditor] ✅ Monaco 预加载完成");
         } else {
+          console.log("[MonacoEditor] 🔄 使用兜底加载方式");
           setMonacoLoadMethod("fallback");
           monaco = await loadMonaco();
+          console.log("[MonacoEditor] ✅ Monaco 兜底加载完成");
         }
 
-        // 验证组件状态
+        // 🔧 关键修复：只有在组件未卸载时才继续初始化
         if (!isMounted) {
-          updateLoadingState(false);
-          return;
-        }
-        if (!containerRef.current) {
-          updateLoadingState(false);
+          console.warn("[MonacoEditor] 组件已卸载，跳过编辑器初始化");
+          const isProduction = process.env.NODE_ENV === "production";
+          if (isProduction) {
+            flushSync(() => setIsLoading(false));
+          } else {
+            setIsLoading(false);
+          }
           return;
         }
 
+        // 🔧 关键修复：检查容器是否可用
+        if (!containerRef.current) {
+          console.warn("[MonacoEditor] 容器不可用，跳过编辑器初始化");
+          const isProduction = process.env.NODE_ENV === "production";
+          if (isProduction) {
+            flushSync(() => setIsLoading(false));
+          } else {
+            setIsLoading(false);
+          }
+          return;
+        }
+        console.log("[MonacoEditor] ✅ 容器可用，开始创建编辑器");
+
+        // 🛡️ 确保容器干净（防止"Element already has context attribute"错误）
         const container = containerRef.current;
+        console.log("[MonacoEditor] 🧹 清理容器状态");
 
         // 清理容器的所有子元素和属性
         container.innerHTML = "";
@@ -516,15 +527,21 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
         // 🛡️ 确保value是安全的字符串
         const safeInitialValue = typeof value === "string" ? value : "";
+        console.log(
+          "[MonacoEditor] 📝 准备创建编辑器实例，初始值长度:",
+          safeInitialValue.length,
+        );
 
         // 创建编辑器实例 - 使用纯文本模式
+        console.log("[MonacoEditor] 🏗️ 创建 Monaco 编辑器实例...");
         const editorInstance = monaco.editor.create(container, {
           ...PERFORMANCE_OPTIONS,
           value: safeInitialValue,
-          language: "plaintext",
+          language: "plaintext", // 明确设置为纯文本语言，不加载任何语言服务
           theme: "system-prompt-theme",
           readOnly,
         });
+        console.log("[MonacoEditor] ✅ Monaco 编辑器实例创建成功");
 
         // 🚫 关键修复：在编辑器创建后立即禁用所有导致依赖服务错误的贡献点
         try {
@@ -854,10 +871,26 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
         // 再次检查组件是否仍然挂载
         if (!isMounted) {
+          console.warn(
+            "[MonacoEditor] 组件在编辑器配置完成后卸载，清理编辑器实例",
+          );
           editorInstance.dispose();
           return;
         }
 
+        // 🚀 强制启用粘贴相关的功能
+        try {
+          console.log("[MonacoEditor] 🔧 强制启用粘贴相关功能");
+          editorInstance.updateOptions({
+            // 确保粘贴功能可用
+            formatOnPaste: false, // 不格式化粘贴内容
+            // 启用基本的粘贴支持
+          });
+        } catch (error) {
+          console.warn("[MonacoEditor] 启用粘贴功能时出错:", error);
+        }
+
+        console.log("[MonacoEditor] 🎯 保存编辑器实例引用");
         editorRef.current = editorInstance;
 
         // 🎯 智能记忆系统：记住最大列位置和连续操作状态
@@ -1660,82 +1693,222 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
         // 调用onMount回调
         if (isMounted) {
-          onMount?.(editorInstance);
+          try {
+            console.log("[MonacoEditor] 📞 准备调用 onMount 回调");
+            onMount?.(editorInstance);
+            console.log("[MonacoEditor] ✅ onMount 回调调用完成");
+          } catch (error) {
+            console.error("[MonacoEditor] ❌ onMount 回调调用失败:", error);
+          }
+        }
+
+        // 🚀 立即设置粘贴事件监听器的准备工作（如果有的话）
+        if (isMounted) {
+          console.log("[MonacoEditor] ⏱️ 设置粘贴监听器准备工作的定时器");
+          // 延迟一小段时间，确保Monaco的DOM完全就绪
+          setTimeout(() => {
+            if (isMounted && editorInstance) {
+              console.log(
+                "[MonacoEditor] 🎯 编辑器DOM就绪，准备设置粘贴监听器",
+              );
+              // 这里只是记录状态，实际的监听器设置在monaco-message-editor中处理
+              console.log("[MonacoEditor] 📋 粘贴监听器准备工作完成");
+            } else {
+              console.warn(
+                "[MonacoEditor] ⚠️ 粘贴监听器准备工作跳过 - 组件已卸载或编辑器不存在",
+              );
+            }
+          }, 100);
         }
 
         // 设置 ResizeObserver 监听容器大小变化，在变化后尝试聚焦
         if (autoFocus && containerRef.current) {
           try {
+            console.log("[MonacoEditor] 🔍 设置 ResizeObserver");
             resizeObserverRef.current = new ResizeObserver(() => {
+              console.log("[MonacoEditor] 📏 ResizeObserver 触发，尝试聚焦");
               if (isMounted && editorInstance && !isDisposedRef.current) {
                 setTimeout(() => {
                   try {
+                    console.log("[MonacoEditor] 🎯 ResizeObserver 触发聚焦");
                     editorInstance.focus();
                   } catch (error) {
-                    // 忽略聚焦错误
+                    console.warn(
+                      "[MonacoEditor] ⚠️ ResizeObserver 聚焦失败:",
+                      error,
+                    );
                   }
                 }, 100);
               }
             });
             resizeObserverRef.current.observe(containerRef.current);
+            console.log("[MonacoEditor] ✅ ResizeObserver 设置完成");
           } catch (error) {
-            // 忽略ResizeObserver设置错误
+            console.warn("[MonacoEditor] ⚠️ ResizeObserver 设置失败:", error);
           }
         }
 
         // 在编辑器布局完成后再次尝试聚焦（处理布局延迟的情况）
         if (autoFocus && isMounted) {
+          console.log("[MonacoEditor] 🎯 开始聚焦尝试流程");
           // 使用 requestAnimationFrame 确保在下一帧渲染时聚焦
+          console.log("[MonacoEditor] ⏱️ 设置 requestAnimationFrame 聚焦");
           requestAnimationFrame(() => {
+            console.log(
+              "[MonacoEditor] 🎬 requestAnimationFrame 触发，开始聚焦",
+            );
             if (isMounted && editorInstance && !isDisposedRef.current) {
               try {
                 // 强制重新布局并聚焦
+                console.log("[MonacoEditor] 🔧 执行布局和聚焦");
                 editorInstance.layout();
                 editorInstance.focus();
+                console.log("[MonacoEditor] ✅ requestAnimationFrame 聚焦完成");
               } catch (error) {
-                // 忽略聚焦错误
+                console.warn(
+                  "[MonacoEditor] ⚠️ requestAnimationFrame 聚焦失败:",
+                  error,
+                );
               }
+            } else {
+              console.warn(
+                "[MonacoEditor] ⚠️ requestAnimationFrame 跳过聚焦 - 条件不满足",
+              );
             }
           });
 
           // 延迟 200ms 再次尝试（处理布局延迟的情况）
+          console.log("[MonacoEditor] ⏱️ 设置 200ms 延迟聚焦定时器");
           setTimeout(() => {
+            console.log("[MonacoEditor] ⏰ 200ms 延迟聚焦定时器触发");
             if (isMounted && editorInstance && !isDisposedRef.current) {
               try {
                 // 强制重新布局并聚焦
+                console.log("[MonacoEditor] 🔧 执行 200ms 延迟布局和聚焦");
                 editorInstance.layout();
                 editorInstance.focus();
+                console.log("[MonacoEditor] ✅ 200ms 延迟聚焦完成");
               } catch (error) {
-                // 忽略聚焦错误
+                console.warn("[MonacoEditor] ⚠️ 200ms 延迟聚焦失败:", error);
               }
+            } else {
+              console.warn("[MonacoEditor] ⚠️ 200ms 延迟聚焦跳过 - 条件不满足");
             }
           }, 200);
+        } else {
+          console.log(
+            "[MonacoEditor] ℹ️ 跳过聚焦流程 - autoFocus 或 isMounted 不满足条件",
+          );
         }
 
         // 🎯 确保编辑器加载完成后正确更新状态
         if (isMounted) {
-          updateLoadingState(false, true);
+          console.log("[MonacoEditor] 🎯 ===== 编辑器加载完成流程开始 =====");
+          // 🔧 立即更新加载状态 - 强制同步更新
+          console.log("[MonacoEditor] 🎯 准备更新加载状态...");
+          // 在生产环境中使用 flushSync 强制同步更新
+          const isProduction = process.env.NODE_ENV === "production";
+          if (isProduction) {
+            console.log(
+              "[MonacoEditor] 🔧 生产环境：使用 flushSync 强制同步更新",
+            );
+            flushSync(() => {
+              setIsLoading(false);
+            });
+          } else {
+            setIsLoading(false);
+          }
+          console.log(
+            "[MonacoEditor] ✅ 编辑器初始化完成，设置加载状态为 false",
+          );
 
           // 🔧 生产环境特殊处理：强制同步状态更新
           if (isProduction) {
+            console.log("[MonacoEditor] 🎯 生产环境检测到，执行特殊状态同步");
+            // 使用 requestAnimationFrame 确保在下一帧更新
+            console.log(
+              "[MonacoEditor] ⏱️ 设置 requestAnimationFrame 状态同步",
+            );
             requestAnimationFrame(() => {
+              console.log(
+                "[MonacoEditor] 🎬 requestAnimationFrame 状态同步触发",
+              );
               if (isMounted && editorRef.current) {
-                updateLoadingState(false, true);
+                flushSync(() => setIsLoading(false));
+                console.log("[MonacoEditor] ✅ 生产环境状态同步完成");
+              } else {
+                console.warn(
+                  "[MonacoEditor] ⚠️ requestAnimationFrame 状态同步跳过 - 条件不满足",
+                );
               }
             });
           }
 
-          // 🔧 延迟确认确保状态稳定
+          // 🔧 额外确保：延迟确认编辑器确实可用
+          console.log("[MonacoEditor] ⏱️ 设置 100ms 延迟确认定时器");
           setTimeout(() => {
+            console.log("[MonacoEditor] ⏰ 100ms 延迟确认定时器触发");
             if (isMounted && editorInstance && !isDisposedRef.current) {
-              updateLoadingState(false, true);
+              const isProductionEnv = process.env.NODE_ENV === "production";
+              if (isProductionEnv) {
+                flushSync(() => setIsLoading(false));
+              } else {
+                setIsLoading(false);
+              }
+              console.log(
+                "[MonacoEditor] 延迟确认：编辑器可用，继续设置加载状态为 false",
+              );
+              // 🎯 最后确认：确保编辑器完全就绪
+              console.log("[MonacoEditor] ⏱️ 设置最终确认定时器 (200ms)");
+              setTimeout(() => {
+                console.log("[MonacoEditor] 🎯 最终确认定时器触发");
+                if (isMounted && editorInstance && !isDisposedRef.current) {
+                  if (isProductionEnv) {
+                    flushSync(() => setIsLoading(false));
+                  } else {
+                    setIsLoading(false);
+                  }
+                  console.log("[MonacoEditor] 最终确认：编辑器完全就绪");
+                  console.log(
+                    "[MonacoEditor] 🎉 ===== 编辑器加载完成流程结束 =====",
+                  );
+                } else {
+                  console.warn(
+                    "[MonacoEditor] 最终确认失败：编辑器可能已被销毁",
+                  );
+                }
+              }, 200);
+            } else {
+              console.warn(
+                "[MonacoEditor] 延迟确认失败：组件已卸载或编辑器不可用",
+              );
             }
           }, 100);
+        } else {
+          console.warn("[MonacoEditor] 无法更新加载状态：组件已卸载");
         }
       } catch (err) {
         console.error("[MonacoEditor] 编辑器初始化失败:", err);
         setError("编辑器加载失败，请刷新页面重试");
-        updateLoadingState(false, true);
+        const isProduction = process.env.NODE_ENV === "production";
+        if (isProduction) {
+          flushSync(() => setIsLoading(false));
+        } else {
+          setIsLoading(false);
+        }
+
+        // 🔧 关键修复：确保即使在异常情况下也能正确更新状态
+        setTimeout(() => {
+          if (isMounted) {
+            const isProduction = process.env.NODE_ENV === "production";
+            if (isProduction) {
+              flushSync(() => setIsLoading(false));
+            } else {
+              setIsLoading(false);
+            }
+            console.log("[MonacoEditor] 异常处理：确认加载状态为 false");
+          }
+        }, 100);
       }
     };
 
@@ -1743,7 +1916,14 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
     return () => {
       isMounted = false;
-      updateLoadingState(false, true);
+
+      // 🔧 防止在组件卸载时更新状态
+      const isProduction = process.env.NODE_ENV === "production";
+      if (isProduction) {
+        flushSync(() => setIsLoading(false));
+      } else {
+        setIsLoading(false);
+      }
 
       // 🚫 组件卸载时的最终清理
       try {
@@ -2003,39 +2183,138 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
     }
   }, [autoFocus]);
 
-  // 🔧 监听加载状态变化，确保状态一致性
+  // 🔧 关键修复：监听加载状态变化，确保状态一致性
   useEffect(() => {
-    // 🔧 生产环境特殊处理：如果状态更新后仍显示加载中，强制刷新
-    if (isProduction && isLoading && editorRef.current) {
-      setTimeout(() => {
-        if (editorRef.current && isLoading) {
-          updateLoadingState(false, true);
-          setStats((prev) => ({ ...prev, _forceUpdate: Date.now() }));
-        }
-      }, 100);
-    }
-  }, [isLoading, updateLoadingState, isProduction]);
+    console.log(`[MonacoEditor] 📊 加载状态更新: isLoading = ${isLoading}`, {
+      hasEditor: !!editorRef.current,
+      isDisposed: isDisposedRef.current,
+      timestamp: Date.now(),
+    });
 
-  // 🔧 确保在组件卸载时强制设置加载状态为 false
+    // 🔧 生产环境特殊处理：如果状态更新后仍显示加载中，强制刷新
+    const isProduction = process.env.NODE_ENV === "production";
+    if (isProduction && isLoading && editorRef.current) {
+      console.log("[MonacoEditor] 🚨 生产环境检测到状态不一致，执行强制刷新");
+      // 🚀 延迟状态一致性修复，让其他异步操作先完成
+      console.log("[MonacoEditor] ⏱️ 延迟设置状态一致性修复定时器 (500ms)");
+      setTimeout(() => {
+        console.log("[MonacoEditor] 🎯 状态一致性修复定时器触发", {
+          hasEditor: !!editorRef.current,
+          isLoading,
+          isDisposed: isDisposedRef.current,
+          timestamp: Date.now(),
+        });
+        if (editorRef.current) {
+          console.log("[MonacoEditor] 🔄 执行状态一致性修复");
+          flushSync(() => setIsLoading(false));
+          // 触发其他状态更新以强制重新渲染
+          setStats((prev) => ({ ...prev, _forceUpdate: Date.now() }));
+          console.log("[MonacoEditor] ✅ 状态一致性修复完成");
+
+          // 🚀 在状态一致性修复完成后，触发最终的功能检查
+          setTimeout(() => {
+            console.log("[MonacoEditor] 🔍 状态一致性修复后执行最终功能检查");
+            if (editorRef.current && !isDisposedRef.current) {
+              // 触发 onMount 回调重新执行（如果有的话）
+              if (onMount) {
+                try {
+                  console.log("[MonacoEditor] 🔄 重新触发 onMount 回调");
+                  onMount(editorRef.current);
+                } catch (error) {
+                  console.warn(
+                    "[MonacoEditor] ⚠️ 重新触发 onMount 失败:",
+                    error,
+                  );
+                }
+              }
+
+              // 确保聚焦功能正常工作
+              if (autoFocus) {
+                try {
+                  console.log("[MonacoEditor] 🎯 状态修复后重新聚焦");
+                  editorRef.current.focus();
+                } catch (error) {
+                  console.warn("[MonacoEditor] ⚠️ 状态修复后聚焦失败:", error);
+                }
+              }
+            }
+          }, 100);
+        } else {
+          console.log("[MonacoEditor] ℹ️ 状态一致性修复跳过 - 条件不满足");
+        }
+      }, 500); // 延迟到500ms，确保其他异步操作都已完成
+    } else {
+      console.log("[MonacoEditor] ℹ️ 状态一致性检查跳过 - 条件不满足");
+    }
+  }, [isLoading, onMount, autoFocus]);
+
+  // 🔧 关键修复：确保在组件卸载时强制设置加载状态为 false
   useEffect(() => {
     return () => {
-      updateLoadingState(false, true);
+      console.log("[MonacoEditor] 组件卸载，确保加载状态为 false");
+      const isProduction = process.env.NODE_ENV === "production";
+      if (isProduction) {
+        flushSync(() => setIsLoading(false));
+      } else {
+        setIsLoading(false);
+      }
     };
-  }, [updateLoadingState]);
+  }, []);
 
   // 🔧 最终保护机制：使用 useLayoutEffect 确保状态同步
   useLayoutEffect(() => {
-    if (editorRef.current && isLoading) {
-      updateLoadingState(false, true);
+    console.log("[MonacoEditor] 🎬 useLayoutEffect 触发", {
+      hasEditor: !!editorRef.current,
+      isLoading,
+      isDisposed: isDisposedRef.current,
+      timestamp: Date.now(),
+    });
 
+    // 如果编辑器已经创建但仍然显示加载状态，强制隐藏
+    if (editorRef.current && isLoading) {
+      console.log(
+        "[MonacoEditor] 🔧 检测到编辑器已创建但加载状态仍为 true，强制修复",
+      );
+      const isProduction = process.env.NODE_ENV === "production";
+      if (isProduction) {
+        console.log(
+          "[MonacoEditor] 🚀 useLayoutEffect 使用 flushSync 修复状态",
+        );
+        flushSync(() => setIsLoading(false));
+      } else {
+        console.log("[MonacoEditor] 🚀 useLayoutEffect 修复状态");
+        setIsLoading(false);
+      }
+
+      // 🔧 生产环境特殊处理：强制触发重新渲染
+      console.log("[MonacoEditor] ⏱️ useLayoutEffect 设置强制修复定时器");
       setTimeout(() => {
-        if (editorRef.current && isLoading) {
-          updateLoadingState(false, true);
+        console.log("[MonacoEditor] 🎯 强制修复定时器触发", {
+          hasEditor: !!editorRef.current,
+          isLoading,
+          isDisposed: isDisposedRef.current,
+          timestamp: Date.now(),
+        });
+        if (editorRef.current) {
+          console.log("[MonacoEditor] 🚀 useLayoutEffect 执行强制修复");
+          if (isProduction) {
+            flushSync(() => setIsLoading(false));
+          } else {
+            setIsLoading(false);
+          }
+          // 强制触发组件重新渲染
           setStats((prev) => ({ ...prev }));
+          console.log("[MonacoEditor] ✅ useLayoutEffect 强制修复完成");
+        } else {
+          console.log(
+            "[MonacoEditor] ℹ️ useLayoutEffect 强制修复跳过 - 条件不满足",
+          );
         }
       }, 50);
+    } else {
+      console.log("[MonacoEditor] ℹ️ useLayoutEffect 跳过修复 - 条件不满足");
     }
-  }, [isLoading, updateLoadingState, isProduction]);
+  }, [isLoading]);
 
   // 获取内存状态提示
   const getMemoryLevel = useMemo(() => {
@@ -2091,6 +2370,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
         className={monacoStyles["monaco-editor-wrapper"]}
         style={{
           opacity: isLoading ? 0.3 : 1,
+          transition: "opacity 0.3s ease-in-out",
         }}
       />
 

@@ -134,106 +134,153 @@ export const MonacoMessageEditor: React.FC<MonacoMessageEditorProps> =
               },
             );
 
-            // 🚀 早期拦截粘贴事件 - 在Monaco处理之前捕获图片
+            // 🚀 延迟设置粘贴事件监听器 - 确保Monaco完全就绪且状态一致性修复已完成
             if (handlePaste) {
               const container = editor.getDomNode();
               if (container) {
-                // 🔥 关键：使用capture=true在捕获阶段拦截，优先级最高
-                const earlyPasteHandler = (e: ClipboardEvent) => {
-                  if (e.clipboardData) {
-                    // 检查图像数据
-                    let hasImage = false;
-                    const imageFiles: File[] = [];
+                // 🔧 进一步延迟设置事件监听器，避免被状态一致性修复中断
+                setTimeout(() => {
+                  console.log("[MonacoMessageEditor] 🎯 设置粘贴事件监听器", {
+                    timestamp: Date.now(),
+                    containerReady: !!container,
+                  });
+                  // 🔥 关键：使用capture=true在捕获阶段拦截，优先级最高
+                  const earlyPasteHandler = (e: ClipboardEvent) => {
+                    console.log("[MonacoMessageEditor] 📋 检测到粘贴事件", {
+                      hasClipboardData: !!e.clipboardData,
+                      target: e.target,
+                      timestamp: Date.now(),
+                    });
 
-                    // 通过items检查
-                    if (
-                      e.clipboardData.items &&
-                      e.clipboardData.items.length > 0
-                    ) {
-                      for (let i = 0; i < e.clipboardData.items.length; i++) {
-                        const item = e.clipboardData.items[i];
-                        if (
-                          item.kind === "file" &&
-                          item.type.startsWith("image/")
-                        ) {
-                          hasImage = true;
-                          const file = item.getAsFile();
-                          if (file) {
-                            imageFiles.push(file);
+                    if (e.clipboardData) {
+                      // 检查图像数据
+                      let hasImage = false;
+                      const imageFiles: File[] = [];
+
+                      // 通过items检查
+                      if (
+                        e.clipboardData.items &&
+                        e.clipboardData.items.length > 0
+                      ) {
+                        for (let i = 0; i < e.clipboardData.items.length; i++) {
+                          const item = e.clipboardData.items[i];
+                          if (
+                            item.kind === "file" &&
+                            item.type.startsWith("image/")
+                          ) {
+                            hasImage = true;
+                            const file = item.getAsFile();
+                            if (file) {
+                              imageFiles.push(file);
+                              console.log(
+                                "[MonacoMessageEditor] 🖼️ 检测到图片文件",
+                                file.name,
+                              );
+                            }
                           }
                         }
                       }
-                    }
 
-                    // 通过files检查（备用）
-                    if (
-                      e.clipboardData.files &&
-                      e.clipboardData.files.length > 0
-                    ) {
-                      for (let i = 0; i < e.clipboardData.files.length; i++) {
-                        const file = e.clipboardData.files[i];
-                        if (file.type.startsWith("image/")) {
-                          hasImage = true;
-                          imageFiles.push(file);
+                      // 通过files检查（备用）
+                      if (
+                        e.clipboardData.files &&
+                        e.clipboardData.files.length > 0
+                      ) {
+                        for (let i = 0; i < e.clipboardData.files.length; i++) {
+                          const file = e.clipboardData.files[i];
+                          if (file.type.startsWith("image/")) {
+                            hasImage = true;
+                            imageFiles.push(file);
+                            console.log(
+                              "[MonacoMessageEditor] 🖼️ 检测到图片文件(备用方法)",
+                              file.name,
+                            );
+                          }
                         }
                       }
-                    }
 
-                    // 如果检测到图像，立即处理
-                    if (hasImage && imageFiles.length > 0) {
-                      // 阻止Monaco的默认处理，让我们接管
-                      e.preventDefault();
-                      e.stopPropagation();
+                      // 如果检测到图像，立即处理
+                      if (hasImage && imageFiles.length > 0) {
+                        console.log(
+                          "[MonacoMessageEditor] 🎯 处理图片粘贴",
+                          imageFiles.length,
+                        );
+                        // 阻止Monaco的默认处理，让我们接管
+                        e.preventDefault();
+                        e.stopPropagation();
 
-                      // 创建React兼容的事件对象
-                      const reactClipboardEvent = {
-                        clipboardData: e.clipboardData,
-                        preventDefault: () => e.preventDefault(),
-                        stopPropagation: () => e.stopPropagation(),
-                        currentTarget: container as any,
-                        target: e.target,
-                        type: "paste",
-                        nativeEvent: e,
-                        bubbles: e.bubbles,
-                        cancelable: e.cancelable,
-                        defaultPrevented: e.defaultPrevented,
-                        eventPhase: e.eventPhase,
-                        isTrusted: e.isTrusted,
-                        timeStamp: e.timeStamp,
-                      } as React.ClipboardEvent<any>;
+                        // 创建React兼容的事件对象
+                        const reactClipboardEvent = {
+                          clipboardData: e.clipboardData,
+                          preventDefault: () => e.preventDefault(),
+                          stopPropagation: () => e.stopPropagation(),
+                          currentTarget: container as any,
+                          target: e.target,
+                          type: "paste",
+                          nativeEvent: e,
+                          bubbles: e.bubbles,
+                          cancelable: e.cancelable,
+                          defaultPrevented: e.defaultPrevented,
+                          eventPhase: e.eventPhase,
+                          isTrusted: e.isTrusted,
+                          timeStamp: e.timeStamp,
+                        } as React.ClipboardEvent<any>;
 
-                      // 处理图片
-                      try {
-                        handlePaste(reactClipboardEvent);
-                      } catch (error) {
-                        console.error("图片粘贴处理失败:", error);
+                        // 处理图片
+                        try {
+                          handlePaste(reactClipboardEvent);
+                          console.log("[MonacoMessageEditor] ✅ 图片处理完成");
+                        } catch (error) {
+                          console.error(
+                            "[MonacoMessageEditor] ❌ 图片粘贴处理失败:",
+                            error,
+                          );
+                        }
+                      } else {
+                        console.log(
+                          "[MonacoMessageEditor] ℹ️ 未检测到图片，继续默认处理",
+                        );
                       }
+                    } else {
+                      console.log("[MonacoMessageEditor] ⚠️ 无clipboardData");
                     }
-                  }
-                };
+                  };
 
-                // 🎯 在捕获阶段监听，优先级最高
-                container.addEventListener("paste", earlyPasteHandler, {
-                  capture: true,
-                });
-
-                // 备用：也在Monaco的父容器上监听
-                const parent = container.parentElement;
-                if (parent) {
-                  parent.addEventListener("paste", earlyPasteHandler, {
+                  // 🎯 在捕获阶段监听，优先级最高
+                  container.addEventListener("paste", earlyPasteHandler, {
                     capture: true,
                   });
-                }
+                  console.log(
+                    "[MonacoMessageEditor] ✅ 容器级别粘贴监听器已设置",
+                  );
 
-                // 备用：document级别监听（最后的保险）
-                const documentHandler = (e: ClipboardEvent) => {
-                  if (container.contains(e.target as Node)) {
-                    earlyPasteHandler(e);
+                  // 备用：也在Monaco的父容器上监听
+                  const parent = container.parentElement;
+                  if (parent) {
+                    parent.addEventListener("paste", earlyPasteHandler, {
+                      capture: true,
+                    });
+                    console.log(
+                      "[MonacoMessageEditor] ✅ 父容器级别粘贴监听器已设置",
+                    );
                   }
-                };
-                document.addEventListener("paste", documentHandler, {
-                  capture: true,
-                });
+
+                  // 备用：document级别监听（最后的保险）
+                  const documentHandler = (e: ClipboardEvent) => {
+                    if (container.contains(e.target as Node)) {
+                      console.log(
+                        "[MonacoMessageEditor] 📄 document级别粘贴事件转发",
+                      );
+                      earlyPasteHandler(e);
+                    }
+                  };
+                  document.addEventListener("paste", documentHandler, {
+                    capture: true,
+                  });
+                  console.log(
+                    "[MonacoMessageEditor] ✅ document级别粘贴监听器已设置",
+                  );
+                }, 500); // 延迟500ms，确保Monaco完全就绪
               }
             }
 
