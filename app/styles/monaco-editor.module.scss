@@ -283,7 +283,7 @@
 // ===== 系统提示词编辑器样式 =====
 
 // 📝 系统提示词输入面板样式（合并了基础和附件样式）
-.system-prompt-input-panel {
+.monaco-unified-wrapper {
   display: flex;
   flex-direction: column;
   flex: 1 1 auto;
@@ -355,7 +355,7 @@
 }
 
 // 🗂️ 系统提示词编辑容器样式（从 chat.module.scss 迁移）
-.system-prompt-edit-container {
+.monaco-unified-editor-container {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -375,7 +375,7 @@
  * 🎨 Monaco Editor 样式模块优化总结
  *
  * 已完成的优化：
- * 1. ✅ 合并系统提示词输入面板类（.system-prompt-input-panel + .system-prompt-input-panel-attach）
+ * 1. ✅ 合并系统提示词输入面板类（.monaco-unified-wrapper + .monaco-unified-wrapper-attach）
  * 2. ✅ 内联展开图片容器公共样式（移除 .image-container-base 抽象层）
  * 3. ✅ 优化自动滚动覆盖层结构（嵌套子类）
  * 4. ✅ 移除未使用的CSS类（.monaco-images-empty）

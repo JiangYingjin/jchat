@@ -123,6 +123,18 @@ export function useTripleClick(messageEditRef: React.RefObject<HTMLElement>) {
         setClickCount(0);
         const anchorText = selection?.anchorNode?.textContent;
         const extendText = selection?.focusNode?.textContent;
+
+        console.log("👆 [DEBUG] 三击事件触发:", {
+          anchorText:
+            anchorText?.substring(0, 50) +
+            (anchorText && anchorText.length > 50 ? "..." : ""),
+          extendText:
+            extendText?.substring(0, 50) +
+            (extendText && extendText.length > 50 ? "..." : ""),
+          position: { x: currentX, y: currentY },
+          timestamp: performance.now(),
+        });
+
         callback({
           anchorText: anchorText ?? "",
           extendText: extendText ?? "",

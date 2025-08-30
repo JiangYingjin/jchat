@@ -79,7 +79,7 @@ class MonacoPreloader {
       const monaco = await import("monaco-editor");
 
       // 配置Monaco主题
-      monaco.editor.defineTheme("system-prompt-theme", {
+      monaco.editor.defineTheme("plaintext", {
         base: "vs",
         inherit: true,
         rules: [],

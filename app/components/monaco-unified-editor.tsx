@@ -12,11 +12,6 @@ import clsx from "clsx";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
 import monacoStyles from "../styles/monaco-editor.module.scss";
 import { DeleteImageButton } from "./button";
-import {
-  getMonaco,
-  isMonacoLoaded,
-  monacoPreloader,
-} from "../utils/monaco-preloader";
 import { copyImageToClipboard } from "../utils/image";
 import { showImageModal } from "./ui-lib";
 
@@ -596,7 +591,7 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
 
   // 预计算类名
   const panelClassName = useMemo(
-    () => monacoStyles["system-prompt-input-panel"],
+    () => monacoStyles["monaco-unified-wrapper"],
     [],
   );
 

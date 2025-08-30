@@ -227,6 +227,7 @@ export function getMessageContent(
 
 /**
  * 在 Monaco Editor 中应用定位
+ * 注意：不执行滚动操作，滚动由调用者统一处理以避免冲突
  * @param editor Monaco Editor 实例
  * @param position 要定位到的位置
  */
@@ -234,9 +235,19 @@ export function applyEditorPosition(
   editor: any,
   position: MonacoPosition,
 ): void {
+  console.log("📍 [DEBUG] applyEditorPosition:", {
+    lineNumber: position.lineNumber,
+    column: position.column,
+    timestamp: performance.now(),
+  });
+
+  // 只设置光标位置，不执行滚动操作
+  // 滚动操作由调用者统一处理，避免重复滚动导致的冲突
   editor.setPosition(position);
   editor.focus();
-  editor.revealPositionInCenter(position);
+
+  // 🔥 修复：移除 editor.revealPositionInCenter(position);
+  // 避免与handleMonacoMount中的滚动冲突
 }
 
 /**
@@ -316,7 +327,42 @@ export function smartPositionInEditor(
     lineNumber: targetMatch.lineNumber,
     column: targetMatch.column,
   };
+
+  // 应用光标位置（不包含滚动）
   applyEditorPosition(editor, position);
+
+  // 🔥 修复：在智能定位后执行滚动操作
+  // 使用延迟确保光标设置完成后再滚动
+  requestAnimationFrame(() => {
+    try {
+      console.log("🎯 [DEBUG] 智能定位后滚动:", {
+        lineNumber: targetMatch.lineNumber,
+        column: targetMatch.column,
+        timestamp: performance.now(),
+      });
+
+      // 滚动到光标位置
+      editor.revealPositionInCenter({
+        lineNumber: targetMatch.lineNumber,
+        column: targetMatch.column,
+      });
+
+      // 验证滚动结果
+      setTimeout(() => {
+        const scrollTop = editor.getScrollTop();
+        const currentPosition = editor.getPosition();
+        console.log("✅ [DEBUG] 智能定位滚动完成:", {
+          scrollTop: scrollTop,
+          currentPosition: currentPosition
+            ? `${currentPosition.lineNumber}:${currentPosition.column}`
+            : "null",
+          timestamp: performance.now(),
+        });
+      }, 50);
+    } catch (error) {
+      console.error("❌ [DEBUG] 智能定位滚动失败:", error);
+    }
+  });
 }
 
 /**

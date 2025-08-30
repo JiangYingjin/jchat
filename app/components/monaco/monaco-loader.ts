@@ -231,7 +231,7 @@ export const loadMonaco = async (): Promise<typeof import("monaco-editor")> => {
     }
 
     // 配置Monaco Editor - 简化为纯文本主题
-    Monaco.editor.defineTheme("system-prompt-theme", {
+    Monaco.editor.defineTheme("plaintext", {
       base: "vs",
       inherit: true,
       rules: [],

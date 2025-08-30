@@ -172,14 +172,37 @@ export function useMessageEditor(props: EditorCoreProps) {
 
           // 聚焦到编辑器并滚动到选中文本位置
           editor.focus();
-          setTimeout(() => {
-            editor.revealRangeInCenter({
-              startLineNumber: startPos.lineNumber,
-              startColumn: startPos.column,
-              endLineNumber: endPos.lineNumber,
-              endColumn: endPos.column,
-            });
-          }, 100);
+
+          console.log("🔍 [DEBUG] Monaco挂载时滚动定位:", {
+            startPos: `${startPos.lineNumber}:${startPos.column}`,
+            endPos: `${endPos.lineNumber}:${endPos.column}`,
+            timestamp: performance.now(),
+          });
+
+          // 🔥 修复：使用更可靠的滚动定位方式
+          // 使用 requestAnimationFrame 确保DOM完全更新后再滚动
+          requestAnimationFrame(() => {
+            try {
+              // 先滚动到选择范围的中心
+              editor.revealRangeInCenter({
+                startLineNumber: startPos.lineNumber,
+                startColumn: startPos.column,
+                endLineNumber: endPos.lineNumber,
+                endColumn: endPos.column,
+              });
+
+              // 验证滚动位置
+              setTimeout(() => {
+                const scrollTop = editor.getScrollTop();
+                console.log("✅ [DEBUG] 滚动完成，当前位置:", {
+                  scrollTop: scrollTop,
+                  timestamp: performance.now(),
+                });
+              }, 50);
+            } catch (error) {
+              console.error("❌ [DEBUG] 滚动定位失败:", error);
+            }
+          });
         }
       } else {
         // 如果没有指定选择位置，默认聚焦到编辑器末尾
@@ -367,7 +390,7 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
         onClose={modalConfig.onClose}
         actions={modalActions}
       >
-        <div className={monacoStyles["system-prompt-edit-container"]}>
+        <div className={monacoStyles["monaco-unified-editor-container"]}>
           <MonacoUnifiedEditor
             value={editor.content}
             onChange={stableProps.onChange}
