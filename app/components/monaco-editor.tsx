@@ -4,7 +4,9 @@ import React, {
   useCallback,
   useState,
   useMemo,
+  useLayoutEffect,
 } from "react";
+import { flushSync } from "react-dom";
 // 使用核心 API 而不是完整的 monaco-editor 包
 // 这是一个专门为大文本优化的纯文本编辑器，移除了所有代码编辑特性
 // import monaco from "monaco-editor/esm/vs/editor/editor.api";
@@ -429,6 +431,21 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
     "preloaded" | "loading" | "fallback"
   >("fallback");
 
+  // 🔧 环境检测常量
+  const isProduction = process.env.NODE_ENV === "production";
+
+  // 🔧 统一的状态更新函数
+  const updateLoadingState = useCallback(
+    (loading: boolean, forceSync = false) => {
+      if (forceSync && isProduction) {
+        flushSync(() => setIsLoading(loading));
+      } else {
+        setIsLoading(loading);
+      }
+    },
+    [isProduction],
+  );
+
   // 性能监控
   const updateStats = useCallback((text: string | undefined) => {
     // 安全检查：确保text是有效字符串
@@ -453,6 +470,8 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
     const initMonaco = async () => {
       try {
+        updateLoadingState(true);
+
         // 智能加载策略：优先使用预加载实例
         let monaco: typeof import("monaco-editor");
         if (isMonacoLoaded()) {
@@ -466,9 +485,16 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
           monaco = await loadMonaco();
         }
 
-        if (!isMounted || !containerRef.current) return;
+        // 验证组件状态
+        if (!isMounted) {
+          updateLoadingState(false);
+          return;
+        }
+        if (!containerRef.current) {
+          updateLoadingState(false);
+          return;
+        }
 
-        // 🛡️ 确保容器干净（防止"Element already has context attribute"错误）
         const container = containerRef.current;
 
         // 清理容器的所有子元素和属性
@@ -495,7 +521,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
         const editorInstance = monaco.editor.create(container, {
           ...PERFORMANCE_OPTIONS,
           value: safeInitialValue,
-          language: "plaintext", // 明确设置为纯文本语言，不加载任何语言服务
+          language: "plaintext",
           theme: "system-prompt-theme",
           readOnly,
         });
@@ -1686,12 +1712,30 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
           }, 200);
         }
 
+        // 🎯 确保编辑器加载完成后正确更新状态
         if (isMounted) {
-          setIsLoading(false);
+          updateLoadingState(false, true);
+
+          // 🔧 生产环境特殊处理：强制同步状态更新
+          if (isProduction) {
+            requestAnimationFrame(() => {
+              if (isMounted && editorRef.current) {
+                updateLoadingState(false, true);
+              }
+            });
+          }
+
+          // 🔧 延迟确认确保状态稳定
+          setTimeout(() => {
+            if (isMounted && editorInstance && !isDisposedRef.current) {
+              updateLoadingState(false, true);
+            }
+          }, 100);
         }
       } catch (err) {
+        console.error("[MonacoEditor] 编辑器初始化失败:", err);
         setError("编辑器加载失败，请刷新页面重试");
-        setIsLoading(false);
+        updateLoadingState(false, true);
       }
     };
 
@@ -1699,6 +1743,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
 
     return () => {
       isMounted = false;
+      updateLoadingState(false, true);
 
       // 🚫 组件卸载时的最终清理
       try {
@@ -1958,6 +2003,40 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
     }
   }, [autoFocus]);
 
+  // 🔧 监听加载状态变化，确保状态一致性
+  useEffect(() => {
+    // 🔧 生产环境特殊处理：如果状态更新后仍显示加载中，强制刷新
+    if (isProduction && isLoading && editorRef.current) {
+      setTimeout(() => {
+        if (editorRef.current && isLoading) {
+          updateLoadingState(false, true);
+          setStats((prev) => ({ ...prev, _forceUpdate: Date.now() }));
+        }
+      }, 100);
+    }
+  }, [isLoading, updateLoadingState, isProduction]);
+
+  // 🔧 确保在组件卸载时强制设置加载状态为 false
+  useEffect(() => {
+    return () => {
+      updateLoadingState(false, true);
+    };
+  }, [updateLoadingState]);
+
+  // 🔧 最终保护机制：使用 useLayoutEffect 确保状态同步
+  useLayoutEffect(() => {
+    if (editorRef.current && isLoading) {
+      updateLoadingState(false, true);
+
+      setTimeout(() => {
+        if (editorRef.current && isLoading) {
+          updateLoadingState(false, true);
+          setStats((prev) => ({ ...prev }));
+        }
+      }, 50);
+    }
+  }, [isLoading, updateLoadingState, isProduction]);
+
   // 获取内存状态提示
   const getMemoryLevel = useMemo(() => {
     const { characters } = stats;
@@ -2011,7 +2090,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
         ref={containerRef}
         className={monacoStyles["monaco-editor-wrapper"]}
         style={{
-          opacity: isLoading ? 0.5 : 1,
+          opacity: isLoading ? 0.3 : 1,
         }}
       />
 
