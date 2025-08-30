@@ -72,68 +72,6 @@ const SystemPromptEditDialog = React.memo(
       });
     }, [content]);
 
-    // 🔍 追踪attachImages状态变化
-    useEffect(() => {
-      console.log("🖼️ [SystemPromptEditModal] attachImages状态变化:", {
-        imagesCount: attachImages?.length || 0,
-        imagesList: attachImages,
-        timestamp: Date.now(),
-      });
-    }, [attachImages]);
-
-    // 🚀 性能优化：稳定的事件处理函数
-    const handleContentChange = useCallback(
-      (newContent: string, newImages: string[]) => {
-        console.log("🔄 [SystemPromptEditModal] handleContentChange 被调用:", {
-          newContentLength: newContent?.length || 0,
-          newImagesCount: newImages?.length || 0,
-          currentContentLength: content?.length || 0,
-          currentImagesCount: attachImages?.length || 0,
-          contentChanged: newContent !== content,
-          imagesChanged:
-            JSON.stringify(newImages) !== JSON.stringify(attachImages),
-          pasteInProgress: pasteInProgressRef.current,
-          callStack: new Error().stack?.split("\n").slice(1, 4), // 🔍 追踪调用栈
-        });
-
-        // 🛡️ 如果正在粘贴过程中，且新内容为空而当前内容不为空，则忽略
-        if (
-          pasteInProgressRef.current &&
-          (!newContent || newContent.length === 0) &&
-          content &&
-          content.length > 0
-        ) {
-          console.warn(
-            "⚠️ [SystemPromptEditModal] 粘贴过程中检测到空内容更新，忽略以保护现有内容",
-            {
-              currentContentLength: content.length,
-              newContentLength: newContent?.length || 0,
-            },
-          );
-          return;
-        }
-
-        console.log("📝 [SystemPromptEditModal] 即将更新状态:", {
-          willSetContent: newContent?.length || 0,
-          willSetImages: newImages?.length || 0,
-        });
-
-        setContent(newContent);
-        setAttachImages(newImages);
-
-        // 🔍 验证状态更新（异步）
-        setTimeout(() => {
-          console.log("⏱️ [SystemPromptEditModal] 状态更新后检查:", {
-            actualContentLength: content?.length || 0,
-            actualImagesLength: attachImages?.length || 0,
-            expectedContentLength: newContent?.length || 0,
-            expectedImagesLength: newImages?.length || 0,
-          });
-        }, 0);
-      },
-      [content, attachImages],
-    );
-
     // Monaco Editor实例引用
     const monacoEditorRef = useRef<any>(null);
 
