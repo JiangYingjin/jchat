@@ -454,7 +454,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
     const initMonaco = async () => {
       try {
         // 智能加载策略：优先使用预加载实例
-        let monaco;
+        let monaco: typeof import("monaco-editor");
         if (isMonacoLoaded()) {
           monaco = getMonaco();
           setMonacoLoadMethod("preloaded");
@@ -749,12 +749,7 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
         });
 
         // 🚫 禁用编辑器的跳转功能
-        editorInstance.getModel()?.updateOptions({
-          // 禁用语义验证
-          semanticValidation: false,
-          // 禁用语法验证
-          syntaxValidation: false,
-        });
+        // 注意：验证选项应该在编辑器配置中设置，而不是模型选项中
 
         // 🚫 通过CSS隐藏所有跳转相关的UI元素
         const style = document.createElement("style");
@@ -821,11 +816,9 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
               return {
                 id,
                 label: "",
+                alias: "",
+                metadata: undefined,
                 run: () => Promise.resolve(),
-                enabled: false,
-                keybinding: null,
-                contextMenuGroupId: "",
-                contextMenuOrder: 0,
                 isSupported: () => false,
               };
             }
@@ -1472,9 +1465,10 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                       newPosition.column !== currentPosition.column)
                   ) {
                     // 临时禁用我们的拦截器，避免递归
+                    const position = newPosition; // 确保类型安全
                     setTimeout(() => {
-                      editorInstance.setPosition(newPosition);
-                      editorInstance.revealPosition(newPosition);
+                      editorInstance.setPosition(position);
+                      editorInstance.revealPosition(position);
                     }, 1);
                   }
 
