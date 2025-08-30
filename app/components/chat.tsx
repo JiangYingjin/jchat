@@ -48,7 +48,7 @@ import {
   SystemPromptEditDialog,
   MessageWithImageEditDialog,
 } from "./message-edit-dialog";
-import { SessionEditorModal } from "./session-editor-modal";
+import { SessionEditor } from "./session-editor";
 import { ExportMessageModal } from "./exporter";
 
 // --- Styles ---
@@ -755,7 +755,7 @@ const Chat = React.memo(function Chat() {
 
       {/* --- Modals --- */}
       {isEditingSession && (
-        <SessionEditorModal onClose={() => setIsEditingSession(false)} />
+        <SessionEditor onClose={() => setIsEditingSession(false)} />
       )}
       {showSystemPromptEdit && (
         <SystemPromptEditDialog

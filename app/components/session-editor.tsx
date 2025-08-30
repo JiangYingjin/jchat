@@ -8,7 +8,7 @@ import ConfirmIcon from "../icons/confirm.svg";
 import CancelIcon from "../icons/cancel.svg";
 import ReloadIcon from "../icons/reload.svg";
 
-export function SessionEditorModal(props: { onClose: () => void }) {
+export function SessionEditor(props: { onClose: () => void }) {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
   const [messages, setMessages] = useState(session.messages.slice());
