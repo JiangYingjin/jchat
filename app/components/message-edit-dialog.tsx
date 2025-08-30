@@ -16,14 +16,8 @@ import Locale from "../locales";
 import styles from "../styles/chat.module.scss";
 import monacoStyles from "../styles/monaco-editor.module.scss";
 
-// 🎯 编辑器类型枚举 - 统一使用 Monaco Editor
-export enum EditorType {
-  MONACO = "monaco",
-}
-
 // 🎯 编辑器配置接口
 export interface EditorConfig {
-  type: EditorType;
   placeholder?: string;
   autoFocus?: boolean;
 }
@@ -413,8 +407,6 @@ const SystemPromptEditDialog = React.memo(
         initialContent={props.initialContent}
         initialImages={props.initialImages}
         editorConfig={{
-          type: EditorType.MONACO,
-          placeholder: "请输入系统提示词...",
           autoFocus: true,
         }}
         imageConfig={{
@@ -471,8 +463,6 @@ const MessageEditDialog = React.memo(
     } = props;
 
     const editorConfig: EditorConfig = {
-      type: EditorType.MONACO,
-      placeholder: "请输入消息...",
       autoFocus: true,
     };
 
@@ -518,36 +508,7 @@ const MessageEditDialog = React.memo(
   },
 );
 
+SystemPromptEditDialog.displayName = "SystemPromptEditDialog";
 MessageEditDialog.displayName = "MessageEditDialog";
 
-// 设置显示名称
-SystemPromptEditDialog.displayName = "SystemPromptEditDialog";
-
-// 导出组件
 export { SystemPromptEditDialog, MessageEditDialog };
-
-// 🎯 兼容性包装器 - 保持向后兼容性
-export function MessageWithImageEditDialog(props: {
-  onClose: () => void;
-  initialContent: string;
-  initialImages: string[];
-  onSave: (content: string, images: string[], retryOnConfirm?: boolean) => void;
-  title?: string;
-  textareaRef?: React.RefObject<HTMLElement>;
-  message?: ChatMessage;
-  // 智能定位回调
-  onSmartPosition?: (editor: any) => void;
-}) {
-  return (
-    <MessageEditDialog
-      onClose={props.onClose}
-      initialContent={props.initialContent}
-      initialImages={props.initialImages}
-      onSave={props.onSave}
-      title={props.title}
-      textareaRef={props.textareaRef}
-      message={props.message}
-      onSmartPosition={props.onSmartPosition}
-    />
-  );
-}

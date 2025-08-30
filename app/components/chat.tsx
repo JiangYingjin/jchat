@@ -47,7 +47,7 @@ import { ChatHeader } from "./chat-header";
 import { MessageList } from "./message-list";
 import {
   SystemPromptEditDialog,
-  MessageWithImageEditDialog,
+  MessageEditDialog,
 } from "./message-edit-dialog";
 import { SessionEditor } from "./session-editor";
 import { ExportMessageModal } from "./exporter";
@@ -743,7 +743,7 @@ const Chat = React.memo(function Chat() {
         <ExportMessageModal onClose={() => setShowExport(false)} />
       )}
       {showEditMessageModal && editMessageData && (
-        <MessageWithImageEditDialog
+        <MessageEditDialog
           onClose={() => setShowEditMessageModal(false)}
           initialContent={
             editMessageData.type === "content"

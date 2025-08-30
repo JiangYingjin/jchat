@@ -206,8 +206,6 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
         } catch (error) {
           console.error("onEditorReady 回调调用失败:", error);
         }
-      } else {
-        console.error("没有提供外部 onEditorReady 回调");
       }
     },
     [onEditorReady],
