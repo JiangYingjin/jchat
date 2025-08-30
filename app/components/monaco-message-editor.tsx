@@ -7,10 +7,51 @@ import MonacoEditor from "./monaco-editor";
 import { copyImageToClipboard } from "../utils/image";
 import { showImageModal } from "./ui-lib";
 
+// 🚀 独立的图片附件组件，优化渲染性能
+export const ImageAttachments: React.FC<{
+  images: string[];
+  onImageDelete: (index: number) => void;
+}> = React.memo(({ images, onImageDelete }) => {
+  console.log("🖼️ [ImageAttachments] 组件重新渲染:", {
+    imagesCount: images.length,
+    images: images,
+    timestamp: Date.now(),
+  });
+
+  if (images.length === 0) return null;
+
+  return (
+    <div className={monacoStyles["monaco-images-container"]}>
+      {images.map((image, index) => (
+        <div
+          key={index}
+          className={monacoStyles["monaco-image-item"]}
+          style={{ backgroundImage: `url("${image}")` }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showImageModal(image, false);
+          }}
+          onContextMenu={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            copyImageToClipboard(image);
+          }}
+        >
+          <div className={monacoStyles["monaco-image-mask"]}>
+            <DeleteImageButton deleteImage={() => onImageDelete(index)} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+});
+
+ImageAttachments.displayName = "ImageAttachments";
+
 interface MonacoMessageEditorProps {
   value: string;
-  images: string[];
-  onChange: (content: string, images: string[]) => void;
+  onChange: (content: string) => void; // 只负责内容变化，不处理图片
   handlePaste?: (event: React.ClipboardEvent<any>) => void; // 使用any类型以支持不同的元素类型
   onConfirm?: () => void;
   onMount?: (editor: any) => void;
@@ -21,7 +62,6 @@ export const MonacoMessageEditor: React.FC<MonacoMessageEditorProps> =
   React.memo(
     ({
       value,
-      images,
       onChange,
       handlePaste,
       onConfirm,
@@ -58,7 +98,7 @@ export const MonacoMessageEditor: React.FC<MonacoMessageEditorProps> =
           // 🔍 调试：检查父组件onChange函数的调用
           try {
             // Monaco内容变化处理
-            onChange(newContent, images);
+            onChange(newContent);
 
             // 🎯 更新最后的内容引用，用于防重复调用逻辑
             lastContentRef.current = newContent || "";
@@ -70,26 +110,13 @@ export const MonacoMessageEditor: React.FC<MonacoMessageEditorProps> =
           }
         },
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [onChange, images, value],
+        [onChange, value],
       );
 
-      // 🚀 性能优化：图片删除处理函数缓存
-      const imageDeleteHandlers = useMemo(() => {
-        return images.map((_, index) => () => {
-          const newImages = images.filter((_, i) => i !== index);
-
-          onChange(lastContentRef.current, newImages);
-        });
-      }, [images, onChange]); // 🚀 移除 value 依赖，避免不必要的重新创建
-
-      // 🚀 性能优化：类名缓存
+      // 🚀 性能优化：类名缓存（移除图片相关逻辑）
       const panelClassName = useMemo(
-        () =>
-          clsx(monacoStyles["system-prompt-input-panel"], {
-            [monacoStyles["system-prompt-input-panel-attach"]]:
-              images.length !== 0,
-          }),
-        [images.length], // 只有 images.length 变化时才重新计算类名
+        () => monacoStyles["system-prompt-input-panel"],
+        [], // 简化类名逻辑，不依赖图片数量
       );
 
       // 🚀 Monaco Editor挂载回调
@@ -238,35 +265,6 @@ export const MonacoMessageEditor: React.FC<MonacoMessageEditorProps> =
               autoFocus={autoFocus}
               className=""
             />
-
-            {/* 🚀 图片附件区域 */}
-            {images.length !== 0 && (
-              <div className={monacoStyles["monaco-images-container"]}>
-                {images.map((image, index) => (
-                  <div
-                    key={index}
-                    className={monacoStyles["monaco-image-item"]}
-                    style={{ backgroundImage: `url("${image}")` }}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      showImageModal(image, false);
-                    }}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      copyImageToClipboard(image);
-                    }}
-                  >
-                    <div className={monacoStyles["monaco-image-mask"]}>
-                      <DeleteImageButton
-                        deleteImage={imageDeleteHandlers[index]}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
         </div>
       );

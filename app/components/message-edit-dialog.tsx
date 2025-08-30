@@ -11,7 +11,7 @@ import { Modal } from "./ui-lib";
 import { IconButton } from "./button";
 import CancelIcon from "../icons/cancel.svg";
 import ConfirmIcon from "../icons/confirm.svg";
-import { MonacoMessageEditor } from "./monaco-message-editor";
+import { MonacoMessageEditor, ImageAttachments } from "./monaco-message-editor";
 
 import Locale from "../locales";
 import styles from "../styles/chat.module.scss";
@@ -42,17 +42,13 @@ const SystemPromptEditDialog = React.memo(
       props.initialSelection || { start: 0, end: 0 },
     );
 
-    // 🎯 稳定的 onChange 回调，避免不必要的重新渲染
-    const handleEditorChange = useCallback(
-      (newContent: string, newImages: string[]) => {
-        console.log("📝 [SystemPromptEditModal] handleEditorChange 被调用:", {
-          newContentLength: newContent?.length || 0,
-          newImagesCount: newImages?.length || 0,
-        });
-        setContent(newContent);
+    // 🚀 图片删除处理函数
+    const handleImageDelete = useCallback(
+      (index: number) => {
+        const newImages = attachImages.filter((_, i) => i !== index);
         setAttachImages(newImages);
       },
-      [], // 空依赖数组，确保函数引用稳定
+      [attachImages],
     );
 
     // 🔍 在每次渲染时打印当前状态
@@ -237,6 +233,20 @@ const SystemPromptEditDialog = React.memo(
       getCurrentContent, // 🔥 传入获取当前内容的函数
     );
 
+    // 🎯 稳定的内容变化处理函数，用于 Monaco Editor
+    const handleEditorContentChange = useCallback(
+      (newContent: string) => {
+        console.log(
+          "📝 [SystemPromptEditModal] handleEditorContentChange 被调用:",
+          {
+            newContentLength: newContent?.length || 0,
+          },
+        );
+        setContent(newContent);
+      },
+      [], // 空依赖数组，确保函数引用稳定
+    );
+
     // 🎯 稳定的 handlePaste 回调，避免不必要的重新渲染
     const handlePasteCallback = useCallback(
       (e: React.ClipboardEvent<any>) => {
@@ -340,13 +350,19 @@ const SystemPromptEditDialog = React.memo(
           actions={modalActions}
         >
           <div className={monacoStyles["system-prompt-edit-container"]}>
+            {/* 🚀 独立的 Monaco Editor，只处理内容变化 */}
             <MonacoMessageEditor
               value={content}
-              images={attachImages}
-              onChange={handleContentChange}
+              onChange={handleEditorContentChange}
               handlePaste={handlePasteCallback}
               onConfirm={handleSave}
               onMount={handleMonacoMount}
+            />
+
+            {/* 🚀 独立的图片附件组件，只在图片变化时重新渲染 */}
+            <ImageAttachments
+              images={attachImages}
+              onImageDelete={handleImageDelete}
             />
           </div>
         </Modal>

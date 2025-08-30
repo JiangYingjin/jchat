@@ -199,10 +199,14 @@
 .monaco-images-container {
   // 图片容器基础样式（内联展开）
   display: flex;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-in-light);
   gap: 12px;
   overflow-x: auto;
   overflow-y: hidden;
   flex-shrink: 0;
+  position: relative;
+  background: var(--gray-50);
 
   // 自定义滚动条
   &::-webkit-scrollbar {
@@ -223,11 +227,6 @@
       background: rgba(0, 0, 0, 0.4);
     }
   }
-
-  position: relative;
-  padding: 8px;
-  background: var(--gray-50);
-  border-top: 1px solid var(--border-in-light);
 
   .monaco-image-item {
     position: relative;
