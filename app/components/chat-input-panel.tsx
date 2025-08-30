@@ -45,10 +45,11 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
   // Refs
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const isLoadingRef = useRef(false); // 使用 ref 跟踪加载状态，避免闭包问题
+  const isSubmittedRef = useRef(false); // 跟踪是否已提交，防止延迟保存操作
   const isMobileScreen = useMobileScreen();
 
   // 调试开关 - 可以通过这个开关控制调试信息输出
-  const DEBUG_ENABLED = false; // 关闭调试信息
+  const DEBUG_ENABLED = false; // 开启调试信息以定位问题
 
   // 添加调试信息
   const debugLog = (action: string, value?: any) => {
@@ -103,7 +104,17 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
   // 记住未完成输入的防抖保存函数，间隔放宽到 500ms
   const saveChatInputText = useDebouncedCallback(async (value: string) => {
     try {
-      debugLog("SaveText", { value: value.substring(0, 50) + "..." });
+      debugLog("SaveText", {
+        value: value.substring(0, 50) + "...",
+        isSubmitted: isSubmittedRef.current,
+        sessionId: sessionId.substring(0, 8) + "...",
+      });
+
+      // 如果已经提交了，跳过这次保存操作
+      if (isSubmittedRef.current) {
+        debugLog("SaveText Skip", "already submitted, preventing save");
+        return;
+      }
 
       // 双重检查：如果当前输入框已经为空，说明已经发送或清理，不应该保存旧值
       const currentInputValue = userInput;
@@ -111,6 +122,7 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
         debugLog("SaveText Skip", "input already cleared");
         return;
       }
+
       const currentData = (await chatInputStorage.get(sessionId)) || {
         text: "",
         images: [],
@@ -123,7 +135,13 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
         text: value,
         updateAt: Date.now(),
       };
-      await chatInputStorage.save(sessionId, newData);
+      const saveResult = await chatInputStorage.save(sessionId, newData);
+      debugLog("SaveText Result", {
+        savedText: value.substring(0, 30) + "...",
+        sessionId: sessionId.substring(0, 8) + "...",
+        saveSuccess: saveResult,
+        timestamp: Date.now(),
+      });
     } catch (e) {
       console.error("[ChatInput][Save] 保存未完成输入失败:", e);
     }
@@ -182,13 +200,18 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
     debugCallFrequency("LoadFromStorage");
 
     // 检查是否是同一个会话的重复调用（React StrictMode）
+    // 但只有在正在加载时才跳过，避免阻止有效的加载操作
     if (sessionRef.current === sessionId && isLoadingRef.current) {
-      debugLog("LoadFromStorage", "StrictMode 双重调用，跳过");
+      debugLog("LoadFromStorage", "已有相同会话的加载操作进行中，跳过此次调用");
       return;
     }
 
     // 更新会话引用
     sessionRef.current = sessionId;
+
+    // 重置已提交标志，允许新session的输入保存
+    isSubmittedRef.current = false;
+    debugLog("SessionChange", "reset submitted flag for new session");
 
     // 创建一个本地的加载函数，避免依赖外部函数引用
     const loadDataForSession = async () => {
@@ -196,6 +219,8 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
         debugLog("LoadFromStorage", "already loading, skipping");
         return;
       }
+
+      let textContent = ""; // 将变量提升到函数作用域
 
       try {
         isLoadingRef.current = true;
@@ -208,11 +233,23 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
         const data = await chatInputStorage.get(sessionId);
 
         // 设置文本内容
-        const textContent =
-          data?.text && data.text.trim() !== "" ? data.text : "";
+        textContent = data?.text && data.text.trim() !== "" ? data.text : "";
+
+        debugLog("LoadFromStorage - Data Details", {
+          rawData: data,
+          dataText: data?.text,
+          dataTextLength: data?.text?.length || 0,
+          textContent: textContent,
+          textContentLength: textContent.length,
+          sessionId: sessionId.substring(0, 8) + "...",
+          timestamp: Date.now(),
+        });
+
         setUserInput(textContent);
-        debugLog("LoadFromStorage", {
-          textContent: textContent.substring(0, 50) + "...",
+
+        debugLog("LoadFromStorage - After SetUserInput", {
+          setTo: textContent,
+          currentUserInputLength: textContent.length,
           hasData: !!data,
         });
 
@@ -244,10 +281,16 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
         // 发生错误时也要清空状态
         setUserInput("");
         setAttachImages([]);
+        textContent = ""; // 错误时也重置textContent
       } finally {
         isLoadingRef.current = false;
         setIsLoadingFromStorage(false);
-        debugLog("LoadFromStorage", "completed");
+        debugLog("LoadFromStorage - Completed", {
+          finalUserInput: textContent,
+          finalUserInputLength: textContent?.length || 0,
+          sessionId: sessionId.substring(0, 8) + "...",
+          timestamp: Date.now(),
+        });
       }
     };
 
@@ -289,6 +332,19 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
     },
   );
 
+  // 监控userInput状态变化
+  useEffect(() => {
+    debugLog("UserInput State Changed", {
+      userInput:
+        userInput.substring(0, 100) + (userInput.length > 100 ? "..." : ""),
+      length: userInput.length,
+      sessionId: sessionId.substring(0, 8) + "...",
+      isLoadingFromStorage,
+      timestamp: Date.now(),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userInput, sessionId, isLoadingFromStorage]);
+
   // 只在userInput长度有显著变化或包含换行符时才触发measure
   useEffect(() => {
     measure();
@@ -303,6 +359,9 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
     debugLog("OnInput", {
       text: text.substring(0, 50) + "...",
       length: text.length,
+      isSubmitted: isSubmittedRef.current,
+      sessionId: sessionId.substring(0, 8) + "...",
+      timestamp: Date.now(),
     });
 
     // 始终更新userInput状态，保持受控组件的同步
@@ -323,39 +382,55 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
   };
 
   // 提交处理
-  const doSubmit = (input: string) => {
+  const doSubmit = async (input: string) => {
     const value = userInput || input;
     if (value.trim() === "" && isEmpty(attachImages)) return;
 
-    debugLog("Submit", { value: value.substring(0, 50) + "..." });
+    debugLog("Submit Start", {
+      value: value.substring(0, 50) + "...",
+      sessionId: sessionId.substring(0, 8) + "...",
+      timestamp: Date.now(),
+    });
+
+    // 立即设置已提交标志，防止任何后续的保存操作
+    isSubmittedRef.current = true;
 
     // 取消防抖的文本保存，避免延迟保存旧内容
-    saveChatInputText.cancel && saveChatInputText.cancel();
+    if (saveChatInputText.cancel) {
+      saveChatInputText.cancel();
+      debugLog("Submit", "cancelled debounced save");
+    }
 
-    // 调用父组件的 onSubmit
-    onSubmit(value, attachImages);
+    // 立即清空存储，在调用onSubmit之前确保存储已清空
+    try {
+      const emptyData = {
+        text: "",
+        images: [],
+        scrollTop: 0,
+        selection: { start: 0, end: 0 },
+        updateAt: Date.now(),
+      };
+      const clearResult = await chatInputStorage.save(sessionId, emptyData);
+      debugLog("Submit Clear Storage", {
+        clearSuccess: clearResult,
+        sessionId: sessionId.substring(0, 8) + "...",
+        timestamp: Date.now(),
+      });
+    } catch (e) {
+      console.error("[ChatInput][Clear] 立即清空聊天输入数据失败:", e);
+    }
 
     // 清空本地状态
     setAttachImages([]);
     setUserInput("");
+    debugLog("Submit", "local state cleared");
 
-    // 立即保存空数据到 IndexedDB，避免竞态条件
-    const clearChatInput = async () => {
-      try {
-        const emptyData = {
-          text: "",
-          images: [],
-          scrollTop: 0,
-          selection: { start: 0, end: 0 },
-          updateAt: Date.now(),
-        };
-        await chatInputStorage.save(sessionId, emptyData);
-        debugLog("Submit", "cleared storage");
-      } catch (e) {
-        console.error("[ChatInput][Clear] 保存空聊天输入数据失败:", e);
-      }
-    };
-    clearChatInput();
+    // 调用父组件的 onSubmit
+    onSubmit(value, attachImages);
+    debugLog("Submit Complete", {
+      sessionId: sessionId.substring(0, 8) + "...",
+      timestamp: Date.now(),
+    });
 
     if (!isMobileScreen) inputRef.current?.focus();
   };

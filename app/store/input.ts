@@ -43,11 +43,22 @@ class ChatInputStorage {
 
     try {
       const storage = this.getStorage();
-      if (!storage) return false; // 服务器端直接返回false
+      if (!storage) {
+        console.log(`[ChatInputStorage] ❌ 存储未初始化`);
+        return false; // 服务器端直接返回false
+      }
+
       await storage.setItem(sessionId, data);
+      // console.log(`[ChatInputStorage] ✅ 保存成功`, {
+      //   sessionId: sessionId.substring(0, 8) + "...",
+      //   savedText:
+      //     data.text.substring(0, 50) + (data.text.length > 50 ? "..." : ""),
+      //   savedTextLength: data.text.length,
+      //   timestamp: Date.now(),
+      // });
       return true;
     } catch (error) {
-      console.error("保存聊天输入失败:", error);
+      console.error(`[ChatInputStorage] ❌ 保存聊天输入失败:`, error);
       return false;
     }
   }
@@ -55,11 +66,16 @@ class ChatInputStorage {
   async get(sessionId: string): Promise<ChatInputData | null> {
     try {
       const storage = this.getStorage();
-      if (!storage) return null; // 服务器端直接返回null
+      if (!storage) {
+        console.log(`[ChatInputStorage] ❌ 存储未初始化，返回null`);
+        return null; // 服务器端直接返回null
+      }
+
       const data = await storage.getItem<ChatInputData>(sessionId);
+
       return data || null;
     } catch (error) {
-      console.error("获取聊天输入失败:", error);
+      console.error(`[ChatInputStorage] ❌ 获取聊天输入失败:`, error);
       return null;
     }
   }
@@ -76,8 +92,14 @@ class ChatInputStorage {
     }
   }
 
-  // 保存图片数据
+  // 保存图片数据 - 注意：这个方法可能被外部组件调用，无法访问组件当前状态
   async saveImages(sessionId: string, images: string[]): Promise<boolean> {
+    // console.log(`[ChatInputStorage] 🖼️ 保存图片数据`, {
+    //   sessionId: sessionId.substring(0, 8) + "...",
+    //   imageCount: images.length,
+    //   timestamp: Date.now(),
+    // });
+
     try {
       const currentData = (await this.get(sessionId)) || {
         text: "",
@@ -87,11 +109,22 @@ class ChatInputStorage {
         updateAt: Date.now(),
       };
 
-      return await this.save(sessionId, {
+      const result = await this.save(sessionId, {
         ...currentData,
         images,
         updateAt: Date.now(),
       });
+
+      // console.log(`[ChatInputStorage] 🖼️ 保存图片${result ? "成功" : "失败"}`, {
+      //   sessionId: sessionId.substring(0, 8) + "...",
+      //   imageCount: images.length,
+      //   preservedText:
+      //     currentData.text.substring(0, 30) +
+      //     (currentData.text.length > 30 ? "..." : ""),
+      //   timestamp: Date.now(),
+      // });
+
+      return result;
     } catch (error) {
       console.error("[ChatInput][Save] 保存图片失败:", error);
       return false;

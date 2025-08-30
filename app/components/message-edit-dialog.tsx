@@ -16,27 +16,27 @@ import Locale from "../locales";
 import styles from "../styles/chat.module.scss";
 import monacoStyles from "../styles/monaco-editor.module.scss";
 
-// 🎯 编辑器配置接口
+// 编辑器配置接口
 export interface EditorConfig {
   placeholder?: string;
   autoFocus?: boolean;
 }
 
-// 🎯 图片附件管理接口
+// 图片附件管理接口
 export interface ImageAttachmentConfig {
   images: string[];
   onImageDelete: (index: number) => void;
   showImages?: boolean;
 }
 
-// 🎯 保存配置接口
+// 保存配置接口
 export interface SaveConfig {
   enableRetryOnConfirm?: boolean; // 是否支持Ctrl+Enter保存并重试
   onSave: (content: string, images: string[], ...args: any[]) => void;
   onCancel: () => void;
 }
 
-// 🎯 完整的编辑器props接口
+// 完整的编辑器props接口
 export interface EditorCoreProps {
   initialContent: string;
   initialImages: string[];
@@ -59,7 +59,7 @@ export interface EditorCoreProps {
   onEditorMount?: (editor: any) => void;
 }
 
-// 🎯 通用的消息编辑器hook
+// 通用的消息编辑器hook
 export function useMessageEditor(props: EditorCoreProps) {
   const {
     initialContent,
@@ -71,7 +71,7 @@ export function useMessageEditor(props: EditorCoreProps) {
     onEditorMount,
   } = props;
 
-  // 🎯 状态管理
+  // 状态管理
   const [content, setContent] = useState(initialContent);
   const [attachImages, setAttachImages] = useState<string[]>(initialImages);
   const [uploading, setUploading] = useState(false);
@@ -81,7 +81,7 @@ export function useMessageEditor(props: EditorCoreProps) {
   // 粘贴进度追踪
   const pasteInProgressRef = useRef(false);
 
-  // 🎯 图片删除处理
+  // 图片删除处理
   const handleImageDelete = useCallback(
     (index: number) => {
       const newImages = attachImages.filter((_, i) => i !== index);
@@ -90,21 +90,20 @@ export function useMessageEditor(props: EditorCoreProps) {
     [attachImages],
   );
 
-  // 🎯 获取当前 Monaco Editor 内容
+  // 获取当前 Monaco Editor 内容
   const getCurrentContent = useCallback(() => {
     if (monacoEditorRef.current) {
       try {
         const currentContent = monacoEditorRef.current.getValue();
         return currentContent || "";
       } catch (error) {
-        console.warn("Failed to get Monaco Editor content:", error);
         return content;
       }
     }
     return content;
   }, [content]);
 
-  // 🎯 处理粘贴时内容变化（Monaco专用）
+  // 处理粘贴时内容变化（Monaco专用）
   const handlePasteContentChange = useCallback((newContent: string) => {
     // 如果正在粘贴过程中且新内容为空，则忽略（防止重复调用）
     if (
@@ -116,7 +115,7 @@ export function useMessageEditor(props: EditorCoreProps) {
     setContent(newContent);
   }, []);
 
-  // 🎯 粘贴处理 - 专为 Monaco Editor 设计
+  // 粘贴处理 - 专为 Monaco Editor 设计
   const handlePaste = usePasteImageUpload(
     attachImages,
     setAttachImages,
@@ -125,7 +124,7 @@ export function useMessageEditor(props: EditorCoreProps) {
     getCurrentContent,
   );
 
-  // 🎯 编辑器内容变化处理
+  // 编辑器内容变化处理
   const handleEditorContentChange = useCallback(
     (newContent: string, newImages?: string[]) => {
       if (newImages) {
@@ -140,7 +139,7 @@ export function useMessageEditor(props: EditorCoreProps) {
     [],
   );
 
-  // 🎯 Monaco Editor挂载处理
+  // Monaco Editor挂载处理
   const handleMonacoMount = useCallback(
     (editor: any) => {
       monacoEditorRef.current = editor;
@@ -173,13 +172,6 @@ export function useMessageEditor(props: EditorCoreProps) {
           // 聚焦到编辑器并滚动到选中文本位置
           editor.focus();
 
-          console.log("🔍 [DEBUG] Monaco挂载时滚动定位:", {
-            startPos: `${startPos.lineNumber}:${startPos.column}`,
-            endPos: `${endPos.lineNumber}:${endPos.column}`,
-            timestamp: performance.now(),
-          });
-
-          // 🔥 修复：使用更可靠的滚动定位方式
           // 使用 requestAnimationFrame 确保DOM完全更新后再滚动
           requestAnimationFrame(() => {
             try {
@@ -190,17 +182,8 @@ export function useMessageEditor(props: EditorCoreProps) {
                 endLineNumber: endPos.lineNumber,
                 endColumn: endPos.column,
               });
-
-              // 验证滚动位置
-              setTimeout(() => {
-                const scrollTop = editor.getScrollTop();
-                console.log("✅ [DEBUG] 滚动完成，当前位置:", {
-                  scrollTop: scrollTop,
-                  timestamp: performance.now(),
-                });
-              }, 50);
             } catch (error) {
-              console.error("❌ [DEBUG] 滚动定位失败:", error);
+              // 静默处理滚动错误
             }
           });
         }
@@ -228,7 +211,7 @@ export function useMessageEditor(props: EditorCoreProps) {
     [monacoConfig, editorConfig.autoFocus, textareaRef, onEditorMount],
   );
 
-  // 🎯 保存处理
+  // 保存处理
   const handleSave = useCallback(
     (retryOnConfirm = false) => {
       let currentContent = content;
@@ -256,7 +239,7 @@ export function useMessageEditor(props: EditorCoreProps) {
             }
           }
         } catch (error) {
-          console.warn("Failed to get Monaco Editor state:", error);
+          // 静默处理错误
         }
       }
 
@@ -274,9 +257,9 @@ export function useMessageEditor(props: EditorCoreProps) {
     [content, attachImages, saveConfig],
   );
 
-  // 🎯 快捷键处理 - Monaco Editor 已内置支持 Ctrl+Enter
+  // 快捷键处理 - Monaco Editor 已内置支持 Ctrl+Enter
 
-  // 🎯 处理粘贴回调（Monaco专用）
+  // 处理粘贴回调（Monaco专用）
   const handlePasteCallback = useCallback(
     (e: React.ClipboardEvent<any>) => {
       pasteInProgressRef.current = true;
@@ -293,7 +276,7 @@ export function useMessageEditor(props: EditorCoreProps) {
     [handlePaste],
   );
 
-  // 🎯 返回统一的接口
+  // 返回统一的接口
   return {
     // 状态
     content,
@@ -317,7 +300,7 @@ export function useMessageEditor(props: EditorCoreProps) {
   };
 }
 
-// 🎯 通用的编辑器核心组件
+// 通用的编辑器核心组件
 export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
   const {
     editorConfig,
@@ -330,7 +313,7 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
 
   const editor = useMessageEditor(props);
 
-  // 🎯 使用 useRef 稳定函数引用，避免依赖项变化
+  // 使用 useRef 稳定函数引用，避免依赖项变化
   const stablePropsRef = useRef({
     onChange: editor.handleEditorContentChange,
     handlePaste: editor.handlePasteCallback,
@@ -362,7 +345,7 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
     [], // 空依赖项，函数引用永远不变，通过 ref 访问最新值
   );
 
-  // 🎯 模态框动作按钮
+  // 模态框动作按钮
   const modalActions = useMemo(
     () => [
       <IconButton
@@ -409,7 +392,7 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
 
 EditorCore.displayName = "EditorCore";
 
-// 🎯 重构后的系统提示词编辑器 - 使用通用EditorCore
+// 重构后的系统提示词编辑器 - 使用通用EditorCore
 const SystemPromptEditDialog = React.memo(
   (props: {
     onClose: () => void;
@@ -455,7 +438,7 @@ const SystemPromptEditDialog = React.memo(
   },
 );
 
-// 🎯 重构后的消息编辑器 - 支持Monaco Editor
+// 重构后的消息编辑器 - 支持Monaco Editor
 const MessageEditDialog = React.memo(
   (props: {
     onClose: () => void;
@@ -490,7 +473,7 @@ const MessageEditDialog = React.memo(
     };
 
     // Monaco Editor 挂载时的智能定位处理
-    // 🎯 关键修复：使用 useCallback 包装，确保函数引用的稳定性
+    // 关键修复：使用 useCallback 包装，确保函数引用的稳定性
     const handleEditorMount = useCallback(
       (editor: any) => {
         // 保存编辑器实例到 ref 中，以便外部访问

@@ -37,7 +37,7 @@ import {
  * 支持基础编辑器模式和消息编辑器模式
  */
 
-// 🚀 图片附件组件（内联到主组件中）
+// 图片附件组件（内联到主组件中）
 const ImageAttachments: React.FC<{
   images: string[];
   onImageDelete: (index: number) => void;
@@ -95,7 +95,6 @@ interface MonacoUnifiedEditorProps {
 /**
  * 统一的 Monaco 编辑器组件
  * 集成了消息编辑器的所有功能
- * === 终极解决方案 V6：全局事件捕获 ===
  */
 export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
   value,
@@ -154,32 +153,27 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
   // 处理内容变化 - 使用防抖优化
   const handleContentChange = useCallback(
     (newContent: string) => {
-      const timestamp = performance.now();
-
-      // 🔍 调试：检查防重复调用逻辑的各个条件
+      // 防重复调用逻辑
       const condition1 = isInternalUpdateRef.current;
       const condition2 = !newContent || newContent.length === 0;
       const condition3 =
         lastContentRef.current && lastContentRef.current.length > 0;
       const shouldIgnore = condition1 && condition2 && condition3;
 
-      // 🛡️ 如果是内部更新导致的onChange，且内容为空，则忽略
+      // 如果是内部更新导致的onChange，且内容为空，则忽略
       if (shouldIgnore) {
         return;
       }
 
-      // 🎯 准备调用父组件的onChange
+      // 准备调用父组件的onChange
       try {
         // Monaco内容变化处理
         onChange(newContent);
 
-        // 🎯 更新最后的内容引用，用于防重复调用逻辑
+        // 更新最后的内容引用，用于防重复调用逻辑
         lastContentRef.current = newContent || "";
       } catch (error) {
-        console.error(
-          `❌ [Monaco] 父组件onChange调用失败 [${timestamp.toFixed(2)}ms]:`,
-          error,
-        );
+        console.error("Monaco onChange调用失败:", error);
       }
     },
     [onChange],
@@ -233,14 +227,13 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
 
   depsRef.current = { onChange, handlePaste, onConfirm, onMount, readOnly };
 
-  // ========== 终极解决方案 V6：全局事件捕获 ==========
+  // 主要编辑器初始化逻辑
   useEffect(() => {
     let editorInstance: monaco.editor.IStandaloneCodeEditor | null = null;
     let disposables: (() => void)[] = [];
     let isMounted = true;
 
-    // 关键：将粘贴处理器定义在 useEffect 外部无法访问的区域，
-    // 以确保每次 effect 运行时都创建新的、正确的闭包。
+    // 粘贴处理器
     const pasteHandler = (event: ClipboardEvent) => {
       // 检查事件的目标是否在我们的编辑器内部
       if (
@@ -267,7 +260,7 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
 
     // 在捕获阶段监听 document 的 paste 事件（主要用于图像）
     if (handlePaste) {
-      document.addEventListener("paste", pasteHandler, true); // `true` 表示捕获阶段
+      document.addEventListener("paste", pasteHandler, true);
     }
 
     if (containerRef.current) {
@@ -276,7 +269,6 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
       loadMonaco()
         .then((monaco) => {
           if (!isMounted || !containerRef.current) {
-            console.log("⚠️ [DEBUG] 组件已卸载或容器不存在，跳过编辑器创建");
             return;
           }
 
@@ -299,32 +291,20 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
                 const currentValue = currentEditor.getValue();
                 const selection = currentEditor.getSelection();
 
-                // 终极修复：标记这是用户输入导致的变化
+                // 标记这是用户输入导致的变化
                 isUserInputRef.current = true;
 
                 if (currentValue !== value) {
-                  console.log("调用 onChange，因为内容不同:", {
-                    currentLength: currentValue.length,
-                    propsLength: value?.length || 0,
-                    timestamp: performance.now(),
-                  });
-
                   // 使用防抖更新统计信息，减少重渲染
                   debouncedSetStats(updateStats(currentValue));
                   onChange(currentValue);
 
                   // 在 onChange 调用后更新同步状态
-                  // 使用 setTimeout 确保在下次 useEffect 运行前更新
                   setTimeout(() => {
-                    console.log("setTimeout 回调执行，重置标志位:", {
-                      newLastSyncedLength: currentValue.length,
-                      timestamp: performance.now(),
-                    });
                     lastSyncedValue.current = currentValue;
                     isUserInputRef.current = false; // 重置标志位
                   }, 0);
                 } else {
-                  console.log("内容相同，直接重置标志位");
                   // 即使内容相同，也可能需要更新统计信息（比如格式化导致的变化）
                   debouncedSetStats(updateStats(currentValue));
                   isUserInputRef.current = false; // 重置标志位
@@ -354,7 +334,7 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
             }
           }
 
-          // 关键修复：调用 handleEditorReady 设置编辑器状态
+          // 调用 handleEditorReady 设置编辑器状态
           handleEditorReady(editorInstance);
 
           // 调用外部 onMount 回调
@@ -362,9 +342,9 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
 
           // 设置初始统计信息
           const initialValue = editorInstance.getValue() || "";
-          setStats(updateStats(initialValue)); // 初始化时立即设置，不使用防抖
+          setStats(updateStats(initialValue));
 
-          // 🔥 关键修复：立即设置初始值已设置标志，防止后续用户输入时误触发 setValue
+          // 设置初始值已设置标志，防止后续用户输入时误触发 setValue
           isInitialValueSet.current = true;
           lastSyncedValue.current = initialValue;
           editorInitTime.current = performance.now();
@@ -380,7 +360,7 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
           setIsLoading(false);
         })
         .catch((err) => {
-          console.error("❌ Monaco 初始化失败", err);
+          console.error("Monaco 初始化失败", err);
           setError("编辑器加载失败");
           setIsLoading(false);
         });
@@ -399,24 +379,20 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
       // 清理全局监听器
       if (handlePaste) {
         document.removeEventListener("paste", pasteHandler, true);
-        console.log("✅ [DEBUG] 全局 paste 监听器已移除");
       }
 
-      console.log("🗑️ [DEBUG] 清理 disposables:", disposables.length);
       disposables.forEach((dispose) => dispose());
 
       if (editorInstance) {
-        console.log("💥 [DEBUG] 销毁编辑器实例");
         editorInstance.dispose();
       }
 
       editorRef.current = null;
-      console.log("✅ [DEBUG] 副作用清理完成");
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onChange, handlePaste, onConfirm, onMount, readOnly]); // 故意移除 value 依赖项，避免每次输入都重新初始化
+  }, [onChange, handlePaste, onConfirm, onMount, readOnly]);
 
-  // 处理外部 value 变化 - 终极修复版本，防止光标跳转
+  // 处理外部 value 变化 - 防止光标跳转
   const isInitialValueSet = useRef(false);
   const lastSyncedValue = useRef<string>("");
   const isUserInputRef = useRef(false); // 标记是否是用户输入导致的变化
@@ -428,15 +404,12 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
       const safeValue = safeTextValue(value);
       const selection = editorRef.current.getSelection();
 
-      // 终极修复：最精确的同步判断
-      // 只在以下情况才调用 setValue：
-      // 1. 首次设置值（编辑器刚初始化）- 现在应该不会发生，因为我们在初始化时就设置了
-      // 2. 外部 value 真的不同于当前编辑器值，且不是用户刚刚的输入导致的
+      // 最精确的同步判断
       const shouldUpdateValue =
         !isInitialValueSet.current ||
         (safeValue !== currentValue && !isUserInputRef.current);
 
-      // 🔥 额外安全检查：编辑器初始化后 500ms 内禁止任何 setValue 调用
+      // 额外安全检查：编辑器初始化后 500ms 内禁止任何 setValue 调用
       const timeSinceInit = performance.now() - editorInitTime.current;
       const inProtectionPeriod =
         editorInitTime.current > 0 && timeSinceInit < 500;
@@ -455,50 +428,17 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
 
         try {
           editorRef.current.setValue(safeValue);
-          console.log("✅ [DEBUG] setValue 执行完成");
 
           // 改进：总是尝试恢复光标位置（不管是否是初始设置）
           if (selection && isInitialValueSet.current) {
-            console.log("🔄 [DEBUG] 尝试恢复光标位置:", {
-              targetSelection:
-                selection.startLineNumber +
-                ":" +
-                selection.startColumn +
-                " to " +
-                selection.endLineNumber +
-                ":" +
-                selection.endColumn,
-              timestamp: performance.now(),
-            });
-
             // 使用 requestAnimationFrame 确保在 DOM 更新后恢复光标
             requestAnimationFrame(() => {
               if (editorRef.current && !isDisposedRef.current) {
                 try {
-                  const newSelection = editorRef.current.getSelection();
-                  console.log("🎯 [DEBUG] requestAnimationFrame 中恢复光标:", {
-                    beforeRestore:
-                      newSelection?.startLineNumber +
-                      ":" +
-                      newSelection?.startColumn,
-                    restoreTarget:
-                      selection.startLineNumber + ":" + selection.startColumn,
-                    timestamp: performance.now(),
-                  });
-
                   editorRef.current.setSelection(selection);
                   editorRef.current.setScrollTop(scrollTop);
-
-                  const finalSelection = editorRef.current.getSelection();
-                  console.log("✅ [DEBUG] 光标恢复完成:", {
-                    finalSelection:
-                      finalSelection?.startLineNumber +
-                      ":" +
-                      finalSelection?.startColumn,
-                    timestamp: performance.now(),
-                  });
                 } catch (error) {
-                  console.error("❌ [DEBUG] 光标恢复失败:", error);
+                  console.error("光标恢复失败:", error);
                 }
               }
             });
@@ -506,39 +446,20 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
 
           setStats(updateStats(safeValue));
 
-          // 更新同步状态（现在不应该是"首次设置"了）
+          // 更新同步状态
           lastSyncedValue.current = safeValue;
           isUserInputRef.current = false; // 重置用户输入标志位
-
-          console.log("📝 [DEBUG] setValue 后状态更新完成:", {
-            newLastSyncedLength: safeValue.length,
-            resetUserInput: false,
-            timestamp: performance.now(),
-          });
-
-          // 注意：现在不应该有自动聚焦，因为不应该是"首次设置"
         } catch (error) {
-          console.error("❌ [DEBUG] setValue 失败:", error);
+          console.error("setValue 失败:", error);
           setStats(updateStats(safeValue));
           lastSyncedValue.current = safeValue;
           isUserInputRef.current = false; // 重置用户输入标志位
         }
       } else {
-        console.log("⏭️ [DEBUG] 跳过 setValue，同步统计信息:", {
-          reason: isInitialValueSet.current
-            ? isUserInputRef.current
-              ? "用户输入中"
-              : "值相同"
-            : "不应该发生的情况",
-          timestamp: performance.now(),
-        });
-
         // 即使不更新值，也要同步统计信息（使用防抖避免频繁重渲染）
         debouncedSetStats(updateStats(safeValue));
         lastSyncedValue.current = safeValue;
       }
-    } else {
-      console.log("⚠️ [DEBUG] editorRef.current 不存在，跳过同步");
     }
   }, [value, autoFocus, debouncedSetStats]);
 
@@ -559,123 +480,11 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
     }
   }, [autoFocus]);
 
-  // 🔍 详细调试：组件挂载/卸载跟踪
-  useEffect(() => {
-    console.log("🎯 [DEBUG] MonacoUnifiedEditor 组件挂载:", {
-      timestamp: Date.now(),
-      hasEditor: !!editorRef.current,
-      hasEditorInstance: !!editorInstanceRef.current,
-      isEditorReady,
-      isLoading,
-      hasError: !!error,
-      valueLength: value?.length || 0,
-      imagesCount: images?.length || 0,
-      hasOnChange: !!onChange,
-      hasOnEditorReady: !!onEditorReady,
-      hasHandlePaste: !!handlePaste,
-      hasOnConfirm: !!onConfirm,
-      hasOnMount: !!onMount,
-    });
-
-    return () => {
-      console.log("💥 [DEBUG] MonacoUnifiedEditor 组件卸载:", {
-        hasEditor: !!editorRef.current,
-        hasEditorInstance: !!editorInstanceRef.current,
-        isEditorReady,
-        isLoading,
-        hasError: !!error,
-        timestamp: Date.now(),
-      });
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
   // 预计算类名
   const panelClassName = useMemo(
     () => monacoStyles["monaco-unified-wrapper"],
     [],
   );
-
-  // 🔍 详细调试：光标位置跟踪和键盘事件监听
-  useEffect(() => {
-    let lastSelection: any = null;
-
-    const trackCursor = () => {
-      if (editorRef.current) {
-        const currentSelection = editorRef.current.getSelection();
-        if (
-          currentSelection &&
-          (!lastSelection ||
-            lastSelection.startLineNumber !==
-              currentSelection.startLineNumber ||
-            lastSelection.startColumn !== currentSelection.startColumn)
-        ) {
-          const isAtStart =
-            currentSelection.startLineNumber === 1 &&
-            currentSelection.startColumn === 1;
-          console.log("🎯 [DEBUG] 光标位置变化:", {
-            from: lastSelection
-              ? `${lastSelection.startLineNumber}:${lastSelection.startColumn}`
-              : "null",
-            to: `${currentSelection.startLineNumber}:${currentSelection.startColumn}`,
-            timestamp: performance.now(),
-            isAtStart: isAtStart,
-            isJumpToStart:
-              lastSelection &&
-              (lastSelection.startLineNumber !== 1 ||
-                lastSelection.startColumn !== 1) &&
-              isAtStart,
-            timeSinceEditorInit:
-              editorInitTime.current > 0
-                ? (performance.now() - editorInitTime.current).toFixed(1) + "ms"
-                : "unknown",
-          });
-
-          // 特别警告：如果光标跳转到开头
-          if (
-            lastSelection &&
-            (lastSelection.startLineNumber !== 1 ||
-              lastSelection.startColumn !== 1) &&
-            isAtStart
-          ) {
-            console.warn(
-              "🚨 [DEBUG] 光标跳转到文档开头! 这是我们要解决的问题!",
-              {
-                previousPosition: `${lastSelection.startLineNumber}:${lastSelection.startColumn}`,
-                jumpedToStart: "1:1",
-                timeSinceInit:
-                  editorInitTime.current > 0
-                    ? (performance.now() - editorInitTime.current).toFixed(1) +
-                      "ms"
-                    : "unknown",
-                timestamp: performance.now(),
-              },
-            );
-          }
-          lastSelection = { ...currentSelection };
-        }
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      // 键盘事件处理
-      if (event.ctrlKey && event.key === "v") {
-        console.log("⌨️ [DEBUG] 检测到 Ctrl+V 按键");
-      }
-
-      // 在任何键盘输入后跟踪光标
-      setTimeout(trackCursor, 0);
-    };
-
-    // 定期检查光标位置（用于捕获非键盘导致的变化）
-    const cursorInterval = setInterval(trackCursor, 100);
-
-    document.addEventListener("keydown", handleKeyDown, true);
-
-    return () => {
-      document.removeEventListener("keydown", handleKeyDown, true);
-      clearInterval(cursorInterval);
-    };
-  }, []);
 
   if (error) {
     return (
@@ -685,29 +494,6 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
         className={className}
       />
     );
-  }
-
-  // 🔍 有条件的调试：仅在开发模式或需要时输出渲染状态
-  if (process.env.NODE_ENV === "development" && Math.random() < 0.1) {
-    // 仅10%的渲染输出日志
-    console.log("🎨 [DEBUG] MonacoUnifiedEditor 渲染:", {
-      isLoading,
-      hasError: !!error,
-      isEditorReady,
-      hasEditorInstance: !!editorInstanceRef.current,
-      hasEditorRef: !!editorRef.current,
-      imagesCount: images?.length || 0,
-      stats: {
-        characters: stats.characters,
-        lines: stats.lines,
-        words: stats.words,
-      },
-      valueLength: value?.length || 0,
-      isInitialValueSet: isInitialValueSet.current,
-      isUserInput: isUserInputRef.current,
-      lastSyncedLength: lastSyncedValue.current?.length || 0,
-      timestamp: performance.now(),
-    });
   }
 
   // 统一的渲染布局（消息编辑器模式）
