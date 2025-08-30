@@ -127,6 +127,20 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({ characters: 0, lines: 0, words: 0 });
+
+  // 防抖更新统计信息，避免频繁重渲染
+  const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const debouncedSetStats = useCallback(
+    (newStats: { characters: number; lines: number; words: number }) => {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      debounceTimeoutRef.current = setTimeout(() => {
+        setStats(newStats);
+      }, 50); // 50ms 防抖
+    },
+    [],
+  );
   const [monacoLoadMethod, setMonacoLoadMethod] = useState<
     "preloaded" | "loading" | "fallback"
   >("fallback");
@@ -142,7 +156,7 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
     lastContentRef.current = value || "";
   }, [value]);
 
-  // 处理内容变化
+  // 处理内容变化 - 使用防抖优化
   const handleContentChange = useCallback(
     (newContent: string) => {
       const timestamp = performance.now();
@@ -292,9 +306,6 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
                 const currentValue = currentEditor.getValue();
                 const selection = currentEditor.getSelection();
 
-                // 修复：在内容变化时立即更新统计信息
-                setStats(updateStats(currentValue));
-
                 // 终极修复：标记这是用户输入导致的变化
                 isUserInputRef.current = true;
 
@@ -305,6 +316,8 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
                     timestamp: performance.now(),
                   });
 
+                  // 使用防抖更新统计信息，减少重渲染
+                  debouncedSetStats(updateStats(currentValue));
                   onChange(currentValue);
 
                   // 在 onChange 调用后更新同步状态
@@ -319,6 +332,8 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
                   }, 0);
                 } else {
                   console.log("内容相同，直接重置标志位");
+                  // 即使内容相同，也可能需要更新统计信息（比如格式化导致的变化）
+                  debouncedSetStats(updateStats(currentValue));
                   isUserInputRef.current = false; // 重置标志位
                 }
               },
@@ -354,7 +369,7 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
 
           // 设置初始统计信息
           const initialValue = editorInstance.getValue() || "";
-          setStats(updateStats(initialValue));
+          setStats(updateStats(initialValue)); // 初始化时立即设置，不使用防抖
 
           // 🔥 关键修复：立即设置初始值已设置标志，防止后续用户输入时误触发 setValue
           isInitialValueSet.current = true;
@@ -381,6 +396,12 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
     // 清理函数
     return () => {
       isMounted = false;
+
+      // 清理防抖timeout
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+        debounceTimeoutRef.current = null;
+      }
 
       // 清理全局监听器
       if (handlePaste) {
@@ -430,7 +451,7 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
       // 如果在保护期内，强制跳过 setValue
       if (inProtectionPeriod) {
         // 同步统计信息但不调用 setValue
-        setStats(updateStats(safeValue));
+        debouncedSetStats(updateStats(safeValue));
         lastSyncedValue.current = safeValue;
         return;
       }
@@ -519,14 +540,14 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
           timestamp: performance.now(),
         });
 
-        // 即使不更新值，也要同步统计信息
-        setStats(updateStats(safeValue));
+        // 即使不更新值，也要同步统计信息（使用防抖避免频繁重渲染）
+        debouncedSetStats(updateStats(safeValue));
         lastSyncedValue.current = safeValue;
       }
     } else {
       console.log("⚠️ [DEBUG] editorRef.current 不存在，跳过同步");
     }
-  }, [value, autoFocus]);
+  }, [value, autoFocus, debouncedSetStats]);
 
   // 额外的聚焦机制
   useEffect(() => {
@@ -673,25 +694,28 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
     );
   }
 
-  // 🔍 详细调试：渲染状态
-  console.log("🎨 [DEBUG] MonacoUnifiedEditor 渲染:", {
-    isLoading,
-    hasError: !!error,
-    isEditorReady,
-    hasEditorInstance: !!editorInstanceRef.current,
-    hasEditorRef: !!editorRef.current,
-    imagesCount: images?.length || 0,
-    stats: {
-      characters: stats.characters,
-      lines: stats.lines,
-      words: stats.words,
-    },
-    valueLength: value?.length || 0,
-    isInitialValueSet: isInitialValueSet.current,
-    isUserInput: isUserInputRef.current,
-    lastSyncedLength: lastSyncedValue.current?.length || 0,
-    timestamp: performance.now(),
-  });
+  // 🔍 有条件的调试：仅在开发模式或需要时输出渲染状态
+  if (process.env.NODE_ENV === "development" && Math.random() < 0.1) {
+    // 仅10%的渲染输出日志
+    console.log("🎨 [DEBUG] MonacoUnifiedEditor 渲染:", {
+      isLoading,
+      hasError: !!error,
+      isEditorReady,
+      hasEditorInstance: !!editorInstanceRef.current,
+      hasEditorRef: !!editorRef.current,
+      imagesCount: images?.length || 0,
+      stats: {
+        characters: stats.characters,
+        lines: stats.lines,
+        words: stats.words,
+      },
+      valueLength: value?.length || 0,
+      isInitialValueSet: isInitialValueSet.current,
+      isUserInput: isUserInputRef.current,
+      lastSyncedLength: lastSyncedValue.current?.length || 0,
+      timestamp: performance.now(),
+    });
+  }
 
   // 统一的渲染布局（消息编辑器模式）
   return (
