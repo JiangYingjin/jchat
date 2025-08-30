@@ -1365,7 +1365,23 @@ export const MonacoEditor: React.FC<MonacoEditorProps> = ({
                       break;
 
                     case "Backspace":
-                      if (currentPosition.column > 1) {
+                      // 检查是否有选中文本
+                      const selection = editorInstance.getSelection();
+                      if (selection && !selection.isEmpty()) {
+                        // 如果有选中文本，删除选中的内容
+                        editorInstance.executeEdits("backspace", [
+                          {
+                            range: selection,
+                            text: "",
+                          },
+                        ]);
+
+                        // 光标移动到选择区域的开始位置
+                        newPosition = {
+                          lineNumber: selection.startLineNumber,
+                          column: selection.startColumn,
+                        };
+                      } else if (currentPosition.column > 1) {
                         // 删除当前位置前的字符
                         const range = {
                           startLineNumber: currentPosition.lineNumber,
