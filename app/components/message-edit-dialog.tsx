@@ -11,7 +11,7 @@ import { Modal } from "./ui-lib";
 import { IconButton } from "./button";
 import CancelIcon from "../icons/cancel.svg";
 import ConfirmIcon from "../icons/confirm.svg";
-import { MonacoMessageEditor, ImageAttachments } from "./monaco-message-editor";
+import { MonacoUnifiedEditor } from "./monaco-unified-editor";
 import Locale from "../locales";
 import styles from "../styles/chat.module.scss";
 import monacoStyles from "../styles/monaco-editor.module.scss";
@@ -313,31 +313,36 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
 
   const editor = useMessageEditor(props);
 
-  // 🎯 渲染 Monaco Editor
-  const renderEditor = () => (
-    <MonacoMessageEditor
-      value={editor.content}
-      onChange={editor.handleEditorContentChange}
-      handlePaste={editor.handlePasteCallback}
-      onConfirm={() => editor.handleSave(false)}
-      onMount={editor.handleMonacoMount}
-      autoFocus={editorConfig.autoFocus}
-    />
-  );
+  // 🎯 使用 useRef 稳定函数引用，避免依赖项变化
+  const stablePropsRef = useRef({
+    onChange: editor.handleEditorContentChange,
+    handlePaste: editor.handlePasteCallback,
+    onConfirm: () => editor.handleSave(false),
+    onMount: editor.handleMonacoMount,
+    onImageDelete: editor.handleImageDelete,
+  });
 
-  // 🎯 渲染图片附件
-  const renderImageAttachments = () => {
-    if (!imageConfig.showImages || editor.attachImages.length === 0) {
-      return null;
-    }
-
-    return (
-      <ImageAttachments
-        images={editor.attachImages}
-        onImageDelete={editor.handleImageDelete}
-      />
-    );
+  // 每次渲染时更新 ref 的当前值，但保持引用稳定
+  stablePropsRef.current = {
+    onChange: editor.handleEditorContentChange,
+    handlePaste: editor.handlePasteCallback,
+    onConfirm: () => editor.handleSave(false),
+    onMount: editor.handleMonacoMount,
+    onImageDelete: editor.handleImageDelete,
   };
+
+  // 创建稳定的 props 对象
+  const stableProps = useMemo(
+    () => ({
+      onChange: (content: string) => stablePropsRef.current.onChange(content),
+      handlePaste: (e: any) => stablePropsRef.current.handlePaste(e),
+      onConfirm: () => stablePropsRef.current.onConfirm(),
+      onMount: (editor: any) => stablePropsRef.current.onMount(editor),
+      onImageDelete: (index: number) =>
+        stablePropsRef.current.onImageDelete(index),
+    }),
+    [],
+  ); // 空依赖项，函数引用永远不变
 
   // 🎯 模态框动作按钮
   const modalActions = useMemo(
@@ -356,7 +361,7 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
         onClick={() => editor.handleSave(false)}
       />,
     ],
-    [modalConfig.onClose, editor],
+    [modalConfig.onClose, editor.handleSave], // 只依赖具体的函数，而不是整个editor对象
   );
 
   return (
@@ -367,8 +372,16 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
         actions={modalActions}
       >
         <div className={monacoStyles["system-prompt-edit-container"]}>
-          {renderEditor()}
-          {renderImageAttachments()}
+          <MonacoUnifiedEditor
+            value={editor.content}
+            onChange={stableProps.onChange}
+            handlePaste={stableProps.handlePaste}
+            onConfirm={stableProps.onConfirm}
+            onMount={stableProps.onMount}
+            autoFocus={editorConfig.autoFocus}
+            images={editor.attachImages}
+            onImageDelete={stableProps.onImageDelete}
+          />
         </div>
       </Modal>
     </div>
@@ -462,6 +475,7 @@ const MessageEditDialog = React.memo(
     };
 
     // Monaco Editor 挂载时的智能定位处理
+    // 🎯 关键修复：使用 useCallback 包装，确保函数引用的稳定性
     const handleEditorMount = useCallback(
       (editor: any) => {
         // 保存编辑器实例到 ref 中，以便外部访问
@@ -472,7 +486,7 @@ const MessageEditDialog = React.memo(
         // 调用外部的智能定位回调
         onSmartPosition?.(editor);
       },
-      [textareaRef, onSmartPosition],
+      [textareaRef, onSmartPosition], // 确保依赖项正确
     );
 
     return (
