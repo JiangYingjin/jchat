@@ -16,17 +16,15 @@ import Locale from "../locales";
 import styles from "../styles/chat.module.scss";
 import monacoStyles from "../styles/monaco-editor.module.scss";
 
-// 🎯 编辑器类型枚举
+// 🎯 编辑器类型枚举 - 统一使用 Monaco Editor
 export enum EditorType {
   MONACO = "monaco",
-  TEXTAREA = "textarea",
 }
 
 // 🎯 编辑器配置接口
 export interface EditorConfig {
   type: EditorType;
   placeholder?: string;
-  rows?: number;
   autoFocus?: boolean;
 }
 
@@ -61,8 +59,8 @@ export interface EditorCoreProps {
     scrollTop?: number;
     selection?: { start: number; end: number };
   };
-  // Textarea特有的配置
-  textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  // Monaco Editor容器引用（兼容性）
+  textareaRef?: React.RefObject<HTMLElement>;
 }
 
 // 🎯 通用的消息编辑器hook
@@ -95,9 +93,9 @@ export function useMessageEditor(props: EditorCoreProps) {
     [attachImages],
   );
 
-  // 🎯 获取当前内容（支持Monaco Editor）
+  // 🎯 获取当前 Monaco Editor 内容
   const getCurrentContent = useCallback(() => {
-    if (editorConfig.type === EditorType.MONACO && monacoEditorRef.current) {
+    if (monacoEditorRef.current) {
       try {
         const currentContent = monacoEditorRef.current.getValue();
         return currentContent || "";
@@ -107,7 +105,7 @@ export function useMessageEditor(props: EditorCoreProps) {
       }
     }
     return content;
-  }, [content, editorConfig.type]);
+  }, [content]);
 
   // 🎯 处理粘贴时内容变化（Monaco专用）
   const handlePasteContentChange = useCallback((newContent: string) => {
@@ -121,15 +119,12 @@ export function useMessageEditor(props: EditorCoreProps) {
     setContent(newContent);
   }, []);
 
-  // 🎯 粘贴处理
+  // 🎯 粘贴处理 - 专为 Monaco Editor 设计
   const handlePaste = usePasteImageUpload(
     attachImages,
     setAttachImages,
     setUploading,
-    // 对于Monaco Editor，使用专门的回调；对于Textarea，使用setContent
-    editorConfig.type === EditorType.MONACO
-      ? handlePasteContentChange
-      : setContent,
+    handlePasteContentChange,
     getCurrentContent,
   );
 
@@ -172,13 +167,37 @@ export function useMessageEditor(props: EditorCoreProps) {
             endLineNumber: endPos.lineNumber,
             endColumn: endPos.column,
           });
+
+          // 聚焦到编辑器并滚动到选中文本位置
+          editor.focus();
+          setTimeout(() => {
+            editor.revealRangeInCenter({
+              startLineNumber: startPos.lineNumber,
+              startColumn: startPos.column,
+              endLineNumber: endPos.lineNumber,
+              endColumn: endPos.column,
+            });
+          }, 100);
+        }
+      } else {
+        // 如果没有指定选择位置，默认聚焦到编辑器末尾
+        const model = editor.getModel();
+        if (model && editorConfig.autoFocus !== false) {
+          const lineCount = model.getLineCount();
+          const lastLineContent = model.getLineContent(lineCount);
+          const endPos = {
+            lineNumber: lineCount,
+            column: lastLineContent.length + 1,
+          };
+          editor.setPosition(endPos);
+          editor.focus();
         }
       }
 
       // 调用外部传入的onMount回调
       monacoConfig?.onMount?.(editor);
     },
-    [monacoConfig],
+    [monacoConfig, editorConfig.autoFocus],
   );
 
   // 🎯 保存处理
@@ -189,7 +208,7 @@ export function useMessageEditor(props: EditorCoreProps) {
       let selection = { start: 0, end: 0 };
 
       // 从Monaco Editor获取最新状态
-      if (editorConfig.type === EditorType.MONACO && monacoEditorRef.current) {
+      if (monacoEditorRef.current) {
         try {
           currentContent = monacoEditorRef.current.getValue() || "";
           scrollTop = monacoEditorRef.current.getScrollTop() || 0;
@@ -213,40 +232,21 @@ export function useMessageEditor(props: EditorCoreProps) {
         }
       }
 
-      // 根据编辑器类型调用不同的保存逻辑
-      if (editorConfig.type === EditorType.MONACO) {
-        // 系统提示词保存，需要scrollTop和selection
-        saveConfig.onSave(
-          currentContent.trim(),
-          attachImages,
-          scrollTop,
-          selection,
-        );
-      } else {
-        // 消息编辑保存，支持retryOnConfirm
-        saveConfig.onSave(currentContent.trim(), attachImages, retryOnConfirm);
-      }
+      // 保存逻辑 - 统一使用 Monaco Editor 的参数格式
+      saveConfig.onSave(
+        currentContent.trim(),
+        attachImages,
+        scrollTop,
+        selection,
+      );
 
       // 保存完成后关闭模态框
       saveConfig.onCancel();
     },
-    [content, attachImages, editorConfig.type, saveConfig],
+    [content, attachImages, saveConfig],
   );
 
-  // 🎯 快捷键处理 (Textarea模式)
-  const handleTextareaKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (
-        saveConfig.enableRetryOnConfirm &&
-        e.key === "Enter" &&
-        (e.ctrlKey || e.metaKey)
-      ) {
-        e.preventDefault();
-        handleSave(true); // 保存并重试
-      }
-    },
-    [saveConfig.enableRetryOnConfirm, handleSave],
-  );
+  // 🎯 快捷键处理 - Monaco Editor 已内置支持 Ctrl+Enter
 
   // 🎯 处理粘贴回调（Monaco专用）
   const handlePasteCallback = useCallback(
@@ -277,7 +277,6 @@ export function useMessageEditor(props: EditorCoreProps) {
     handleEditorContentChange,
     handleMonacoMount,
     handleSave,
-    handleTextareaKeyDown,
     handlePaste,
     handlePasteCallback,
 
@@ -297,38 +296,17 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
 
   const editor = useMessageEditor(props);
 
-  // 🎯 渲染不同的编辑器
-  const renderEditor = () => {
-    if (editorConfig.type === EditorType.MONACO) {
-      return (
-        <MonacoMessageEditor
-          value={editor.content}
-          onChange={editor.handleEditorContentChange}
-          handlePaste={editor.handlePasteCallback}
-          onConfirm={() => editor.handleSave(false)}
-          onMount={editor.handleMonacoMount}
-          autoFocus={editorConfig.autoFocus}
-        />
-      );
-    }
-
-    if (editorConfig.type === EditorType.TEXTAREA) {
-      return (
-        <textarea
-          ref={textareaRef}
-          className={styles["chat-input"]}
-          placeholder={editorConfig.placeholder || "请输入消息..."}
-          value={editor.content}
-          onChange={(e) => editor.handleEditorContentChange(e.target.value)}
-          onPaste={editor.handlePaste}
-          onKeyDown={editor.handleTextareaKeyDown}
-          rows={editorConfig.rows || 6}
-        />
-      );
-    }
-
-    return null;
-  };
+  // 🎯 渲染 Monaco Editor
+  const renderEditor = () => (
+    <MonacoMessageEditor
+      value={editor.content}
+      onChange={editor.handleEditorContentChange}
+      handlePaste={editor.handlePasteCallback}
+      onConfirm={() => editor.handleSave(false)}
+      onMount={editor.handleMonacoMount}
+      autoFocus={editorConfig.autoFocus}
+    />
+  );
 
   // 🎯 渲染图片附件
   const renderImageAttachments = () => {
@@ -336,34 +314,12 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
       return null;
     }
 
-    if (editorConfig.type === EditorType.MONACO) {
-      return (
-        <ImageAttachments
-          images={editor.attachImages}
-          onImageDelete={editor.handleImageDelete}
-        />
-      );
-    }
-
-    if (editorConfig.type === EditorType.TEXTAREA) {
-      return (
-        <div className={styles["attach-images"]}>
-          {editor.attachImages.map((image, index) => (
-            <div key={index} className={styles["attach-image-item"]}>
-              <img src={image} alt={`attachment-${index}`} />
-              <button
-                className={styles["delete-image"]}
-                onClick={() => editor.handleImageDelete(index)}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-        </div>
-      );
-    }
-
-    return null;
+    return (
+      <ImageAttachments
+        images={editor.attachImages}
+        onImageDelete={editor.handleImageDelete}
+      />
+    );
   };
 
   // 🎯 模态框动作按钮
@@ -393,13 +349,7 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
         onClose={modalConfig.onClose}
         actions={modalActions}
       >
-        <div
-          className={
-            editorConfig.type === EditorType.MONACO
-              ? monacoStyles["system-prompt-edit-container"]
-              : styles["system-prompt-edit-container"]
-          }
-        >
+        <div className={monacoStyles["system-prompt-edit-container"]}>
           {renderEditor()}
           {renderImageAttachments()}
         </div>
@@ -470,50 +420,20 @@ const MessageEditDialog = React.memo(
       retryOnConfirm?: boolean,
     ) => void;
     title?: string;
-    textareaRef?: React.RefObject<HTMLTextAreaElement>;
+    textareaRef?: React.RefObject<HTMLElement>;
     message?: ChatMessage;
-    // 新增：编辑器类型选择
-    preferredEditorType?: EditorType;
+
     // Monaco特有的配置
     monacoConfig?: {
       scrollTop?: number;
       selection?: { start: number; end: number };
     };
   }) => {
-    const {
-      title = "编辑消息",
-      textareaRef,
-      preferredEditorType = EditorType.TEXTAREA,
-      monacoConfig,
-    } = props;
-
-    // 根据内容长度智能选择编辑器类型
-    const editorType = React.useMemo(() => {
-      // 如果明确指定了类型，使用指定类型
-      if (preferredEditorType !== undefined) {
-        return preferredEditorType;
-      }
-
-      // 智能选择：长文本使用Monaco，短文本使用Textarea
-      const contentLength = props.initialContent.length;
-      const hasLineBreaks = props.initialContent.includes("\n");
-
-      // 内容较长或包含换行符时使用Monaco Editor
-      if (
-        contentLength > 500 ||
-        hasLineBreaks ||
-        props.initialImages.length > 0
-      ) {
-        return EditorType.MONACO;
-      }
-
-      return EditorType.TEXTAREA;
-    }, [preferredEditorType, props.initialContent, props.initialImages.length]);
+    const { title = "编辑消息", textareaRef, monacoConfig } = props;
 
     const editorConfig: EditorConfig = {
-      type: editorType,
+      type: EditorType.MONACO,
       placeholder: "请输入消息...",
-      rows: 6,
       autoFocus: true,
     };
 
@@ -558,10 +478,8 @@ export function MessageWithImageEditDialog(props: {
   initialImages: string[];
   onSave: (content: string, images: string[], retryOnConfirm?: boolean) => void;
   title?: string;
-  textareaRef?: React.RefObject<HTMLTextAreaElement>;
+  textareaRef?: React.RefObject<HTMLElement>;
   message?: ChatMessage;
-  // 新增：支持编辑器类型选择
-  preferredEditorType?: EditorType;
 }) {
   return (
     <MessageEditDialog
@@ -572,7 +490,6 @@ export function MessageWithImageEditDialog(props: {
       title={props.title}
       textareaRef={props.textareaRef}
       message={props.message}
-      preferredEditorType={props.preferredEditorType}
     />
   );
 }

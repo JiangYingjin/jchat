@@ -66,7 +66,7 @@ const Chat = React.memo(function Chat() {
   const searchParams = useSearchParams();
   const isMobileScreen = useMobileScreen();
 
-  const messageEditRef = useRef<HTMLTextAreaElement>(null);
+  const messageEditRef = useRef<HTMLElement>(null);
 
   // Component State
   const [isLoading, setIsLoading] = useState(false);
@@ -593,33 +593,8 @@ const Chat = React.memo(function Chat() {
     setShowEditMessageModal(true);
 
     setTimeout(() => {
-      const textarea = messageEditRef.current;
-      if (!textarea) return;
-
-      if (message.role === "user" || message.role === "system") {
-        textarea.selectionStart = textarea.value.length;
-        textarea.selectionEnd = textarea.value.length;
-        textarea.focus();
-        return;
-      }
-
-      if (select.anchorText || select.extendText) {
-        let searchText = select.anchorText || select.extendText;
-        if (!searchText) return;
-        let textContent =
-          type === "content"
-            ? getMessageTextContent(message)
-            : getMessageTextReasoningContent(message);
-        const searchIndex = textContent.indexOf(searchText);
-        if (searchIndex === -1) return;
-
-        const contentBeforeSearch = textContent.substring(0, searchIndex);
-        const lineNumber = contentBeforeSearch.split("\n").length;
-        const style = window.getComputedStyle(textarea);
-        const lineHeight = parseInt(style.lineHeight, 10) || 21;
-        const position = (lineNumber - 1) * lineHeight;
-        textarea.scrollTo({ top: Math.max(0, position), behavior: "smooth" });
-      }
+      // Monaco Editor 会自动处理聚焦和光标位置，无需额外设置
+      // 这里保留空实现以保持向后兼容性
     }, 100);
   };
 
