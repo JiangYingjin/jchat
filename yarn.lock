@@ -6398,7 +6398,6 @@ __metadata:
     sass: "npm:^1.59.2"
     sharp: "npm:^0.34.2"
     spark-md5: "npm:^3.0.2"
-    srt-parser-2: "npm:^1.2.3"
     ts-node: "npm:^10.9.2"
     tsx: "npm:^4.16.0"
     typescript: "npm:5.2.2"
@@ -9296,15 +9295,6 @@ __metadata:
   version: 1.1.3
   resolution: "sprintf-js@npm:1.1.3"
   checksum: 10c0/09270dc4f30d479e666aee820eacd9e464215cdff53848b443964202bf4051490538e5dd1b42e1a65cf7296916ca17640aebf63dae9812749c7542ee5f288dec
-  languageName: node
-  linkType: hard
-
-"srt-parser-2@npm:^1.2.3":
-  version: 1.2.3
-  resolution: "srt-parser-2@npm:1.2.3"
-  bin:
-    srt-parser-2: bin/index.js
-  checksum: 10c0/00f30e9162879f3926ea4f19dc92a89d4c2fed7882b97b826f0fb4c616b930abe98c2a8ccd952ccf05ece9f1a0936f8495b087a844d17d7d6ef9599c6f64d44c
   languageName: node
   linkType: hard
 
