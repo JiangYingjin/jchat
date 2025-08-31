@@ -29,8 +29,9 @@ export const StatsBar: React.FC<StatsBarProps> = ({
   // 计算词元数
   useEffect(() => {
     const calculateTokens = async () => {
-      // 当字符数为 0 时，直接返回 0，不进行词元统计
-      if (!stats.characters || !text.trim()) {
+      // 当字符数为 0 且图像列表为空时，直接返回 0，不进行词元统计
+      // 当图像列表不为空时，即使文本为空也要进行词元统计
+      if (!stats.characters && images.length === 0) {
         setTokenCount(0);
         return;
       }
