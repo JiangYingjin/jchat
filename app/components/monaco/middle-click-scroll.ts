@@ -104,8 +104,26 @@ export class MiddleClickScrollSystem {
       if (Math.abs(delta) < 0.25) delta = 0;
 
       if (delta !== 0) {
-        const currentTop = this.editorInstance.getScrollTop();
-        this.editorInstance.setScrollTop(currentTop + delta);
+        try {
+          const currentTop = this.editorInstance.getScrollTop();
+          // 确保当前滚动位置是有效的
+          if (
+            currentTop === undefined ||
+            currentTop === null ||
+            isNaN(currentTop) ||
+            currentTop < 0
+          ) {
+            return;
+          }
+          const newScrollTop = currentTop + delta;
+
+          // 确保新的滚动位置是有效的
+          if (!isNaN(newScrollTop) && newScrollTop >= 0) {
+            this.editorInstance.setScrollTop(newScrollTop);
+          }
+        } catch (error) {
+          // 静默处理滚动错误，避免中断自动滚动
+        }
       }
     } catch {}
 

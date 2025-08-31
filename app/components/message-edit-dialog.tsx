@@ -150,8 +150,17 @@ export function useMessageEditor(props: EditorCoreProps) {
       }
 
       // 恢复滚动位置和光标位置
-      if (monacoConfig?.scrollTop && monacoConfig.scrollTop > 0) {
-        editor.setScrollTop(monacoConfig.scrollTop);
+      if (
+        monacoConfig?.scrollTop !== undefined &&
+        monacoConfig.scrollTop !== null &&
+        !isNaN(monacoConfig.scrollTop) &&
+        monacoConfig.scrollTop >= 0
+      ) {
+        try {
+          editor.setScrollTop(monacoConfig.scrollTop);
+        } catch (error) {
+          console.warn("设置滚动位置失败:", error);
+        }
       }
 
       if (
@@ -222,7 +231,19 @@ export function useMessageEditor(props: EditorCoreProps) {
       if (monacoEditorRef.current) {
         try {
           currentContent = monacoEditorRef.current.getValue() || "";
-          scrollTop = monacoEditorRef.current.getScrollTop() || 0;
+          try {
+            const rawScrollTop = monacoEditorRef.current.getScrollTop();
+            scrollTop =
+              rawScrollTop !== undefined &&
+              rawScrollTop !== null &&
+              !isNaN(rawScrollTop) &&
+              rawScrollTop >= 0
+                ? rawScrollTop
+                : 0;
+          } catch (error) {
+            console.warn("获取滚动位置失败:", error);
+            scrollTop = 0;
+          }
 
           const editorSelection = monacoEditorRef.current.getSelection();
           if (editorSelection) {

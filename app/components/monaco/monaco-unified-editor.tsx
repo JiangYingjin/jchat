@@ -275,11 +275,19 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
           const container = containerRef.current;
           container.innerHTML = "";
 
-          editorInstance = monaco.editor.create(container, {
-            ...PERFORMANCE_OPTIONS,
-            value: value || "",
-            readOnly,
-          });
+          // 安全地创建编辑器实例
+          try {
+            editorInstance = monaco.editor.create(container, {
+              ...PERFORMANCE_OPTIONS,
+              value: value || "",
+              readOnly,
+            });
+          } catch (createError) {
+            console.error("Monaco 编辑器创建失败:", createError);
+            throw new Error(
+              `编辑器创建失败: ${createError instanceof Error ? createError.message : "未知错误"}`,
+            );
+          }
 
           editorRef.current = editorInstance;
 
@@ -335,10 +343,22 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
           }
 
           // 调用 handleEditorReady 设置编辑器状态
-          handleEditorReady(editorInstance);
+          try {
+            handleEditorReady(editorInstance);
+          } catch (readyError) {
+            console.error("handleEditorReady 执行失败:", readyError);
+            // 不抛出错误，让编辑器继续工作
+          }
 
           // 调用外部 onMount 回调
-          onMount?.(editorInstance);
+          if (onMount) {
+            try {
+              onMount(editorInstance);
+            } catch (mountError) {
+              console.error("onMount 回调执行失败:", mountError);
+              // 不抛出错误，让编辑器继续工作
+            }
+          }
 
           // 设置初始统计信息
           const initialValue = editorInstance.getValue() || "";
@@ -363,7 +383,38 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
         })
         .catch((err) => {
           console.error("Monaco 初始化失败", err);
-          setError("编辑器加载失败");
+
+          // 尝试降级到简单的 textarea
+          try {
+            if (containerRef.current) {
+              const container = containerRef.current;
+              container.innerHTML = `
+                <textarea 
+                  style="width: 100%; height: 200px; border: 1px solid #ccc; padding: 8px; font-family: monospace; resize: vertical;"
+                  placeholder="编辑器加载失败，使用备用输入框..."
+                  value="${value || ""}"
+                ></textarea>
+              `;
+
+              const textarea = container.querySelector(
+                "textarea",
+              ) as HTMLTextAreaElement;
+              if (textarea) {
+                textarea.addEventListener("input", (e) => {
+                  const target = e.target as HTMLTextAreaElement;
+                  onChange?.(target.value);
+                });
+
+                if (onMount) {
+                  onMount(textarea);
+                }
+              }
+            }
+          } catch (fallbackError) {
+            console.error("降级方案也失败:", fallbackError);
+          }
+
+          setError("编辑器加载失败，已启用备用输入框");
           setIsLoading(false);
         });
     }
@@ -426,7 +477,20 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
 
       if (shouldUpdateValue) {
         // 始终保存光标位置和滚动位置
-        const scrollTop = editorRef.current.getScrollTop();
+        let scrollTop = 0;
+        try {
+          const rawScrollTop = editorRef.current.getScrollTop();
+          scrollTop =
+            rawScrollTop !== undefined &&
+            rawScrollTop !== null &&
+            !isNaN(rawScrollTop) &&
+            rawScrollTop >= 0
+              ? rawScrollTop
+              : 0;
+        } catch (error) {
+          console.warn("获取滚动位置失败:", error);
+          scrollTop = 0;
+        }
 
         try {
           editorRef.current.setValue(safeValue);
@@ -438,7 +502,15 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
               if (editorRef.current && !isDisposedRef.current) {
                 try {
                   editorRef.current.setSelection(selection);
-                  editorRef.current.setScrollTop(scrollTop);
+                  // 确保 scrollTop 是有效的数值
+                  if (
+                    scrollTop !== undefined &&
+                    scrollTop !== null &&
+                    !isNaN(scrollTop) &&
+                    scrollTop >= 0
+                  ) {
+                    editorRef.current.setScrollTop(scrollTop);
+                  }
                 } catch (error) {
                   console.error("光标恢复失败:", error);
                 }

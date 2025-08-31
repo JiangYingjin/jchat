@@ -349,15 +349,19 @@ export function smartPositionInEditor(
 
       // 验证滚动结果
       setTimeout(() => {
-        const scrollTop = editor.getScrollTop();
-        const currentPosition = editor.getPosition();
-        console.log("✅ [DEBUG] 智能定位滚动完成:", {
-          scrollTop: scrollTop,
-          currentPosition: currentPosition
-            ? `${currentPosition.lineNumber}:${currentPosition.column}`
-            : "null",
-          timestamp: performance.now(),
-        });
+        try {
+          const scrollTop = editor.getScrollTop();
+          const currentPosition = editor.getPosition();
+          console.log("✅ [DEBUG] 智能定位滚动完成:", {
+            scrollTop: scrollTop,
+            currentPosition: currentPosition
+              ? `${currentPosition.lineNumber}:${currentPosition.column}`
+              : "null",
+            timestamp: performance.now(),
+          });
+        } catch (error) {
+          console.warn("验证滚动结果失败:", error);
+        }
       }, 50);
     } catch (error) {
       console.error("❌ [DEBUG] 智能定位滚动失败:", error);
