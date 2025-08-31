@@ -34,7 +34,15 @@ export interface ChatOptions {
   messages: RequestMessage[];
   model: string;
 
-  onUpdate?: (message: string | MultimodalContent[], chunk: string) => void;
+  onUpdate?: (
+    message: string | MultimodalContent[],
+    chunk: string,
+    usage?: {
+      completion_tokens?: number;
+      prompt_tokens?: number;
+      cost?: number;
+    },
+  ) => void;
   onReasoningUpdate?: (message: string, chunk: string) => void;
   onFinish: (
     message: string | MultimodalContent[],
@@ -42,7 +50,7 @@ export interface ChatOptions {
     usage?: {
       completion_tokens?: number;
       prompt_tokens?: number;
-      total_tokens?: number;
+      cost?: number;
     },
   ) => void;
   onError?: (err: Error) => void;

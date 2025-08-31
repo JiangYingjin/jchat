@@ -492,11 +492,45 @@
   padding-right: 10px;
   pointer-events: none;
   z-index: 1;
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
 
   .chat-message-container-assistant & {
     text-align: left;
     padding-right: 0;
     padding-left: 10px;
+    justify-content: flex-start;
+  }
+}
+
+.message-metrics {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  color: var(--gray);
+  opacity: 0.7;
+
+  .metric-item {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .metric-label {
+    font-weight: 500;
+    color: var(--primary);
+  }
+
+  .metric-value {
+    color: var(--black);
+  }
+
+  .metric-separator {
+    color: var(--border-in-light);
+    margin: 0 2px;
   }
 }
 

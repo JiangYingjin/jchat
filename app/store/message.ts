@@ -9,6 +9,13 @@ export type ChatMessage = RequestMessage & {
   date: string;
   streaming?: boolean;
   isError?: boolean;
+  // 模型回复指标（仅用于 role = "assistant" 的消息）
+  prompt_tokens?: number;
+  completion_tokens?: number;
+  cost?: number;
+  ttft?: number; // time to first token (seconds)
+  total_time?: number; // total streaming time (seconds)
+  tps?: number; // tokens per second
 };
 
 // 保存请求接口

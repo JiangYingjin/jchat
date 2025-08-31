@@ -2183,6 +2183,29 @@ export const useChatStore = createPersistStore(
         session: ChatSession,
         usage?: any,
       ) {
+        // 处理最终的 usage 信息
+        if (usage && message.role === "assistant") {
+          if (usage.prompt_tokens) {
+            message.prompt_tokens = usage.prompt_tokens;
+          }
+          if (usage.completion_tokens) {
+            message.completion_tokens = usage.completion_tokens;
+          }
+          if (usage.cost) {
+            message.cost = usage.cost;
+          }
+
+          // 最终计算 tps
+          if (message.completion_tokens && message.total_time && message.ttft) {
+            const effectiveTime = message.total_time - message.ttft;
+            if (effectiveTime > 0) {
+              message.tps = Math.round(
+                message.completion_tokens / effectiveTime,
+              );
+            }
+          }
+        }
+
         const latestSession = get().getLatestSession(session);
         const updateSession = (session: ChatSession) => {
           session.lastUpdate = Date.now();
@@ -2279,6 +2302,9 @@ export const useChatStore = createPersistStore(
           },
           finalModelBatchId,
         );
+
+        // 记录模型消息的开始时间，用于计算指标
+        const startTime = Date.now();
 
         // get recent messages for the target session
         let recentMessages: ChatMessage[];
@@ -2415,10 +2441,55 @@ export const useChatStore = createPersistStore(
         api.llm.chat({
           messages: sendMessages,
           model: session.model,
-          onUpdate(message) {
+          onUpdate(message, chunk, usage) {
             modelMessage.streaming = true;
             if (message) {
               modelMessage.content = message;
+            }
+
+            // 计算和更新模型回复指标
+            const currentTime = Date.now();
+
+            // 计算 ttft (time to first token) - 只在第一次有内容时设置
+            if (
+              !modelMessage.ttft &&
+              message &&
+              (typeof message === "string" ? message.length > 0 : true)
+            ) {
+              modelMessage.ttft =
+                Math.round((currentTime - startTime) / 10) / 100; // 保留两位小数
+            }
+
+            // 更新 total_time
+            modelMessage.total_time =
+              Math.round((currentTime - startTime) / 10) / 100; // 保留两位小数
+
+            // 从 usage 中更新 token 信息和 cost
+            if (usage) {
+              if (usage.prompt_tokens) {
+                modelMessage.prompt_tokens = usage.prompt_tokens;
+              }
+              if (usage.completion_tokens) {
+                modelMessage.completion_tokens = usage.completion_tokens;
+              }
+              if (usage.cost) {
+                modelMessage.cost = usage.cost;
+              }
+
+              // 计算 tps (tokens per second)
+              if (
+                modelMessage.completion_tokens &&
+                modelMessage.total_time &&
+                modelMessage.ttft
+              ) {
+                const effectiveTime =
+                  modelMessage.total_time - modelMessage.ttft;
+                if (effectiveTime > 0) {
+                  modelMessage.tps = Math.round(
+                    modelMessage.completion_tokens / effectiveTime,
+                  );
+                }
+              }
             }
 
             // 🔧 优化：只有当前可见会话触发UI渲染，后台会话完全不渲染

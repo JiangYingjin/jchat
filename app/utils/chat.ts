@@ -204,7 +204,7 @@ export function stream(
     | {
         completion_tokens?: number;
         prompt_tokens?: number;
-        total_tokens?: number;
+        cost?: number;
       }
     | undefined;
 
@@ -224,7 +224,7 @@ export function stream(
       const fetchText = remainText.slice(0, fetchCount);
       responseText += fetchText;
       remainText = remainText.slice(fetchCount);
-      options.onUpdate?.(responseText, fetchText);
+      options.onUpdate?.(responseText, fetchText, usageInfo);
     }
 
     if (reasoningModeEnded && reasoningRemainText.length > 0) {

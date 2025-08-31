@@ -5,6 +5,7 @@ import { MultimodalContent } from "../client/api";
 import { Markdown } from "./markdown";
 import { ThinkingContent } from "./thinking-content";
 import { MessageActions } from "./message-actions";
+import { MessageMetrics } from "./message-metrics";
 import styles from "../styles/chat.module.scss";
 import { handleMergeCopy } from "../utils/group";
 
@@ -249,6 +250,7 @@ export function ChatMessageItem({
 
           <div className={styles["chat-message-action-date"]}>
             {message.date.toLocaleString()}
+            <MessageMetrics message={message} />
           </div>
         </div>
       </div>
