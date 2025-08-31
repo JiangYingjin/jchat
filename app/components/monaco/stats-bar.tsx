@@ -1,5 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import monacoStyles from "../../styles/monaco-editor.module.scss";
+import { countTokensWithCache } from "../../utils/token-count";
 
 interface StatsBarProps {
   stats: {
@@ -8,13 +9,48 @@ interface StatsBarProps {
     words: number;
   };
   className?: string;
+  images?: string[]; // 添加图片数组属性
+  text?: string; // 添加文本内容属性
 }
 
 /**
  * Monaco 编辑器统计信息状态栏
- * 显示字符数、行数、词数和内存状态
+ * 显示字符数、行数、词数、词元数和内存状态
  */
-export const StatsBar: React.FC<StatsBarProps> = ({ stats, className }) => {
+export const StatsBar: React.FC<StatsBarProps> = ({
+  stats,
+  className,
+  images = [],
+  text = "",
+}) => {
+  const [tokenCount, setTokenCount] = useState<number | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+
+  // 计算词元数
+  useEffect(() => {
+    const calculateTokens = async () => {
+      if (!stats.characters || !text.trim()) {
+        setTokenCount(0);
+        return;
+      }
+
+      setIsCalculating(true);
+      try {
+        const count = await countTokensWithCache(text, images);
+        setTokenCount(count);
+      } catch (error) {
+        console.error("Failed to calculate tokens:", error);
+        setTokenCount(null);
+      } finally {
+        setIsCalculating(false);
+      }
+    };
+
+    // 防抖计算词元数，避免频繁计算
+    const timeoutId = setTimeout(calculateTokens, 1000);
+    return () => clearTimeout(timeoutId);
+  }, [stats.characters, images, text]);
+
   // 获取内存状态提示
   const getMemoryLevel = useMemo(() => {
     const { characters } = stats;
@@ -40,6 +76,14 @@ export const StatsBar: React.FC<StatsBarProps> = ({ stats, className }) => {
         </div>
         <div className={monacoStyles["stat-item"]}>
           词数: {stats.words.toLocaleString()}
+        </div>
+        <div className={monacoStyles["stat-item"]}>
+          词元:{" "}
+          {isCalculating
+            ? "⏳"
+            : tokenCount !== null
+              ? `~${tokenCount.toLocaleString()}`
+              : "~"}
         </div>
       </div>
       <div

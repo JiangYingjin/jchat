@@ -105,6 +105,11 @@
   background: var(--gray-50);
 }
 
+/* 匹配计数显示的最小宽度调整 */
+.monaco-editor .find-widget .find-actions .matchesCount {
+  min-width: 50px !important;
+}
+
 /* 禁用Monaco Editor的一些不需要的功能的视觉效果 */
 .monaco-editor .monaco-editor-hover {
   display: none !important;

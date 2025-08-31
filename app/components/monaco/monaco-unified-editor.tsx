@@ -503,7 +503,7 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
     <div className={panelClassName}>
       {/* Monaco Editor 编辑器 */}
       <div className={monacoStyles["monaco-wrapper"]}>
-        <StatsBar stats={stats} />
+        <StatsBar stats={stats} text={value} images={images} />
 
         <div
           ref={containerRef}
