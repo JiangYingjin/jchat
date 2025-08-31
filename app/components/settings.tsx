@@ -161,11 +161,11 @@ function LocalDataItems() {
     };
   }, [chatStore.sessions, databaseStats]);
 
-  const handleExport = async (gzip = false) => {
+  const handleExport = async () => {
     if (exporting) return;
     setExporting(true);
     try {
-      await jchatDataManager.exportData({ gzip });
+      await jchatDataManager.exportData();
     } catch (error) {
       console.error("导出失败:", error);
       showToast("导出失败，请检查控制台");
@@ -195,18 +195,10 @@ function LocalDataItems() {
       >
         <div style={{ display: "flex", gap: "8px" }}>
           <IconButton
-            aria={Locale.Settings.LocalData.LocalState + " 标准导出"}
+            aria={Locale.Settings.LocalData.LocalState + Locale.UI.Export}
             icon={<UploadIcon />}
-            text="标准导出"
-            onClick={() => handleExport(false)}
-            disabled={exporting}
-            loding={exporting}
-          />
-          <IconButton
-            aria={Locale.Settings.LocalData.LocalState + " Gzip导出"}
-            icon={<UploadIcon />}
-            text="Gzip导出"
-            onClick={() => handleExport(true)}
+            text={Locale.UI.Export}
+            onClick={handleExport}
             disabled={exporting}
             loding={exporting}
           />

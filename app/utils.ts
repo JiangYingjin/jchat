@@ -75,23 +75,72 @@ export async function downloadBlob(blob: Blob, filename: string) {
 }
 
 export function readFromFile() {
-  return new Promise<string>((res, rej) => {
+  return new Promise<{ content: string; isGzip: boolean }>((res, rej) => {
     const fileInput = document.createElement("input");
     fileInput.type = "file";
-    fileInput.accept = "application/json";
+    fileInput.accept = "application/json,.json,.gz,.json.gz";
 
-    fileInput.onchange = (event: any) => {
+    fileInput.onchange = async (event: any) => {
       const file = event.target.files[0];
-      const fileReader = new FileReader();
-      fileReader.onload = (e: any) => {
-        res(e.target.result);
-      };
-      fileReader.onerror = (e) => rej(e);
-      fileReader.readAsText(file);
+
+      // 检查是否为 gzip 文件
+      const isGzip =
+        file.name.endsWith(".gz") || file.name.endsWith(".json.gz");
+
+      try {
+        if (isGzip && typeof DecompressionStream !== "undefined") {
+          // 处理 gzip 文件
+          const arrayBuffer = await file.arrayBuffer();
+          const compressedStream = new Blob([arrayBuffer]).stream();
+          const decompressedStream = compressedStream.pipeThrough(
+            new DecompressionStream("gzip"),
+          );
+
+          // 将 ReadableStream 转换为字符串
+          const chunks: Uint8Array[] = [];
+          const reader = decompressedStream.getReader();
+
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            chunks.push(value);
+          }
+
+          // 合并所有块并转换为字符串
+          const totalLength = chunks.reduce(
+            (sum, chunk) => sum + chunk.length,
+            0,
+          );
+          const result = new Uint8Array(totalLength);
+          let offset = 0;
+          for (const chunk of chunks) {
+            result.set(chunk, offset);
+            offset += chunk.length;
+          }
+
+          const content = new TextDecoder().decode(result);
+          res({ content, isGzip: true });
+        } else {
+          // 处理普通 JSON 文件
+          const fileReader = new FileReader();
+          fileReader.onload = (e: any) => {
+            res({ content: e.target.result, isGzip: false });
+          };
+          fileReader.onerror = (e) => rej(e);
+          fileReader.readAsText(file);
+        }
+      } catch (error) {
+        rej(error);
+      }
     };
 
     fileInput.click();
   });
+}
+
+// 向后兼容的函数，保持原有接口
+export function readFromFileText(): Promise<string> {
+  return readFromFile().then((data) => data.content);
 }
 
 export function isIOS() {

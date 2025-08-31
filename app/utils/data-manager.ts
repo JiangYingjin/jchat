@@ -120,7 +120,7 @@ class JChatDataManager {
   /**
    * 导出完整的 JChat 数据
    */
-  async exportData(options: { gzip?: boolean } = {}): Promise<void> {
+  async exportData(): Promise<void> {
     if (!this.isClient) {
       showToast("导出功能仅在客户端环境可用");
       return;
@@ -164,11 +164,15 @@ class JChatDataManager {
       };
 
       // 生成文件名并开始序列化
-      const datePart = new Date().toLocaleString().replace(/[/:]/g, "-");
-      const baseFileName = `JChat-Backup-${datePart}`;
-      const fileName = options.gzip
-        ? `${baseFileName}.json.gz`
-        : `${baseFileName}.json`;
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      const hours = String(now.getHours()).padStart(2, "0");
+      const minutes = String(now.getMinutes()).padStart(2, "0");
+      const seconds = String(now.getSeconds()).padStart(2, "0");
+      const datePart = `${year}${month}${day}-${hours}${minutes}${seconds}`;
+      const fileName = `JChat-Backup-${datePart}.json.gz`;
 
       showToast("正在生成导出文件...");
 
@@ -177,9 +181,9 @@ class JChatDataManager {
 
       let blob: Blob;
 
-      // 如果启用 gzip 压缩
-      if (options.gzip && typeof CompressionStream !== "undefined") {
-        showToast("正在应用 gzip 压缩...");
+      // 使用 gzip 压缩
+      if (typeof CompressionStream !== "undefined") {
+        showToast("正在 Gzip 压缩...");
 
         // 创建 gzip 压缩流
         const jsonBlob = new Blob([jsonText], { type: "application/json" });
@@ -216,9 +220,8 @@ class JChatDataManager {
 
       await downloadBlob(blob, fileName);
 
-      const compressionInfo = options.gzip ? "（gzip压缩）" : "";
       showToast(
-        `导出成功！包含 ${totalSessions} 个会话，${totalMessages} 条消息${compressionInfo}`,
+        `导出成功！包含 ${totalSessions} 个会话，${totalMessages} 条消息`,
       );
     } catch (error) {
       console.error("[DataManager] 导出数据失败:", error);
@@ -238,13 +241,17 @@ class JChatDataManager {
     try {
       showToast("正在读取备份文件...");
 
-      // 读取文件内容
-      const rawContent = await readFromFile();
+      // 读取文件内容（支持 JSON 和 gzip）
+      const fileData = await readFromFile();
+
+      if (fileData.isGzip) {
+        showToast("正在解压 gzip 文件...");
+      }
 
       showToast("正在解析备份数据...");
 
       // 解析 JSON 数据
-      const backupData = JSON.parse(rawContent);
+      const backupData = JSON.parse(fileData.content);
 
       // 验证备份数据格式
       if (!this.validateBackupData(backupData)) {
@@ -276,6 +283,11 @@ class JChatDataManager {
       let errorMessage = "导入失败";
       if (error instanceof SyntaxError) {
         errorMessage = "备份文件格式错误，请检查文件是否正确";
+      } else if (
+        error instanceof TypeError &&
+        error.message.includes("DecompressionStream")
+      ) {
+        errorMessage = "gzip 解压失败，请确保浏览器支持 gzip 解压功能";
       } else if (error instanceof Error) {
         errorMessage = `导入失败: ${error.message}`;
       }
@@ -400,6 +412,13 @@ class JChatDataManager {
       console.error("[DataManager] 清理数据失败:", error);
       throw error;
     }
+  }
+
+  /**
+   * 检测浏览器是否支持 gzip 解压
+   */
+  private isGzipSupported(): boolean {
+    return typeof DecompressionStream !== "undefined";
   }
 }
 
