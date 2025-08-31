@@ -11,7 +11,7 @@ import { Modal } from "./ui-lib";
 import { IconButton } from "./button";
 import CancelIcon from "../icons/cancel.svg";
 import ConfirmIcon from "../icons/confirm.svg";
-import { MonacoUnifiedEditor } from "./monaco-unified-editor";
+import { MonacoUnifiedEditor } from "./monaco";
 import Locale from "../locales";
 import styles from "../styles/chat.module.scss";
 import monacoStyles from "../styles/monaco-editor.module.scss";

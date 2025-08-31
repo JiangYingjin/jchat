@@ -7,13 +7,13 @@ import React, {
   useLayoutEffect,
 } from "react";
 
-import styles from "../styles/chat.module.scss";
+import styles from "../../styles/chat.module.scss";
 import clsx from "clsx";
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
-import monacoStyles from "../styles/monaco-editor.module.scss";
-import { DeleteImageButton } from "./button";
-import { copyImageToClipboard } from "../utils/image";
-import { showImageModal } from "./ui-lib";
+import monacoStyles from "../../styles/monaco-editor.module.scss";
+import { DeleteImageButton } from "../button";
+import { copyImageToClipboard } from "../../utils/image";
+import { showImageModal } from "../ui-lib";
 
 // 导入抽分出的模块
 import {
@@ -29,7 +29,7 @@ import {
   isComponentMounted,
   safeFocusEditor,
   delay,
-} from "./monaco";
+} from ".";
 
 /**
  * 统一的 Monaco 编辑器组件

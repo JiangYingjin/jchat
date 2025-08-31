@@ -10,3 +10,4 @@ export * from "./middle-click-scroll";
 export { ErrorDisplay } from "./error-display";
 export { LoadingIndicator } from "./loading-indicator";
 export { StatsBar } from "./stats-bar";
+export { MonacoUnifiedEditor } from "./monaco-unified-editor";
