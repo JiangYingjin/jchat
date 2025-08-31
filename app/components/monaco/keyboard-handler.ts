@@ -309,6 +309,19 @@ export class KeyboardHandler {
           const currentTime = performance.now();
           const timeDiff = currentTime - this.lastKeyTime;
 
+          // 🔍 允许查找快捷键通过（Ctrl+F）
+          if (keyEvent.ctrlKey && keyEvent.key === "f") {
+            return true; // 允许正常传播
+          }
+
+          // 🔍 允许查找相关快捷键通过
+          if (
+            keyEvent.ctrlKey &&
+            (keyEvent.key === "h" || keyEvent.key === "g")
+          ) {
+            return true; // 允许正常传播
+          }
+
           // 🎯 只拦截确认有问题的键，让上下键正常传递给Monaco
           const isTargetKey = [
             "ArrowRight", // 有keyCode异常问题

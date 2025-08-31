@@ -41,6 +41,12 @@ export const PERFORMANCE_OPTIONS: monaco.editor.IStandaloneEditorConstructionOpt
     fastScrollSensitivity: 5, // 增加快速滚动灵敏度
     mouseWheelScrollSensitivity: 1, // 鼠标滚轮滚动灵敏度
 
+    // 🔍 查找功能 - 启用查找和替换功能
+    find: {
+      addExtraSpaceOnTop: false,
+      autoFindInSelection: "on-activate",
+    },
+
     // ⚡ 输入优化 - 完全禁用所有智能功能
     acceptSuggestionOnEnter: "off",
     quickSuggestions: false,
@@ -108,7 +114,6 @@ export const PERFORMANCE_OPTIONS: monaco.editor.IStandaloneEditorConstructionOpt
     dragAndDrop: false, // 禁用拖拽功能，避免treeViewsDndService依赖
 
     // 🚫 完全禁用语言服务功能
-    find: { addExtraSpaceOnTop: false }, // 禁用查找功能
     formatOnPaste: false, // 禁用粘贴时格式化
     formatOnType: false, // 禁用输入时格式化
 

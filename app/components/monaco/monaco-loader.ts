@@ -79,7 +79,6 @@ export const loadMonaco = async (): Promise<typeof import("monaco-editor")> => {
             mouseWheelZoom: false,
             selectionClipboard: false,
             dragAndDrop: false,
-            find: { addExtraSpaceOnTop: false },
             formatOnPaste: false,
             formatOnType: false,
             glyphMargin: false,
@@ -96,6 +95,11 @@ export const loadMonaco = async (): Promise<typeof import("monaco-editor")> => {
             definitionLinkOpensInPeek: false,
             semanticValidation: false,
             syntaxValidation: false,
+            // 🔍 保持查找功能启用
+            find: {
+              addExtraSpaceOnTop: false,
+              autoFindInSelection: "on-activate",
+            },
           };
 
           return originalCreate.call(this, domElement, safeOptions, override);

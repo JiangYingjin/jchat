@@ -67,11 +67,45 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* 禁用Monaco Editor的一些不需要的功能的视觉效果 */
+/* 查找组件样式优化 */
 .monaco-editor .find-widget {
-  display: none !important;
+  border: 1px solid var(--border-in-light);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  background: var(--white);
 }
 
+.monaco-editor .find-widget .find-input {
+  border: 1px solid var(--border-in-light);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.monaco-editor .find-widget .replace-input {
+  border: 1px solid var(--border-in-light);
+  border-radius: 4px;
+  padding: 4px 8px;
+}
+
+.monaco-editor .find-widget .find-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.monaco-editor .find-widget .find-actions .action {
+  padding: 4px 8px;
+  border: 1px solid var(--border-in-light);
+  border-radius: 4px;
+  background: var(--white);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.monaco-editor .find-widget .find-actions .action:hover {
+  background: var(--gray-50);
+}
+
+/* 禁用Monaco Editor的一些不需要的功能的视觉效果 */
 .monaco-editor .monaco-editor-hover {
   display: none !important;
 }
