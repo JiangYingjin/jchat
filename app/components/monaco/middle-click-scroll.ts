@@ -4,7 +4,7 @@ import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
  * 自动滚动系统
  * 处理 Monaco Editor 的中键点击自动滚动功能
  */
-export class AutoScrollSystem {
+export class MiddleClickScrollSystem {
   private autoScrollActiveRef = { current: false };
   private anchorRef = { current: { x: 0, y: 0 } };
   private velocityRef = { current: { vy: 0 } };

@@ -1,9 +1,5 @@
 import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
-import {
-  getMonaco,
-  isMonacoLoaded,
-  monacoPreloader,
-} from "../../utils/monaco-preloader";
+import { getMonaco, isMonacoLoaded, monacoPreloader } from "./monaco-preloader";
 
 // 🚀 使用预加载的Monaco Editor，提升加载性能
 let Monaco: any = null;

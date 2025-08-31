@@ -19,7 +19,7 @@ import { showImageModal } from "./ui-lib";
 import {
   loadMonaco,
   PERFORMANCE_OPTIONS,
-  AutoScrollSystem,
+  MiddleClickScrollSystem,
   KeyboardHandler,
   StatsBar,
   ErrorDisplay,
@@ -349,9 +349,11 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
           lastSyncedValue.current = initialValue;
           editorInitTime.current = performance.now();
 
-          // 初始化自动滚动系统
-          const autoScrollSystem = new AutoScrollSystem(monacoStyles);
-          autoScrollSystem.initialize(editorInstance);
+          // 初始化鼠标中键滚动系统
+          const middleClickScrollSystem = new MiddleClickScrollSystem(
+            monacoStyles,
+          );
+          middleClickScrollSystem.initialize(editorInstance);
 
           // 初始化键盘处理器
           const keyboardHandler = new KeyboardHandler(editorInstance);

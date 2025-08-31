@@ -1,9 +1,12 @@
-// Monaco Editor 模块导出
-export { loadMonaco, Monaco } from "./monaco-loader";
-export { PERFORMANCE_OPTIONS } from "./performance-options";
-export { AutoScrollSystem } from "./auto-scroll-system";
-export { KeyboardHandler } from "./keyboard-handler";
-export { StatsBar } from "./stats-bar";
+// Monaco Editor 组件统一导出
+export * from "./monaco-preloader";
+export * from "./monaco-loader";
+export * from "./utils";
+export * from "./performance-options";
+export * from "./keyboard-handler";
+export * from "./middle-click-scroll";
+
+// React 组件
 export { ErrorDisplay } from "./error-display";
 export { LoadingIndicator } from "./loading-indicator";
-export * from "./utils";
+export { StatsBar } from "./stats-bar";

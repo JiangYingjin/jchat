@@ -469,7 +469,23 @@ export class KeyboardHandler {
                 break;
 
               case "Delete":
-                if (currentPosition.column <= currentLineLength) {
+                // 检查是否有选中文本
+                const deleteSelection = this.editorInstance.getSelection();
+                if (deleteSelection && !deleteSelection.isEmpty()) {
+                  // 如果有选中文本，删除选中的内容
+                  this.editorInstance.executeEdits("delete", [
+                    {
+                      range: deleteSelection,
+                      text: "",
+                    },
+                  ]);
+
+                  // 光标移动到选择区域的开始位置
+                  newPosition = {
+                    lineNumber: deleteSelection.startLineNumber,
+                    column: deleteSelection.startColumn,
+                  };
+                } else if (currentPosition.column <= currentLineLength) {
                   // 删除当前位置的字符
                   const range = {
                     startLineNumber: currentPosition.lineNumber,

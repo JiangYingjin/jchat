@@ -22,7 +22,7 @@ import { useAppReady } from "../hooks/app-ready";
 import { Path, SlotID, DEFAULT_THEME } from "../constant";
 import { checkAndHandleAuth } from "../utils/auth";
 import { storageManager } from "../utils/storage-manager";
-import { preloadMonaco } from "../utils/monaco-preloader";
+import { preloadMonaco } from "./monaco";
 
 // 静态资源
 import BotIcon from "../icons/bot.svg";
