@@ -2553,6 +2553,21 @@ export const useChatStore = createPersistStore(
               if (usage.cost) {
                 modelMessage.cost = usage.cost;
               }
+
+              // 计算 tps (tokens per second)
+              if (
+                modelMessage.completion_tokens &&
+                modelMessage.total_time &&
+                modelMessage.ttft
+              ) {
+                const effectiveTime =
+                  modelMessage.total_time - modelMessage.ttft;
+                if (effectiveTime > 0) {
+                  modelMessage.tps = Math.round(
+                    modelMessage.completion_tokens / effectiveTime,
+                  );
+                }
+              }
             }
 
             // 🔧 优化：只有当前可见会话触发UI渲染，后台会话完全不渲染
