@@ -1,7 +1,7 @@
 import {
-  PRO_MODEL,
   GROUP_SESSION_PREFERRED_MODEL,
   FALLBACK_MODEL,
+  LONG_TEXT_PREFERRED_MODEL,
 } from "../constant";
 
 /**
@@ -31,10 +31,12 @@ export function shouldAutoSwitchModel(
   }
 
   // 检查是否存在目标模型
-  const targetModel = availableModels.find((m) => m === PRO_MODEL);
+  const targetModel = availableModels.find(
+    (m) => m === LONG_TEXT_PREFERRED_MODEL,
+  );
   if (!targetModel) {
     console.log(
-      `[AutoSwitch] 目标模型 ${PRO_MODEL} 不存在或不可用，跳过自动切换`,
+      `[AutoSwitch] 目标模型 ${LONG_TEXT_PREFERRED_MODEL} 不存在或不可用，跳过自动切换`,
     );
     return false;
   }
@@ -43,7 +45,7 @@ export function shouldAutoSwitchModel(
 }
 
 /**
- * 根据系统提示词内容和当前模型状态，判断是否需要切换到 PRO_MODEL。
+ * 根据系统提示词内容和当前模型状态，判断是否需要切换到长文本优化模型。
  * @param promptContent 系统提示词内容
  * @param currentModel 当前模型
  * @param allModels 所有可用模型
@@ -59,7 +61,7 @@ export function determineModelForSystemPrompt(
   if (
     shouldAutoSwitchModel(promptContent.length, isManuallySelected, allModels)
   ) {
-    const targetModel = allModels.find((m) => m === PRO_MODEL);
+    const targetModel = allModels.find((m) => m === LONG_TEXT_PREFERRED_MODEL);
     if (targetModel && currentModel !== targetModel) {
       return targetModel;
     }
