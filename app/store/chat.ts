@@ -479,6 +479,7 @@ const DEFAULT_CHAT_STATE = {
   activeBatchRequests: 0, // 活跃的批量请求计数器
   mobileViewState: "sidebar" as "sidebar" | "chat" | "settings", // 移动端界面状态
   exportFormat: "image" as string, // 导出格式配置
+  expandMetrics: false, // 全局指标展开设置
 };
 
 export const DEFAULT_TITLE = Locale.Session.Title.Default;
@@ -538,6 +539,11 @@ export const useChatStore = createPersistStore(
 
       showSettingsOnMobile(): void {
         set({ mobileViewState: "settings" });
+      },
+
+      // 全局指标展开设置
+      setExpandMetrics(expanded: boolean): void {
+        set({ expandMetrics: expanded });
       },
 
       // 新增：增加活跃批量请求计数

@@ -488,7 +488,6 @@
   width: 100%;
   box-sizing: border-box;
   padding-right: 10px;
-  pointer-events: none;
   z-index: 1;
 
   .chat-message-container-assistant & {
@@ -515,8 +514,8 @@
   font-size: 12px;
   color: var(--black);
   opacity: 0.6;
-  flex: 1;
-  min-width: 0;
+  width: auto;
+  flex-shrink: 0;
 
   .metric-item {
     display: flex;
