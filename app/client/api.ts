@@ -43,7 +43,15 @@ export interface ChatOptions {
       cost?: number;
     },
   ) => void;
-  onReasoningUpdate?: (message: string, chunk: string) => void;
+  onReasoningUpdate?: (
+    message: string,
+    chunk: string,
+    usage?: {
+      completion_tokens?: number;
+      prompt_tokens?: number;
+      cost?: number;
+    },
+  ) => void;
   onFinish: (
     message: string | MultimodalContent[],
     responseRes: Response,

@@ -480,48 +480,54 @@
   }
 }
 
-.chat-message-action-date {
-  font-size: 12px;
-  opacity: 0.2;
-  white-space: nowrap;
-  transition: all ease 0.6s;
-  color: var(--black);
-  text-align: right;
+.chat-message-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
   width: 100%;
   box-sizing: border-box;
   padding-right: 10px;
   pointer-events: none;
   z-index: 1;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 8px;
 
   .chat-message-container-assistant & {
-    text-align: left;
+    justify-content: flex-start;
     padding-right: 0;
     padding-left: 10px;
-    justify-content: flex-start;
   }
+}
+
+.chat-message-date {
+  font-size: 12px;
+  opacity: 0.6;
+  white-space: nowrap;
+  transition: all ease 0.6s;
+  color: var(--black);
+  flex-shrink: 0;
 }
 
 .message-metrics {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
-  color: var(--gray);
-  opacity: 0.7;
+  font-size: 12px;
+  color: var(--black);
+  opacity: 0.6;
+  flex: 1;
+  min-width: 0;
 
   .metric-item {
     display: flex;
     align-items: center;
     gap: 2px;
+    white-space: nowrap;
   }
 
   .metric-label {
     font-weight: 500;
-    color: var(--primary);
+    color: var(--black);
   }
 
   .metric-value {
@@ -529,8 +535,9 @@
   }
 
   .metric-separator {
-    color: var(--border-in-light);
+    color: var(--black);
     margin: 0 2px;
+    opacity: 0.6;
   }
 }
 

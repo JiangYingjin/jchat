@@ -28,7 +28,7 @@ export function MessageMetrics({ message }: MessageMetricsProps) {
   }
 
   if (message.cost) {
-    metrics.push({ label: "Cost", value: `$${message.cost.toFixed(2)}` });
+    metrics.push({ label: "Cost", value: `￥${message.cost.toFixed(2)}` });
   }
 
   if (message.ttft) {
@@ -55,7 +55,7 @@ export function MessageMetrics({ message }: MessageMetricsProps) {
           <span className={styles["metric-label"]}>{metric.label}:</span>
           <span className={styles["metric-value"]}>{metric.value}</span>
           {index < metrics.length - 1 && (
-            <span className={styles["metric-separator"]}>|</span>
+            <span className={styles["metric-separator"]}>·</span>
           )}
         </span>
       ))}

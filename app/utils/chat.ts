@@ -234,7 +234,11 @@ export function stream(
       reasoningResponseText = reasoningResponseText.replace(/^\s*\n/gm, "");
       const remainingReasoning = reasoningRemainText;
       reasoningRemainText = "";
-      options.onReasoningUpdate?.(reasoningResponseText, remainingReasoning);
+      options.onReasoningUpdate?.(
+        reasoningResponseText,
+        remainingReasoning,
+        usageInfo,
+      );
       reasoningModeEnded = false;
     } else if (reasoningRemainText.length > 0) {
       const fetchCount = Math.max(
@@ -245,7 +249,7 @@ export function stream(
       reasoningResponseText += fetchText;
       reasoningResponseText = reasoningResponseText.replace(/^\s*\n/gm, "");
       reasoningRemainText = reasoningRemainText.slice(fetchCount);
-      options.onReasoningUpdate?.(reasoningResponseText, fetchText);
+      options.onReasoningUpdate?.(reasoningResponseText, fetchText, usageInfo);
     }
 
     requestAnimationFrame(animateResponseText);

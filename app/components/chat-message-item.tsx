@@ -248,8 +248,10 @@ export function ChatMessageItem({
               </div>
             )}
 
-          <div className={styles["chat-message-action-date"]}>
-            {message.date.toLocaleString()}
+          <div className={styles["chat-message-footer"]}>
+            <div className={styles["chat-message-date"]}>
+              {message.date.toLocaleString()}
+            </div>
             <MessageMetrics message={message} />
           </div>
         </div>

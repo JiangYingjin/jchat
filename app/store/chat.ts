@@ -2451,11 +2451,7 @@ export const useChatStore = createPersistStore(
             const currentTime = Date.now();
 
             // 计算 ttft (time to first token) - 只在第一次有内容时设置
-            if (
-              !modelMessage.ttft &&
-              message &&
-              (typeof message === "string" ? message.length > 0 : true)
-            ) {
+            if (!modelMessage.ttft && chunk && chunk.length > 0) {
               modelMessage.ttft =
                 Math.round((currentTime - startTime) / 10) / 100; // 保留两位小数
             }
@@ -2521,10 +2517,36 @@ export const useChatStore = createPersistStore(
                 console.error("[onSendMessage] onUpdate 异步操作失败:", error);
               });
           },
-          onReasoningUpdate(message) {
+          onReasoningUpdate(message, chunk, usage) {
             modelMessage.streaming = true;
             if (message) {
               modelMessage.reasoningContent = message;
+            }
+
+            // 计算和更新模型回复指标
+            const currentTime = Date.now();
+
+            // 计算 ttft (time to first token) - 只在第一次有内容时设置
+            if (!modelMessage.ttft && message && message.length > 0) {
+              modelMessage.ttft =
+                Math.round((currentTime - startTime) / 10) / 100; // 保留两位小数
+            }
+
+            // 更新 total_time
+            modelMessage.total_time =
+              Math.round((currentTime - startTime) / 10) / 100; // 保留两位小数
+
+            // 从 usage 中更新 token 信息和 cost
+            if (usage) {
+              if (usage.prompt_tokens) {
+                modelMessage.prompt_tokens = usage.prompt_tokens;
+              }
+              if (usage.completion_tokens) {
+                modelMessage.completion_tokens = usage.completion_tokens;
+              }
+              if (usage.cost) {
+                modelMessage.cost = usage.cost;
+              }
             }
 
             // 🔧 优化：只有当前可见会话触发UI渲染，后台会话完全不渲染
