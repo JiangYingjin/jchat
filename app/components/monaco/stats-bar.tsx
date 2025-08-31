@@ -1,4 +1,4 @@
-import React, { useMemo, useEffect, useState } from "react";
+import React, { useMemo, useEffect, useState, useRef } from "react";
 import monacoStyles from "../../styles/monaco-editor.module.scss";
 import { countTokensWithCache } from "../../utils/token-count";
 
@@ -15,7 +15,7 @@ interface StatsBarProps {
 
 /**
  * Monaco 编辑器统计信息状态栏
- * 显示字符数、行数、词数、词元数和内存状态
+ * 显示字符数、行数、词数、词元数
  */
 export const StatsBar: React.FC<StatsBarProps> = ({
   stats,
@@ -24,46 +24,36 @@ export const StatsBar: React.FC<StatsBarProps> = ({
   text = "",
 }) => {
   const [tokenCount, setTokenCount] = useState<number | null>(null);
-  const [isCalculating, setIsCalculating] = useState(false);
+  const isFirstLoad = useRef(true);
 
   // 计算词元数
   useEffect(() => {
     const calculateTokens = async () => {
+      // 当字符数为 0 时，直接返回 0，不进行词元统计
       if (!stats.characters || !text.trim()) {
         setTokenCount(0);
         return;
       }
 
-      setIsCalculating(true);
       try {
         const count = await countTokensWithCache(text, images);
         setTokenCount(count);
       } catch (error) {
         console.error("Failed to calculate tokens:", error);
         setTokenCount(null);
-      } finally {
-        setIsCalculating(false);
       }
     };
 
-    // 防抖计算词元数，避免频繁计算
-    const timeoutId = setTimeout(calculateTokens, 1000);
-    return () => clearTimeout(timeoutId);
+    // 如果是首次加载，立即执行计算
+    if (isFirstLoad.current) {
+      isFirstLoad.current = false;
+      calculateTokens();
+    } else {
+      // 后续更新使用防抖，避免频繁计算
+      const timeoutId = setTimeout(calculateTokens, 300);
+      return () => clearTimeout(timeoutId);
+    }
   }, [stats.characters, images, text]);
-
-  // 获取内存状态提示
-  const getMemoryLevel = useMemo(() => {
-    const { characters } = stats;
-    if (characters > 5000000) return "critical";
-    if (characters > 1000000) return "warning";
-    return "normal";
-  }, [stats]);
-
-  const memoryLevelConfig = {
-    normal: { color: "var(--text-color)", message: "" },
-    warning: { color: "var(--orange)", message: "⚠️ 大文本模式" },
-    critical: { color: "var(--red)", message: "🚨 超大文本模式" },
-  };
 
   return (
     <div className={`${monacoStyles["monaco-status-bar"]} ${className || ""}`}>
@@ -78,18 +68,8 @@ export const StatsBar: React.FC<StatsBarProps> = ({
           词数: {stats.words.toLocaleString()}
         </div>
         <div className={monacoStyles["stat-item"]}>
-          词元:{" "}
-          {isCalculating
-            ? "⏳"
-            : tokenCount !== null
-              ? `~${tokenCount.toLocaleString()}`
-              : "~"}
+          词元: {tokenCount !== null ? tokenCount.toLocaleString() : "0"}
         </div>
-      </div>
-      <div
-        className={`${monacoStyles["monaco-memory-status"]} ${monacoStyles[getMemoryLevel]}`}
-      >
-        {memoryLevelConfig[getMemoryLevel].message}
       </div>
     </div>
   );

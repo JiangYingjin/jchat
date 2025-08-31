@@ -54,6 +54,11 @@ export const countTokensWithCache = async (
   text: string,
   images: string[] = [],
 ): Promise<number> => {
+  // 当文本为空或只有空白字符时，直接返回 0
+  if (!text.trim()) {
+    return 0;
+  }
+
   const cacheKey = `${text}:${images.join(",")}`;
 
   if (tokenCache.has(cacheKey)) {

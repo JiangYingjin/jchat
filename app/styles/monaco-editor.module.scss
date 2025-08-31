@@ -23,31 +23,25 @@
       display: flex;
       align-items: center;
       gap: 4px;
-    }
-  }
-
-  .monaco-memory-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 11px;
-    font-weight: 500;
-
-    &.normal {
-      color: var(--success);
-      background: rgba(var(--success-rgb), 0.1);
+      position: relative;
     }
 
-    &.warning {
-      color: var(--warning);
-      background: rgba(var(--warning-rgb), 0.1);
+    // 旧的词元数样式（变灰）
+    .previous-token-count {
+      color: var(--text-color-secondary);
+      opacity: 0.6;
+      transition: opacity 0.3s ease;
     }
 
-    &.critical {
-      color: var(--error);
-      background: rgba(var(--error-rgb), 0.1);
+    // 现代化的加载动画
+    .modern-spinner {
+      width: 12px;
+      height: 12px;
+      border: 1.5px solid rgba(var(--primary-rgb), 0.2);
+      border-top: 1.5px solid var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-left: 4px;
     }
   }
 }
