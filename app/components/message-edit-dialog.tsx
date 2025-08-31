@@ -243,13 +243,8 @@ export function useMessageEditor(props: EditorCoreProps) {
         }
       }
 
-      // 保存逻辑 - 统一使用 Monaco Editor 的参数格式
-      saveConfig.onSave(
-        currentContent.trim(),
-        attachImages,
-        scrollTop,
-        selection,
-      );
+      // 保存逻辑 - 传递 retryOnConfirm 参数
+      saveConfig.onSave(currentContent.trim(), attachImages, retryOnConfirm);
 
       // 保存完成后关闭模态框
       saveConfig.onCancel();
@@ -317,7 +312,7 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
   const stablePropsRef = useRef({
     onChange: editor.handleEditorContentChange,
     handlePaste: editor.handlePasteCallback,
-    onConfirm: () => editor.handleSave(false),
+    onConfirm: () => editor.handleSave(true), // Ctrl+Enter 时传递 retryOnConfirm=true
     onMount: editor.handleMonacoMount,
     onImageDelete: editor.handleImageDelete,
   });
@@ -326,7 +321,7 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
   stablePropsRef.current = {
     onChange: editor.handleEditorContentChange,
     handlePaste: editor.handlePasteCallback,
-    onConfirm: () => editor.handleSave(false),
+    onConfirm: () => editor.handleSave(true), // Ctrl+Enter 时传递 retryOnConfirm=true
     onMount: editor.handleMonacoMount,
     onImageDelete: editor.handleImageDelete,
   };
