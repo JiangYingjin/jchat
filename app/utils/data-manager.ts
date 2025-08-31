@@ -120,7 +120,7 @@ class JChatDataManager {
   /**
    * 导出完整的 JChat 数据
    */
-  async exportData(): Promise<void> {
+  async exportData(options: { gzip?: boolean } = {}): Promise<void> {
     if (!this.isClient) {
       showToast("导出功能仅在客户端环境可用");
       return;
@@ -165,19 +165,60 @@ class JChatDataManager {
 
       // 生成文件名并开始序列化
       const datePart = new Date().toLocaleString().replace(/[/:]/g, "-");
-      const fileName = `JChat-Backup-${datePart}.json`;
+      const baseFileName = `JChat-Backup-${datePart}`;
+      const fileName = options.gzip
+        ? `${baseFileName}.json.gz`
+        : `${baseFileName}.json`;
 
       showToast("正在生成导出文件...");
 
       // 使用 Web Worker 进行 JSON 序列化，完全避免阻塞主线程
-      const jsonText = await jsonStringifyOffMainThread(backupData);
+      let jsonText = await jsonStringifyOffMainThread(backupData);
 
-      // 直接创建 Blob 并下载，无需额外延迟
-      const blob = new Blob([jsonText], { type: "application/json" });
+      let blob: Blob;
+
+      // 如果启用 gzip 压缩
+      if (options.gzip && typeof CompressionStream !== "undefined") {
+        showToast("正在应用 gzip 压缩...");
+
+        // 创建 gzip 压缩流
+        const jsonBlob = new Blob([jsonText], { type: "application/json" });
+        const compressedStream = jsonBlob
+          .stream()
+          .pipeThrough(new CompressionStream("gzip"));
+
+        // 将 ReadableStream 转换为 Uint8Array
+        const chunks: Uint8Array[] = [];
+        const reader = compressedStream.getReader();
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+        }
+
+        // 合并所有块
+        const totalLength = chunks.reduce(
+          (sum, chunk) => sum + chunk.length,
+          0,
+        );
+        const result = new Uint8Array(totalLength);
+        let offset = 0;
+        for (const chunk of chunks) {
+          result.set(chunk, offset);
+          offset += chunk.length;
+        }
+
+        blob = new Blob([result], { type: "application/gzip" });
+      } else {
+        blob = new Blob([jsonText], { type: "application/json" });
+      }
+
       await downloadBlob(blob, fileName);
 
+      const compressionInfo = options.gzip ? "（gzip压缩）" : "";
       showToast(
-        `导出成功！包含 ${totalSessions} 个会话，${totalMessages} 条消息`,
+        `导出成功！包含 ${totalSessions} 个会话，${totalMessages} 条消息${compressionInfo}`,
       );
     } catch (error) {
       console.error("[DataManager] 导出数据失败:", error);
