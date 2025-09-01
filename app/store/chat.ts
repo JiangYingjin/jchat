@@ -684,7 +684,7 @@ export const useChatStore = createPersistStore(
 
             if (messages && Array.isArray(messages)) {
               targetSession.messages = messages;
-              // 🔧 同步更新 messageCount 为实际消息数量
+              // 🔧 先同步更新基础 messageCount，后续异步更新包含系统提示词的完整统计
               targetSession.messageCount = messages.length;
               // debugLog("LOAD", "设置加载的消息", {
               //   sessionId: session.id,
@@ -737,6 +737,18 @@ export const useChatStore = createPersistStore(
             newSessions[sessionIndex] = targetSession;
             return { sessions: newSessions };
           });
+
+          // 🔧 修复：异步更新包含系统提示词的完整统计信息
+          const finalSession = get().sessions[sessionIndex];
+          if (finalSession) {
+            await updateSessionStats(finalSession);
+            // 强制更新UI以显示正确的消息计数
+            set((state) => {
+              const newSessions = [...state.sessions];
+              newSessions[sessionIndex] = { ...finalSession };
+              return { sessions: newSessions };
+            });
+          }
 
           debugLog("LOAD", "会话消息加载完成", {
             sessionIndex,
