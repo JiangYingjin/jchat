@@ -479,7 +479,7 @@ const DEFAULT_CHAT_STATE = {
   activeBatchRequests: 0, // 活跃的批量请求计数器
   mobileViewState: "sidebar" as "sidebar" | "chat" | "settings", // 移动端界面状态
   exportFormat: "image" as string, // 导出格式配置
-  expandMetrics: false, // 全局指标展开设置
+  expandMetrics: true, // 全局指标展开设置
 };
 
 export const DEFAULT_TITLE = Locale.Session.Title.Default;

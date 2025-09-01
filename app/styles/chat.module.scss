@@ -298,7 +298,7 @@
     justify-content: space-between;
     transition: all ease 0.3s;
     transform: scale(0.9) translateY(5px);
-    margin: 0 10px;
+    padding-left: 10px;
     opacity: 0;
     pointer-events: none;
 
@@ -335,7 +335,7 @@
     .chat-message-bottom-actions {
       opacity: 1;
       pointer-events: all;
-      transform: translateY(0);
+      transform: scale(1) translateY(0);
     }
   }
 }
@@ -392,7 +392,7 @@
     .chat-message-bottom-actions {
       opacity: 1;
       pointer-events: all;
-      transform: translateY(0);
+      transform: scale(1) translateY(0);
     }
   }
 }
@@ -679,20 +679,22 @@
 
 .chat-message-bottom-actions {
   position: absolute;
-  bottom: -30px;
+  bottom: -35px;
   right: 0;
   display: flex;
   gap: 5px;
-  padding: 5px 10px;
+  // padding: 0px 10px;
   // background: var(--white);
   border-radius: 10px 0 10px 0;
   // box-shadow: var(--card-shadow);
   opacity: 0;
   pointer-events: none;
-  transform: translateY(10px);
+  transform: scale(0.9) translateY(10px);
   transition: all ease 0.3s;
   z-index: 1;
-  margin: 5px;
+  padding: 25px 0px 5px 10px;
+  // padding-top: 25px;
+  // margin-top: 25px;
 
   .chat-input-actions {
     display: flex;
