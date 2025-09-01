@@ -32,7 +32,7 @@ import { determineModelForSystemPrompt } from "../utils/model";
 import { prettyObject } from "../utils/format";
 import { handleUnauthorizedResponse, handleUrlAuthCode } from "../utils/auth";
 import { findMessagePairForResend } from "../utils/message";
-import { parseGroupMessageId } from "../utils/group";
+import { parseGroupMessageId, checkBatchAlreadyApplied } from "../utils/group";
 import { createSmartPositionCallback } from "../utils/editor";
 
 // --- Client & Constants ---
@@ -348,19 +348,38 @@ const Chat = React.memo(function Chat() {
         ? modelMessageParsedId.batchId
         : userBatchId;
 
-      // 遍历组内所有会话
-      for (const sessionId of currentGroup.sessionIds) {
-        // 跳过当前会话
-        if (sessionId === session.id) {
-          continue;
-        }
+      // 遍历组内所有会话（包括当前会话）
+      let appliedCount = 0;
+      let skippedCount = 0;
 
+      for (const sessionId of currentGroup.sessionIds) {
         // 先确保目标会话的消息已加载（必须等待加载完成！）
         await chatStore.loadGroupSessionMessages(sessionId);
         const targetSession = chatStore.groupSessions[sessionId]; // 重新获取，确保是最新的
         if (!targetSession || !targetSession.messages) {
           console.warn(`[BatchApply] 加载消息失败，sessionId=${sessionId}`);
           continue;
+        }
+
+        // 🔧 预检查机制 - 检查是否已成功应用相同批次的消息（包括当前会话）
+        const checkResult = checkBatchAlreadyApplied(
+          targetSession,
+          userBatchId,
+          anchorUserMessage!,
+        );
+
+        if (checkResult.alreadyApplied) {
+          const sessionType = sessionId === session.id ? "当前会话" : "会话";
+          console.log(
+            `[BatchApply] 跳过${sessionType} ${sessionId}: ${checkResult.reason}`,
+          );
+          skippedCount++;
+          continue;
+        } else {
+          const sessionType = sessionId === session.id ? "当前会话" : "会话";
+          console.log(
+            `[BatchApply] 需要应用到${sessionType} ${sessionId}: ${checkResult.reason}`,
+          );
         }
 
         // 🔧 优化：直接使用 onSendMessage 的 batchId 机制
@@ -378,9 +397,24 @@ const Chat = React.memo(function Chat() {
           userBatchId, // 用户消息使用原始的用户 batch id
           modelBatchId, // 模型消息使用模型回复消息的 batch id
         );
+
+        appliedCount++;
       }
 
-      showToast("批量应用已提交，正在处理中...");
+      // 显示详细的应用结果
+      if (appliedCount === 0 && skippedCount > 0) {
+        showToast(
+          `所有会话都已成功应用过此消息，跳过了 ${skippedCount} 个会话`,
+        );
+      } else if (appliedCount > 0 && skippedCount === 0) {
+        showToast(`批量应用已提交到 ${appliedCount} 个会话，正在处理中...`);
+      } else if (appliedCount > 0 && skippedCount > 0) {
+        showToast(
+          `批量应用已提交到 ${appliedCount} 个会话，跳过了 ${skippedCount} 个已应用的会话`,
+        );
+      } else {
+        showToast("没有需要应用的会话");
+      }
     } catch (error) {
       console.error("[BatchApply] Failed to apply batch:", error);
       showToast("批量应用失败，请重试");

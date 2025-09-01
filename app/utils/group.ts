@@ -4,7 +4,11 @@ import { createEmptySession } from "./session";
 import Locale from "../locales";
 import type { ChatMessage } from "../store";
 import pLimit from "p-limit";
-import { copyToClipboard } from "../utils";
+import {
+  copyToClipboard,
+  getMessageTextContent,
+  getMessageImages,
+} from "../utils";
 import { messageStorage } from "../store/message";
 
 /**
@@ -145,4 +149,154 @@ export async function handleMergeCopy(
   if (allContents.length > 0) {
     copyToClipboard(allContents.join("\n\n---\n\n"));
   }
+}
+
+/**
+ * 比较两个消息的内容是否完全一致（包括文本和图像）
+ * @param message1 第一个消息
+ * @param message2 第二个消息
+ * @returns 是否完全一致
+ */
+export function areMessagesContentEqual(
+  message1: ChatMessage,
+  message2: ChatMessage,
+): boolean {
+  // 比较文本内容
+  const text1 = getMessageTextContent(message1);
+  const text2 = getMessageTextContent(message2);
+  if (text1 !== text2) {
+    return false;
+  }
+
+  // 比较图像内容
+  const images1 = getMessageImages(message1);
+  const images2 = getMessageImages(message2);
+
+  // 图像数量不一致
+  if (images1.length !== images2.length) {
+    return false;
+  }
+
+  // 图像URL不一致（顺序敏感）
+  for (let i = 0; i < images1.length; i++) {
+    if (images1[i] !== images2[i]) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * 检查模型回复是否有效（非空且无错误）
+ * @param message 模型消息
+ * @returns 是否有效
+ */
+export function isModelReplyValid(message: ChatMessage): boolean {
+  // 必须是模型消息
+  if (message.role !== "assistant") {
+    return false;
+  }
+
+  // 检查是否有错误标记
+  if (message.isError === true) {
+    return false;
+  }
+
+  // 检查内容是否为空
+  const textContent = getMessageTextContent(message);
+  if (!textContent || textContent.trim().length === 0) {
+    return false;
+  }
+
+  // 检查是否还在流式传输中（未完成的消息视为无效）
+  if (message.streaming === true) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * 检查目标会话是否已成功应用相同批次的消息
+ * @param targetSession 目标会话
+ * @param batchId 批次ID
+ * @param sourceUserMessage 源用户消息（用于内容比较）
+ * @returns 检查结果
+ */
+export function checkBatchAlreadyApplied(
+  targetSession: any,
+  batchId: string,
+  sourceUserMessage: ChatMessage,
+): {
+  alreadyApplied: boolean;
+  reason?: string;
+  existingUserMessage?: ChatMessage;
+  existingModelMessage?: ChatMessage;
+} {
+  // 查找相同 batchId 的用户消息
+  const existingUserMsgIndex = targetSession.messages.findIndex(
+    (m: ChatMessage) => {
+      const parsed = parseGroupMessageId(m.id);
+      return parsed.isValid && parsed.batchId === batchId && m.role === "user";
+    },
+  );
+
+  // 没有找到相同 batchId 的用户消息，需要应用
+  if (existingUserMsgIndex === -1) {
+    return {
+      alreadyApplied: false,
+      reason: "未找到相同batchId的用户消息",
+    };
+  }
+
+  const existingUserMessage = targetSession.messages[existingUserMsgIndex];
+
+  // 检查用户消息内容是否一致
+  if (!areMessagesContentEqual(sourceUserMessage, existingUserMessage)) {
+    return {
+      alreadyApplied: false,
+      reason: "用户消息内容不一致",
+      existingUserMessage,
+    };
+  }
+
+  // 检查是否有对应的模型回复
+  const nextMsgIndex = existingUserMsgIndex + 1;
+  if (nextMsgIndex >= targetSession.messages.length) {
+    return {
+      alreadyApplied: false,
+      reason: "缺少模型回复",
+      existingUserMessage,
+    };
+  }
+
+  const existingModelMessage = targetSession.messages[nextMsgIndex];
+
+  // 检查下一个消息是否是模型回复
+  if (existingModelMessage.role !== "assistant") {
+    return {
+      alreadyApplied: false,
+      reason: "下一个消息不是模型回复",
+      existingUserMessage,
+    };
+  }
+
+  // 检查模型回复是否有效
+  if (!isModelReplyValid(existingModelMessage)) {
+    return {
+      alreadyApplied: false,
+      reason: "模型回复无效（为空、有错误或未完成）",
+      existingUserMessage,
+      existingModelMessage,
+    };
+  }
+
+  // 所有检查都通过，已成功应用
+  return {
+    alreadyApplied: true,
+    reason: "已成功应用",
+    existingUserMessage,
+    existingModelMessage,
+  };
 }

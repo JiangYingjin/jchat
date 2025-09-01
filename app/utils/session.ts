@@ -57,20 +57,24 @@ export async function updateSessionStats(session: ChatSession): Promise<void> {
 export function createMessage(
   override: Partial<ChatMessage>,
   batchId?: string,
+  forceGroupMessage?: boolean, // 新增：强制指定是否为组内会话消息
 ): ChatMessage {
   // 检查是否为组内会话消息
-  let isGroupMessage = false;
+  let isGroupMessage = forceGroupMessage ?? false;
 
-  try {
-    if (typeof window !== "undefined") {
-      const currentSession = useChatStore.getState().currentSession();
-      isGroupMessage =
-        currentSession?.groupId !== null &&
-        currentSession?.groupId !== undefined;
+  // 如果没有强制指定，则自动检测
+  if (forceGroupMessage === undefined) {
+    try {
+      if (typeof window !== "undefined") {
+        const currentSession = useChatStore.getState().currentSession();
+        isGroupMessage =
+          currentSession?.groupId !== null &&
+          currentSession?.groupId !== undefined;
+      }
+    } catch (error) {
+      // 如果获取当前会话失败，默认为非组内会话
+      isGroupMessage = false;
     }
-  } catch (error) {
-    // 如果获取当前会话失败，默认为非组内会话
-    isGroupMessage = false;
   }
 
   // 创建消息 ID

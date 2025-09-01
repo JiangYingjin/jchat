@@ -2314,6 +2314,7 @@ export const useChatStore = createPersistStore(
             content: mContent,
           },
           userBatchId,
+          !!session.groupId, // 强制指定是否为组内会话消息
         );
 
         const modelMessage = createMessage(
@@ -2324,6 +2325,7 @@ export const useChatStore = createPersistStore(
             model: session.model,
           },
           finalModelBatchId,
+          !!session.groupId, // 强制指定是否为组内会话消息
         );
 
         // 记录模型消息的开始时间，用于计算指标
