@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useMemo, useState } from "react";
-import { ChatMessage } from "../store";
+import { ChatMessage, useChatStore } from "../store";
 import { ChatMessageItem } from "./chat-message-item";
 import { useMobileScreen } from "../utils";
 import { CHAT_PAGE_SIZE } from "../constant";
@@ -45,6 +45,9 @@ export function MessageList({
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobileScreen = useMobileScreen();
+  const chatStore = useChatStore();
+  const currentSession = chatStore.currentSession();
+
   const [msgRenderIndex, setMsgRenderIndex] = useState(
     Math.max(0, messages.length - CHAT_PAGE_SIZE),
   );
@@ -52,6 +55,18 @@ export function MessageList({
     [key: string]: number;
   }>({});
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+  const prevSessionId = useRef<string | undefined>(currentSession?.id);
+
+  // 🔧 修复：监听会话ID变化，重置分页状态
+  useEffect(() => {
+    const currentSessionId = currentSession?.id;
+    if (prevSessionId.current !== currentSessionId) {
+      // 会话切换时，重置到最后一页
+      const newIndex = Math.max(0, messages.length - CHAT_PAGE_SIZE);
+      setMsgRenderIndex(newIndex);
+      prevSessionId.current = currentSessionId;
+    }
+  }, [currentSession?.id, messages.length]);
 
   // 只在消息数量增加时重置到最后一页（新消息到达）
   const prevMessageLength = useRef(messages.length);

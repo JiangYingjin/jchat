@@ -1820,13 +1820,18 @@ export const useChatStore = createPersistStore(
           }
         }
 
+        // 🔧 修复：确保消息在状态更新前就完全准备好
+        // 直接设置消息，避免异步加载导致的竞态条件
+        newSession.messages = messagesToCopy;
+        newSession.messageCount = messagesToCopy.length;
+
         set((state) => ({
           sessions: [newSession, ...state.sessions],
           currentSessionIndex: 0, // 切换到新创建的分支会话
         }));
 
-        // 确保新会话的消息已正确加载（虽然是新创建的，但为了保险起见）
-        await get().loadSessionMessages(0);
+        // 移除不必要的消息加载，因为消息已经在状态更新前设置好了
+        // await get().loadSessionMessages(0);
 
         return newSession;
       },
