@@ -348,10 +348,10 @@ export function stream(
           // 先检查是否有 usage 信息
           try {
             const json = JSON.parse(text);
-            // if (json.usage) {
-            //   usageInfo = json.usage;
-            //   console.log("[Usage Info]", usageInfo);
-            // }
+            if (json.usage) {
+              usageInfo = json.usage;
+              // console.log("[Usage Info]", usageInfo);
+            }
           } catch (usageParseError) {
             // 忽略 usage 解析错误，继续处理内容
           }
