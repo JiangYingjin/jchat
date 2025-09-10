@@ -1,35 +1,39 @@
+<div align="center">
+
 # JChat: The Super Terminal for Advanced AI Interaction & Workflow Automation
 
-[中文](./README_zh.md)
+<p>
+<a href="https://chat.jyj.cx"><img src="https://img.shields.io/badge/Live%20Demo-blue?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxZW0iIGhlaWdodD0iMWVtIiB2aWV3Qm94PSIwIDAgMjQgMjQiPjxwYXRoIGZpbGw9ImN1cnJlbnRDb2xvciIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEycy00LjQ4IDEwIDEwIDEwczEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyWk04LjUgMTYuNUw0IDEybDEuNDE1LTEuNDE1TDguNSAxMy42NTVsNy4wODUtNy4wODVMMTcgOC41TDguNSAxNi41WiIvPjwvc3ZnPg==" alt="Live Demo"></a>
+<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="License: MIT"></a>
+</p>
 
-[<img src="https://img.shields.io/badge/Visit%20JChat-Live%20Demo-blue?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxZW0iIGhlaWdodD0iMWVtIiB2aWV3Qm94PSIwIDAgMjQgMjQiPjxwYXRoIGZpbGw9ImN1cnJlbnRDb2xvciIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEycy00LjQ4IDEwIDEwIDEwczEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyWk04LjUgMTYuNUw0IDEybDEuNDE1LTEuNDE1TDguNSAxMy42NTVsNy4wODUtNy4wODVMMTcgOC41TDguNSAxNi41WiIvPjwvc3ZnPg==">](https://chat.jyj.cx)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+> **JChat is more than just a chat application—it's a powerful AI super terminal designed for developers, researchers, and power users. It elevates your interaction with Large Language Models (LLMs) to a new level of productivity by offering unparalleled long-context capabilities, an innovative group session workflow engine, and 100% local data storage.**
 
-**JChat is more than just a chat application—it's a powerful AI super terminal designed for developers, researchers, and power users. It elevates your interaction with Large Language Models (LLMs) to a new level of productivity by offering unparalleled long-context capabilities, an innovative group session workflow engine, and 100% local data storage.**
+**🌐 Live Demo: [https://chat.jyj.cx](https://chat.jyj.cx)**
 
-Visit the live demo at: **https://chat.jyj.cx**
+</div>
 
 ---
 
 ## ✨ Key Features
 
-| Feature | Description |
-| :--- | :--- |
+| Feature                              | Description                                                                                                                                              |
+| :----------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 🚀 **Unparalleled Context-Handling** | Built-in **Monaco Editor** (from VS Code), deeply optimized for million-token contexts. Effortlessly analyze entire codebases or read lengthy documents. |
-| 🤖 **Workflow Automation Engine** | Innovative **"Group Session"** feature to batch-create sessions from files and "batch-apply" commands, turning your AI into a dedicated work team. |
-| 🛡️ **100% Local-First** | All data is stored in your browser's **IndexedDB**, ensuring maximum speed, offline access, and absolute data privacy. |
-| 💬 **Advanced Dialogue Management** | **Branch** conversations from any point, **edit any message** in the history, and safely **delete with undo** for unprecedented flexibility. |
-| 🎨 **Rich Content Support** | Render **LaTeX** equations, **Mermaid** diagrams, and full **GitHub Flavored Markdown** directly in your chats. |
-| 📦 **Robust Backup System** | A full-featured, version-aware **import/export** system ensures your valuable data is never lost. |
+| 🤖 **Workflow Automation Engine**    | Innovative **"Group Session"** feature to batch-create sessions from files and "batch-apply" commands, turning your AI into a dedicated work team.       |
+| 🛡️ **100% Local-First**              | All data is stored in your browser's **IndexedDB**, ensuring maximum speed, offline access, and absolute data privacy.                                   |
+| 💬 **Advanced Dialogue Management**  | **Branch** conversations from any point, **edit any message** in the history, and safely **delete with undo** for unprecedented flexibility.             |
+| 🎨 **Rich Content Support**          | Render **LaTeX** equations, **Mermaid** diagrams, and full **GitHub Flavored Markdown** directly in your chats.                                          |
+| 📦 **Robust Backup System**          | A full-featured, version-aware **import/export** system ensures your valuable data is never lost.                                                        |
 
 ## 🤔 Why JChat?
 
 Current AI chat tools often fall short when you try to tackle complex tasks, leading to common bottlenecks:
 
--   **Context Length Anxiety**: Want an AI to analyze a codebase or a long report? Sorry, you've hit the context limit. You're forced to manually split and feed data, a frustrating and painful process.
--   **The Nightmare of Batch Tasks**: Need to apply the same pattern to 20 different files? You're stuck performing the same manual operation 20 times, which is incredibly inefficient.
--   **Chaotic Conversation Management**: Dozens of chats get jumbled together, making them difficult to organize and review. Exploring different branches of a single problem means opening new chats, leading to a cluttered mess.
--   **Data Privacy Concerns**: All your conversation data is stored on the cloud, posing a risk of privacy leaks.
+- **Context Length Anxiety**: Want an AI to analyze a codebase or a long report? Sorry, you've hit the context limit. You're forced to manually split and feed data, a frustrating and painful process.
+- **The Nightmare of Batch Tasks**: Need to apply the same pattern to 20 different files? You're stuck performing the same manual operation 20 times, which is incredibly inefficient.
+- **Chaotic Conversation Management**: Dozens of chats get jumbled together, making them difficult to organize and review. Exploring different branches of a single problem means opening new chats, leading to a cluttered mess.
+- **Data Privacy Concerns**: All your conversation data is stored on the cloud, posing a risk of privacy leaks.
 
 **JChat was born to solve these problems.** It refuses to be a mere "toy" and strives to be a true **AI Productivity Engine**. By combining a powerful editor, an innovative workflow, and a local-first architecture, JChat empowers you to truly harness AI to accomplish complex tasks that were previously unimaginable.
 
@@ -72,9 +76,9 @@ JChat provides a suite of sophisticated tools to manage your conversations like 
 JChat's design philosophy puts user data sovereignty first.
 
 - **100% Local Storage**: All your data, from the session list to every single message, is stored in your own computer's browser (IndexedDB). This means:
-    - **Extreme Speed**: No waiting for network requests; operations are silky smooth.
-    - **Offline Access**: You can review and organize your conversation history anytime, even without an internet connection.
-    - **Absolute Privacy**: Your data is never uploaded to any third-party server, completely eliminating the risk of privacy leaks.
+  - **Extreme Speed**: No waiting for network requests; operations are silky smooth.
+  - **Offline Access**: You can review and organize your conversation history anytime, even without an internet connection.
+  - **Absolute Privacy**: Your data is never uploaded to any third-party server, completely eliminating the risk of privacy leaks.
 - **Complete Backup & Restore**: A single click exports a JSON file containing all your data, which can be used to perfectly restore your workspace on a new device, making data migration effortless.
 
 ### 5. Rich Content Support & Data Export
@@ -89,13 +93,15 @@ JChat believes that technical communication should not be limited to plain text.
 ## 🚀 Getting Started
 
 1.  **Clone the repository**
+
     ```bash
-    git clone https://github.com/JinnLock/JChat.git
+    git clone https://github.com/JiangYingjin/JChat.git
     cd JChat
     ```
 
 2.  **Install dependencies**
     Using `yarn` is recommended:
+
     ```bash
     yarn install
     ```
@@ -131,6 +137,7 @@ JChat believes that technical communication should not be limited to plain text.
     ```
 
 4.  **Start the development server**
+
     ```bash
     yarn dev
     ```
@@ -139,14 +146,14 @@ JChat believes that technical communication should not be limited to plain text.
 
 ## 🛠️ Tech Stack
 
--   **Framework**: [Next.js](https://nextjs.org/) 15 (App Router)
--   **State Management**: [Zustand](https://github.com/pmndrs/zustand)
--   **UI**: [React](https://react.dev/)
--   **Local Storage**: [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) (via `localforage`)
--   **Code Editor**: [Monaco Editor](https://microsoft.github.io/monaco-editor/)
--   **Markdown/LaTeX**: [react-markdown](https://github.com/remarkjs/react-markdown) with `remark-gfm`, `rehype-katex`
--   **Diagrams**: [Mermaid](https://mermaid.js.org/)
--   **Drag & Drop**: [@dnd-kit](https://dndkit.com/)
+- **Framework**: [Next.js](https://nextjs.org/) 15 (App Router)
+- **State Management**: [Zustand](https://github.com/pmndrs/zustand)
+- **UI**: [React](https://react.dev/)
+- **Local Storage**: [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) (via `localforage`)
+- **Code Editor**: [Monaco Editor](https://microsoft.github.io/monaco-editor/)
+- **Markdown/LaTeX**: [react-markdown](https://github.com/remarkjs/react-markdown) with `remark-gfm`, `rehype-katex`
+- **Diagrams**: [Mermaid](https://mermaid.js.org/)
+- **Drag & Drop**: [@dnd-kit](https://dndkit.com/)
 
 ## 🤝 Contributing
 
