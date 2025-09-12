@@ -549,7 +549,7 @@ const Chat = React.memo(function Chat() {
       selection?: { start: number; end: number },
     ) => {
       try {
-        // 系统提示词保存处理
+        // 保存系统提示词
 
         // 🚀 性能优化：批量处理存储操作，避免重复的async等待
         const savePromises: Promise<any>[] = [];
@@ -557,17 +557,21 @@ const Chat = React.memo(function Chat() {
         // 先保存系统提示词到存储
         if (content.trim() || images.length > 0) {
           savePromises.push(
-            systemMessageStorage.save(session.id, {
-              text: content.trim(),
-              images,
-              scrollTop: scrollTop || 0,
-              selection: selection || { start: 0, end: 0 },
-              updateAt: Date.now(),
-            }),
+            systemMessageStorage
+              .save(session.id, {
+                text: content.trim(),
+                images,
+                scrollTop: scrollTop || 0,
+                selection: selection || { start: 0, end: 0 },
+                updateAt: Date.now(),
+              })
+              .then((ok) => ok),
           );
         } else {
           // 如果系统提示词被清空，删除存储的系统提示词
-          savePromises.push(systemMessageStorage.delete(session.id));
+          savePromises.push(
+            systemMessageStorage.delete(session.id).then((ok) => ok),
+          );
         }
 
         // 🚀 性能优化：先同步更新会话状态，减少UI阻塞

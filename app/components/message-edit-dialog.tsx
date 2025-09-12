@@ -265,7 +265,13 @@ export function useMessageEditor(props: EditorCoreProps) {
       }
 
       // 保存逻辑 - 传递 retryOnConfirm 参数
-      saveConfig.onSave(currentContent.trim(), attachImages, retryOnConfirm);
+      saveConfig.onSave(
+        currentContent.trim(),
+        attachImages,
+        retryOnConfirm,
+        scrollTop,
+        selection,
+      );
 
       // 保存完成后关闭模态框
       saveConfig.onCancel();
@@ -375,7 +381,9 @@ export const EditorCore: React.FC<EditorCoreProps> = React.memo((props) => {
         text={Locale.UI.Confirm}
         icon={<ConfirmIcon />}
         key="ok"
-        onClick={() => editor.handleSave(false)}
+        onClick={() => {
+          editor.handleSave(false);
+        }}
       />,
     ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -424,21 +432,45 @@ const SystemPromptEditDialog = React.memo(
     initialScrollTop?: number;
     initialSelection?: { start: number; end: number };
   }) => {
+    const {
+      sessionId,
+      initialContent,
+      initialImages,
+      initialScrollTop,
+      initialSelection,
+    } = props;
+    useEffect(() => {
+      // no-op after cleanup
+    }, [
+      sessionId,
+      initialContent,
+      initialImages,
+      initialScrollTop,
+      initialSelection,
+    ]);
     return (
       <EditorCore
-        initialContent={props.initialContent}
-        initialImages={props.initialImages}
+        initialContent={initialContent}
+        initialImages={initialImages}
         editorConfig={{
           autoFocus: true,
         }}
         imageConfig={{
-          images: props.initialImages,
+          images: initialImages,
           onImageDelete: () => {}, // 图片删除由内部处理
           showImages: true,
         }}
         saveConfig={{
           enableRetryOnConfirm: false, // 系统提示词不需要重试功能
-          onSave: props.onSave,
+          onSave: (
+            content: string,
+            images: string[],
+            _retryOnConfirm?: boolean,
+            scrollTop?: number,
+            selection?: { start: number; end: number },
+          ) => {
+            props.onSave(content, images, scrollTop, selection);
+          },
           onCancel: props.onClose,
         }}
         modalConfig={{
@@ -446,8 +478,8 @@ const SystemPromptEditDialog = React.memo(
           onClose: props.onClose,
         }}
         monacoConfig={{
-          scrollTop: props.initialScrollTop,
-          selection: props.initialSelection,
+          scrollTop: initialScrollTop,
+          selection: initialSelection,
         }}
       />
     );
