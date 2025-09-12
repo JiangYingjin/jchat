@@ -296,7 +296,7 @@ function SearchResultItem({
             );
             if (fromIndex !== -1 && fromIndex !== 0) {
               moveSession(fromIndex, 0);
-              router.push(Path.Home);
+              // 移除不必要的路由跳转，因为用户已经在首页
             }
             menu.close();
           }}

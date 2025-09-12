@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 
 import sidebarStyles from "../styles/sidebar.module.scss";
 import buttonStyles from "../styles/button.module.scss";
@@ -55,8 +55,82 @@ export function SideBar(props: { className?: string }) {
   const searchBarRef = useRef<SearchInputRef>(null);
   const [isSearching, setIsSearching] = useState(false);
 
-  // 获取当前列表模式
+  // --- 滚动容器 ref ---
+  const sidebarScrollRef = useRef<HTMLDivElement>(null);
+
+  // --- 读取用于计算 key 的状态 ---
   const chatListView = useChatStore((state) => state.chatListView);
+  const chatListGroupView = useChatStore((state) => state.chatListGroupView);
+  const groups = useChatStore((state) => state.groups);
+  const currentGroupIndex = useChatStore((state) => state.currentGroupIndex);
+
+  // --- 计算滚动 key ---
+  const scrollKey = useMemo(() => {
+    if (chatListView === "sessions") return "sessions";
+    if (chatListView === "groups") {
+      if (chatListGroupView === "groups") return "groups";
+      const group = groups[currentGroupIndex];
+      if (group) return `group-sessions:${group.id}`;
+      return "group-sessions:unknown";
+    }
+    return "sessions";
+  }, [chatListView, chatListGroupView, groups, currentGroupIndex]);
+
+  // --- 简易防抖 ---
+  const useDebounced = (fn: (v: number) => void, delay: number) => {
+    const timerRef = useRef<number | null>(null);
+    return useCallback(
+      (v: number) => {
+        if (timerRef.current) {
+          window.clearTimeout(timerRef.current);
+        }
+        timerRef.current = window.setTimeout(() => {
+          fn(v);
+        }, delay);
+      },
+      [fn, delay],
+    );
+  };
+
+  const debouncedSave = useDebounced((scrollTop: number) => {
+    chatStore.setSidebarScrollPosition(scrollTop);
+    chatStore.saveSidebarScrollPosition(scrollKey, scrollTop);
+  }, 120);
+
+  // --- 滚动保存 ---
+  const handleScroll = useCallback(
+    (e: React.UIEvent<HTMLDivElement>) => {
+      const scrollTop = e.currentTarget.scrollTop;
+      if (
+        typeof scrollTop === "number" &&
+        scrollTop >= 0 &&
+        !isNaN(scrollTop)
+      ) {
+        debouncedSave(scrollTop);
+      }
+    },
+    [debouncedSave],
+  );
+
+  // --- 滚动恢复 ---
+  useEffect(() => {
+    const el = sidebarScrollRef.current;
+    if (!el) return;
+
+    // 读取保存的滚动位置
+    const saved = chatStore.getSidebarScrollPosition(scrollKey);
+    if (saved && saved > 0) {
+      // 等待布局稳定后再恢复
+      const raf = requestAnimationFrame(() => {
+        try {
+          el.scrollTop = saved;
+        } catch {}
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [scrollKey, chatListView, chatListGroupView, chatStore]);
+
+  // 获取当前列表模式 (已在上面声明)
 
   // 🔥 确保应用完全准备好后再渲染侧边栏
   if (!isAppReady) {
@@ -117,7 +191,9 @@ export function SideBar(props: { className?: string }) {
 
       {!isSearching && (
         <div
+          ref={sidebarScrollRef}
           className={sidebarStyles["sidebar-body"]}
+          onScroll={handleScroll}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               router.push(Path.Home);

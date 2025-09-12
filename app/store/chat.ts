@@ -480,6 +480,9 @@ const DEFAULT_CHAT_STATE = {
   mobileViewState: "sidebar" as "sidebar" | "chat" | "settings", // 移动端界面状态
   exportFormat: "image" as string, // 导出格式配置
   expandMetrics: true, // 全局指标展开设置
+  // --- Sidebar scroll states ---
+  sidebarScrollPosition: 0, // 侧边栏当前滚动位置（即时值）
+  sidebarScrollHistory: {} as Record<string, number>, // 不同列表视图的滚动位置缓存
 };
 
 export const DEFAULT_TITLE = Locale.Session.Title.Default;
@@ -575,6 +578,41 @@ export const useChatStore = createPersistStore(
         const state = get();
         const currentSession = state.currentSession();
         return currentSession.id === sessionId;
+      },
+
+      // --- Sidebar scroll helpers ---
+      setSidebarScrollPosition(scrollTop: number): void {
+        // 仅记录有效数值
+        if (
+          typeof scrollTop === "number" &&
+          scrollTop >= 0 &&
+          !isNaN(scrollTop)
+        ) {
+          set({ sidebarScrollPosition: scrollTop });
+        }
+      },
+
+      saveSidebarScrollPosition(key: string, scrollTop: number): void {
+        if (!key) return;
+        if (typeof scrollTop !== "number" || isNaN(scrollTop) || scrollTop < 0)
+          return;
+        set((state) => ({
+          sidebarScrollHistory: {
+            ...state.sidebarScrollHistory,
+            [key]: scrollTop,
+          },
+        }));
+      },
+
+      getSidebarScrollPosition(key: string): number {
+        if (!key) return 0;
+        const history = get().sidebarScrollHistory as Record<string, number>;
+        const val = history?.[key];
+        return typeof val === "number" && !isNaN(val) && val >= 0 ? val : 0;
+      },
+
+      clearSidebarScrollHistory(): void {
+        set({ sidebarScrollHistory: {} });
       },
 
       // 新增：智能更新会话状态（只有当前会话触发UI重新渲染）

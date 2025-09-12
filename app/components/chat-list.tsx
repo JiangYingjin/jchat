@@ -236,7 +236,7 @@ export function ChatItem(props: {
               e.stopPropagation();
               if (props.index !== 0) {
                 moveSession(props.index, 0);
-                router.push(Path.Home);
+                // 移除不必要的路由跳转，因为用户已经在首页
               }
               menu.close();
             }}
