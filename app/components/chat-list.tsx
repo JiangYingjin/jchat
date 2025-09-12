@@ -28,6 +28,8 @@ import { Path } from "../constant";
 import { useRef, useMemo } from "react";
 import { useMobileScreen } from "../utils";
 import { useAppReadyGuard } from "../hooks/app-ready";
+import { useContextMenu } from "./context-menu";
+import sidebarStyles from "../styles/sidebar.module.scss";
 
 /**
  * 根据消息数量计算项目样式
@@ -115,8 +117,15 @@ export function ChatItem(props: {
   prefixValue?: number; // 前缀值（当 prefixType 为 count 时使用）
   styleCalculator?: (count: number) => React.CSSProperties; // 背景色计算函数
   tooltipText?: string; // 自定义提示文本
+  enableContextMenu?: boolean; // 是否启用右键菜单
 }) {
   const currentPath = usePathname();
+  const router = useRouter();
+  const moveSession = useChatStore((state) => state.moveSession);
+
+  // 右键菜单（仅在启用时使用）
+  const menu = useContextMenu();
+  const enableContextMenu = props.enableContextMenu ?? false;
 
   // 使用传入的样式计算函数，默认为普通会话样式
   const styleCalculator = props.styleCalculator || getChatItemStyle;
@@ -145,6 +154,15 @@ export function ChatItem(props: {
   // 选中状态加粗字体
   const isActive =
     props.selected && (currentPath === Path.Chat || currentPath === Path.Home);
+
+  // 处理点击事件（考虑右键菜单状态）
+  const handleClick = () => {
+    if (enableContextMenu && menu.isOpen) {
+      menu.close();
+      return;
+    }
+    props.onClick?.();
+  };
 
   // 渲染前缀
   const renderPrefix = () => {
@@ -195,7 +213,8 @@ export function ChatItem(props: {
         chatItemStyles["chat-item"] +
         (isActive ? " " + chatItemStyles["chat-item-selected"] : "")
       }
-      onClick={props.onClick}
+      onClick={handleClick}
+      onContextMenu={enableContextMenu ? menu.openAtEvent : undefined}
       style={style}
       title={getTooltipText()}
       {...attributes}
@@ -206,6 +225,25 @@ export function ChatItem(props: {
         <span>{props.title}</span>
       </div>
       <StatusDot status={props.status} />
+
+      {/* 右键菜单（仅在启用时渲染） */}
+      {enableContextMenu &&
+        menu.render(
+          <div
+            className={sidebarStyles["search-context-item"]}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (props.index !== 0) {
+                moveSession(props.index, 0);
+                router.push(Path.Home);
+              }
+              menu.close();
+            }}
+          >
+            移至顶部
+          </div>,
+        )}
     </div>
   );
 }
@@ -302,6 +340,7 @@ export function ChatList(props: {}) {
               }}
               status={item.status}
               prefixType="none"
+              enableContextMenu={true}
             />
           ))}
         </div>

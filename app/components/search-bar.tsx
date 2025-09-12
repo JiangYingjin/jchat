@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useContextMenu } from "./context-menu";
 import { useChatStore } from "../store";
 import sidebarStyles from "../styles/sidebar.module.scss";
 import SearchIcon from "../icons/search.svg";
@@ -202,17 +203,13 @@ function SearchResultItem({
   const sessions = useChatStore((state) => state.sessions);
   const moveSession = useChatStore((state) => state.moveSession);
 
-  // 右键菜单状态
-  const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState<{ x: number; y: number }>({
-    x: 0,
-    y: 0,
-  });
+  // 右键菜单（复用 Hook）
+  const menu = useContextMenu();
   const itemRef = useRef<HTMLDivElement | null>(null);
 
   const handleClick = () => {
-    if (menuOpen) {
-      setMenuOpen(false);
+    if (menu.isOpen) {
+      menu.close();
       return;
     }
     const sessionIndex = sessions.findIndex((s) => s.id === result.sessionId);
@@ -225,61 +222,13 @@ function SearchResultItem({
   // 使用SearchResult中的matchedTerms，提供精确的高亮
   const matchedTerms = result.matchedTerms || [];
 
-  // 监听外部点击/滚动以关闭菜单
-  useEffect(() => {
-    if (!menuOpen) return;
-
-    const handleGlobalClose = (e: Event) => {
-      const target = e.target as Element;
-      // 如果点击的是菜单内部，不关闭
-      if (target?.closest(`.${sidebarStyles["search-context-menu"]}`)) {
-        return;
-      }
-      setMenuOpen(false);
-    };
-
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMenuOpen(false);
-    };
-
-    // 延迟添加监听器，避免立即触发
-    const timer = setTimeout(() => {
-      document.addEventListener("mousedown", handleGlobalClose, true);
-      document.addEventListener("scroll", handleGlobalClose, true);
-      document.addEventListener("keydown", handleKey, true);
-    }, 10);
-
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("mousedown", handleGlobalClose, true);
-      document.removeEventListener("scroll", handleGlobalClose, true);
-      document.removeEventListener("keydown", handleKey, true);
-    };
-  }, [menuOpen]);
+  // 关闭逻辑由 useContextMenu 内部处理
 
   return (
     <div
       className={`${sidebarStyles["search-result-item"]} ${sidebarStyles[`search-result-${result.matchType}`]}`}
       onClick={handleClick}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // 计算菜单位置，确保不超出视口
-        const menuWidth = 160;
-        const menuHeight = 80;
-        const padding = 8;
-
-        // 直接使用鼠标在视口中的坐标
-        const x = Math.min(e.clientX, window.innerWidth - menuWidth - padding);
-        const y = Math.min(
-          e.clientY,
-          window.innerHeight - menuHeight - padding,
-        );
-
-        setMenuPos({ x: Math.max(padding, x), y: Math.max(padding, y) });
-        setMenuOpen(true);
-      }}
+      onContextMenu={menu.openAtEvent}
       ref={itemRef}
     >
       <div className={sidebarStyles["search-item-header"]}>
@@ -336,35 +285,25 @@ function SearchResultItem({
         </div>
       </div>
 
-      {menuOpen &&
-        typeof window !== "undefined" &&
-        createPortal(
-          <div
-            className={sidebarStyles["search-context-menu"]}
-            style={{ left: menuPos.x, top: menuPos.y }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div
-              className={sidebarStyles["search-context-item"]}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const fromIndex = sessions.findIndex(
-                  (s) => s.id === result.sessionId,
-                );
-                if (fromIndex !== -1 && fromIndex !== 0) {
-                  moveSession(fromIndex, 0);
-                  // 可选：将视图切换到首页并选中新位置的会话
-                  router.push(Path.Home);
-                }
-                setMenuOpen(false);
-              }}
-            >
-              移至顶部
-            </div>
-          </div>,
-          document.body,
-        )}
+      {menu.render(
+        <div
+          className={sidebarStyles["search-context-item"]}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const fromIndex = sessions.findIndex(
+              (s) => s.id === result.sessionId,
+            );
+            if (fromIndex !== -1 && fromIndex !== 0) {
+              moveSession(fromIndex, 0);
+              router.push(Path.Home);
+            }
+            menu.close();
+          }}
+        >
+          移至顶部
+        </div>,
+      )}
     </div>
   );
 }
