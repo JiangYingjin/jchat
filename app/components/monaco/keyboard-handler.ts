@@ -1,4 +1,4 @@
-import * as monaco from "monaco-editor";
+import type * as monaco from "monaco-editor";
 
 /**
  * Monaco Editor 键盘事件处理器
@@ -19,6 +19,12 @@ export class KeyboardHandler {
   private currentKeyEventId = 0;
   private processedKeyEvents = new Set<string>();
 
+  // Shift 选区与内部状态
+  private selectionAnchor: { lineNumber: number; column: number } | null = null;
+  private isShiftSelecting = false;
+  private isComposing = false;
+  private isInternalUpdate = false;
+
   constructor(editorInstance: monaco.editor.IStandaloneCodeEditor) {
     this.editorInstance = editorInstance;
     // 设置键盘处理器引用，以便在拦截方法中访问
@@ -37,6 +43,9 @@ export class KeyboardHandler {
     methodName: string,
   ): boolean {
     if (!this.editorInstance) return false;
+
+    // 内部更新时不阻断
+    if (this.isInternalUpdate) return false;
 
     const currentTime = performance.now();
     const currentPosition = this.editorInstance.getPosition();
@@ -301,6 +310,27 @@ export class KeyboardHandler {
     // 🎯 简化为单点拦截策略 - 只在最早阶段进行重复检测
     const editorDomNode = this.editorInstance.getDomNode();
     if (editorDomNode) {
+      // 组合输入标志
+      editorDomNode.addEventListener("compositionstart", () => {
+        this.isComposing = true;
+      });
+      editorDomNode.addEventListener("compositionend", () => {
+        this.isComposing = false;
+      });
+
+      // 监听 keyup 以在 Shift 释放时退出选区模式
+      editorDomNode.addEventListener(
+        "keyup",
+        (e: Event) => {
+          const keyEvent = e as KeyboardEvent;
+          if (keyEvent.key === "Shift") {
+            this.isShiftSelecting = false;
+            this.selectionAnchor = null;
+          }
+        },
+        true,
+      );
+
       // 🚨 选择性接管策略：只拦截问题键，保留上下键原生视觉行移动
       editorDomNode.addEventListener(
         "keydown",
@@ -332,6 +362,119 @@ export class KeyboardHandler {
             "End", // 简单的行尾跳转
           ].includes(keyEvent.key);
 
+          // 如果当前不按住 Shift，则退出 Shift 选区模式
+          if (!keyEvent.shiftKey && this.isShiftSelecting) {
+            this.isShiftSelecting = false;
+            this.selectionAnchor = null;
+          }
+
+          // 处理 Shift + 左右键：扩展/收缩选区（逐字符，支持跨行）
+          if (
+            (keyEvent.key === "ArrowLeft" || keyEvent.key === "ArrowRight") &&
+            keyEvent.shiftKey &&
+            !this.isComposing
+          ) {
+            // 早期去重
+            const isDuplicateEvent = timeDiff < 100 && timeDiff > 0;
+            if (isDuplicateEvent) {
+              e.preventDefault();
+              e.stopImmediatePropagation();
+              return false;
+            }
+
+            e.preventDefault();
+            e.stopImmediatePropagation();
+
+            if (!this.editorInstance) return false;
+            const model = this.editorInstance.getModel();
+            const currentPosition = this.editorInstance.getPosition();
+            const selection = this.editorInstance.getSelection();
+            if (!model || !currentPosition || !selection) return false;
+
+            // 初始化锚点
+            if (!this.isShiftSelecting || !this.selectionAnchor) {
+              if (!selection.isEmpty()) {
+                // 活动端为当前光标，锚点取另一端
+                const start = {
+                  lineNumber: selection.startLineNumber,
+                  column: selection.startColumn,
+                };
+                const end = {
+                  lineNumber: selection.endLineNumber,
+                  column: selection.endColumn,
+                };
+                const pos = currentPosition;
+                const isActiveAtEnd =
+                  pos.lineNumber === end.lineNumber &&
+                  pos.column === end.column;
+                this.selectionAnchor = isActiveAtEnd ? start : end;
+              } else {
+                this.selectionAnchor = { ...currentPosition };
+              }
+              this.isShiftSelecting = true;
+            }
+
+            const maxLineNumber = model.getLineCount();
+            const currentLineLength = model.getLineLength(
+              currentPosition.lineNumber,
+            );
+
+            let newActive: { lineNumber: number; column: number } | null = null;
+
+            if (keyEvent.key === "ArrowRight") {
+              if (currentPosition.column <= currentLineLength) {
+                newActive = {
+                  lineNumber: currentPosition.lineNumber,
+                  column: currentPosition.column + 1,
+                };
+              } else if (currentPosition.lineNumber < maxLineNumber) {
+                newActive = {
+                  lineNumber: currentPosition.lineNumber + 1,
+                  column: 1,
+                };
+              }
+            } else if (keyEvent.key === "ArrowLeft") {
+              if (currentPosition.column > 1) {
+                newActive = {
+                  lineNumber: currentPosition.lineNumber,
+                  column: currentPosition.column - 1,
+                };
+              } else if (currentPosition.lineNumber > 1) {
+                const prevLineLength = model.getLineLength(
+                  currentPosition.lineNumber - 1,
+                );
+                newActive = {
+                  lineNumber: currentPosition.lineNumber - 1,
+                  column: prevLineLength + 1,
+                };
+              }
+            }
+
+            if (newActive && this.selectionAnchor) {
+              const anchor = this.selectionAnchor;
+              // 内部更新，避免被 shouldBlockMove 拦截
+              this.isInternalUpdate = true;
+              try {
+                const newSel = {
+                  startLineNumber: anchor.lineNumber,
+                  startColumn: anchor.column,
+                  endLineNumber: newActive.lineNumber,
+                  endColumn: newActive.column,
+                } as monaco.Selection | monaco.ISelection;
+                this.editorInstance.setSelection(newSel as any);
+                this.editorInstance.revealPosition(newActive);
+              } finally {
+                // 微延时后清除内部标志，避免同步链路触发拦截
+                setTimeout(() => {
+                  this.isInternalUpdate = false;
+                }, 0);
+              }
+            }
+
+            this.lastKeyTime = currentTime;
+            return false;
+          }
+
           if (isTargetKey) {
             // 🚨 检测重复事件
             const isDuplicateEvent = timeDiff < 100 && timeDiff > 0;
@@ -346,7 +489,7 @@ export class KeyboardHandler {
             e.preventDefault();
             e.stopImmediatePropagation();
 
-            // 🎯 自行实现光标移动逻辑
+            // 🎯 自行实现光标移动逻辑（非 Shift 模式下）
             const currentPosition = this.editorInstance?.getPosition();
             if (!currentPosition || !this.editorInstance) {
               return false;
