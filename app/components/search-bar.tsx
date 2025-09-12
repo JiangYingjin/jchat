@@ -360,7 +360,7 @@ function SearchResultItem({
                 setMenuOpen(false);
               }}
             >
-              移动到会话列表开头
+              移至顶部
             </div>
           </div>,
           document.body,

@@ -586,30 +586,61 @@
 .search-context-menu {
   position: fixed;
   z-index: 9999;
-  min-width: 160px;
+  min-width: 120px;
   background: var(--white);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
-  border: 1px solid rgba(0, 0, 0, 0.06);
-  border-radius: 8px;
-  padding: 6px 0;
+  box-shadow:
+    0 6px 24px rgba(0, 0, 0, 0.08),
+    0 1px 2px rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  padding: 4px 0;
   user-select: none;
   pointer-events: auto;
+  animation: contextMenuFade 100ms ease-out;
+  transform-origin: top left;
+
+  @supports (
+    (-webkit-backdrop-filter: blur(8px)) or (backdrop-filter: blur(8px))
+  ) {
+    background: rgba(255, 255, 255, 0.92);
+    -webkit-backdrop-filter: saturate(140%) blur(10px);
+    backdrop-filter: saturate(140%) blur(10px);
+    border-color: rgba (0, 0, 0, 0.06);
+  }
 
   .search-context-item {
-    padding: 8px 12px;
-    font-size: 12px;
-    color: #333;
+    padding: 7px 12px;
+    font-size: 12.5px;
+    color: #1f2937;
     cursor: pointer;
     white-space: nowrap;
-    transition: background-color 0.15s ease;
+    transition: background-color 0.12s ease;
+    line-height: 1.15;
+    outline: none;
 
     &:hover {
-      background: rgba(0, 0, 0, 0.04);
+      background: rgba(var(--primary-rgb, 0, 0, 0), 0.06);
     }
 
     &:active {
-      background: rgba(0, 0, 0, 0.08);
+      background: rgba(var(--primary-rgb, 0, 0, 0), 0.12);
     }
+
+    &:focus-visible {
+      box-shadow: inset 0 0 0 2px rgba(var(--primary-rgb, 52, 152, 219), 0.35);
+      border-radius: 6px;
+    }
+  }
+}
+
+@keyframes contextMenuFade {
+  from {
+    opacity: 0;
+    transform: translateY(2px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
   }
 }
 
