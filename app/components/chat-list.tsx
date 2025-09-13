@@ -29,6 +29,7 @@ import { useRef, useMemo } from "react";
 import { useMobileScreen } from "../utils";
 import { useAppReadyGuard } from "../hooks/app-ready";
 import { useContextMenu } from "./context-menu";
+import { showToast } from "./ui-lib";
 import sidebarStyles from "../styles/sidebar.module.scss";
 
 /**
@@ -236,6 +237,7 @@ export function ChatItem(props: {
               e.stopPropagation();
               if (props.index !== 0) {
                 moveSession(props.index, 0);
+                showToast(`会话 "${props.title}" 已移至顶部`);
                 // 移除不必要的路由跳转，因为用户已经在首页
               }
               menu.close();

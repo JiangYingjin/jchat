@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import { useContextMenu } from "./context-menu";
 import { useChatStore } from "../store";
+import { showToast } from "./ui-lib";
 import sidebarStyles from "../styles/sidebar.module.scss";
 import SearchIcon from "../icons/search.svg";
 import { IconButton } from "./button";
@@ -296,6 +297,7 @@ function SearchResultItem({
             );
             if (fromIndex !== -1 && fromIndex !== 0) {
               moveSession(fromIndex, 0);
+              showToast(`会话 "${result.topic}" 已移至顶部`);
               // 移除不必要的路由跳转，因为用户已经在首页
             }
             menu.close();
