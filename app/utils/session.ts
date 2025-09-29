@@ -400,6 +400,114 @@ export async function checkHasSystemPrompt(
   }
 }
 
+// ==============================
+// 会话层指标聚合
+// ==============================
+export interface SessionAggregatedMetrics {
+  totalCost: number;
+  totalPromptTokens: number;
+  totalCompletionTokens: number;
+  avgTtft: number | null;
+  avgTotalTime: number | null;
+  weightedTps: number | null;
+  sampleCounts: {
+    assistantMessages: number;
+    ttft: number;
+    totalTime: number;
+    tps: number; // 有效样本数（当使用简单平均时可用）
+  };
+}
+
+/**
+ * 聚合会话内模型消息的统计指标
+ * - 默认仅统计已完成消息（streaming !== true）且 role === "assistant"
+ * - 加权 TPS = sum(completion_tokens) / sum(max(total_time - ttft, 0))
+ */
+export function aggregateSessionMetrics(
+  session: ChatSession,
+  options?: { includeStreaming?: boolean },
+): SessionAggregatedMetrics {
+  const includeStreaming = options?.includeStreaming === true;
+
+  let totalCost = 0;
+  let totalPromptTokens = 0;
+  let totalCompletionTokens = 0;
+
+  let sumTtft = 0;
+  let sumTotalTime = 0;
+  let cntTtft = 0;
+  let cntTotalTime = 0;
+
+  let weightedTpsNumerator = 0; // sum(completion_tokens)
+  let weightedTpsDenominator = 0; // sum(max(total_time - ttft, 0))
+
+  let cntAssistant = 0;
+  let cntTps = 0; // 仅用于备用的简单平均
+
+  for (const m of session.messages) {
+    if (m.role !== "assistant") continue;
+    if (!includeStreaming && m.streaming) continue;
+    if (m.isError) continue;
+
+    cntAssistant += 1;
+
+    if (typeof m.cost === "number") totalCost += m.cost;
+    if (typeof m.prompt_tokens === "number")
+      totalPromptTokens += m.prompt_tokens;
+    if (typeof m.completion_tokens === "number")
+      totalCompletionTokens += m.completion_tokens;
+
+    if (typeof m.ttft === "number") {
+      sumTtft += m.ttft;
+      cntTtft += 1;
+    }
+    if (typeof m.total_time === "number") {
+      sumTotalTime += m.total_time;
+      cntTotalTime += 1;
+    }
+
+    // 加权 TPS 累加器
+    if (
+      typeof m.completion_tokens === "number" &&
+      typeof m.total_time === "number" &&
+      typeof m.ttft === "number"
+    ) {
+      const effective = Math.max(m.total_time - m.ttft, 0);
+      if (effective > 0) {
+        weightedTpsNumerator += m.completion_tokens;
+        weightedTpsDenominator += effective;
+        cntTps += 1;
+      }
+    }
+  }
+
+  const avgTtft =
+    cntTtft > 0 ? Math.round((sumTtft / cntTtft) * 100) / 100 : null;
+  const avgTotalTime =
+    cntTotalTime > 0
+      ? Math.round((sumTotalTime / cntTotalTime) * 100) / 100
+      : null;
+  const weightedTps =
+    weightedTpsDenominator > 0
+      ? Math.round((weightedTpsNumerator / weightedTpsDenominator) * 100) / 100
+      : null;
+
+  return {
+    totalCost: Math.round(totalCost * 100) / 100,
+    totalPromptTokens,
+    totalCompletionTokens,
+    avgTtft,
+    avgTotalTime,
+    weightedTps,
+    sampleCounts: {
+      assistantMessages: cntAssistant,
+      ttft: cntTtft,
+      totalTime: cntTotalTime,
+      tps: cntTps,
+    },
+  };
+}
+
 /**
  * 过滤指定组内的空会话（标题为默认、系统提示词为空、消息列表为空）
  */

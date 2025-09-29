@@ -2,20 +2,11 @@ import React, { useState, useEffect } from "react";
 import { ChatMessage, useChatStore } from "../store";
 import styles from "../styles/chat.module.scss";
 import { showToast } from "./ui-lib";
+import { formatTime, formatCost, formatTps } from "../utils/metrics";
 
 interface MessageMetricsProps {
   message: ChatMessage;
 }
-
-// 格式化时间显示
-const formatTime = (time: number): string => {
-  return time < 10 ? time.toFixed(1) : Math.round(time).toString();
-};
-
-// 格式化成本显示
-const formatCost = (cost: number): string => {
-  return cost < 1 ? cost.toFixed(2) : cost.toFixed(1);
-};
 
 // 构建指标显示内容
 const buildMetrics = (message: ChatMessage, isExpanded: boolean) => {
@@ -46,7 +37,8 @@ const buildMetrics = (message: ChatMessage, isExpanded: boolean) => {
     }
 
     if (message.tps) {
-      timePart = timePart ? `${timePart} (${message.tps})` : `(${message.tps})`;
+      const tpsStr = formatTps(message.tps);
+      timePart = timePart ? `${timePart} (${tpsStr})` : `(${tpsStr})`;
     }
 
     if (timePart) {

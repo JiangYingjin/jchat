@@ -7,6 +7,8 @@ import Locale from "../locales";
 import ConfirmIcon from "../icons/confirm.svg";
 import CancelIcon from "../icons/cancel.svg";
 import ReloadIcon from "../icons/reload.svg";
+import { aggregateSessionMetrics } from "../utils/session";
+import { formatCost, formatTime, formatTps } from "../utils/metrics";
 
 export function SessionEditor(props: { onClose: () => void }) {
   const chatStore = useChatStore();
@@ -84,6 +86,61 @@ export function SessionEditor(props: { onClose: () => void }) {
               }}
             />
           </ListItem>
+
+          {(() => {
+            const metrics = aggregateSessionMetrics(session, {
+              includeStreaming: false,
+            });
+
+            const costStr =
+              metrics.totalCost > 0 ? `￥${formatCost(metrics.totalCost)}` : "";
+
+            const inTokens = metrics.totalPromptTokens || 0;
+            const outTokens = metrics.totalCompletionTokens || 0;
+            const tokensStr =
+              inTokens + outTokens > 0 ? `${inTokens}/${outTokens}` : "";
+
+            const ttftStr = (() => {
+              return typeof metrics.avgTtft === "number"
+                ? `${formatTime(metrics.avgTtft)}s`
+                : "";
+            })();
+
+            const totalStr = (() => {
+              return typeof metrics.avgTotalTime === "number"
+                ? `${formatTime(metrics.avgTotalTime)}s`
+                : "";
+            })();
+
+            const tpsStr = (() => {
+              return typeof metrics.weightedTps === "number"
+                ? formatTps(metrics.weightedTps)
+                : "";
+            })();
+
+            const parts: string[] = [];
+            if (costStr) parts.push(costStr);
+            if (tokensStr) parts.push(tokensStr);
+
+            const timePieces: string[] = [];
+            if (ttftStr) timePieces.push(ttftStr);
+            if (totalStr) timePieces.push(totalStr);
+            let timePart = timePieces.join("/");
+            if (timePart) {
+              timePart = tpsStr ? `${timePart} (${tpsStr})` : timePart;
+              parts.push(timePart);
+            } else if (tpsStr) {
+              parts.push(`(${tpsStr})`);
+            }
+
+            if (parts.length === 0) return null;
+
+            return (
+              <ListItem title="统计数据">
+                <div>{parts.join(" · ")}</div>
+              </ListItem>
+            );
+          })()}
         </List>
       </Modal>
     </div>
