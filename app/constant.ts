@@ -36,7 +36,7 @@ export const EXPORT_MESSAGE_CLASS_NAME = "export-markdown";
 
 export const FALLBACK_BASE_URL = "oneapi.jyj.cx";
 export const FALLBACK_MODEL = "jyj.cx/flash";
-export const LONG_TEXT_PREFERRED_MODEL = "jyj.cx/think";
+export const LONG_TEXT_PREFERRED_MODEL = "jyj.cx/fast-think";
 export const GROUP_SESSION_PREFERRED_MODEL = "jyj.cx/think";
 
 export const CHAT_PAGE_SIZE = 15;

@@ -72,12 +72,14 @@ export function MessageList({
   const prevMessageLength = useRef(messages.length);
   useEffect(() => {
     if (messages.length > prevMessageLength.current) {
-      // 只有消息增加时才重置到最后一页
-      const newIndex = Math.max(0, messages.length - CHAT_PAGE_SIZE);
-      setMsgRenderIndex(newIndex);
+      // 只有消息增加时才重置到最后一页；仅在允许自动滚动时才跳转
+      if (autoScroll) {
+        const newIndex = Math.max(0, messages.length - CHAT_PAGE_SIZE);
+        setMsgRenderIndex(newIndex);
+      }
     }
     prevMessageLength.current = messages.length;
-  }, [messages.length]);
+  }, [messages.length, autoScroll]);
 
   function updateMsgRenderIndex(newIndex: number) {
     newIndex = Math.min(messages.length - CHAT_PAGE_SIZE, newIndex);

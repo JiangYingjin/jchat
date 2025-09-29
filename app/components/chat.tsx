@@ -140,7 +140,7 @@ const Chat = React.memo(function Chat() {
         });
         setIsLoading(false);
       });
-    setAutoScroll(true);
+    setAutoScroll(hitBottom);
   };
 
   const onUserStop = (messageId: string) => {
@@ -198,6 +198,8 @@ const Chat = React.memo(function Chat() {
         console.error("[onResend] 重试失败:", error);
         setIsLoading(false);
       });
+    // 仅在用户视图已在底部时保持自动滚动
+    setAutoScroll(hitBottom);
   };
 
   const deleteMessage = async (msgId?: string) => {
