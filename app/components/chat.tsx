@@ -19,6 +19,7 @@ import {
   systemMessageStorage,
   ChatSession,
 } from "../store";
+import { useShallow } from "zustand/react/shallow";
 import { useAppReadyGuard } from "../hooks/app-ready";
 import { useSubmitHandler, useTripleClick } from "../utils/hooks";
 import { updateSessionStatsBasic, updateSessionStats } from "../utils/session";
@@ -83,23 +84,47 @@ const isSessionEqual = (prev: any, next: any) => {
   // 比较消息数组长度
   if (prev.messages?.length !== next.messages?.length) return false;
 
-  // 比较消息内容（只比较前几条消息的 ID 和内容，避免性能问题）
+  // 比较消息内容 - 修复：比较所有消息，而不仅仅是最后4条
   const prevMessages = prev.messages || [];
   const nextMessages = next.messages || [];
 
   if (prevMessages.length !== nextMessages.length) return false;
 
-  // 比较最后几条消息的 ID 和内容（resend 通常影响最后的消息）
-  const compareCount = Math.min(4, prevMessages.length);
-  for (let i = 0; i < compareCount; i++) {
-    const prevMsg = prevMessages[prevMessages.length - 1 - i];
-    const nextMsg = nextMessages[nextMessages.length - 1 - i];
+  // 🔧 修复：比较所有消息的ID和内容，确保resend时能正确检测变化
+  console.log("🔍 [isSessionEqual] 开始比较所有消息", {
+    prevMessagesLength: prevMessages.length,
+    nextMessagesLength: nextMessages.length,
+    sessionId: prev.id,
+  });
+
+  for (let i = 0; i < prevMessages.length; i++) {
+    const prevMsg = prevMessages[i];
+    const nextMsg = nextMessages[i];
+
+    if (!prevMsg || !nextMsg) {
+      console.log("🔍 [isSessionEqual] 消息数量不匹配", { index: i });
+      return false;
+    }
 
     if (prevMsg.id !== nextMsg.id || prevMsg.content !== nextMsg.content) {
+      console.log("🔍 [isSessionEqual] 检测到消息变化", {
+        index: i,
+        prevMsgId: prevMsg.id,
+        nextMsgId: nextMsg.id,
+        prevContent:
+          typeof prevMsg.content === "string"
+            ? prevMsg.content.substring(0, 50)
+            : "MultimodalContent",
+        nextContent:
+          typeof nextMsg.content === "string"
+            ? nextMsg.content.substring(0, 50)
+            : "MultimodalContent",
+      });
       return false;
     }
   }
 
+  console.log("🔍 [isSessionEqual] 所有消息比较完成，无变化");
   return true;
 };
 
@@ -108,8 +133,10 @@ const Chat = React.memo(function Chat() {
 
   // --- State, Refs, and Hooks ---
   // 使用细粒度订阅，只订阅当前会话对象
-  // 使用稳定的选择器和比较函数，避免不必要的重新渲染
-  const currentSession = useChatStore(selectCurrentSession, isSessionEqual);
+  // 使用useShallow替代弃用的equalityFn参数
+  const currentSession = useChatStore(
+    useShallow((state) => selectCurrentSession(state)),
+  );
 
   const sessionId = currentSession?.id;
 
@@ -327,6 +354,15 @@ const Chat = React.memo(function Chat() {
         })) || [],
     });
 
+    // 🔧 添加调试信息：记录resend前的消息状态
+    console.log("🔍 [RESEND] 重新发送前消息状态", {
+      sessionId: session.id,
+      messagesCount: session.messages?.length || 0,
+      messagesIds: session.messages?.map((m) => m.id) || [],
+      targetMessageIndex:
+        session.messages?.findIndex((m) => m.id === message.id) ?? -1,
+    });
+
     // 检查 session.messages 是否已加载
     if (!session.messages || session.messages.length === 0) {
       console.error("[Chat] ❌ 重新发送失败：session.messages 为空或未加载", {
@@ -399,6 +435,12 @@ const Chat = React.memo(function Chat() {
       )
       .then(async () => {
         setIsLoading(false);
+        // 🔧 添加调试信息：记录resend完成后的状态
+        console.log("🔍 [RESEND] 重新发送完成", {
+          sessionId: session.id,
+          messagesCount: session.messages?.length || 0,
+          messagesIds: session.messages?.map((m) => m.id) || [],
+        });
       })
       .catch((error) => {
         console.error("[onResend] 重试失败:", error);
@@ -1100,11 +1142,9 @@ export function ChatPage() {
 
   // 只订阅当前会话的 ID，不订阅 currentSessionIndex 和 sessions 数组
   // 使用稳定的选择器函数，避免重新创建
-  // 明确使用相等性比较函数，只有 sessionId 真正变化时才触发重新渲染
+  // 使用useShallow替代弃用的equalityFn参数
   const currentSessionId = useChatStore(
-    selectCurrentSessionId,
-    // 使用严格相等比较
-    Object.is,
+    useShallow((state) => selectCurrentSessionId(state)),
   );
 
   // 追踪重新渲染次数和 sessionId 变化
