@@ -176,7 +176,7 @@ function MobileAwareLayout({
   isHome: boolean;
   isMobileScreen: boolean;
 }) {
-  const chatStore = useChatStore();
+  // 不要订阅整个 store，使用 getState() 来访问方法
   const router = useRouter();
   const pathname = usePathname();
   const mobileViewState = useChatStore((state) => state.mobileViewState);
@@ -185,7 +185,7 @@ function MobileAwareLayout({
   useEffect(() => {
     if (isMobileScreen && typeof window !== "undefined") {
       // 移动端初始化：确保总是从侧边栏开始
-      chatStore.showSidebarOnMobile();
+      useChatStore.getState().showSidebarOnMobile();
 
       // 建立正确的历史记录状态
       window.history.replaceState(
@@ -208,7 +208,7 @@ function MobileAwareLayout({
         event.stopPropagation();
 
         // 切换到侧边栏状态
-        chatStore.showSidebarOnMobile();
+        useChatStore.getState().showSidebarOnMobile();
 
         // 添加一个新的历史记录条目，确保用户在侧边栏时再次返回才会退出应用
         window.history.pushState(
@@ -255,7 +255,7 @@ function MobileAwareLayout({
     return () => {
       window.removeEventListener("popstate", handlePopState);
     };
-  }, [mobileViewState, isMobileScreen, chatStore, pathname]);
+  }, [mobileViewState, isMobileScreen, pathname]);
 
   // 移动端：根据mobileViewState决定显示哪个界面
   if (isMobileScreen) {

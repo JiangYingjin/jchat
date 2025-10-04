@@ -55,13 +55,171 @@ import { ExportMessageModal } from "./exporter";
 // --- Styles ---
 import styles from "../styles/chat.module.scss";
 
+// 将选择器和比较函数提取到组件外部，避免每次渲染时重新创建
+const selectCurrentSession = (state: any) => {
+  if (
+    state.sessions.length === 0 ||
+    state.currentSessionIndex < 0 ||
+    state.currentSessionIndex >= state.sessions.length
+  ) {
+    return null;
+  }
+  return state.sessions[state.currentSessionIndex];
+};
+
+// 自定义比较函数：只有会话的关键属性变化时才触发重新渲染
+// 注意：我们需要比较消息内容，因为 resend 时删除和插入的消息数量可能相同
+// 导致 messages.length 不变，但消息内容已经改变
+const isSessionEqual = (prev: any, next: any) => {
+  if (!prev && !next) return true;
+  if (!prev || !next) return false;
+
+  // 比较会话 ID
+  if (prev.id !== next.id) return false;
+
+  // 比较会话标题
+  if (prev.title !== next.title) return false;
+
+  // 比较消息数组长度
+  if (prev.messages?.length !== next.messages?.length) return false;
+
+  // 比较消息内容（只比较前几条消息的 ID 和内容，避免性能问题）
+  const prevMessages = prev.messages || [];
+  const nextMessages = next.messages || [];
+
+  if (prevMessages.length !== nextMessages.length) return false;
+
+  // 比较最后几条消息的 ID 和内容（resend 通常影响最后的消息）
+  const compareCount = Math.min(4, prevMessages.length);
+  for (let i = 0; i < compareCount; i++) {
+    const prevMsg = prevMessages[prevMessages.length - 1 - i];
+    const nextMsg = nextMessages[nextMessages.length - 1 - i];
+
+    if (prevMsg.id !== nextMsg.id || prevMsg.content !== nextMsg.content) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
 const Chat = React.memo(function Chat() {
   type RenderMessage = ChatMessage & { preview?: boolean };
 
   // --- State, Refs, and Hooks ---
-  const chatStore = useChatStore();
-  const session = chatStore.currentSession();
+  // 使用细粒度订阅，只订阅当前会话对象
+  // 使用稳定的选择器和比较函数，避免不必要的重新渲染
+  const currentSession = useChatStore(selectCurrentSession, isSessionEqual);
+
+  const sessionId = currentSession?.id;
+
+  // 保留 chatStore 用于调用方法，但不用于状态订阅
+  // 使用 useChatStore.getState() 来访问方法而不订阅状态变化
+  const chatStore = React.useMemo(() => useChatStore.getState(), []);
+
+  // 由于使用了自定义选择器和比较函数，currentSession 已经是稳定的了
+  // ChatPage 已经确保了 currentSession 不会为 null
+  const session = currentSession as ChatSession;
+
+  // 追踪会话对象变化的原因
+  const prevSessionRef = React.useRef<{
+    id: string | null;
+    title: string | null;
+    messagesLength: number;
+    messages: any[];
+  }>({ id: null, title: null, messagesLength: 0, messages: [] });
+
+  const renderReason = React.useMemo(() => {
+    if (!prevSessionRef.current.id) return "初始渲染";
+    if (prevSessionRef.current.id !== session.id) return "会话切换";
+    if (prevSessionRef.current.title !== session.title)
+      return `标题变化 (${prevSessionRef.current.title} -> ${session.title})`;
+    if (
+      prevSessionRef.current.messagesLength !== (session.messages?.length || 0)
+    ) {
+      return `消息数量变化 (${prevSessionRef.current.messagesLength} -> ${session.messages?.length || 0})`;
+    }
+
+    // 检查消息内容是否变化（比较最后几条消息）
+    const prevMessages = prevSessionRef.current.messages || [];
+    const currentMessages = session.messages || [];
+    const compareCount = Math.min(
+      2,
+      Math.min(prevMessages.length, currentMessages.length),
+    );
+
+    for (let i = 0; i < compareCount; i++) {
+      const prevMsg = prevMessages[prevMessages.length - 1 - i];
+      const currentMsg = currentMessages[currentMessages.length - 1 - i];
+
+      if (
+        prevMsg &&
+        currentMsg &&
+        (prevMsg.id !== currentMsg.id || prevMsg.content !== currentMsg.content)
+      ) {
+        return `消息内容变化 (最后${i + 1}条消息)`;
+      }
+    }
+
+    return "无变化（不应该渲染）";
+  }, [session.id, session.title, session.messages]);
+
+  React.useEffect(() => {
+    prevSessionRef.current = {
+      id: session.id,
+      title: session.title,
+      messagesLength: session.messages?.length || 0,
+      messages: session.messages || [],
+    };
+  });
+
+  console.log("🔥 [CHAT] Chat组件渲染", {
+    sessionId,
+    sessionTitle: session.title,
+    messageCount: session.messageCount,
+    messagesLength: session.messages?.length || 0,
+    renderReason,
+    timestamp: Date.now(),
+  });
+
   const allModels = chatStore.models;
+
+  // 添加调试信息，追踪会话变化和组件重新渲染
+  useEffect(() => {
+    console.log("🔥 [CHAT] 会话变化", {
+      sessionId: session.id,
+      sessionTitle: session.title,
+      messageCount: session.messageCount,
+      messagesLength: session.messages?.length || 0,
+      hasMessages: !!(session.messages && session.messages.length > 0),
+      messagesPreview:
+        session.messages?.slice(0, 2).map((m: any) => ({
+          role: m.role,
+          content:
+            typeof m.content === "string"
+              ? m.content.substring(0, 50)
+              : "MultimodalContent",
+        })) || [],
+      timestamp: Date.now(),
+    });
+  }, [session.id, session.title, session.messageCount, session.messages]);
+
+  // 添加组件挂载/卸载调试信息
+  useEffect(() => {
+    console.log("🔥 [CHAT] 组件挂载", {
+      sessionId: session.id,
+      sessionTitle: session.title,
+      timestamp: Date.now(),
+    });
+
+    return () => {
+      console.log("🔥 [CHAT] 组件卸载", {
+        sessionId: session.id,
+        sessionTitle: session.title,
+        timestamp: Date.now(),
+      });
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -148,12 +306,60 @@ const Chat = React.memo(function Chat() {
   };
 
   const onResend = (message: ChatMessage) => {
+    console.log("🔥 [RESEND] 开始重新发送消息", {
+      targetMessageId: message.id,
+      targetMessageRole: message.role,
+      targetMessageContent:
+        typeof message.content === "string"
+          ? message.content.substring(0, 50)
+          : "MultimodalContent",
+      sessionId: session.id,
+      sessionMessagesLength: session.messages?.length || 0,
+      sessionHasMessages: !!(session.messages && session.messages.length > 0),
+      sessionMessagesPreview:
+        session.messages?.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content:
+            typeof m.content === "string"
+              ? m.content.substring(0, 30)
+              : "Multimodal",
+        })) || [],
+    });
+
+    // 检查 session.messages 是否已加载
+    if (!session.messages || session.messages.length === 0) {
+      console.error("[Chat] ❌ 重新发送失败：session.messages 为空或未加载", {
+        sessionId: session.id,
+        messageCount: session.messageCount,
+        messagesLength: session.messages?.length || 0,
+      });
+      return;
+    }
+
     const { userMessage, botMessage, requestIndex } = findMessagePairForResend(
       session.messages,
       message.id,
     );
+
+    console.log("🔥 [RESEND] findMessagePairForResend 结果", {
+      userMessage: userMessage
+        ? { id: userMessage.id, role: userMessage.role }
+        : null,
+      botMessage: botMessage
+        ? { id: botMessage.id, role: botMessage.role }
+        : null,
+      requestIndex,
+      findResult: !userMessage ? "未找到用户消息" : "找到用户消息",
+    });
+
     if (!userMessage) {
-      console.error("[Chat] failed to resend", message);
+      console.error("[Chat] ❌ 重新发送失败：未找到用户消息", {
+        targetMessage: message,
+        targetMessageId: message.id,
+        sessionMessagesIds: session.messages.map((m) => m.id),
+        isMessageIdInSession: session.messages.some((m) => m.id === message.id),
+      });
       return;
     }
 
@@ -225,12 +431,15 @@ const Chat = React.memo(function Chat() {
 
   const onDelete = (msgId: string) => {
     const prevMessages = session.messages.slice();
+    let isDeleted = true; // 标记是否真正删除
+
     deleteMessage(msgId);
     showToast(
       Locale.Chat.DeleteMessageToast,
       {
         text: Locale.Chat.Revert,
         async onClick() {
+          isDeleted = false; // 用户撤销了删除
           updateSession((session) => {
             session.messages = prevMessages;
             updateSessionStatsBasic(session); // 先同步更新基础统计信息
@@ -253,6 +462,44 @@ const Chat = React.memo(function Chat() {
       },
       5000,
     );
+
+    // 撤销超时后（5秒），如果用户没有撤销，则广播删除事件
+    setTimeout(() => {
+      if (isDeleted) {
+        console.log("🔥 [MESSAGE_SYNC] 消息删除确认，广播更新", {
+          sessionId: session.id,
+          messageId: msgId,
+          messageCount: session.messageCount,
+          timestamp: Date.now(),
+        });
+
+        // 直接发送广播消息，不依赖状态变化检测
+        if (
+          typeof window !== "undefined" &&
+          (window as any).__jchat_broadcast_channel
+        ) {
+          const message = {
+            type: "STATE_UPDATE_AVAILABLE",
+            payload: {
+              lastUpdate: Date.now(),
+              changeType: "messageUpdate", // 专门的消息更新类型
+              sessionId: session.id,
+            },
+          };
+
+          console.log("🔥 [MESSAGE_SYNC] 发送消息删除广播", {
+            message,
+            broadcastChannelExists: !!(window as any).__jchat_broadcast_channel,
+          });
+
+          (window as any).__jchat_broadcast_channel.postMessage(message);
+        } else {
+          console.warn(
+            "🔥 [MESSAGE_SYNC] Broadcast Channel 不存在，无法发送广播",
+          );
+        }
+      }
+    }, 5100); // 略大于 Toast 超时时间，确保用户已经无法撤销
   };
 
   const handleBranch = async (message: ChatMessage, messageIndex: number) => {
@@ -280,7 +527,7 @@ const Chat = React.memo(function Chat() {
 
     if (message.role === "assistant") {
       // 查找上一个用户消息
-      const idx = session.messages.findIndex((m) => m.id === message.id);
+      const idx = session.messages.findIndex((m: any) => m.id === message.id);
       if (idx === -1) {
         showToast("无法找到当前模型消息");
         return;
@@ -328,7 +575,7 @@ const Chat = React.memo(function Chat() {
 
       // 找到 anchor 用户消息在消息列表中的位置
       const userMessageIndex = session.messages.findIndex(
-        (m) => m.id === anchorMessage.id,
+        (m: any) => m.id === anchorMessage.id,
       );
       if (userMessageIndex === -1) {
         showToast("无法找到用户消息");
@@ -836,9 +1083,42 @@ const Chat = React.memo(function Chat() {
  * A wrapper component that forces the Chat component to re-mount when the session changes.
  * This is a clean way to reset all component state when switching conversations.
  */
+// 将选择器提取到组件外部，避免每次渲染时重新创建
+const selectCurrentSessionId = (state: any) => {
+  if (
+    state.sessions.length === 0 ||
+    state.currentSessionIndex < 0 ||
+    state.currentSessionIndex >= state.sessions.length
+  ) {
+    return null;
+  }
+  return state.sessions[state.currentSessionIndex].id;
+};
+
 export function ChatPage() {
-  const chatStore = useChatStore();
   const isAppReady = useAppReadyGuard();
+
+  // 只订阅当前会话的 ID，不订阅 currentSessionIndex 和 sessions 数组
+  // 使用稳定的选择器函数，避免重新创建
+  // 明确使用相等性比较函数，只有 sessionId 真正变化时才触发重新渲染
+  const currentSessionId = useChatStore(
+    selectCurrentSessionId,
+    // 使用严格相等比较
+    Object.is,
+  );
+
+  // 追踪重新渲染次数和 sessionId 变化
+  const renderCount = React.useRef(0);
+  const lastSessionIdRef = React.useRef<string | null>(null);
+  const sessionIdChanged = lastSessionIdRef.current !== currentSessionId;
+  const previousSessionId = lastSessionIdRef.current;
+
+  renderCount.current += 1;
+
+  // 在 useEffect 中更新，确保在下次渲染时才生效
+  React.useEffect(() => {
+    lastSessionIdRef.current = currentSessionId;
+  });
 
   // 🔥 确保应用完全准备好后再渲染聊天界面
   if (!isAppReady) {
@@ -852,8 +1132,24 @@ export function ChatPage() {
     );
   }
 
-  const session = chatStore.currentSession();
+  // 如果没有会话，显示空状态
+  if (!currentSessionId) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-center">
+          <p className="text-gray-600">暂无会话</p>
+        </div>
+      </div>
+    );
+  }
 
-  // 统一使用会话ID作为key，确保会话切换的可靠性
-  return <Chat key={session.id} />;
+  console.log("🔥 [CHAT_PAGE] ChatPage 重新渲染", {
+    sessionId: currentSessionId,
+    previousSessionId,
+    renderCount: renderCount.current,
+    sessionIdChanged,
+    timestamp: Date.now(),
+  });
+
+  return <Chat key={currentSessionId} />;
 }

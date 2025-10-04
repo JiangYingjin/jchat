@@ -25,7 +25,7 @@ import { useChatStore } from "../store";
 import Locale from "../locales";
 import { usePathname, useRouter } from "next/navigation";
 import { Path } from "../constant";
-import { useRef, useMemo } from "react";
+import { useRef, useMemo, memo } from "react";
 import { useMobileScreen } from "../utils";
 import { useAppReadyGuard } from "../hooks/app-ready";
 import { useContextMenu } from "./context-menu";
@@ -250,19 +250,26 @@ export function ChatItem(props: {
   );
 }
 
-export function ChatList(props: {}) {
-  const [sessions, selectedIndex, selectSession, moveSession] = useChatStore(
-    (state) => [
-      state.sessions,
-      state.currentSessionIndex,
-      state.selectSession,
-      state.moveSession,
-    ],
-  );
+// 创建一个只订阅会话列表的组件，用于跨标签页同步
+const ChatListSessions = memo(function ChatListSessions({
+  sessions,
+  selectedIndex,
+  selectSession,
+  moveSession,
+}: {
+  sessions: any[];
+  selectedIndex: number;
+  selectSession: (index: number) => void;
+  moveSession: (from: number, to: number) => void;
+}) {
   const chatStore = useChatStore();
   const router = useRouter();
   const isMobileScreen = useMobileScreen();
   const isAppReady = useAppReadyGuard();
+
+  // 使用 useMemo 优化渲染，只在 sessions 或 selectedIndex 变化时重新渲染
+  const memoizedSessions = useMemo(() => sessions, [sessions]);
+  const memoizedSelectedIndex = useMemo(() => selectedIndex, [selectedIndex]);
 
   // 🔥 所有 hooks 必须在条件渲染之前调用
   // 配置传感器
@@ -296,10 +303,12 @@ export function ChatList(props: {}) {
     const { active, over } = event;
 
     if (active.id !== over?.id) {
-      const oldIndex = sessions.findIndex(
+      const oldIndex = memoizedSessions.findIndex(
         (session) => session.id === active.id,
       );
-      const newIndex = sessions.findIndex((session) => session.id === over?.id);
+      const newIndex = memoizedSessions.findIndex(
+        (session) => session.id === over?.id,
+      );
 
       if (oldIndex !== -1 && newIndex !== -1) {
         moveSession(oldIndex, newIndex);
@@ -315,18 +324,18 @@ export function ChatList(props: {}) {
       modifiers={[restrictToVerticalAxis, restrictToParentElement]}
     >
       <SortableContext
-        items={sessions.map((session) => session.id)}
+        items={memoizedSessions.map((session) => session.id)}
         strategy={verticalListSortingStrategy}
       >
         <div className={chatItemStyles["chat-list"]}>
-          {sessions.map((item, i) => (
+          {memoizedSessions.map((item, i) => (
             <ChatItem
               title={item.title}
               count={item.messageCount}
               key={item.id}
               id={item.id}
               index={i}
-              selected={i === selectedIndex}
+              selected={i === memoizedSelectedIndex}
               onClick={async () => {
                 await selectSession(i);
                 // 移动端：选择会话后切换到聊天界面
@@ -348,5 +357,24 @@ export function ChatList(props: {}) {
         </div>
       </SortableContext>
     </DndContext>
+  );
+});
+
+// 主要的 ChatList 组件，使用细粒度订阅
+export function ChatList(props: {}) {
+  // 使用细粒度订阅，分别订阅不同的状态
+  const sessions = useChatStore((state) => state.sessions);
+  const selectedIndex = useChatStore((state) => state.currentSessionIndex);
+  const selectSession = useChatStore((state) => state.selectSession);
+  const moveSession = useChatStore((state) => state.moveSession);
+
+  // 使用 React.memo 优化，只在必要的时候重新渲染
+  return (
+    <ChatListSessions
+      sessions={sessions}
+      selectedIndex={selectedIndex}
+      selectSession={selectSession}
+      moveSession={moveSession}
+    />
   );
 }

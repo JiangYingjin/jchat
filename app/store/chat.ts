@@ -104,27 +104,54 @@ async function forceDataRestoration(): Promise<void> {
         }
       }
 
-      // 如果 persist 没有完成 rehydration，直接刷新页面
-      debugLog("FORCE_RESTORE", "Persist 未完成 rehydration，即将刷新页面", {
+      // 如果 persist 没有完成 rehydration，等待它完成
+      debugLog("FORCE_RESTORE", "Persist 未完成 rehydration，等待完成", {
         currentUrl:
           typeof window !== "undefined" ? window.location.href : "unknown",
-        rehydrationFailed: true,
+        waitingForRehydration: true,
         timestamp: Date.now(),
       });
 
-      debugLog("FORCE_RESTORE", "开始刷新页面");
-      if (typeof window !== "undefined") {
-        window.location.reload();
+      // 等待 rehydration 完成，最多等待 10 秒
+      const maxWaitTime = 10000; // 10秒
+      const checkInterval = 100; // 100ms 检查一次
+      let waitedTime = 0;
+
+      while (waitedTime < maxWaitTime) {
+        await new Promise((resolve) => setTimeout(resolve, checkInterval));
+        waitedTime += checkInterval;
+
+        const hasRehydrated = (useChatStore.persist as any).hasHydrated?.();
+        if (hasRehydrated) {
+          debugLog("FORCE_RESTORE", "Persist rehydration 完成", {
+            waitedTime,
+            timestamp: Date.now(),
+          });
+          isHydrated = true;
+          setGlobalDataRestoredFlag(true);
+          return;
+        }
       }
-    } catch (error) {
-      debugLog("FORCE_RESTORE", "数据恢复检查失败，即将刷新页面", {
-        error: error instanceof Error ? error.message : String(error),
+
+      // 如果等待超时，记录警告但不刷新页面
+      debugLog("FORCE_RESTORE", "等待 rehydration 超时，继续运行", {
+        waitedTime,
+        maxWaitTime,
+        timestamp: Date.now(),
       });
 
-      debugLog("FORCE_RESTORE", "因错误刷新页面");
-      if (typeof window !== "undefined") {
-        window.location.reload();
-      }
+      // 即使超时也设置数据恢复标志，避免无限循环
+      isHydrated = true;
+      setGlobalDataRestoredFlag(true);
+    } catch (error) {
+      debugLog("FORCE_RESTORE", "数据恢复检查失败，继续运行", {
+        error: error instanceof Error ? error.message : String(error),
+        timestamp: Date.now(),
+      });
+
+      // 即使出错也设置数据恢复标志，避免无限循环
+      isHydrated = true;
+      setGlobalDataRestoredFlag(true);
     } finally {
       dataRestorationPromise = null;
     }
@@ -142,11 +169,10 @@ function ensureDataRestoration(): Promise<void> {
     }
 
     const timeoutId = setTimeout(() => {
-      debugLog("ENSURE_RESTORE", "数据恢复超时，即将刷新页面");
-      if (typeof window !== "undefined") {
-        window.location.reload();
-      }
-      reject(new Error("数据恢复超时，已刷新页面"));
+      debugLog("ENSURE_RESTORE", "数据恢复超时，继续运行");
+      // 即使超时也设置数据恢复标志，避免无限循环
+      setGlobalDataRestoredFlag(true);
+      resolve();
     }, DATA_RESTORATION_TIMEOUT);
 
     forceDataRestoration()
@@ -156,11 +182,12 @@ function ensureDataRestoration(): Promise<void> {
       })
       .catch((error) => {
         clearTimeout(timeoutId);
-        debugLog("ENSURE_RESTORE", "数据恢复失败，即将刷新页面");
-        if (typeof window !== "undefined") {
-          window.location.reload();
-        }
-        reject(error);
+        debugLog("ENSURE_RESTORE", "数据恢复失败，继续运行", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // 即使失败也设置数据恢复标志，避免无限循环
+        setGlobalDataRestoredFlag(true);
+        resolve();
       });
   });
 }
@@ -395,7 +422,17 @@ async function ensureCurrentSessionDataComplete(): Promise<void> {
 }
 
 // 添加调试日志函数（仅输出关键类别）
-const CRITICAL_DEBUG_CATEGORIES = new Set(["STARTUP", "STORAGE_RETRY"]);
+const CRITICAL_DEBUG_CATEGORIES = new Set([
+  "STARTUP",
+  "STORAGE_RETRY",
+  "NEW_SESSION",
+  "SYNC",
+  "SYNC_CHECK",
+  "PERSIST",
+  "REHYDRATE",
+  "TAB_STATE",
+  "TAB_STATE_AUTO_SAVE",
+]);
 const debugLog = (category: string, message: string, data?: any) => {
   if (!CRITICAL_DEBUG_CATEGORIES.has(category)) {
     return;
@@ -1004,30 +1041,68 @@ export const useChatStore = createPersistStore(
       },
 
       async newSession() {
+        console.log("🔥 [NEW_SESSION] 开始创建新会话 - 直接console.log测试");
         const session = createEmptySession();
+
+        debugLog("NEW_SESSION", "开始创建新会话", {
+          sessionId: session.id,
+          sessionTitle: session.title,
+          currentSessionsCount: get().sessions.length,
+        });
 
         // 总是尝试保存消息，不依赖存储健康状态
         try {
           await get().saveSessionMessages(session);
+          debugLog("NEW_SESSION", "会话消息保存成功", {
+            sessionId: session.id,
+          });
         } catch (error) {
           console.error("[ChatStore] 保存会话消息失败:", error);
+          debugLog("NEW_SESSION", "会话消息保存失败", {
+            sessionId: session.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
           // 即使保存失败，也继续创建会话
         }
 
+        const oldSessions = get().sessions;
+        debugLog("NEW_SESSION", "更新前状态", {
+          oldSessionsCount: oldSessions.length,
+          newSessionId: session.id,
+        });
+
         set((state) => {
+          const newSessions = [session].concat(state.sessions);
+          debugLog("NEW_SESSION", "更新后状态", {
+            newSessionsCount: newSessions.length,
+            currentSessionIndex: 0,
+          });
+
           return {
             currentSessionIndex: 0,
-            sessions: [session].concat(state.sessions),
+            sessions: newSessions,
           };
         });
 
         // 总是尝试加载消息，不依赖存储健康状态
         try {
           await get().loadSessionMessages(0);
+          debugLog("NEW_SESSION", "会话消息加载成功", {
+            sessionId: session.id,
+          });
         } catch (error) {
           console.error("[ChatStore] 加载会话消息失败:", error);
+          debugLog("NEW_SESSION", "会话消息加载失败", {
+            sessionId: session.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
           // 即使加载失败，也不影响会话创建
         }
+
+        debugLog("NEW_SESSION", "新会话创建完成", {
+          sessionId: session.id,
+          finalSessionsCount: get().sessions.length,
+        });
       },
 
       async newGroup(group: ChatGroup) {
@@ -2698,6 +2773,38 @@ export const useChatStore = createPersistStore(
 
             // 🔧 批量模式：请求完成时减少计数器
             get().decrementBatchRequest();
+
+            // 🚀 Streaming 结束后直接广播新消息（延迟以确保状态已同步）
+            setTimeout(() => {
+              console.log("🔥 [MESSAGE_SYNC] Streaming 结束，广播新消息", {
+                sessionId: session.id,
+                messageCount: latestSessionOnFinish.messageCount,
+                timestamp: Date.now(),
+              });
+
+              // 直接发送广播消息，不依赖状态变化检测
+              if (broadcastChannel) {
+                const message = {
+                  type: "STATE_UPDATE_AVAILABLE",
+                  payload: {
+                    lastUpdate: Date.now(),
+                    changeType: "messageUpdate", // 专门的消息更新类型
+                    sessionId: session.id,
+                  },
+                };
+
+                console.log("🔥 [MESSAGE_SYNC] 发送消息更新广播", {
+                  message,
+                  broadcastChannelExists: !!broadcastChannel,
+                });
+
+                broadcastChannel.postMessage(message);
+              } else {
+                console.warn(
+                  "🔥 [MESSAGE_SYNC] Broadcast Channel 不存在，无法发送广播",
+                );
+              }
+            }, 100);
           },
 
           onError(error) {
@@ -3183,11 +3290,26 @@ export const useChatStore = createPersistStore(
       //   hasMobileViewState: "mobileViewState" in state,
       // });
 
-      // 创建一个没有 messages 和 mobileViewState 的 state副本
-      const { mobileViewState, ...stateWithoutMobileView } = state;
-      const stateToPersist = {
-        ...stateWithoutMobileView,
-        sessions: state.sessions.map((session) => {
+      // 创建一个没有 messages 和标签页独立状态的 state副本
+      const {
+        // 标签页独立状态 (Ephemeral State) - 每个标签页应该独立维护
+        currentSessionIndex,
+        currentGroupIndex,
+        chatListView,
+        chatListGroupView,
+        mobileViewState,
+        sidebarScrollPosition,
+        sidebarScrollHistory,
+        batchApplyMode,
+        activeBatchRequests,
+        // 其他不需要持久化的运行时状态
+        ...stateToPersist
+      } = state;
+
+      // 处理 sessions 和 groupSessions 中的 messages，确保它们不被持久化
+      const processedStateToPersist = {
+        ...stateToPersist,
+        sessions: stateToPersist.sessions.map((session) => {
           const { messages, ...rest } = session;
           // debugLog("PERSIST", "处理会话持久化", {
           //   sessionId: session.id,
@@ -3199,9 +3321,9 @@ export const useChatStore = createPersistStore(
           return { ...rest, messages: [] }; // 保持结构但清空messages
         }),
         // 清空 groupSessions 中所有会话的 messages
-        groupSessions: Object.keys(state.groupSessions).reduce(
+        groupSessions: Object.keys(stateToPersist.groupSessions).reduce(
           (acc, sessionId) => {
-            const session = state.groupSessions[sessionId];
+            const session = stateToPersist.groupSessions[sessionId];
             const { messages, ...rest } = session;
             // debugLog("PERSIST", "处理组内会话持久化", {
             //   sessionId,
@@ -3217,15 +3339,28 @@ export const useChatStore = createPersistStore(
         ),
       };
 
-      debugLog("PERSIST", "状态持久化完成");
-      // debugLog("PERSIST", "状态持久化完成", {
-      //   persistedSessionsCount: stateToPersist.sessions.length,
-      //   persistedGroupsCount: stateToPersist.groups.length,
-      //   persistedGroupSessionsCount: Object.keys(stateToPersist.groupSessions)
-      //     .length,
-      // });
+      console.log("🔥 [PERSIST] 状态持久化完成", {
+        sessionsCount: processedStateToPersist.sessions.length,
+        firstSessionTitle: processedStateToPersist.sessions[0]?.title || "无",
+      });
 
-      return stateToPersist as any; // 使用 any 类型避免复杂的类型推断问题
+      debugLog("PERSIST", "状态持久化完成", {
+        // 调试信息：确认独立状态被排除
+        excludedIndexes: {
+          currentSessionIndex,
+          currentGroupIndex,
+          chatListView,
+          chatListGroupView,
+        },
+        persistedSessionsCount: processedStateToPersist.sessions.length,
+        persistedGroupsCount: processedStateToPersist.groups.length,
+        persistedGroupSessionsCount: Object.keys(
+          processedStateToPersist.groupSessions,
+        ).length,
+        originalSessionsCount: state.sessions.length,
+      });
+
+      return processedStateToPersist as any; // 使用 any 类型避免复杂的类型推断问题
     },
 
     /**
@@ -3241,6 +3376,12 @@ export const useChatStore = createPersistStore(
       return (hydratedState, error) => {
         // 标记数据已恢复
         setGlobalDataRestoredFlag(true);
+        console.log("🔥 [REHYDRATE] 开始状态恢复", {
+          hasError: !!error,
+          hydratedSessionsCount: hydratedState?.sessions?.length || 0,
+          firstSessionTitle: hydratedState?.sessions?.[0]?.title || "无",
+        });
+
         debugLog("REHYDRATE", "开始状态恢复", {
           hasError: !!error,
           errorMessage: error instanceof Error ? error.message : String(error),
@@ -3266,11 +3407,9 @@ export const useChatStore = createPersistStore(
           });
           console.error("[Store] An error happened during hydration", error);
 
-          // 直接刷新页面
-          if (typeof window !== "undefined") {
-            window.location.reload();
-          }
-          // 不要设置 isHydrated = true
+          // 即使出错也设置数据恢复标志，避免无限循环
+          isHydrated = true;
+          setGlobalDataRestoredFlag(true);
           return;
         } else {
           debugLog("REHYDRATE", "✅ 状态恢复成功，开始后续处理", {
@@ -3291,6 +3430,88 @@ export const useChatStore = createPersistStore(
           // 设置全局 hydration 状态
           isHydrated = true;
           startupState.hydrationCompleted = true;
+
+          // ============================================================================
+          // 多标签页支持：恢复标签页独立状态
+          // ============================================================================
+          if (hydratedState && typeof window !== "undefined") {
+            // 生成标签页唯一标识
+            const tabId = `tab_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+
+            debugLog("REHYDRATE", "开始恢复标签页独立状态", {
+              tabId,
+              hydratedCurrentSessionIndex: hydratedState.currentSessionIndex,
+              hydratedCurrentGroupIndex: hydratedState.currentGroupIndex,
+              hydratedChatListView: hydratedState.chatListView,
+            });
+
+            // 异步加载最后保存的标签页状态
+            loadTabState()
+              .then((savedTabState) => {
+                debugLog("REHYDRATE", "加载到保存的标签页状态", {
+                  tabId,
+                  savedState: savedTabState,
+                  lastUpdated: savedTabState.lastUpdated,
+                });
+
+                // 验证保存的状态是否仍然有效
+                const validSessionIndex = Math.max(
+                  0,
+                  Math.min(
+                    savedTabState.currentSessionIndex,
+                    hydratedState.sessions.length - 1,
+                  ),
+                );
+                const validGroupIndex = Math.max(
+                  0,
+                  Math.min(
+                    savedTabState.currentGroupIndex,
+                    hydratedState.groups.length - 1,
+                  ),
+                );
+
+                // 使用保存的状态，如果无效则使用默认值
+                const finalTabState = {
+                  currentSessionIndex: validSessionIndex,
+                  currentGroupIndex: validGroupIndex,
+                  chatListView: savedTabState.chatListView,
+                  chatListGroupView: savedTabState.chatListGroupView,
+                  mobileViewState: savedTabState.mobileViewState,
+                  sidebarScrollPosition: savedTabState.sidebarScrollPosition,
+                  sidebarScrollHistory: savedTabState.sidebarScrollHistory,
+                  batchApplyMode: false, // 总是重置为 false
+                  activeBatchRequests: 0, // 总是重置为 0
+                };
+
+                // 应用恢复的标签页状态
+                useChatStore.setState((state) => ({
+                  ...state,
+                  ...finalTabState,
+                }));
+
+                debugLog("REHYDRATE", "标签页独立状态恢复完成", {
+                  tabId,
+                  finalCurrentSessionIndex: finalTabState.currentSessionIndex,
+                  finalCurrentGroupIndex: finalTabState.currentGroupIndex,
+                  finalChatListView: finalTabState.chatListView,
+                  wasRestored: savedTabState.lastUpdated > 0,
+                });
+              })
+              .catch((error) => {
+                console.error(
+                  "[REHYDRATE] 恢复标签页状态失败，使用默认状态:",
+                  error,
+                );
+
+                // 如果恢复失败，使用默认状态
+                useChatStore.setState((state) => ({
+                  ...state,
+                  ...DEFAULT_TAB_STATE,
+                  batchApplyMode: false,
+                  activeBatchRequests: 0,
+                }));
+              });
+          }
 
           // 验证恢复的数据结构
           if (hydratedState) {
@@ -3409,10 +3630,10 @@ export const useChatStore = createPersistStore(
                     (readyError.message.includes("数据结构损坏") ||
                       readyError.message.includes("数据为空"))
                   ) {
-                    debugLog("REHYDRATE", "数据损坏，刷新页面");
-                    if (typeof window !== "undefined") {
-                      window.location.reload();
-                    }
+                    debugLog("REHYDRATE", "数据损坏，继续运行", {
+                      error: readyError.message,
+                    });
+                    // 即使数据损坏也继续运行，避免无限循环
                   } else {
                     // 其他错误，允许应用继续启动，但记录错误
                     // console.warn(
@@ -3476,3 +3697,879 @@ if (typeof useChatStore.persist === "function") {
     persistOptions: (useChatStore.persist as any).getOptions?.(),
   });
 }
+
+// ============================================================================
+// 标签页独立状态存储机制
+// ============================================================================
+
+// 标签页独立状态的存储键
+const TAB_STATE_STORAGE_KEY = "tab-state";
+
+// 标签页独立状态接口
+interface TabIndependentState {
+  currentSessionIndex: number;
+  currentGroupIndex: number;
+  chatListView: "sessions" | "groups";
+  chatListGroupView: "groups" | "group-sessions";
+  mobileViewState: "sidebar" | "chat" | "settings";
+  sidebarScrollPosition: number;
+  sidebarScrollHistory: Record<string, number>;
+  batchApplyMode: boolean;
+  activeBatchRequests: number;
+  lastUpdated: number; // 最后更新时间戳
+}
+
+// 默认的标签页独立状态
+const DEFAULT_TAB_STATE: TabIndependentState = {
+  currentSessionIndex: 0,
+  currentGroupIndex: 0,
+  chatListView: "sessions",
+  chatListGroupView: "groups",
+  mobileViewState: "sidebar",
+  sidebarScrollPosition: 0,
+  sidebarScrollHistory: {},
+  batchApplyMode: false,
+  activeBatchRequests: 0,
+  lastUpdated: Date.now(),
+};
+
+// 保存标签页独立状态到存储
+async function saveTabState(
+  state: Partial<TabIndependentState>,
+): Promise<void> {
+  if (typeof window === "undefined") return;
+
+  const maxRetries = 3;
+  let retryCount = 0;
+
+  while (retryCount < maxRetries) {
+    try {
+      const currentTabState = await loadTabState();
+      const updatedTabState: TabIndependentState = {
+        ...currentTabState,
+        ...state,
+        lastUpdated: Date.now(),
+      };
+
+      // 验证状态数据完整性
+      if (!validateTabState(updatedTabState)) {
+        throw new Error("标签页状态数据验证失败");
+      }
+
+      await jchatStorage.setItem(TAB_STATE_STORAGE_KEY, updatedTabState);
+
+      debugLog("TAB_STATE", "标签页状态已保存", {
+        savedState: state,
+        lastUpdated: updatedTabState.lastUpdated,
+        retryCount,
+      });
+
+      return; // 保存成功，退出重试循环
+    } catch (error) {
+      retryCount++;
+      console.error(
+        `[TAB_STATE] 保存标签页状态失败 (尝试 ${retryCount}/${maxRetries}):`,
+        error,
+      );
+
+      if (retryCount >= maxRetries) {
+        // 最后一次重试失败，记录错误但不抛出异常
+        console.error("[TAB_STATE] 保存标签页状态最终失败，已放弃重试");
+        return;
+      }
+
+      // 等待一段时间后重试
+      await new Promise((resolve) => setTimeout(resolve, 200 * retryCount));
+    }
+  }
+}
+
+// 验证标签页状态数据完整性
+function validateTabState(state: TabIndependentState): boolean {
+  try {
+    // 检查必需字段
+    if (
+      typeof state.currentSessionIndex !== "number" ||
+      state.currentSessionIndex < 0
+    ) {
+      return false;
+    }
+    if (
+      typeof state.currentGroupIndex !== "number" ||
+      state.currentGroupIndex < 0
+    ) {
+      return false;
+    }
+    if (!["sessions", "groups"].includes(state.chatListView)) {
+      return false;
+    }
+    if (!["groups", "group-sessions"].includes(state.chatListGroupView)) {
+      return false;
+    }
+    if (!["sidebar", "chat", "settings"].includes(state.mobileViewState)) {
+      return false;
+    }
+    if (
+      typeof state.sidebarScrollPosition !== "number" ||
+      state.sidebarScrollPosition < 0
+    ) {
+      return false;
+    }
+    if (
+      typeof state.sidebarScrollHistory !== "object" ||
+      state.sidebarScrollHistory === null
+    ) {
+      return false;
+    }
+    if (typeof state.batchApplyMode !== "boolean") {
+      return false;
+    }
+    if (
+      typeof state.activeBatchRequests !== "number" ||
+      state.activeBatchRequests < 0
+    ) {
+      return false;
+    }
+    if (typeof state.lastUpdated !== "number" || state.lastUpdated <= 0) {
+      return false;
+    }
+
+    return true;
+  } catch (error) {
+    console.error("[TAB_STATE] 状态验证失败:", error);
+    return false;
+  }
+}
+
+// 从存储加载标签页独立状态
+async function loadTabState(): Promise<TabIndependentState> {
+  if (typeof window === "undefined") return DEFAULT_TAB_STATE;
+
+  const maxRetries = 2;
+  let retryCount = 0;
+
+  while (retryCount < maxRetries) {
+    try {
+      const savedState = await jchatStorage.getItem(TAB_STATE_STORAGE_KEY);
+
+      if (savedState && typeof savedState === "object") {
+        const tabState: TabIndependentState = {
+          ...DEFAULT_TAB_STATE,
+          ...savedState,
+        };
+
+        // 验证加载的状态
+        if (validateTabState(tabState)) {
+          debugLog("TAB_STATE", "标签页状态已加载", {
+            loadedState: tabState,
+            lastUpdated: tabState.lastUpdated,
+            retryCount,
+          });
+          return tabState;
+        } else {
+          console.warn("[TAB_STATE] 加载的状态验证失败，使用默认状态");
+          return DEFAULT_TAB_STATE;
+        }
+      } else {
+        // 没有保存的状态，返回默认状态
+        debugLog("TAB_STATE", "没有找到保存的标签页状态，使用默认状态");
+        return DEFAULT_TAB_STATE;
+      }
+    } catch (error) {
+      retryCount++;
+      console.error(
+        `[TAB_STATE] 加载标签页状态失败 (尝试 ${retryCount}/${maxRetries}):`,
+        error,
+      );
+
+      if (retryCount >= maxRetries) {
+        console.error("[TAB_STATE] 加载标签页状态最终失败，使用默认状态");
+        return DEFAULT_TAB_STATE;
+      }
+
+      // 等待一段时间后重试
+      await new Promise((resolve) => setTimeout(resolve, 100 * retryCount));
+    }
+  }
+
+  return DEFAULT_TAB_STATE;
+}
+
+// ============================================================================
+// 跨标签页同步机制 - Broadcast Channel API
+// ============================================================================
+
+let broadcastChannel: BroadcastChannel | null = null;
+const BROADCAST_CHANNEL_NAME = "jchat-state-sync";
+
+// 将 broadcastChannel 暴露到全局，供其他组件使用
+if (typeof window !== "undefined") {
+  (window as any).__jchat_broadcast_channel = broadcastChannel;
+}
+
+// 使用已导出的 waitForDataRestoration 函数
+
+// 启动跨标签页同步机制
+function setupCrossTabSync() {
+  if (typeof window === "undefined" || !("BroadcastChannel" in window)) {
+    debugLog("SYNC", "Broadcast Channel 不可用，跳过跨标签页同步");
+    return;
+  }
+
+  // 仅在数据恢复完成后启动广播
+  waitForDataRestoration().then(() => {
+    try {
+      if (broadcastChannel) {
+        debugLog("SYNC", "Broadcast Channel 已存在，跳过重复初始化");
+        return;
+      }
+
+      broadcastChannel = new BroadcastChannel(BROADCAST_CHANNEL_NAME);
+
+      // 更新全局引用
+      if (typeof window !== "undefined") {
+        (window as any).__jchat_broadcast_channel = broadcastChannel;
+      }
+
+      debugLog("SYNC", "Broadcast Channel 启动成功");
+
+      // --- 监听来自其他标签页的同步请求 ---
+      broadcastChannel.onmessage = (event) => {
+        console.log("🔥 [SYNC] 收到广播消息", event.data);
+
+        debugLog("SYNC", "收到广播消息", {
+          eventData: event.data,
+          currentSessionsCount: useChatStore.getState().sessions.length,
+        });
+
+        const { type, payload } = event.data;
+
+        if (type === "STATE_UPDATE_AVAILABLE") {
+          console.log("🔥 [SYNC] 收到状态更新通知，开始处理");
+
+          debugLog("SYNC", "收到来自其他标签页的更新通知，开始重新水合", {
+            timestamp: payload?.lastUpdate,
+            currentTime: Date.now(),
+            changeType: payload?.changeType,
+            beforeRehydrateSessionsCount:
+              useChatStore.getState().sessions.length,
+          });
+
+          // 安全方法：直接从存储中读取最新数据，然后更新状态
+          console.log("🔥 [SYNC] 开始从存储中读取最新数据");
+
+          // 直接从存储中读取最新数据
+          jchatStorage
+            .getItem("chats")
+            .then((storedData) => {
+              console.log("🔥 [SYNC] 从存储中读取到数据", {
+                hasData: !!storedData,
+                dataType: typeof storedData,
+              });
+
+              if (storedData && typeof storedData === "object") {
+                // 解析存储的数据 - Zustand persist 可能包含版本信息
+                const parsedData = storedData.state || storedData;
+                console.log("🔥 [SYNC] 解析存储数据 - 基础信息", {
+                  hasState: !!storedData.state,
+                  hasVersion: !!storedData.version,
+                  version: storedData.version,
+                  sessionsCount: parsedData.sessions?.length || 0,
+                  firstSessionTitle: parsedData.sessions?.[0]?.title || "无",
+                });
+
+                console.log("🔥 [SYNC] 解析存储数据 - 标签页独立状态检查", {
+                  hasCurrentSessionIndex: "currentSessionIndex" in parsedData,
+                  currentSessionIndex: parsedData.currentSessionIndex,
+                  hasCurrentGroupIndex: "currentGroupIndex" in parsedData,
+                  currentGroupIndex: parsedData.currentGroupIndex,
+                  hasChatListView: "chatListView" in parsedData,
+                  chatListView: parsedData.chatListView,
+                  hasMobileViewState: "mobileViewState" in parsedData,
+                  mobileViewState: parsedData.mobileViewState,
+                });
+
+                // 记录更新前的状态
+                const beforeUpdateState = useChatStore.getState();
+                const beforeSessionId =
+                  beforeUpdateState.sessions[
+                    beforeUpdateState.currentSessionIndex
+                  ]?.id;
+                const beforeSessionTitle =
+                  beforeUpdateState.sessions[
+                    beforeUpdateState.currentSessionIndex
+                  ]?.title;
+
+                console.log("🔥 [SYNC] 更新前状态", {
+                  currentSessionIndex: beforeUpdateState.currentSessionIndex,
+                  currentSessionId: beforeSessionId,
+                  currentSessionTitle: beforeSessionTitle,
+                });
+
+                // 智能调整 currentSessionIndex：在新会话列表中找到原来的会话
+                let adjustedCurrentSessionIndex =
+                  beforeUpdateState.currentSessionIndex;
+                if (beforeSessionId && parsedData.sessions) {
+                  const newIndex = parsedData.sessions.findIndex(
+                    (session: any) => session.id === beforeSessionId,
+                  );
+                  if (newIndex !== -1) {
+                    adjustedCurrentSessionIndex = newIndex;
+                    console.log("🔥 [SYNC] 智能调整索引", {
+                      originalIndex: beforeUpdateState.currentSessionIndex,
+                      newIndex: adjustedCurrentSessionIndex,
+                      sessionId: beforeSessionId,
+                      sessionTitle: beforeSessionTitle,
+                    });
+                  } else {
+                    console.log("🔥 [SYNC] 未找到原会话，保持原索引", {
+                      originalIndex: beforeUpdateState.currentSessionIndex,
+                      sessionId: beforeSessionId,
+                    });
+                  }
+                }
+
+                // 设置标志：正在从同步更新状态
+                isUpdatingFromSync = true;
+
+                // 安全地更新状态，只更新全局共享状态
+                useChatStore.setState((currentState) => {
+                  console.log("🔥 [SYNC] 当前状态", {
+                    sessionsCount: currentState.sessions.length,
+                    firstSessionTitle: currentState.sessions[0]?.title || "无",
+                    // 检查当前标签页独立状态
+                    currentSessionIndex: currentState.currentSessionIndex,
+                    currentGroupIndex: currentState.currentGroupIndex,
+                    chatListView: currentState.chatListView,
+                    // 检查当前会话的详细信息
+                    currentSessionId:
+                      currentState.sessions[currentState.currentSessionIndex]
+                        ?.id,
+                    currentSessionTitle:
+                      currentState.sessions[currentState.currentSessionIndex]
+                        ?.title,
+                  });
+
+                  console.log("🔥 [SYNC] 存储数据", {
+                    sessionsCount: parsedData.sessions?.length || 0,
+                    firstSessionTitle: parsedData.sessions?.[0]?.title || "无",
+                  });
+
+                  // 智能合并 sessions：保留本地已加载的 messages
+                  const mergedSessions = parsedData.sessions
+                    ? parsedData.sessions.map((newSession: any) => {
+                        // 查找本地对应的会话
+                        const localSession = currentState.sessions.find(
+                          (s) => s.id === newSession.id,
+                        );
+                        // 如果本地会话有消息，保留它们；否则使用新会话的消息（通常是空数组）
+                        return {
+                          ...newSession,
+                          messages:
+                            localSession?.messages &&
+                            localSession.messages.length > 0
+                              ? localSession.messages
+                              : newSession.messages,
+                        };
+                      })
+                    : currentState.sessions;
+
+                  console.log("🔥 [SYNC] 合并后的 sessions", {
+                    mergedSessionsCount: mergedSessions.length,
+                    preservedMessagesCount: mergedSessions.filter(
+                      (s: any) => s.messages && s.messages.length > 0,
+                    ).length,
+                  });
+
+                  // 只更新全局共享状态，智能调整标签页独立状态
+                  return {
+                    ...currentState,
+                    sessions: mergedSessions,
+                    groups: parsedData.groups || currentState.groups,
+                    // 智能合并 groupSessions：保留本地已加载的 messages
+                    groupSessions: parsedData.groupSessions
+                      ? Object.keys(parsedData.groupSessions).reduce(
+                          (acc, sessionId) => {
+                            const newSession =
+                              parsedData.groupSessions[sessionId];
+                            const localSession =
+                              currentState.groupSessions[sessionId];
+                            acc[sessionId] = {
+                              ...newSession,
+                              messages:
+                                localSession?.messages &&
+                                localSession.messages.length > 0
+                                  ? localSession.messages
+                                  : newSession.messages,
+                            };
+                            return acc;
+                          },
+                          {} as GroupSession,
+                        )
+                      : currentState.groupSessions,
+                    accessCode:
+                      parsedData.accessCode !== undefined
+                        ? parsedData.accessCode
+                        : currentState.accessCode,
+                    models: parsedData.models || currentState.models,
+                    exportFormat:
+                      parsedData.exportFormat !== undefined
+                        ? parsedData.exportFormat
+                        : currentState.exportFormat,
+                    expandMetrics:
+                      parsedData.expandMetrics !== undefined
+                        ? parsedData.expandMetrics
+                        : currentState.expandMetrics,
+                    // 智能调整 currentSessionIndex，确保继续查看原来的会话
+                    currentSessionIndex: adjustedCurrentSessionIndex,
+                  };
+                });
+
+                // 记录更新后的状态
+                const afterUpdateState = useChatStore.getState();
+                console.log("🔥 [SYNC] 更新后状态", {
+                  currentSessionIndex: afterUpdateState.currentSessionIndex,
+                  currentSessionId:
+                    afterUpdateState.sessions[
+                      afterUpdateState.currentSessionIndex
+                    ]?.id,
+                  currentSessionTitle:
+                    afterUpdateState.sessions[
+                      afterUpdateState.currentSessionIndex
+                    ]?.title,
+                  indexChanged:
+                    beforeUpdateState.currentSessionIndex !==
+                    afterUpdateState.currentSessionIndex,
+                });
+
+                console.log("🔥 [SYNC] 状态更新完成，UI应该重新渲染");
+
+                // 确保当前会话的消息已加载
+                setTimeout(async () => {
+                  const currentSession = useChatStore
+                    .getState()
+                    .currentSession();
+
+                  // 检查消息是否完整加载：消息数量应该与 messageCount 匹配
+                  const messagesLength = currentSession?.messages?.length || 0;
+                  const expectedMessageCount =
+                    currentSession?.messageCount || 0;
+
+                  // 检查消息内容是否一致（比较最后几条消息的ID和内容）
+                  let messagesContentMismatch = false;
+                  if (currentSession && messagesLength > 0) {
+                    // 直接从 IndexedDB 加载最新的消息数据进行对比
+                    try {
+                      const latestMessages = await messageStorage.get(
+                        currentSession.id,
+                      );
+
+                      if (latestMessages && latestMessages.length > 0) {
+                        const currentMessages = currentSession.messages;
+
+                        // 比较所有消息的ID和内容，确保完全同步
+                        const maxLength = Math.max(
+                          latestMessages.length,
+                          currentMessages.length,
+                        );
+
+                        console.log("🔥 [SYNC] 开始比较所有消息内容", {
+                          sessionId: currentSession.id,
+                          latestMessagesLength: latestMessages.length,
+                          currentMessagesLength: currentMessages.length,
+                          maxLength,
+                        });
+
+                        // 比较所有消息
+                        for (let i = 0; i < maxLength; i++) {
+                          const latestMsg = latestMessages[i];
+                          const currentMsg = currentMessages[i];
+
+                          // 如果任一边没有消息，说明数量不匹配
+                          if (!latestMsg || !currentMsg) {
+                            messagesContentMismatch = true;
+                            console.log("🔥 [SYNC] 检测到消息数量不匹配", {
+                              index: i,
+                              latestMsgExists: !!latestMsg,
+                              currentMsgExists: !!currentMsg,
+                            });
+                            break;
+                          }
+
+                          // 比较消息ID和内容
+                          if (
+                            latestMsg.id !== currentMsg.id ||
+                            latestMsg.content !== currentMsg.content
+                          ) {
+                            messagesContentMismatch = true;
+                            console.log("🔥 [SYNC] 检测到消息内容不匹配", {
+                              index: i,
+                              latestMsgId: latestMsg.id,
+                              currentMsgId: currentMsg.id,
+                              latestContent:
+                                typeof latestMsg.content === "string"
+                                  ? latestMsg.content.substring(0, 50)
+                                  : "MultimodalContent",
+                              currentContent:
+                                typeof currentMsg.content === "string"
+                                  ? currentMsg.content.substring(0, 50)
+                                  : "MultimodalContent",
+                            });
+                            break;
+                          }
+                        }
+                      } else {
+                        console.log("🔥 [SYNC] 存储中无消息数据，跳过内容比较");
+                      }
+                    } catch (error) {
+                      console.error(
+                        "🔥 [SYNC] 加载消息数据失败，跳过内容比较",
+                        error,
+                      );
+                    }
+                  }
+
+                  const needsMessageLoading =
+                    currentSession &&
+                    (messagesLength === 0 ||
+                      messagesLength !== expectedMessageCount ||
+                      messagesContentMismatch);
+
+                  if (needsMessageLoading) {
+                    console.log(
+                      "🔥 [SYNC] 检测到消息需要重新加载，开始加载消息",
+                      {
+                        sessionId: currentSession.id,
+                        messageCount: currentSession.messageCount,
+                        messagesLength: messagesLength,
+                        messagesContentMismatch: messagesContentMismatch,
+                        needsLoading: true,
+                        reason:
+                          messagesLength === 0
+                            ? "消息未加载"
+                            : messagesLength !== expectedMessageCount
+                              ? "消息数量不匹配"
+                              : "消息内容不匹配",
+                      },
+                    );
+
+                    if (currentSession.groupId) {
+                      // 组内会话：加载组内会话消息
+                      useChatStore
+                        .getState()
+                        .loadGroupSessionMessages(currentSession.id);
+                    } else {
+                      // 普通会话：加载普通会话消息
+                      useChatStore
+                        .getState()
+                        .loadSessionMessages(
+                          useChatStore.getState().currentSessionIndex,
+                        );
+                    }
+
+                    // 在消息加载完成后再重置标志，延长时间以确保所有后续状态更新完成
+                    setTimeout(() => {
+                      isUpdatingFromSync = false;
+                      console.log("🔥 [SYNC] 重置同步标志（消息加载后）");
+                    }, 300); // 延长到 300ms
+                  } else {
+                    // 如果不需要加载消息，立即重置标志
+                    console.log("🔥 [SYNC] 消息已完整加载，无需重新加载", {
+                      sessionId: currentSession?.id,
+                      messageCount: currentSession?.messageCount || 0,
+                      messagesLength: messagesLength,
+                      messagesContentMismatch: messagesContentMismatch,
+                      needsLoading: false,
+                    });
+                    setTimeout(() => {
+                      isUpdatingFromSync = false;
+                      console.log("🔥 [SYNC] 重置同步标志（无需加载消息）");
+                    }, 100);
+                  }
+                }, 100); // 延迟100ms确保状态更新完成
+              } else {
+                console.log("🔥 [SYNC] 存储中没有找到数据，尝试重新水合");
+                useChatStore.persist.rehydrate();
+              }
+            })
+            .catch((error) => {
+              console.error("🔥 [SYNC] 从存储读取数据失败:", error);
+              // 降级到重新水合
+              useChatStore.persist.rehydrate();
+            });
+        }
+      };
+
+      // --- 监听本地状态变化并通知其他标签页 ---
+      // 使用简单的状态监听，避免复杂的订阅配置
+      let lastGlobalState: any = null;
+      let isUpdatingFromSync = false; // 标志：是否正在从同步更新状态
+
+      useChatStore.subscribe((state) => {
+        // 如果正在从同步更新状态，跳过广播
+        if (isUpdatingFromSync) {
+          console.log("🔥 [SYNC] 跳过广播：正在从同步更新状态");
+          return;
+        }
+        const currentGlobalState = {
+          sessions: state.sessions,
+          groups: state.groups,
+          groupSessions: state.groupSessions,
+          accessCode: state.accessCode,
+          models: state.models,
+          exportFormat: state.exportFormat,
+          expandMetrics: state.expandMetrics,
+        };
+
+        // 如果是第一次调用，只记录状态，不广播
+        if (lastGlobalState === null) {
+          console.log("🔥 [SYNC] 初始化状态监听", {
+            sessionsCount: currentGlobalState.sessions.length,
+            firstSessionTitle: currentGlobalState.sessions[0]?.title || "无",
+          });
+          lastGlobalState = currentGlobalState;
+          return;
+        }
+
+        // 检查是否有结构性变化
+        const sessionsLengthChanged =
+          currentGlobalState.sessions.length !==
+          lastGlobalState.sessions.length;
+        const groupsLengthChanged =
+          currentGlobalState.groups.length !== lastGlobalState.groups.length;
+        const accessCodeChanged =
+          currentGlobalState.accessCode !== lastGlobalState.accessCode;
+        const modelsChanged =
+          JSON.stringify(currentGlobalState.models) !==
+          JSON.stringify(lastGlobalState.models);
+        const exportFormatChanged =
+          currentGlobalState.exportFormat !== lastGlobalState.exportFormat;
+        const expandMetricsChanged =
+          currentGlobalState.expandMetrics !== lastGlobalState.expandMetrics;
+
+        // 检查会话内容变化（标题、消息数量等）
+        const sessionsContentChanged = currentGlobalState.sessions.some(
+          (session: any, index: number) => {
+            const lastSession = lastGlobalState.sessions[index];
+            if (!lastSession || lastSession.id !== session.id) return true;
+            // 比较会话的关键属性（不包括 messages 内容，只比较 messageCount）
+            return (
+              lastSession.title !== session.title ||
+              lastSession.messageCount !== session.messageCount ||
+              lastSession.model !== session.model ||
+              lastSession.groupId !== session.groupId
+            );
+          },
+        );
+
+        const hasStructuralChange =
+          sessionsLengthChanged ||
+          groupsLengthChanged ||
+          accessCodeChanged ||
+          modelsChanged ||
+          exportFormatChanged ||
+          expandMetricsChanged ||
+          sessionsContentChanged;
+
+        debugLog("SYNC_CHECK", "检查结构性变化", {
+          sessionsLengthChanged,
+          hasStructuralChange,
+          currentSessionsCount: currentGlobalState.sessions.length,
+          lastSessionsCount: lastGlobalState.sessions.length,
+        });
+
+        // 检查组内会话变化
+        const currentGroupSessionKeys = Object.keys(
+          currentGlobalState.groupSessions,
+        );
+        const prevGroupSessionKeys = Object.keys(lastGlobalState.groupSessions);
+        const hasGroupSessionChange =
+          currentGroupSessionKeys.length !== prevGroupSessionKeys.length ||
+          currentGroupSessionKeys.some(
+            (key) =>
+              !prevGroupSessionKeys.includes(key) ||
+              JSON.stringify(currentGlobalState.groupSessions[key]) !==
+                JSON.stringify(lastGlobalState.groupSessions[key]),
+          );
+
+        if (hasStructuralChange || hasGroupSessionChange) {
+          console.log("🔥 [SYNC] 检测到状态变化，准备广播", {
+            hasStructuralChange,
+            hasGroupSessionChange,
+            sessionsCount: currentGlobalState.sessions.length,
+            sessionsLengthChanged,
+            currentSessionsLength: currentGlobalState.sessions.length,
+            lastSessionsLength: lastGlobalState.sessions.length,
+          });
+
+          debugLog("SYNC", "全局状态发生结构性变化，广播通知其他标签页", {
+            structuralChange: hasStructuralChange,
+            groupSessionChange: hasGroupSessionChange,
+            sessionsCount: currentGlobalState.sessions.length,
+            groupsCount: currentGlobalState.groups.length,
+            groupSessionsCount: currentGroupSessionKeys.length,
+          });
+
+          // 延迟广播，确保存储写入完成
+          setTimeout(() => {
+            const message = {
+              type: "STATE_UPDATE_AVAILABLE",
+              payload: {
+                lastUpdate: Date.now(),
+                changeType: hasStructuralChange ? "structural" : "groupSession",
+              },
+            };
+
+            debugLog("SYNC", "发送广播消息", {
+              message,
+              broadcastChannelExists: !!broadcastChannel,
+            });
+
+            broadcastChannel?.postMessage(message);
+          }, 100); // 延迟 100ms 确保存储写入完成
+        }
+
+        // 更新上次状态
+        lastGlobalState = currentGlobalState;
+      });
+
+      debugLog("SYNC", "跨标签页同步机制设置完成");
+    } catch (error) {
+      console.error("[SYNC] Broadcast Channel setup failed:", error);
+    }
+  });
+}
+
+// ============================================================================
+// 标签页独立状态自动保存机制
+// ============================================================================
+
+// 防抖保存机制
+let saveTimeout: NodeJS.Timeout | null = null;
+const SAVE_DEBOUNCE_DELAY = 500; // 500ms 防抖延迟
+
+// 批量保存队列
+let pendingSaveState: Partial<TabIndependentState> | null = null;
+
+// 执行防抖保存
+function debouncedSave(state: Partial<TabIndependentState>) {
+  // 合并到待保存状态
+  pendingSaveState = { ...pendingSaveState, ...state };
+
+  // 清除之前的定时器
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+  }
+
+  // 设置新的定时器
+  saveTimeout = setTimeout(async () => {
+    if (pendingSaveState) {
+      try {
+        await saveTabState(pendingSaveState);
+        debugLog("TAB_STATE_DEBOUNCED_SAVE", "防抖保存完成", {
+          savedState: pendingSaveState,
+        });
+      } catch (error) {
+        console.error("[TAB_STATE_DEBOUNCED_SAVE] 防抖保存失败:", error);
+      } finally {
+        pendingSaveState = null;
+      }
+    }
+  }, SAVE_DEBOUNCE_DELAY);
+}
+
+// 立即保存（用于重要状态变化）
+function immediateSave(state: Partial<TabIndependentState>) {
+  // 清除防抖定时器
+  if (saveTimeout) {
+    clearTimeout(saveTimeout);
+    saveTimeout = null;
+  }
+
+  // 立即保存
+  saveTabState(state)
+    .then(() => {
+      debugLog("TAB_STATE_IMMEDIATE_SAVE", "立即保存完成", {
+        savedState: state,
+      });
+    })
+    .catch((error) => {
+      console.error("[TAB_STATE_IMMEDIATE_SAVE] 立即保存失败:", error);
+    });
+}
+
+// 设置标签页独立状态的自动保存
+function setupTabStateAutoSave() {
+  if (typeof window === "undefined") return;
+
+  // 等待数据恢复完成后再设置自动保存
+  waitForDataRestoration().then(() => {
+    debugLog("TAB_STATE_AUTO_SAVE", "开始设置标签页状态自动保存");
+
+    // 监听标签页独立状态的变化
+    let lastTabState: Partial<TabIndependentState> = {};
+
+    useChatStore.subscribe((state) => {
+      const currentTabState = {
+        currentSessionIndex: state.currentSessionIndex,
+        currentGroupIndex: state.currentGroupIndex,
+        chatListView: state.chatListView,
+        chatListGroupView: state.chatListGroupView,
+        mobileViewState: state.mobileViewState,
+        sidebarScrollPosition: state.sidebarScrollPosition,
+        sidebarScrollHistory: state.sidebarScrollHistory,
+        batchApplyMode: state.batchApplyMode,
+        activeBatchRequests: state.activeBatchRequests,
+      };
+
+      // 检查是否有变化
+      const hasChanged = Object.keys(currentTabState).some(
+        (key) =>
+          currentTabState[key as keyof typeof currentTabState] !==
+          lastTabState[key as keyof typeof lastTabState],
+      );
+
+      if (hasChanged) {
+        const changedFields = Object.keys(currentTabState).filter(
+          (key) =>
+            currentTabState[key as keyof typeof currentTabState] !==
+            lastTabState[key as keyof typeof lastTabState],
+        );
+
+        debugLog("TAB_STATE_AUTO_SAVE", "检测到标签页状态变化", {
+          changedFields,
+          newState: currentTabState,
+        });
+
+        // 根据变化类型选择保存策略
+        const isImportantChange = changedFields.some((field) =>
+          ["currentSessionIndex", "currentGroupIndex", "chatListView"].includes(
+            field,
+          ),
+        );
+
+        if (isImportantChange) {
+          // 重要状态变化立即保存
+          immediateSave(currentTabState);
+        } else {
+          // 其他状态变化使用防抖保存
+          debouncedSave(currentTabState);
+        }
+
+        // 更新上次状态
+        lastTabState = { ...currentTabState };
+      }
+    });
+
+    debugLog("TAB_STATE_AUTO_SAVE", "标签页状态自动保存设置完成");
+  });
+}
+
+// 在文件末尾或应用启动时调用
+// 确保在 useChatStore 定义之后执行
+setTimeout(() => {
+  debugLog("STARTUP", "开始初始化多标签页功能");
+  setupCrossTabSync();
+  setupTabStateAutoSave();
+  debugLog("STARTUP", "多标签页功能初始化完成");
+}, 0);

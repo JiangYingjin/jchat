@@ -29,7 +29,30 @@ interface MessageListProps {
   setHitBottom: (hitBottom: boolean) => void;
 }
 
-export function MessageList({
+// 创建选择器：只订阅当前会话的消息列表
+const selectCurrentSessionMessages = (state: any) => {
+  const currentSession = state.sessions[state.currentSessionIndex];
+  if (!currentSession) return { messages: [], sessionId: null };
+  return {
+    messages: currentSession.messages || [],
+    sessionId: currentSession.id,
+  };
+};
+
+// 比较函数：只有消息数组长度或会话ID变化时才重新渲染
+// 注意：由于 Zustand 的 smartUpdateSession 直接修改数组内容而不改变引用，
+// 我们需要比较 messages.length 而不是引用
+const isMessagesEqual = (prev: any, next: any) => {
+  if (!prev && !next) return true;
+  if (!prev || !next) return false;
+  // 比较会话ID和消息数组长度
+  return (
+    prev.sessionId === next.sessionId &&
+    prev.messages.length === next.messages.length
+  );
+};
+
+export const MessageList = React.memo(function MessageList({
   messages,
   onResend,
   onDelete,
@@ -45,8 +68,26 @@ export function MessageList({
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobileScreen = useMobileScreen();
-  const chatStore = useChatStore();
+
+  // 独立订阅消息相关状态
+  const messagesData = useChatStore(
+    selectCurrentSessionMessages,
+    isMessagesEqual,
+  );
+
+  // 保留 chatStore 用于调用方法
+  const chatStore = React.useMemo(() => useChatStore.getState(), []);
   const currentSession = chatStore.currentSession();
+
+  // 添加调试信息
+  React.useEffect(() => {
+    console.log("🔥 [MESSAGE_LIST] 消息列表组件渲染", {
+      propMessagesLength: messages.length,
+      storeMessagesLength: messagesData.messages.length,
+      sessionId: messagesData.sessionId,
+      timestamp: Date.now(),
+    });
+  }, [messagesData, messages.length]);
 
   const [msgRenderIndex, setMsgRenderIndex] = useState(
     Math.max(0, messages.length - CHAT_PAGE_SIZE),
@@ -220,4 +261,4 @@ export function MessageList({
       })}
     </div>
   );
-}
+});

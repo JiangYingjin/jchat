@@ -12,6 +12,23 @@ import { showConfirm } from "./ui-lib";
 import { showToast } from "./ui-lib";
 import { useChatStore } from "../store";
 
+// 创建选择器：只订阅当前会话的标题和消息数量
+const selectCurrentSessionHeader = (state: any) => {
+  const currentSession = state.sessions[state.currentSessionIndex];
+  if (!currentSession) return null;
+  return {
+    title: currentSession.title,
+    messageCount: currentSession.messageCount,
+  };
+};
+
+// 比较函数：只有标题或消息数量变化时才重新渲染
+const isHeaderEqual = (prev: any, next: any) => {
+  if (!prev && !next) return true;
+  if (!prev || !next) return false;
+  return prev.title === next.title && prev.messageCount === next.messageCount;
+};
+
 export const ChatHeader = React.memo(function ChatHeader(props: {
   sessionTitle: string;
   messageCount: number;
@@ -23,16 +40,32 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
   hasGroupId?: boolean; // 新增：是否有 groupId
 }) {
   const isMobileScreen = useMobileScreen();
-  const chatStore = useChatStore();
+  // 独立订阅标题相关状态
+  const headerData = useChatStore(selectCurrentSessionHeader, isHeaderEqual);
+
+  // 保留 chatStore 用于调用方法
+  const chatStore = React.useMemo(() => useChatStore.getState(), []);
+
+  // 添加调试信息
+  React.useEffect(() => {
+    console.log("🔥 [CHAT_HEADER] 标题组件渲染", {
+      propTitle: props.sessionTitle,
+      storeTitle: headerData?.title,
+      propMessageCount: props.messageCount,
+      storeMessageCount: headerData?.messageCount,
+      timestamp: Date.now(),
+    });
+  }, [headerData, props.sessionTitle, props.messageCount]);
 
   // 处理右键单击标题，刷新会话标题
   const handleTitleContextMenu = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     showToast(Locale.Chat.Actions.RefreshTitleToast);
-    // 获取当前会话
-    const session = chatStore.currentSession();
-    await chatStore.generateSessionTitle(true, session);
+    // 使用 getState() 获取当前会话
+    const currentChatStore = useChatStore.getState();
+    const session = currentChatStore.currentSession();
+    await currentChatStore.generateSessionTitle(true, session);
   };
 
   // 处理右键单击删除按钮
