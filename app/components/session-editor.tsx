@@ -24,9 +24,9 @@ export function SessionEditor(props: { onClose: () => void }) {
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.focus();
-      // 将光标移动到文本末尾
+      // 全选标题文本
       const length = inputRef.current.value.length;
-      inputRef.current.setSelectionRange(length, length);
+      inputRef.current.setSelectionRange(0, length);
     }
   }, []);
 

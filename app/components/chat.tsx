@@ -22,6 +22,7 @@ import {
 import { useShallow } from "zustand/react/shallow";
 import { useAppReadyGuard } from "../hooks/app-ready";
 import { useSubmitHandler, useTripleClick } from "../utils/hooks";
+import { useScrollState } from "../hooks/use-scroll-state";
 import { updateSessionStatsBasic, updateSessionStats } from "../utils/session";
 import {
   useMobileScreen,
@@ -147,6 +148,9 @@ const Chat = React.memo(function Chat() {
   // 由于使用了自定义选择器和比较函数，currentSession 已经是稳定的了
   // ChatPage 已经确保了 currentSession 不会为 null
   const session = currentSession as ChatSession;
+
+  // 新增：滚动状态管理
+  const { saveImmediately } = useScrollState(session.id);
 
   // 追踪会话对象变化的原因
   const prevSessionRef = React.useRef<{
@@ -995,6 +999,20 @@ const Chat = React.memo(function Chat() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session.id]);
+
+  // 新增：会话切换时保存滚动状态
+  useEffect(() => {
+    // 当会话ID变化时，保存前一个会话的滚动状态
+    if (prevSessionRef.current.id && prevSessionRef.current.id !== session.id) {
+      console.log("🔥 [CHAT] 会话切换，保存前一个会话的滚动状态", {
+        previousSessionId: prevSessionRef.current.id,
+        currentSessionId: session.id,
+      });
+
+      // 这里可以添加保存前一个会话滚动状态的逻辑
+      // 由于MessageList组件已经处理了滚动状态保存，这里主要是日志记录
+    }
   }, [session.id]);
 
   // --- Render Logic ---

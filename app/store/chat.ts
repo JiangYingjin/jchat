@@ -485,6 +485,13 @@ export interface ChatSession {
   groupId: string | null;
   lastUpdate: number;
   messages: ChatMessage[];
+  // 新增：滚动状态和分片管理
+  scrollState?: {
+    scrollTop: number; // 滚动位置
+    messageIndex: number; // 当前可见的第一个消息索引
+    viewportHeight: number; // 视口高度，用于精确恢复
+    lastUpdated: number; // 最后更新时间戳
+  };
 }
 
 export interface ChatGroup {
@@ -640,6 +647,8 @@ export const useChatStore = createPersistStore(
           },
         }));
       },
+
+      // --- 新增：会话滚动状态管理方法 ---
 
       getSidebarScrollPosition(key: string): number {
         if (!key) return 0;
@@ -979,8 +988,8 @@ export const useChatStore = createPersistStore(
         const sessionId = currentGroup.sessionIds[index];
 
         // 异步加载消息，避免阻塞UI切换
-        setTimeout(() => {
-          get().loadGroupSessionMessages(sessionId);
+        setTimeout(async () => {
+          await get().loadGroupSessionMessages(sessionId);
           // 强制渲染目标会话以确保显示最新内容
           const targetSession = get().groupSessions[sessionId];
           if (targetSession) {
