@@ -58,15 +58,6 @@ class ScrollStorage implements ScrollStateStorage {
         return false;
       }
 
-      // 数据未恢复时，禁止数据持久化
-      if (
-        typeof window !== "undefined" &&
-        (window as any).__jchat_data_restored !== true
-      ) {
-        debugLog("SAVE_ERROR", `数据未恢复，禁止数据持久化: ${sessionId}`);
-        return false;
-      }
-
       // 直接使用 sessionId 作为键，无需前缀
       await storage.setItem(sessionId, scrollState);
 

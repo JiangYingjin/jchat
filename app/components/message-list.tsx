@@ -79,7 +79,7 @@ export const MessageList = React.memo(function MessageList({
   const currentSession = chatStore.currentSession();
 
   // 新增：滚动状态管理
-  const { saveScrollState, restoreScrollState, isRestoring } = useScrollState(
+  const { saveScrollState, restoreScrollState } = useScrollState(
     currentSession?.id || "",
   );
 
@@ -91,7 +91,7 @@ export const MessageList = React.memo(function MessageList({
       sessionId: messagesData.sessionId,
       timestamp: Date.now(),
     });
-  }, [messagesData, messages.length]);
+  }, [messagesData.sessionId, messagesData.messages.length, messages.length]); // 包含所有必要的依赖
 
   const [msgRenderIndex, setMsgRenderIndex] = useState(
     Math.max(0, messages.length - CHAT_PAGE_SIZE),

@@ -997,7 +997,7 @@ const Chat = React.memo(function Chat() {
   useEffect(() => {
     loadSessionMessages(chatStore, session);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session.id, session]);
+  }, [session.id]); // 只依赖sessionId，避免无限渲染
 
   // 新增：会话切换时保存滚动状态
   useEffect(() => {

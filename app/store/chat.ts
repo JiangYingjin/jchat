@@ -868,8 +868,8 @@ export const useChatStore = createPersistStore(
         session: ChatSession,
         force: boolean = false,
       ): Promise<void> {
-        // 数据未恢复时，禁止数据持久化
-        if (!isDataRestored) {
+        // 新建会话时允许保存，避免死锁
+        if (!isDataRestored && !force) {
           debugLog("SAVE_SESSION_MESSAGES", "❌ 数据未恢复，禁止消息持久化", {
             sessionId: session.id,
             isDataRestored,
@@ -1046,7 +1046,7 @@ export const useChatStore = createPersistStore(
 
         // 总是尝试保存消息，不依赖存储健康状态
         try {
-          await get().saveSessionMessages(session);
+          await get().saveSessionMessages(session, true); // 强制保存，避免死锁
           debugLog("NEW_SESSION", "会话消息保存成功", {
             sessionId: session.id,
           });
@@ -1162,7 +1162,7 @@ export const useChatStore = createPersistStore(
         newSession.isModelManuallySelected = false;
 
         // 保存会话消息
-        await get().saveSessionMessages(newSession);
+        await get().saveSessionMessages(newSession, true); // 强制保存，避免死锁
 
         // 更新组和组内会话
         set((state) => {
@@ -1637,7 +1637,7 @@ export const useChatStore = createPersistStore(
           newSessionToAdd.isModelManuallySelected = false;
 
           // 保存会话消息
-          await get().saveSessionMessages(newSessionToAdd);
+          await get().saveSessionMessages(newSessionToAdd, true); // 强制保存，避免死锁
 
           // 更新会话ID列表和索引
           newSessionIds = [newSessionToAdd.id];
@@ -1906,7 +1906,7 @@ export const useChatStore = createPersistStore(
         );
 
         // 为新分支会话保存消息
-        await get().saveSessionMessages(newSession);
+        await get().saveSessionMessages(newSession, true); // 强制保存，避免死锁
 
         // **修复：在状态更新前先保存系统提示词**
         if (
@@ -2073,7 +2073,7 @@ export const useChatStore = createPersistStore(
           const newSession = createEmptySession();
           sessions.push(newSession);
           // 为新创建的空会话保存（空的）消息
-          await get().saveSessionMessages(newSession);
+          await get().saveSessionMessages(newSession, true); // 强制保存，避免死锁
         }
 
         // 立即更新UI状态（从sessions数组中移除）
