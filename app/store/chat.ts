@@ -1041,7 +1041,6 @@ export const useChatStore = createPersistStore(
       },
 
       async newSession() {
-        console.log("🔥 [NEW_SESSION] 开始创建新会话 - 直接console.log测试");
         const session = createEmptySession();
 
         debugLog("NEW_SESSION", "开始创建新会话", {
@@ -2776,12 +2775,6 @@ export const useChatStore = createPersistStore(
 
             // 🚀 Streaming 结束后直接广播新消息（延迟以确保状态已同步）
             setTimeout(() => {
-              console.log("🔥 [MESSAGE_SYNC] Streaming 结束，广播新消息", {
-                sessionId: session.id,
-                messageCount: latestSessionOnFinish.messageCount,
-                timestamp: Date.now(),
-              });
-
               // 直接发送广播消息，不依赖状态变化检测
               if (broadcastChannel) {
                 const message = {
@@ -2793,16 +2786,7 @@ export const useChatStore = createPersistStore(
                   },
                 };
 
-                console.log("🔥 [MESSAGE_SYNC] 发送消息更新广播", {
-                  message,
-                  broadcastChannelExists: !!broadcastChannel,
-                });
-
                 broadcastChannel.postMessage(message);
-              } else {
-                console.warn(
-                  "🔥 [MESSAGE_SYNC] Broadcast Channel 不存在，无法发送广播",
-                );
               }
             }, 100);
           },
@@ -3339,10 +3323,7 @@ export const useChatStore = createPersistStore(
         ),
       };
 
-      console.log("🔥 [PERSIST] 状态持久化完成", {
-        sessionsCount: processedStateToPersist.sessions.length,
-        firstSessionTitle: processedStateToPersist.sessions[0]?.title || "无",
-      });
+      // 状态持久化完成
 
       debugLog("PERSIST", "状态持久化完成", {
         // 调试信息：确认独立状态被排除
@@ -3376,11 +3357,7 @@ export const useChatStore = createPersistStore(
       return (hydratedState, error) => {
         // 标记数据已恢复
         setGlobalDataRestoredFlag(true);
-        console.log("🔥 [REHYDRATE] 开始状态恢复", {
-          hasError: !!error,
-          hydratedSessionsCount: hydratedState?.sessions?.length || 0,
-          firstSessionTitle: hydratedState?.sessions?.[0]?.title || "无",
-        });
+        // 开始状态恢复
 
         debugLog("REHYDRATE", "开始状态恢复", {
           hasError: !!error,
@@ -3935,7 +3912,7 @@ function setupCrossTabSync() {
 
       // --- 监听来自其他标签页的同步请求 ---
       broadcastChannel.onmessage = (event) => {
-        console.log("🔥 [SYNC] 收到广播消息", event.data);
+        // 收到广播消息
 
         debugLog("SYNC", "收到广播消息", {
           eventData: event.data,
@@ -3945,7 +3922,7 @@ function setupCrossTabSync() {
         const { type, payload } = event.data;
 
         if (type === "STATE_UPDATE_AVAILABLE") {
-          console.log("🔥 [SYNC] 收到状态更新通知，开始处理");
+          // 收到状态更新通知，开始处理
 
           debugLog("SYNC", "收到来自其他标签页的更新通知，开始重新水合", {
             timestamp: payload?.lastUpdate,
@@ -3956,27 +3933,17 @@ function setupCrossTabSync() {
           });
 
           // 安全方法：直接从存储中读取最新数据，然后更新状态
-          console.log("🔥 [SYNC] 开始从存储中读取最新数据");
 
           // 直接从存储中读取最新数据
           jchatStorage
             .getItem("chats")
             .then((storedData) => {
-              console.log("🔥 [SYNC] 从存储中读取到数据", {
-                hasData: !!storedData,
-                dataType: typeof storedData,
-              });
+              // 从存储中读取到数据
 
               if (storedData && typeof storedData === "object") {
                 // 解析存储的数据 - Zustand persist 可能包含版本信息
                 const parsedData = storedData.state || storedData;
-                console.log("🔥 [SYNC] 解析存储数据 - 基础信息", {
-                  hasState: !!storedData.state,
-                  hasVersion: !!storedData.version,
-                  version: storedData.version,
-                  sessionsCount: parsedData.sessions?.length || 0,
-                  firstSessionTitle: parsedData.sessions?.[0]?.title || "无",
-                });
+                // 解析存储数据 - 基础信息
 
                 console.log("🔥 [SYNC] 解析存储数据 - 标签页独立状态检查", {
                   hasCurrentSessionIndex: "currentSessionIndex" in parsedData,
@@ -4392,8 +4359,9 @@ function setupCrossTabSync() {
                 JSON.stringify(lastGlobalState.groupSessions[key]),
           );
 
-        if (hasStructuralChange || hasGroupSessionChange) {
-          console.log("🔥 [SYNC] 检测到状态变化，准备广播", {
+        // 只有当结构性变化时才广播，groupSessions 变化不广播
+        if (hasStructuralChange) {
+          console.log("🔥 [SYNC] 检测到结构性变化，准备广播", {
             hasStructuralChange,
             hasGroupSessionChange,
             sessionsCount: currentGlobalState.sessions.length,
@@ -4416,7 +4384,7 @@ function setupCrossTabSync() {
               type: "STATE_UPDATE_AVAILABLE",
               payload: {
                 lastUpdate: Date.now(),
-                changeType: hasStructuralChange ? "structural" : "groupSession",
+                changeType: "structural",
               },
             };
 
@@ -4427,6 +4395,12 @@ function setupCrossTabSync() {
 
             broadcastChannel?.postMessage(message);
           }, 100); // 延迟 100ms 确保存储写入完成
+        } else if (hasGroupSessionChange) {
+          // groupSessions 变化时不广播，只记录日志
+          console.log("🔥 [SYNC] 检测到组会话变化，但不进行广播", {
+            hasGroupSessionChange,
+            groupSessionsCount: currentGroupSessionKeys.length,
+          });
         }
 
         // 更新上次状态
