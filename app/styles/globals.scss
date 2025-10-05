@@ -70,7 +70,7 @@
   --window-content-width: calc(100% - var(--sidebar-width));
   --message-max-width-user: 80%;
   --message-max-width-assistant: 100%;
-  --full-height: 100%;
+  --full-height: 100dvh; /* 使用动态视口高度，自动适应虚拟键盘 */
   --highlight-bg: rgb(209, 218, 235);
   --text-primary: rgb(55, 65, 81);
   --chat-item-bg-start: #ffffff;

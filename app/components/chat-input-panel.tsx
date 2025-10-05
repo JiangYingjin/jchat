@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import clsx from "clsx";
 import { useDebouncedCallback } from "use-debounce";
 import { isEmpty } from "lodash-es";
@@ -41,6 +41,12 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
   const [uploading, setUploading] = useState(false);
   const [inputRows, setInputRows] = useState(2);
   const [isLoadingFromStorage, setIsLoadingFromStorage] = useState(false);
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [isFullscreenInput, setIsFullscreenInput] = useState(false);
+  const [visualViewportHeight, setVisualViewportHeight] = useState<
+    number | null
+  >(null);
 
   // Refs
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -51,12 +57,89 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
   // 调试开关 - 可以通过这个开关控制调试信息输出
   const DEBUG_ENABLED = false; // 开启调试信息以定位问题
 
-  // 添加调试信息
-  const debugLog = (action: string, value?: any) => {
-    if (DEBUG_ENABLED) {
-      console.log(`[ChatInput][${action}]`, value);
+  // 添加调试信息 - 使用 useCallback 避免依赖问题
+  const debugLog = useCallback(
+    (action: string, value?: any) => {
+      if (DEBUG_ENABLED) {
+        console.log(`[ChatInput][${action}]`, value);
+      }
+    },
+    [DEBUG_ENABLED],
+  );
+
+  // 虚拟键盘检测和 visualViewport 高度跟踪
+  useEffect(() => {
+    if (!isMobileScreen) return;
+
+    let initialViewportHeight =
+      window.visualViewport?.height || window.innerHeight;
+    const threshold = 150; // 视口高度减少超过150px认为键盘出现
+
+    const handleViewportChange = () => {
+      const currentHeight = window.visualViewport?.height || window.innerHeight;
+      const heightDifference = initialViewportHeight - currentHeight;
+
+      // 更新 visualViewport 高度状态
+      setVisualViewportHeight(currentHeight);
+
+      if (heightDifference > threshold) {
+        setIsKeyboardVisible(true);
+      } else {
+        setIsKeyboardVisible(false);
+      }
+    };
+
+    // 初始化 visualViewport 高度
+    setVisualViewportHeight(initialViewportHeight);
+
+    // 监听视口变化
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener("resize", handleViewportChange);
+    } else {
+      // 降级方案：监听窗口大小变化
+      window.addEventListener("resize", handleViewportChange);
     }
-  };
+
+    return () => {
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener(
+          "resize",
+          handleViewportChange,
+        );
+      } else {
+        window.removeEventListener("resize", handleViewportChange);
+      }
+    };
+  }, [isMobileScreen, debugLog]);
+
+  // 移动端智能点击处理 - 防止意外的焦点丢失
+  useEffect(() => {
+    if (!isMobileScreen || !isInputFocused) return;
+
+    const handleDocumentClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+
+      // 如果点击的是输入框本身或其子元素，不处理
+      if (inputRef.current?.contains(target)) {
+        return;
+      }
+
+      // 如果点击的是其他可交互元素，延迟检查是否需要重新聚焦
+      setTimeout(() => {
+        if (isInputFocused && inputRef.current) {
+          // 检查输入框是否仍然有焦点
+          if (document.activeElement !== inputRef.current) {
+            inputRef.current.focus();
+          }
+        }
+      }, 50);
+    };
+
+    document.addEventListener("click", handleDocumentClick);
+    return () => {
+      document.removeEventListener("click", handleDocumentClick);
+    };
+  }, [isMobileScreen, isInputFocused, debugLog]);
 
   // 调试：监控函数调用频率，处理 React StrictMode 双重调用
   const callCountRef = useRef(0);
@@ -308,10 +391,15 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]); // 只依赖 sessionId
 
-  // auto grow input - 优化measure函数，减少频繁调用
+  // auto grow input - 移动端全屏模式下禁用
   const measure = useDebouncedCallback(
     () => {
       if (!inputRef.current) return;
+
+      // 移动端全屏模式下禁用 auto grow
+      if (isMobileScreen && isFullscreenInput) {
+        return;
+      }
 
       const rows = autoGrowTextArea(inputRef.current);
       const newInputRows = Math.min(
@@ -346,10 +434,22 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
   }, [userInput, sessionId, isLoadingFromStorage]);
 
   // 只在userInput长度有显著变化或包含换行符时才触发measure
+  // 移动端全屏模式下跳过
+  const shouldSkipAutoGrow = isMobileScreen && isFullscreenInput;
+  const userInputHasNewlines = userInput.includes("\n");
+
   useEffect(() => {
+    if (shouldSkipAutoGrow) {
+      return; // 移动端全屏模式下不执行 auto grow
+    }
     measure();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userInput.length, userInput.includes("\n"), isMobileScreen]);
+  }, [
+    userInput.length,
+    userInputHasNewlines,
+    isMobileScreen,
+    isFullscreenInput,
+  ]);
 
   // 修复onInput函数 - 始终更新userInput状态，确保受控组件正常工作
   const onInput = (
@@ -491,9 +591,24 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
     );
   };
 
-  // 优化blur处理，减少不必要的操作
-  const handleBlur = () => {
-    debugLog("Blur");
+  // 智能焦点管理 - 处理移动端点击其他文本位置的情况
+  const handleFocus = () => {
+    setIsInputFocused(true);
+
+    // 移动端：点击输入框时进入全屏模式
+    if (isMobileScreen) {
+      setIsFullscreenInput(true);
+    }
+  };
+
+  const handleBlur = (e: React.FocusEvent<HTMLTextAreaElement>) => {
+    setIsInputFocused(false);
+
+    // 移动端：失去焦点时退出全屏模式
+    if (isMobileScreen) {
+      setIsFullscreenInput(false);
+    }
+
     // 确保状态同步
     saveChatInputText.flush && saveChatInputText.flush();
 
@@ -506,94 +621,248 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
         end: selectionEnd,
       });
     }
+
+    // 移动端特殊处理：延迟重新聚焦，避免键盘闪烁
+    if (isMobileScreen) {
+      // 延迟检查是否需要重新聚焦
+      setTimeout(() => {
+        // 如果用户点击的是输入框内的文本，重新聚焦
+        const relatedTarget = e.relatedTarget as HTMLElement;
+        if (relatedTarget && inputRef.current?.contains(relatedTarget)) {
+          inputRef.current?.focus();
+        }
+      }, 100);
+    }
   };
 
+  // 退出全屏输入模式
+  const exitFullscreenInput = () => {
+    if (isMobileScreen && isFullscreenInput) {
+      setIsFullscreenInput(false);
+      inputRef.current?.blur(); // 失去焦点，隐藏键盘
+    }
+  };
+
+  // 处理全屏模式下的键盘事件
+  const handleFullscreenKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) => {
+    // 如果是长输入模式，Enter 换行，Ctrl+Enter 发送
+    if (longInputMode) {
+      if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+        doSubmit(userInput);
+        e.preventDefault();
+        // 发送后退出全屏模式
+        setTimeout(() => {
+          exitFullscreenInput();
+        }, 100);
+      }
+      return;
+    }
+
+    // 普通模式：Enter 发送
+    if (e.key === "Enter" && !e.shiftKey && !e.altKey && !e.metaKey) {
+      doSubmit(userInput);
+      e.preventDefault();
+      // 发送后退出全屏模式
+      setTimeout(() => {
+        exitFullscreenInput();
+      }, 100);
+    }
+  };
+
+  // 确保全屏模式下 textarea 能够正确聚焦
+  useEffect(() => {
+    if (isMobileScreen && isFullscreenInput && inputRef.current) {
+      // 延迟聚焦，确保DOM已更新
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 100);
+    }
+  }, [isMobileScreen, isFullscreenInput]);
+
   return (
-    <div className={styles["chat-input-panel"]}>
-      <ChatActions
-        uploadImage={handleUploadImage}
-        capturePhoto={handleCapturePhoto}
-        uploading={uploading}
-      />
-      <label
-        className={clsx(styles["chat-input-panel-inner"], {
-          [styles["chat-input-panel-inner-attach"]]: attachImages.length !== 0,
-        })}
-        htmlFor="chat-input"
-      >
-        <textarea
-          id="chat-input"
-          ref={inputRef}
-          className={styles["chat-input"]}
-          value={userInput}
-          onChange={(e) => onInput(e.currentTarget.value, e)}
-          onKeyDown={onInputKeyDown}
-          onPaste={handlePaste}
-          rows={inputRows}
-          autoFocus={autoFocus}
-          onBlur={handleBlur}
-          onScroll={(e) => {
-            const scrollTop = e.currentTarget.scrollTop;
-            saveChatInputScrollTop(scrollTop);
+    <>
+      {/* 移动端全屏输入模式 - 只显示纯文本输入框 */}
+      {isMobileScreen && isFullscreenInput && (
+        <div
+          className={styles["fullscreen-textarea-overlay"]}
+          style={{
+            height: visualViewportHeight
+              ? `${visualViewportHeight}px`
+              : "100dvh",
+            maxHeight: visualViewportHeight
+              ? `${visualViewportHeight}px`
+              : "100dvh",
           }}
-          // 减少频繁的事件处理，只保留关键的
-          onSelect={(e) => {
-            // 只在选择结束时保存，避免拖拽过程中频繁触发
-            setTimeout(() => {
-              // 安全检查，避免 null reference
-              if (inputRef.current) {
-                const selectionStart = inputRef.current.selectionStart;
-                const selectionEnd = inputRef.current.selectionEnd;
-                saveChatInputSelection({
-                  start: selectionStart,
-                  end: selectionEnd,
-                });
-              }
-            }, 50);
-          }}
-        />
-        {attachImages.length != 0 && (
-          <div className={styles["attach-images"]}>
-            {attachImages.map((image, index: number) => {
-              return (
-                <div
-                  key={index}
-                  className={styles["attach-image"]}
-                  style={{ backgroundImage: `url("${image}")` }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    showImageModal(image, false); // 使用灯箱展示图片
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault(); // 阻止默认右键菜单
-                    copyImageToClipboard(image);
-                    e.stopPropagation();
-                  }}
-                >
-                  <div className={styles["attach-image-mask"]}>
-                    <DeleteImageButton
-                      deleteImage={async () => {
-                        const newImages = attachImages.filter(
-                          (_, i) => i !== index,
-                        );
-                        setAttachImages(newImages);
-                        await chatInputStorage.saveImages(sessionId, newImages);
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+        >
+          {/* 上部区域 - 点击退出全屏 */}
+          <div
+            className={styles["fullscreen-textarea-header"]}
+            onClick={exitFullscreenInput}
+          >
+            <div className={styles["fullscreen-textarea-header-content"]}>
+              <span className={styles["fullscreen-textarea-title"]}>
+                编辑输入文本
+              </span>
+              <button
+                className={styles["fullscreen-textarea-close"]}
+                onClick={exitFullscreenInput}
+              >
+                ✕
+              </button>
+            </div>
           </div>
-        )}
-        <IconButton
-          icon={<SendWhiteIcon />}
-          className={styles["chat-input-send"]}
-          type="primary"
-          onClick={() => doSubmit(userInput)}
+
+          {/* 全屏文本输入区域 */}
+          <div className={styles["fullscreen-textarea-content"]}>
+            <textarea
+              id="chat-input"
+              ref={inputRef}
+              className={styles["fullscreen-textarea"]}
+              value={userInput}
+              onChange={(e) => onInput(e.currentTarget.value, e)}
+              onKeyDown={handleFullscreenKeyDown}
+              onPaste={handlePaste}
+              rows={1} // 全屏模式下使用固定行数，不依赖 auto grow
+              autoFocus={true}
+              onFocus={handleFocus}
+              onBlur={handleBlur}
+              onScroll={(e) => {
+                const scrollTop = e.currentTarget.scrollTop;
+                saveChatInputScrollTop(scrollTop);
+              }}
+              onSelect={(e) => {
+                setTimeout(() => {
+                  if (inputRef.current) {
+                    const selectionStart = inputRef.current.selectionStart;
+                    const selectionEnd = inputRef.current.selectionEnd;
+                    saveChatInputSelection({
+                      start: selectionStart,
+                      end: selectionEnd,
+                    });
+                  }
+                }, 50);
+              }}
+              onClick={(e) => {
+                if (isMobileScreen && !isInputFocused) {
+                  setTimeout(() => {
+                    inputRef.current?.focus();
+                  }, 10);
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* 普通模式 */}
+      <div
+        className={clsx(styles["chat-input-panel"], {
+          [styles["keyboard-visible"]]: isKeyboardVisible && isMobileScreen,
+          [styles["hidden"]]: isMobileScreen && isFullscreenInput, // 全屏时隐藏普通模式
+        })}
+      >
+        <ChatActions
+          uploadImage={handleUploadImage}
+          capturePhoto={handleCapturePhoto}
+          uploading={uploading}
         />
-      </label>
-    </div>
+        <label
+          className={clsx(styles["chat-input-panel-inner"], {
+            [styles["chat-input-panel-inner-attach"]]:
+              attachImages.length !== 0,
+          })}
+          htmlFor="chat-input"
+        >
+          <textarea
+            id="chat-input"
+            ref={inputRef}
+            className={styles["chat-input"]}
+            value={userInput}
+            onChange={(e) => onInput(e.currentTarget.value, e)}
+            onKeyDown={onInputKeyDown}
+            onPaste={handlePaste}
+            rows={inputRows}
+            autoFocus={autoFocus}
+            onFocus={handleFocus}
+            onBlur={handleBlur}
+            onScroll={(e) => {
+              const scrollTop = e.currentTarget.scrollTop;
+              saveChatInputScrollTop(scrollTop);
+            }}
+            // 减少频繁的事件处理，只保留关键的
+            onSelect={(e) => {
+              // 只在选择结束时保存，避免拖拽过程中频繁触发
+              setTimeout(() => {
+                // 安全检查，避免 null reference
+                if (inputRef.current) {
+                  const selectionStart = inputRef.current.selectionStart;
+                  const selectionEnd = inputRef.current.selectionEnd;
+                  saveChatInputSelection({
+                    start: selectionStart,
+                    end: selectionEnd,
+                  });
+                }
+              }, 50);
+            }}
+            // 移动端特殊处理：点击时保持焦点
+            onClick={(e) => {
+              if (isMobileScreen && !isInputFocused) {
+                setTimeout(() => {
+                  inputRef.current?.focus();
+                }, 10);
+              }
+            }}
+          />
+          {attachImages.length != 0 && (
+            <div className={styles["attach-images"]}>
+              {attachImages.map((image, index: number) => {
+                return (
+                  <div
+                    key={index}
+                    className={styles["attach-image"]}
+                    style={{ backgroundImage: `url("${image}")` }}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      showImageModal(image, false); // 使用灯箱展示图片
+                    }}
+                    onContextMenu={(e) => {
+                      e.preventDefault(); // 阻止默认右键菜单
+                      copyImageToClipboard(image);
+                      e.stopPropagation();
+                    }}
+                  >
+                    <div className={styles["attach-image-mask"]}>
+                      <DeleteImageButton
+                        deleteImage={async () => {
+                          const newImages = attachImages.filter(
+                            (_, i) => i !== index,
+                          );
+                          setAttachImages(newImages);
+                          await chatInputStorage.saveImages(
+                            sessionId,
+                            newImages,
+                          );
+                        }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          <IconButton
+            icon={<SendWhiteIcon />}
+            className={styles["chat-input-send"]}
+            type="primary"
+            onClick={() => doSubmit(userInput)}
+          />
+        </label>
+      </div>
+    </>
   );
 }

@@ -560,6 +560,164 @@
   }
 }
 
+/* 移动端虚拟键盘出现时的浮动定位 */
+@media only screen and (max-width: 600px) {
+  .chat-input-panel {
+    /* 默认状态：平滑过渡 */
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* 当虚拟键盘出现时，使用固定定位浮在中间 */
+    &.keyboard-visible {
+      position: fixed;
+      bottom: 50%;
+      left: 50%;
+      transform: translate(-50%, 50%);
+      width: calc(100vw - 40px);
+      max-width: 400px;
+      z-index: 1000;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+
+      /* 键盘出现时的特殊动画 */
+      animation: keyboardFloatIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+  }
+}
+
+/* 键盘浮动动画 */
+@keyframes keyboardFloatIn {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 50%) scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: translate(-50%, 50%) scale(1);
+  }
+}
+
+/* 移动端全屏文本输入模式 */
+@media only screen and (max-width: 600px) {
+  .fullscreen-textarea-overlay {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--white);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    animation: fullscreenSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    /* 高度由 JavaScript 动态设置，基于 visualViewport */
+    /* 默认使用 100dvh，但会被 JavaScript 覆盖 */
+    height: 100dvh;
+    max-height: 100dvh;
+    /* 默认位于底部，不设置 top */
+  }
+
+  .fullscreen-textarea-header {
+    flex-shrink: 0;
+    background-color: var(--white);
+    border-bottom: 1px solid var(--border-in-light);
+    padding: 12px 20px;
+    cursor: pointer;
+    user-select: none;
+    min-height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* 确保头部不被键盘遮挡 */
+    position: relative;
+    z-index: 1;
+  }
+
+  .fullscreen-textarea-header-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    max-width: 400px;
+  }
+
+  .fullscreen-textarea-title {
+    font-size: 16px;
+    font-weight: 500;
+    color: var(--black);
+  }
+
+  .fullscreen-textarea-close {
+    background: none;
+    border: none;
+    font-size: 18px;
+    color: var(--black);
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+      background-color: var(--gray);
+    }
+  }
+
+  .fullscreen-textarea-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    /* 确保内容区域适应键盘 */
+    min-height: 0;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+
+  .fullscreen-textarea {
+    width: 100%;
+    height: 100%;
+    border: none;
+    outline: none;
+    resize: none;
+    font-family: inherit;
+    font-size: 16px; /* 防止iOS缩放 */
+    line-height: 1.5;
+    color: var(--black);
+    background-color: transparent;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+    /* 确保textarea占满剩余空间 */
+    min-height: 200px;
+    max-height: none;
+    /* 确保可点击和聚焦 */
+    cursor: text;
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+  }
+
+  .hidden {
+    display: none !important;
+  }
+}
+
+/* 全屏输入滑入动画 - 从底部滑入 */
+@keyframes fullscreenSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 @mixin single-line {
   white-space: nowrap;
   overflow: hidden;
