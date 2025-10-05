@@ -329,6 +329,12 @@ export function showImageModal(
   style?: CSSProperties,
   boxStyle?: CSSProperties,
 ) {
+  // 检查图片URL是否有效
+  if (!img || img.trim() === "") {
+    console.warn("showImageModal: 无效的图片URL");
+    return;
+  }
+
   // 新增 image-preview-modal class
   const div = document.createElement("div");
   div.className = "modal-mask image-preview-modal";

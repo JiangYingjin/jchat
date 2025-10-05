@@ -285,7 +285,10 @@ function MarkDownContent(props: { content: string }) {
         code: CustomCode,
         p: (pProps) => <p {...pProps} dir="auto" />,
         a: (aProps) => {
-          const href = aProps.href || "";
+          const href = aProps.href;
+          if (!href) {
+            return <a {...aProps} />;
+          }
           if (/\.(aac|mp3|opus|wav)$/.test(href)) {
             return (
               <figure>

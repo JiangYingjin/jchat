@@ -24,14 +24,14 @@ const getScrollStorage = (): LocalForage | null => {
   return scrollStorageInstance;
 };
 
-// 调试日志函数 - 只在开发环境输出
+import { createModuleLogger } from "../utils/logger";
+
+// 创建滚动模块日志器 - 自动检测 NEXT_PUBLIC_DEBUG_SCROLL 环境变量
+const scrollLogger = createModuleLogger("SCROLL");
+
+// 使用模块化日志系统 - 支持细粒度控制
 const debugLog = (action: string, data?: any) => {
-  if (
-    process.env.NODE_ENV === "development" &&
-    process.env.NEXT_PUBLIC_DEBUG_SCROLL === "true"
-  ) {
-    console.log(`[ScrollStorage][${action}]`, data);
-  }
+  scrollLogger.debug("SCROLL", action, data);
 };
 
 /**

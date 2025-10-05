@@ -27,6 +27,7 @@ import {
   updateSessionStatsBasic,
   updateSessionStats,
 } from "../utils/session";
+import { logger, createModuleLogger } from "../utils/logger";
 import { parseGroupMessageId } from "../utils/group";
 import { calculateGroupStatus } from "../utils/group";
 import { determineModelForGroupSession } from "../utils/model";
@@ -421,33 +422,12 @@ async function ensureCurrentSessionDataComplete(): Promise<void> {
   debugLog("CURRENT_SESSION_DATA", "✅ 当前会话数据验证完成");
 }
 
-// 添加调试日志函数（仅输出关键类别）
-const CRITICAL_DEBUG_CATEGORIES = new Set([
-  "STARTUP",
-  "STORAGE_RETRY",
-  "NEW_SESSION",
-  "SYNC",
-  "SYNC_CHECK",
-  "PERSIST",
-  "REHYDRATE",
-  "TAB_STATE",
-  "TAB_STATE_AUTO_SAVE",
-]);
-const debugLog = (category: string, message: string, data?: any) => {
-  if (!CRITICAL_DEBUG_CATEGORIES.has(category)) {
-    return;
-  }
+// 创建聊天模块日志器 - 自动检测 NEXT_PUBLIC_DEBUG_CHAT 环境变量
+const chatLogger = createModuleLogger("CHAT");
 
-  const timestamp = new Date().toISOString();
-  const logData = data
-    ? typeof data === "object"
-      ? JSON.stringify(data, null, 2)
-      : data
-    : "";
-  // 仅输出关键调试信息
-  console.log(
-    `[ChatStore-${category}] ${timestamp} - ${message}${logData ? "\n" + logData : ""}`,
-  );
+// 使用新的高级日志系统
+const debugLog = (category: string, message: string, data?: any) => {
+  chatLogger.debug(category, message, data);
 };
 
 // 添加启动状态跟踪
