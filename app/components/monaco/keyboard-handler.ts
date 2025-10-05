@@ -33,6 +33,51 @@ export class KeyboardHandler {
   }
 
   /**
+   * 检测当前焦点是否在Monaco Editor的搜索/替换框中
+   * @returns 如果焦点在搜索/替换框中返回true，否则返回false
+   */
+  private isFindWidgetFocused(): boolean {
+    if (!this.editorInstance) return false;
+
+    try {
+      // 获取当前活跃的元素
+      const activeElement = document.activeElement;
+      if (!activeElement) return false;
+
+      // 检查是否在Monaco Editor的查找组件中
+      const findWidget = activeElement.closest(".monaco-editor .find-widget");
+      if (findWidget) {
+        // 进一步检查是否在输入框中
+        const inputElement = activeElement as HTMLInputElement;
+        if (
+          inputElement &&
+          (inputElement.classList.contains("find-input") ||
+            inputElement.classList.contains("replace-input") ||
+            inputElement.getAttribute("aria-label")?.includes("Find") ||
+            inputElement.getAttribute("aria-label")?.includes("Replace"))
+        ) {
+          return true;
+        }
+      }
+
+      // 也可以通过检查Monaco Editor的内部状态
+      const editorDomNode = this.editorInstance.getDomNode();
+      if (editorDomNode) {
+        const findWidgetInEditor = editorDomNode.querySelector(".find-widget");
+        if (findWidgetInEditor && findWidgetInEditor.contains(activeElement)) {
+          return true;
+        }
+      }
+
+      return false;
+    } catch (error) {
+      // 如果检测过程中出现错误，默认返回false，使用自定义逻辑
+      console.warn("[KeyboardHandler] 检测查找组件焦点状态失败:", error);
+      return false;
+    }
+  }
+
+  /**
    * 检测是否应该阻止光标移动
    * @param position 目标位置
    * @param methodName 调用的方法名
@@ -350,6 +395,26 @@ export class KeyboardHandler {
             (keyEvent.key === "h" || keyEvent.key === "g")
           ) {
             return true; // 允许正常传播
+          }
+
+          // 🎯 如果焦点在搜索/替换框中，使用Monaco内置逻辑，不进行自定义处理
+          if (this.isFindWidgetFocused()) {
+            // 对于搜索/替换框中的backspace和左右键，使用Monaco内置逻辑
+            const isSearchBoxKey = [
+              "ArrowRight",
+              "ArrowLeft",
+              "Backspace",
+              "Delete",
+            ].includes(keyEvent.key);
+
+            if (isSearchBoxKey) {
+              // 调试信息：确认在搜索框中使用Monaco内置逻辑
+              console.log(
+                "[KeyboardHandler] 检测到搜索框焦点，使用Monaco内置逻辑处理:",
+                keyEvent.key,
+              );
+              return true; // 允许正常传播，使用Monaco内置逻辑
+            }
           }
 
           // 🎯 只拦截确认有问题的键，让上下键正常传递给Monaco
