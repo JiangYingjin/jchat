@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { useChatStore, type ChatSession } from "../store";
 import { showToast } from "./ui-lib";
 import { IconButton } from "./button";
@@ -15,9 +15,20 @@ export function SessionEditor(props: { onClose: () => void }) {
   const chatStore = useChatStore();
   const session = chatStore.currentSession();
   const [localTitle, setLocalTitle] = useState(session.title);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // 判断是否为组内会话
   const isGroupSession = session.groupId !== null;
+
+  // 组件挂载后自动聚焦到输入框
+  useEffect(() => {
+    if (inputRef.current) {
+      inputRef.current.focus();
+      // 将光标移动到文本末尾
+      const length = inputRef.current.value.length;
+      inputRef.current.setSelectionRange(length, length);
+    }
+  }, []);
 
   // 更新会话标题
   const updateSessionTitle = (title: string) => {
@@ -103,6 +114,7 @@ export function SessionEditor(props: { onClose: () => void }) {
             subTitle={Locale.Chat.EditSession.SessionTitle.SubTitle}
           >
             <input
+              ref={inputRef}
               type="text"
               value={localTitle}
               onInput={(e) => setLocalTitle(e.currentTarget.value)}
