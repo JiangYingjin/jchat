@@ -6,6 +6,7 @@ import React, {
   useCallback,
 } from "react";
 import { ChatMessage, useChatStore } from "../store";
+import { useShallow } from "zustand/react/shallow";
 import { ChatMessageItem } from "./chat-message-item";
 import { useMobileScreen } from "../utils";
 import { CHAT_PAGE_SIZE } from "../constant";
@@ -46,19 +47,6 @@ const selectCurrentSessionMessages = (state: any) => {
   };
 };
 
-// 比较函数：只有消息数组长度或会话ID变化时才重新渲染
-// 注意：由于 Zustand 的 smartUpdateSession 直接修改数组内容而不改变引用，
-// 我们需要比较 messages.length 而不是引用
-const isMessagesEqual = (prev: any, next: any) => {
-  if (!prev && !next) return true;
-  if (!prev || !next) return false;
-  // 比较会话ID和消息数组长度
-  return (
-    prev.sessionId === next.sessionId &&
-    prev.messages.length === next.messages.length
-  );
-};
-
 export const MessageList = React.memo(function MessageList({
   messages,
   onResend,
@@ -77,10 +65,7 @@ export const MessageList = React.memo(function MessageList({
   const isMobileScreen = useMobileScreen();
 
   // 独立订阅消息相关状态
-  const messagesData = useChatStore(
-    selectCurrentSessionMessages,
-    isMessagesEqual,
-  );
+  const messagesData = useChatStore(useShallow(selectCurrentSessionMessages));
 
   // 保留 chatStore 用于调用方法
   const chatStore = React.useMemo(() => useChatStore.getState(), []);

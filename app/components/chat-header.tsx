@@ -11,6 +11,7 @@ import React from "react";
 import { showConfirm } from "./ui-lib";
 import { showToast } from "./ui-lib";
 import { useChatStore } from "../store";
+import { useShallow } from "zustand/react/shallow";
 
 // 创建选择器：只订阅当前会话的标题和消息数量
 const selectCurrentSessionHeader = (state: any) => {
@@ -41,7 +42,7 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
 }) {
   const isMobileScreen = useMobileScreen();
   // 独立订阅标题相关状态
-  const headerData = useChatStore(selectCurrentSessionHeader, isHeaderEqual);
+  const headerData = useChatStore(useShallow(selectCurrentSessionHeader));
 
   // 保留 chatStore 用于调用方法
   const chatStore = React.useMemo(() => useChatStore.getState(), []);

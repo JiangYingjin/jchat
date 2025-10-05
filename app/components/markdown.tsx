@@ -23,6 +23,14 @@ import { IconButton } from "./button";
 
 import { DEFAULT_FONT_SIZE, DEFAULT_FONT_FAMILY } from "../constant";
 
+import { createLogger } from "../utils/logger";
+
+const markdownLogger = createLogger("MARKDOWN");
+
+const debugLog = (category: string, message: string, data?: any) => {
+  markdownLogger.debug(category, message, data);
+};
+
 export function Mermaid(props: { code: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [hasError, setHasError] = useState(false);
@@ -36,7 +44,7 @@ export function Mermaid(props: { code: string }) {
         })
         .catch((e) => {
           setHasError(true);
-          console.error("[Mermaid] ", e.message);
+          debugLog("MERMAID", "Error running mermaid", e.message);
         });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -263,7 +271,19 @@ function tryWrapHtmlCode(text: string) {
 
 function MarkDownContent(props: { content: string }) {
   const escapedContent = useMemo(() => {
+    debugLog("MARKDOWN_CONTENT", "Processing content", {
+      originalContent: props.content,
+      contentLength: props.content?.length,
+      contentType: typeof props.content,
+    });
+
     let content = tryWrapHtmlCode(escapeBrackets(props.content));
+
+    debugLog("MARKDOWN_CONTENT", "After processing", {
+      processedContent: content,
+      processedLength: content?.length,
+    });
+
     return content;
   }, [props.content]);
 
@@ -286,25 +306,45 @@ function MarkDownContent(props: { content: string }) {
         p: (pProps) => <p {...pProps} dir="auto" />,
         a: (aProps) => {
           const href = aProps.href;
-          if (!href) {
+
+          // 调试信息：记录所有链接处理
+          debugLog("MARKDOWN_CONTENT", "Link processing", {
+            href,
+            hrefType: typeof href,
+            hrefLength: href?.length,
+            isEmpty: !href || href.trim() === "",
+            aProps: aProps,
+          });
+
+          if (!href || href.trim() === "") {
+            debugLog(
+              "MARKDOWN_CONTENT",
+              "Empty href detected, rendering plain link",
+            );
             return <a {...aProps} />;
           }
+
           if (/\.(aac|mp3|opus|wav)$/.test(href)) {
+            debugLog("MARKDOWN_CONTENT", "Audio file detected", href);
             return (
               <figure>
                 <audio controls src={href}></audio>
               </figure>
             );
           }
+
           if (/\.(3gp|3g2|webm|ogv|mpeg|mp4|avi)$/.test(href)) {
+            debugLog("MARKDOWN_CONTENT", "Video file detected", href);
             return (
               <video controls width="99.9%">
                 <source src={href} />
               </video>
             );
           }
+
           const isInternal = /^\/#/i.test(href);
           const target = isInternal ? "_self" : (aProps.target ?? "_blank");
+          debugLog("MARKDOWN_CONTENT", "Regular link", { href, target });
           return <a {...aProps} target={target} />;
         },
       }}
