@@ -276,8 +276,7 @@ export function createModuleLogger(
   color?: string,
 ): Logger {
   // 自动检测环境变量
-  const envVarName = `NEXT_PUBLIC_DEBUG_${moduleName.toUpperCase()}`;
-  const isEnabled = checkModuleEnabled(moduleName, envVarName);
+  const isEnabled = checkModuleEnabled(moduleName);
 
   const config: LoggerConfig = {
     enabled: isEnabled,
@@ -304,7 +303,7 @@ export function createModuleLogger(
 /**
  * 检查模块是否启用
  */
-function checkModuleEnabled(moduleName: string, envVarName: string): boolean {
+function checkModuleEnabled(moduleName: string): boolean {
   // 检查全局调试开关
   if (process.env.NEXT_PUBLIC_DEBUG === "false") {
     return false;
@@ -314,7 +313,43 @@ function checkModuleEnabled(moduleName: string, envVarName: string): boolean {
   }
 
   // 检查模块特定的环境变量
-  const moduleEnvValue = process.env[envVarName];
+  /* 
+    Next.js 的 NEXT_PUBLIC_ 变量在构建时被直接替换，而不是存储在 process.env 中
+    不能通过以下这种方式获取环境变量，因为 NEXT_PUBLIC_ 变量在构建时被直接替换，而不是存储在 process.env 中
+      const envVarName = "NEXT_PUBLIC_DEBUG_CHAT";
+      process.env[envVarName]  // → undefined
+  */
+  let moduleEnvValue: string | undefined;
+
+  // 根据变量名获取对应的环境变量值
+  switch (moduleName.toUpperCase()) {
+    case "CHAT":
+      moduleEnvValue = process.env.NEXT_PUBLIC_DEBUG_CHAT;
+      break;
+    case "SCROLL":
+      moduleEnvValue = process.env.NEXT_PUBLIC_DEBUG_SCROLL;
+      break;
+    case "MESSAGE_LIST":
+      moduleEnvValue = process.env.NEXT_PUBLIC_DEBUG_MESSAGE_LIST;
+      break;
+    case "CHAT_HEADER":
+      moduleEnvValue = process.env.NEXT_PUBLIC_DEBUG_CHAT_HEADER;
+      break;
+    case "SYNC":
+      moduleEnvValue = process.env.NEXT_PUBLIC_DEBUG_SYNC;
+      break;
+    case "MARKDOWN":
+      moduleEnvValue = process.env.NEXT_PUBLIC_DEBUG_MARKDOWN;
+      break;
+    default:
+      // 优化：只在开发环境下输出警告，避免生产环境噪音
+      if (process.env.NODE_ENV === "development") {
+        console.warn(
+          `[Logger] 未找到模块 "${moduleName}" 的调试环境变量，使用默认值。`,
+        );
+      }
+  }
+
   if (moduleEnvValue === "false") {
     return false;
   }

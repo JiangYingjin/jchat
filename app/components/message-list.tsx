@@ -12,6 +12,13 @@ import { useMobileScreen } from "../utils";
 import { CHAT_PAGE_SIZE } from "../constant";
 import { useScrollState } from "../hooks/use-scroll-state";
 import styles from "../styles/chat.module.scss";
+import { createModuleLogger } from "../utils/logger";
+
+const messageListLogger = createModuleLogger("MESSAGE_LIST");
+
+const debugLog = (category: string, message: string, data?: any) => {
+  messageListLogger.debug(category, message, data);
+};
 
 type RenderMessage = ChatMessage & { preview?: boolean };
 
@@ -78,7 +85,7 @@ export const MessageList = React.memo(function MessageList({
 
   // 添加调试信息
   React.useEffect(() => {
-    console.log("🔥 [MESSAGE_LIST] 消息列表组件渲染", {
+    debugLog("MESSAGE_LIST", "消息列表组件渲染", {
       propMessagesLength: messages.length,
       storeMessagesLength: messagesData.messages.length,
       sessionId: messagesData.sessionId,
@@ -108,7 +115,7 @@ export const MessageList = React.memo(function MessageList({
 
     // 只有当会话ID存在且与之前不同时才恢复
     if (currentSessionId && prevSessionId.current !== currentSessionId) {
-      console.log("🔥 [MESSAGE_LIST] 会话加载，开始恢复滚动状态", {
+      debugLog("MESSAGE_LIST", "会话加载，开始恢复滚动状态", {
         sessionId: currentSessionId,
         prevSessionId: prevSessionId.current,
       });
@@ -128,7 +135,7 @@ export const MessageList = React.memo(function MessageList({
             setTimeout(() => {
               if (scrollRef.current) {
                 scrollRef.current.scrollTop = scrollState.scrollTop;
-                console.log("🔥 [MESSAGE_LIST] 滚动位置已恢复", {
+                debugLog("MESSAGE_LIST", "滚动位置已恢复", {
                   sessionId: currentSessionId,
                   messageIndex: scrollState.messageIndex,
                   scrollTop: scrollState.scrollTop,
@@ -138,14 +145,14 @@ export const MessageList = React.memo(function MessageList({
           } else {
             // 没有保存的滚动状态，重置到最后一页
             const newIndex = resetToLastPage();
-            console.log("🔥 [MESSAGE_LIST] 无滚动状态，重置到最后一页", {
+            debugLog("MESSAGE_LIST", "无滚动状态，重置到最后一页", {
               sessionId: currentSessionId,
               newIndex,
             });
           }
         })
         .catch((error) => {
-          console.error("🔥 [MESSAGE_LIST] 恢复滚动状态失败", {
+          debugLog("MESSAGE_LIST", "恢复滚动状态失败", {
             sessionId: currentSessionId,
             error,
           });
@@ -175,7 +182,7 @@ export const MessageList = React.memo(function MessageList({
       // 只有消息增加时才重置到最后一页；仅在允许自动滚动且不在恢复状态时才跳转
       if (autoScroll && !isRestoringRef.current) {
         const newIndex = resetToLastPage();
-        console.log("🔥 [MESSAGE_LIST] 消息增加，重置到最后一页", {
+        debugLog("MESSAGE_LIST", "消息增加，重置到最后一页", {
           newIndex,
           messagesLength: messages.length,
         });

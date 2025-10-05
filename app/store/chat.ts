@@ -425,9 +425,15 @@ async function ensureCurrentSessionDataComplete(): Promise<void> {
 // 创建聊天模块日志器 - 自动检测 NEXT_PUBLIC_DEBUG_CHAT 环境变量
 const chatLogger = createModuleLogger("CHAT");
 
+const syncLogger = createModuleLogger("SYNC");
+
 // 使用新的高级日志系统
 const debugLog = (category: string, message: string, data?: any) => {
   chatLogger.debug(category, message, data);
+};
+
+const syncDebugLog = (category: string, message: string, data?: any) => {
+  syncLogger.debug(category, message, data);
 };
 
 // 添加启动状态跟踪
@@ -3934,7 +3940,7 @@ function setupCrossTabSync() {
                 const parsedData = storedData.state || storedData;
                 // 解析存储数据 - 基础信息
 
-                console.log("🔥 [SYNC] 解析存储数据 - 标签页独立状态检查", {
+                syncDebugLog("SYNC", "解析存储数据 - 标签页独立状态检查", {
                   hasCurrentSessionIndex: "currentSessionIndex" in parsedData,
                   currentSessionIndex: parsedData.currentSessionIndex,
                   hasCurrentGroupIndex: "currentGroupIndex" in parsedData,
@@ -3956,7 +3962,7 @@ function setupCrossTabSync() {
                     beforeUpdateState.currentSessionIndex
                   ]?.title;
 
-                console.log("🔥 [SYNC] 更新前状态", {
+                syncDebugLog("SYNC", "更新前状态", {
                   currentSessionIndex: beforeUpdateState.currentSessionIndex,
                   currentSessionId: beforeSessionId,
                   currentSessionTitle: beforeSessionTitle,
@@ -3971,14 +3977,14 @@ function setupCrossTabSync() {
                   );
                   if (newIndex !== -1) {
                     adjustedCurrentSessionIndex = newIndex;
-                    console.log("🔥 [SYNC] 智能调整索引", {
+                    syncDebugLog("SYNC", "智能调整索引", {
                       originalIndex: beforeUpdateState.currentSessionIndex,
                       newIndex: adjustedCurrentSessionIndex,
                       sessionId: beforeSessionId,
                       sessionTitle: beforeSessionTitle,
                     });
                   } else {
-                    console.log("🔥 [SYNC] 未找到原会话，保持原索引", {
+                    syncDebugLog("SYNC", "未找到原会话，保持原索引", {
                       originalIndex: beforeUpdateState.currentSessionIndex,
                       sessionId: beforeSessionId,
                     });
@@ -3990,7 +3996,7 @@ function setupCrossTabSync() {
 
                 // 安全地更新状态，只更新全局共享状态
                 useChatStore.setState((currentState) => {
-                  console.log("🔥 [SYNC] 当前状态", {
+                  syncDebugLog("SYNC", "当前状态", {
                     sessionsCount: currentState.sessions.length,
                     firstSessionTitle: currentState.sessions[0]?.title || "无",
                     // 检查当前标签页独立状态
@@ -4006,7 +4012,7 @@ function setupCrossTabSync() {
                         ?.title,
                   });
 
-                  console.log("🔥 [SYNC] 存储数据", {
+                  syncDebugLog("SYNC", "存储数据", {
                     sessionsCount: parsedData.sessions?.length || 0,
                     firstSessionTitle: parsedData.sessions?.[0]?.title || "无",
                   });
@@ -4030,7 +4036,7 @@ function setupCrossTabSync() {
                       })
                     : currentState.sessions;
 
-                  console.log("🔥 [SYNC] 合并后的 sessions", {
+                  syncDebugLog("SYNC", "合并后的 sessions", {
                     mergedSessionsCount: mergedSessions.length,
                     preservedMessagesCount: mergedSessions.filter(
                       (s: any) => s.messages && s.messages.length > 0,
@@ -4083,7 +4089,7 @@ function setupCrossTabSync() {
 
                 // 记录更新后的状态
                 const afterUpdateState = useChatStore.getState();
-                console.log("🔥 [SYNC] 更新后状态", {
+                syncDebugLog("SYNC", "更新后状态", {
                   currentSessionIndex: afterUpdateState.currentSessionIndex,
                   currentSessionId:
                     afterUpdateState.sessions[
@@ -4098,7 +4104,7 @@ function setupCrossTabSync() {
                     afterUpdateState.currentSessionIndex,
                 });
 
-                console.log("🔥 [SYNC] 状态更新完成，UI应该重新渲染");
+                syncDebugLog("SYNC", "状态更新完成，UI应该重新渲染");
 
                 // 确保当前会话的消息已加载
                 setTimeout(async () => {
@@ -4129,7 +4135,7 @@ function setupCrossTabSync() {
                           currentMessages.length,
                         );
 
-                        console.log("🔥 [SYNC] 开始比较所有消息内容", {
+                        syncDebugLog("SYNC", "开始比较所有消息内容", {
                           sessionId: currentSession.id,
                           latestMessagesLength: latestMessages.length,
                           currentMessagesLength: currentMessages.length,
@@ -4144,7 +4150,7 @@ function setupCrossTabSync() {
                           // 如果任一边没有消息，说明数量不匹配
                           if (!latestMsg || !currentMsg) {
                             messagesContentMismatch = true;
-                            console.log("🔥 [SYNC] 检测到消息数量不匹配", {
+                            syncDebugLog("SYNC", "检测到消息数量不匹配", {
                               index: i,
                               latestMsgExists: !!latestMsg,
                               currentMsgExists: !!currentMsg,
@@ -4158,7 +4164,7 @@ function setupCrossTabSync() {
                             latestMsg.content !== currentMsg.content
                           ) {
                             messagesContentMismatch = true;
-                            console.log("🔥 [SYNC] 检测到消息内容不匹配", {
+                            syncDebugLog("SYNC", "检测到消息内容不匹配", {
                               index: i,
                               latestMsgId: latestMsg.id,
                               currentMsgId: currentMsg.id,
@@ -4175,11 +4181,12 @@ function setupCrossTabSync() {
                           }
                         }
                       } else {
-                        console.log("🔥 [SYNC] 存储中无消息数据，跳过内容比较");
+                        syncDebugLog("SYNC", "存储中无消息数据，跳过内容比较");
                       }
                     } catch (error) {
                       console.error(
-                        "🔥 [SYNC] 加载消息数据失败，跳过内容比较",
+                        "SYNC",
+                        "加载消息数据失败，跳过内容比较",
                         error,
                       );
                     }
@@ -4192,8 +4199,9 @@ function setupCrossTabSync() {
                       messagesContentMismatch);
 
                   if (needsMessageLoading) {
-                    console.log(
-                      "🔥 [SYNC] 检测到消息需要重新加载，开始加载消息",
+                    syncDebugLog(
+                      "SYNC",
+                      "检测到消息需要重新加载，开始加载消息",
                       {
                         sessionId: currentSession.id,
                         messageCount: currentSession.messageCount,
@@ -4226,11 +4234,11 @@ function setupCrossTabSync() {
                     // 在消息加载完成后再重置标志，延长时间以确保所有后续状态更新完成
                     setTimeout(() => {
                       isUpdatingFromSync = false;
-                      console.log("🔥 [SYNC] 重置同步标志（消息加载后）");
+                      syncDebugLog("SYNC", "重置同步标志（消息加载后）");
                     }, 300); // 延长到 300ms
                   } else {
                     // 如果不需要加载消息，立即重置标志
-                    console.log("🔥 [SYNC] 消息已完整加载，无需重新加载", {
+                    syncDebugLog("SYNC", "消息已完整加载，无需重新加载", {
                       sessionId: currentSession?.id,
                       messageCount: currentSession?.messageCount || 0,
                       messagesLength: messagesLength,
@@ -4239,17 +4247,17 @@ function setupCrossTabSync() {
                     });
                     setTimeout(() => {
                       isUpdatingFromSync = false;
-                      console.log("🔥 [SYNC] 重置同步标志（无需加载消息）");
+                      syncDebugLog("SYNC", "重置同步标志（无需加载消息）");
                     }, 100);
                   }
                 }, 100); // 延迟100ms确保状态更新完成
               } else {
-                console.log("🔥 [SYNC] 存储中没有找到数据，尝试重新水合");
+                syncDebugLog("SYNC", "存储中没有找到数据，尝试重新水合");
                 useChatStore.persist.rehydrate();
               }
             })
             .catch((error) => {
-              console.error("🔥 [SYNC] 从存储读取数据失败:", error);
+              console.error("SYNC", "从存储读取数据失败:", error);
               // 降级到重新水合
               useChatStore.persist.rehydrate();
             });
@@ -4264,7 +4272,7 @@ function setupCrossTabSync() {
       useChatStore.subscribe((state) => {
         // 如果正在从同步更新状态，跳过广播
         if (isUpdatingFromSync) {
-          console.log("🔥 [SYNC] 跳过广播：正在从同步更新状态");
+          syncDebugLog("SYNC", "跳过广播：正在从同步更新状态");
           return;
         }
         const currentGlobalState = {
@@ -4279,7 +4287,7 @@ function setupCrossTabSync() {
 
         // 如果是第一次调用，只记录状态，不广播
         if (lastGlobalState === null) {
-          console.log("🔥 [SYNC] 初始化状态监听", {
+          syncDebugLog("SYNC", "初始化状态监听", {
             sessionsCount: currentGlobalState.sessions.length,
             firstSessionTitle: currentGlobalState.sessions[0]?.title || "无",
           });
@@ -4350,7 +4358,7 @@ function setupCrossTabSync() {
 
         // 只有当结构性变化时才广播，groupSessions 变化不广播
         if (hasStructuralChange) {
-          console.log("🔥 [SYNC] 检测到结构性变化，准备广播", {
+          syncDebugLog("SYNC", "检测到结构性变化，准备广播", {
             hasStructuralChange,
             hasGroupSessionChange,
             sessionsCount: currentGlobalState.sessions.length,
@@ -4386,7 +4394,7 @@ function setupCrossTabSync() {
           }, 100); // 延迟 100ms 确保存储写入完成
         } else if (hasGroupSessionChange) {
           // groupSessions 变化时不广播，只记录日志
-          console.log("🔥 [SYNC] 检测到组会话变化，但不进行广播", {
+          syncDebugLog("SYNC", "检测到组会话变化，但不进行广播", {
             hasGroupSessionChange,
             groupSessionsCount: currentGroupSessionKeys.length,
           });
@@ -4398,7 +4406,7 @@ function setupCrossTabSync() {
 
       debugLog("SYNC", "跨标签页同步机制设置完成");
     } catch (error) {
-      console.error("[SYNC] Broadcast Channel setup failed:", error);
+      console.error("SYNC", "Broadcast Channel setup failed:", error);
     }
   });
 }
@@ -4433,7 +4441,7 @@ function debouncedSave(state: Partial<TabIndependentState>) {
           savedState: pendingSaveState,
         });
       } catch (error) {
-        console.error("[TAB_STATE_DEBOUNCED_SAVE] 防抖保存失败:", error);
+        console.error("TAB_STATE_DEBOUNCED_SAVE", "防抖保存失败:", error);
       } finally {
         pendingSaveState = null;
       }
@@ -4457,7 +4465,7 @@ function immediateSave(state: Partial<TabIndependentState>) {
       });
     })
     .catch((error) => {
-      console.error("[TAB_STATE_IMMEDIATE_SAVE] 立即保存失败:", error);
+      console.error("TAB_STATE_IMMEDIATE_SAVE", "立即保存失败:", error);
     });
 }
 

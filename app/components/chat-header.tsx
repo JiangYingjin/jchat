@@ -12,6 +12,13 @@ import { showConfirm } from "./ui-lib";
 import { showToast } from "./ui-lib";
 import { useChatStore } from "../store";
 import { useShallow } from "zustand/react/shallow";
+import { createModuleLogger } from "../utils/logger";
+
+const chatHeaderLogger = createModuleLogger("CHAT_HEADER");
+
+const debugLog = (category: string, message: string, data?: any) => {
+  chatHeaderLogger.debug(category, message, data);
+};
 
 // 创建选择器：只订阅当前会话的标题和消息数量
 const selectCurrentSessionHeader = (state: any) => {
@@ -21,13 +28,6 @@ const selectCurrentSessionHeader = (state: any) => {
     title: currentSession.title,
     messageCount: currentSession.messageCount,
   };
-};
-
-// 比较函数：只有标题或消息数量变化时才重新渲染
-const isHeaderEqual = (prev: any, next: any) => {
-  if (!prev && !next) return true;
-  if (!prev || !next) return false;
-  return prev.title === next.title && prev.messageCount === next.messageCount;
 };
 
 export const ChatHeader = React.memo(function ChatHeader(props: {
@@ -49,7 +49,7 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
 
   // 添加调试信息
   React.useEffect(() => {
-    console.log("🔥 [CHAT_HEADER] 标题组件渲染", {
+    debugLog("CHAT_HEADER", "标题组件渲染", {
       propTitle: props.sessionTitle,
       storeTitle: headerData?.title,
       propMessageCount: props.messageCount,
