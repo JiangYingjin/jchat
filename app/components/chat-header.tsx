@@ -69,6 +69,45 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
     await currentChatStore.generateSessionTitle(true, session);
   };
 
+  // 处理普通会话删除点击（带确认逻辑）
+  const handleDeleteSessionClick = async () => {
+    // 对于组内会话，直接删除（保持现有逻辑）
+    if (props.hasGroupId) {
+      props.onDeleteSessionClick();
+      return;
+    }
+
+    // 对于普通会话，根据消息数量决定是否需要确认
+    if (props.messageCount > 15) {
+      const confirmed = await showConfirm(
+        <div style={{ padding: "8px 16px" }}>
+          <div
+            style={{
+              fontSize: "14px",
+              color: "#d32f2f",
+              padding: "12px 16px",
+              backgroundColor: "#ffebee",
+              border: "1px solid #ffcdd2",
+              borderRadius: "8px",
+              textAlign: "center",
+              fontWeight: "500",
+            }}
+          >
+            ⚠️ 即将删除会话 “<strong>{props.sessionTitle}</strong>” （包含{" "}
+            <strong>{props.messageCount} 条消息</strong>）
+          </div>
+        </div>,
+      );
+
+      if (confirmed) {
+        props.onDeleteSessionClick();
+      }
+    } else {
+      // 消息数量 <= 15，直接删除（保持现有行为）
+      props.onDeleteSessionClick();
+    }
+  };
+
   // 处理右键单击删除按钮
   const handleDeleteButtonContextMenu = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -170,17 +209,20 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
           />
         </div>
         <div className="window-action-button">
-          <IconButton
-            icon={<DeleteIcon />}
-            bordered
-            title={
-              props.hasGroupId
-                ? "左键删除会话，右键删除整个组"
-                : Locale.Chat.Actions.Delete
-            }
-            onClick={props.onDeleteSessionClick}
-            onContextMenu={handleDeleteButtonContextMenu}
-          />
+          {/* 只有当消息数量小于30时才显示删除按钮 */}
+          {props.messageCount < 30 && (
+            <IconButton
+              icon={<DeleteIcon />}
+              bordered
+              title={
+                props.hasGroupId
+                  ? "左键删除会话，右键删除整个组"
+                  : Locale.Chat.Actions.Delete
+              }
+              onClick={handleDeleteSessionClick}
+              onContextMenu={handleDeleteButtonContextMenu}
+            />
+          )}
         </div>
       </div>
     </div>
