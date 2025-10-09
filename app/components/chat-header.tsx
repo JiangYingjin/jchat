@@ -78,7 +78,7 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
     }
 
     // 对于普通会话，根据消息数量决定是否需要确认
-    if (props.messageCount > 15) {
+    if (props.messageCount >= 10) {
       const confirmed = await showConfirm(
         <div style={{ padding: "8px 16px" }}>
           <div

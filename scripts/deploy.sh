@@ -51,6 +51,20 @@ rsync -az --delete --force .next/server .next/static "$SERVE_DIR/.next"
 # 恢复 PM2 配置
 echo "$PM2_CONF" >"$PM2_CONF_PATH"
 
+# 删除服务目录下的 .env* 文件
+echo "🗑️  删除服务目录下的 .env* 文件 ..."
+find "$SERVE_DIR" -name ".env*" -type f -delete
+
+# 列出并链接 PROJ_DIR 下的所有 .env* 文件到服务目录
+echo "🔗 链接 PROJ_DIR 下的 .env* 文件到服务目录 ..."
+for env_file in "$PROJ_DIR"/.env*; do
+    if [ -f "$env_file" ]; then
+        filename=$(basename "$env_file")
+        echo "  📄 链接: $filename"
+        ln -sf "$env_file" "$SERVE_DIR/$filename"
+    fi
+done
+
 # 重启服务
 pm2 del jchat || true
 pm2 start "$PM2_CONF_PATH"
