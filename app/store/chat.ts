@@ -504,6 +504,11 @@ const DEFAULT_CHAT_STATE = {
   chatListView: "sessions" as "sessions" | "groups",
   chatListGroupView: "groups" as "groups" | "group-sessions",
   models: [] as string[],
+  longTextModel: null as string | null,
+  groupSessionModel: null as string | null,
+  defaultModel: null as string | null,
+  configError: null as string | null,
+  fetchState: 0 as number, // 0 not fetch, 1 fetching, 2 done
   accessCode: "",
   batchApplyMode: false, // 批量应用模式
   activeBatchRequests: 0, // 活跃的批量请求计数器
@@ -1107,7 +1112,10 @@ export const useChatStore = createPersistStore(
 
         // 为组会话设置默认模型和长文本模式
         const state = get();
-        firstSession.model = determineModelForGroupSession(state.models);
+        firstSession.model = determineModelForGroupSession(
+          state.groupSessionModel,
+          state.defaultModel as string,
+        );
         firstSession.longInputMode = true;
         firstSession.isModelManuallySelected = false;
 
@@ -1157,7 +1165,10 @@ export const useChatStore = createPersistStore(
 
         // 为组会话设置默认模型和长文本模式
         const state = get();
-        newSession.model = determineModelForGroupSession(state.models);
+        newSession.model = determineModelForGroupSession(
+          state.groupSessionModel,
+          state.defaultModel as string,
+        );
         newSession.longInputMode = true;
         newSession.isModelManuallySelected = false;
 
@@ -1632,7 +1643,10 @@ export const useChatStore = createPersistStore(
 
           // 为组会话设置默认模型和长文本模式
           const state = get();
-          newSessionToAdd.model = determineModelForGroupSession(state.models);
+          newSessionToAdd.model = determineModelForGroupSession(
+            state.groupSessionModel,
+            state.defaultModel as string,
+          );
           newSessionToAdd.longInputMode = true;
           newSessionToAdd.isModelManuallySelected = false;
 
@@ -3032,8 +3046,9 @@ export const useChatStore = createPersistStore(
       },
 
       fetchModels() {
-        if (fetchState > 0) return;
-        fetchState = 1;
+        const currentState = get();
+        if (currentState.fetchState > 0) return;
+        set(() => ({ fetchState: 1 }));
         fetch("/api/models", {
           method: "post",
           body: null,
@@ -3043,14 +3058,36 @@ export const useChatStore = createPersistStore(
         })
           .then((res) => res.json())
           .then((res: any) => {
-            // console.log("[Config] got config from server", res);
-            set(() => ({ models: res.models }));
+            if (res.error) {
+              console.error("[Config] 服务器配置错误:", res.message);
+              // 设置错误状态，让组件显示错误页面
+              set(() => ({
+                models: [],
+                configError: res.message,
+                fetchState: 2,
+              }));
+            } else {
+              console.log("[Config] got config from server", res);
+              set(() => ({
+                models: res.models,
+                longTextModel: res.longTextModel,
+                groupSessionModel: res.groupSessionModel,
+                defaultModel: res.defaultModel,
+                configError: null,
+                fetchState: 2,
+              }));
+            }
           })
-          .catch(() => {
-            console.error("[Config] failed to fetch config");
+          .catch((error) => {
+            console.error("[Config] failed to fetch config", error);
+            set(() => ({
+              models: [],
+              configError: "无法连接到服务器，请检查网络连接",
+              fetchState: 2,
+            }));
           })
           .finally(() => {
-            fetchState = 2;
+            // fetchState 已经在各个分支中设置了
           });
       },
 
@@ -3111,7 +3148,10 @@ export const useChatStore = createPersistStore(
               id: sessionId,
               title: Locale.Session.Title.DefaultGroup,
               sourceName: file.name, // 记录源文件名
-              model: determineModelForGroupSession(get().models), // 使用第一个可用模型
+              model: determineModelForGroupSession(
+                get().groupSessionModel,
+                get().defaultModel as string,
+              ), // 使用组会话模型或默认模型
               messageCount: 0,
               status: "normal",
               groupId: groupId,

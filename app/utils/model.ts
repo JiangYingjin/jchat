@@ -1,24 +1,24 @@
-import {
-  GROUP_SESSION_PREFERRED_MODEL,
-  FALLBACK_MODEL,
-  LONG_TEXT_PREFERRED_MODEL,
-} from "../constant";
-
 /**
  * 检查是否应该自动切换模型
  * @param systemPromptLength 系统提示词长度
  * @param isManuallySelected 用户是否手动选择了模型
- * @param availableModels 可用的模型列表
+ * @param longTextModel 长文本模型（如果配置了的话）
  * @returns 是否应该自动切换模型
  */
 export function shouldAutoSwitchModel(
   systemPromptLength: number,
   isManuallySelected: boolean,
-  availableModels: string[],
+  longTextModel: string | null,
 ): boolean {
   // 如果用户手动选择了模型，不自动切换
   if (isManuallySelected) {
     console.log("[AutoSwitch] 用户已手动选择模型，跳过自动切换");
+    return false;
+  }
+
+  // 如果没有配置长文本模型，不自动切换
+  if (!longTextModel) {
+    console.log("[AutoSwitch] 未配置长文本模型，跳过自动切换");
     return false;
   }
 
@@ -30,17 +30,6 @@ export function shouldAutoSwitchModel(
     return false;
   }
 
-  // 检查是否存在目标模型
-  const targetModel = availableModels.find(
-    (m) => m === LONG_TEXT_PREFERRED_MODEL,
-  );
-  if (!targetModel) {
-    console.log(
-      `[AutoSwitch] 目标模型 ${LONG_TEXT_PREFERRED_MODEL} 不存在或不可用，跳过自动切换`,
-    );
-    return false;
-  }
-
   return true;
 }
 
@@ -48,22 +37,25 @@ export function shouldAutoSwitchModel(
  * 根据系统提示词内容和当前模型状态，判断是否需要切换到长文本优化模型。
  * @param promptContent 系统提示词内容
  * @param currentModel 当前模型
- * @param allModels 所有可用模型
+ * @param longTextModel 长文本模型（如果配置了的话）
  * @param isManuallySelected 用户是否手动选择了模型
  * @returns 新模型名或 null（不切换）
  */
 export function determineModelForSystemPrompt(
   promptContent: string,
   currentModel: string,
-  allModels: string[],
+  longTextModel: string | null,
   isManuallySelected: boolean,
 ): string | null {
   if (
-    shouldAutoSwitchModel(promptContent.length, isManuallySelected, allModels)
+    shouldAutoSwitchModel(
+      promptContent.length,
+      isManuallySelected,
+      longTextModel,
+    )
   ) {
-    const targetModel = allModels.find((m) => m === LONG_TEXT_PREFERRED_MODEL);
-    if (targetModel && currentModel !== targetModel) {
-      return targetModel;
+    if (longTextModel && currentModel !== longTextModel) {
+      return longTextModel;
     }
   }
   return null;
@@ -71,37 +63,21 @@ export function determineModelForSystemPrompt(
 
 /**
  * 确定组会话的默认模型
- * @param availableModels 可用的模型列表
+ * @param groupSessionModel 组会话模型（如果配置了的话）
+ * @param defaultModel 默认模型
  * @returns 选择的模型名称
  */
 export function determineModelForGroupSession(
-  availableModels: string[],
+  groupSessionModel: string | null,
+  defaultModel: string,
 ): string {
-  // 优先使用 GROUP_SESSION_PREFERRED_MODEL
-  const preferredModel = availableModels.find(
-    (m) => m === GROUP_SESSION_PREFERRED_MODEL,
-  );
-  if (preferredModel) {
-    console.log(`[GroupSession] 使用首选模型 ${preferredModel}`);
-    return preferredModel;
+  // 如果配置了组会话模型，使用它
+  if (groupSessionModel) {
+    console.log(`[GroupSession] 使用组会话模型 ${groupSessionModel}`);
+    return groupSessionModel;
   }
 
-  // 如果首选模型不存在，使用 FALLBACK_MODEL
-  const fallbackModel = availableModels.find((m) => m === FALLBACK_MODEL);
-  if (fallbackModel) {
-    console.log(`[GroupSession] 首选模型不可用，使用备用模型 ${fallbackModel}`);
-    return fallbackModel;
-  }
-
-  // 如果连备用模型都不存在，返回第一个可用模型
-  if (availableModels.length > 0) {
-    console.log(
-      `[GroupSession] 备用模型不可用，使用第一个可用模型 ${availableModels[0]}`,
-    );
-    return availableModels[0];
-  }
-
-  // 如果没有任何可用模型，返回备用模型（即使不可用，让上层处理）
-  console.log(`[GroupSession] 没有可用模型，返回备用模型 ${FALLBACK_MODEL}`);
-  return FALLBACK_MODEL;
+  // 否则使用默认模型
+  console.log(`[GroupSession] 使用默认模型 ${defaultModel}`);
+  return defaultModel;
 }

@@ -7,7 +7,6 @@ import { getClientApi } from "../client/api";
 import { useChatStore } from "../store/chat";
 import Locale from "../locales";
 import { buildMultimodalContent } from "./chat";
-import { FALLBACK_MODEL } from "../constant";
 import { systemMessageStorage } from "../store/system";
 import { parseGroupMessageId } from "./group";
 import { messageStorage } from "../store/message";
@@ -100,9 +99,15 @@ export function createMessage(
 export function createEmptySession(): ChatSession {
   const getDefaultModel = () => {
     try {
-      return useChatStore.getState().models[0];
+      const models = useChatStore.getState().models;
+      if (models.length === 0) {
+        // 如果模型列表为空，返回一个占位符，让客户端处理
+        return "loading";
+      }
+      return models[0];
     } catch (error) {
-      return FALLBACK_MODEL;
+      // 如果无法获取模型列表，返回占位符
+      return "loading";
     }
   };
   return {

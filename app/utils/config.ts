@@ -1,5 +1,5 @@
 import md5 from "spark-md5";
-import { FALLBACK_BASE_URL, FALLBACK_MODEL } from "../constant";
+import { FALLBACK_BASE_URL } from "../constant";
 
 declare global {
   namespace NodeJS {
@@ -8,6 +8,8 @@ declare global {
       BASE_URL?: string;
       API_KEY?: string;
       MODELS?: string;
+      LONG_TEXT_MODEL?: string;
+      GROUP_SESSION_MODEL?: string;
       PROXY_URL?: string;
     }
   }
@@ -19,14 +21,38 @@ export const getServerSideConfig = () => {
       "[Server Config] you are importing a nodejs-only module outside of nodejs",
     );
 
-  let models =
-    (process.env.MODELS ?? "")
-      .split(",")
-      .map((v) => v.trim())
-      .filter((v) => !!v && v.length > 0) || [];
-  if (models.length === 0) {
-    models = [FALLBACK_MODEL];
+  // 验证 MODELS 环境变量
+  const modelsString = process.env.MODELS?.trim();
+  if (!modelsString) {
+    throw new Error(
+      "[Server Config] MODELS environment variable is required but not set. " +
+        "Please set MODELS to a comma-separated list of available models, e.g., 'model1,model2,model3'",
+    );
   }
+
+  const models = modelsString
+    .split(",")
+    .map((v) => v.trim())
+    .filter((v) => !!v && v.length > 0);
+
+  if (models.length === 0) {
+    throw new Error(
+      "[Server Config] MODELS environment variable is empty or contains no valid models. " +
+        "Please provide at least one valid model name.",
+    );
+  }
+
+  // 验证 LONG_TEXT_MODEL 环境变量（可选）
+  const longTextModel = process.env.LONG_TEXT_MODEL?.trim();
+  const validLongTextModel =
+    longTextModel && models.includes(longTextModel) ? longTextModel : null;
+
+  // 验证 GROUP_SESSION_MODEL 环境变量（可选）
+  const groupSessionModel = process.env.GROUP_SESSION_MODEL?.trim();
+  const validGroupSessionModel =
+    groupSessionModel && models.includes(groupSessionModel)
+      ? groupSessionModel
+      : null;
 
   const ACCESS_CODES = (function getAccessCodes(): Set<string> {
     const code = process.env.CODE;
@@ -47,5 +73,8 @@ export const getServerSideConfig = () => {
     codes: ACCESS_CODES,
     proxyUrl: process.env.PROXY_URL,
     models,
+    longTextModel: validLongTextModel,
+    groupSessionModel: validGroupSessionModel,
+    defaultModel: models[0], // 默认模型是第一个
   };
 };

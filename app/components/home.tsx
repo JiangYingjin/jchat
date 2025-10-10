@@ -12,6 +12,7 @@ import { ErrorBoundary } from "./error";
 import { FileDropZone } from "./file-drop-zone";
 import { SideBar } from "./sidebar";
 import { ClipboardManager } from "./clipboard-manager";
+import { ConfigError } from "./config-error";
 
 // 状态管理和自定义 Hooks
 import { useChatStore } from "../store";
@@ -308,6 +309,11 @@ export function Home() {
     error,
   } = useAppReady();
 
+  // 检查配置错误和模型状态
+  const configError = useChatStore((state) => state.configError);
+  const models = useChatStore((state) => state.models);
+  const fetchState = useChatStore((state) => state.fetchState);
+
   // 应用启动时获取全局数据并初始化存储健康检查
   useEffect(() => {
     useChatStore.getState().fetchModels();
@@ -349,12 +355,27 @@ export function Home() {
     return <Loading />;
   }
 
-  // 2. 等待应用数据准备完成（数据完整性、一致性检查）
+  // 2. 检查配置错误
+  if (configError) {
+    return <ConfigError error={configError} />;
+  }
+
+  // 3. 等待模型加载完成
+  if (fetchState === 0 || fetchState === 1) {
+    return <Loading />;
+  }
+
+  // 4. 检查模型是否为空（配置错误）
+  if (fetchState === 2 && models.length === 0) {
+    return <ConfigError error="没有可用的模型，请检查 MODELS 环境变量配置" />;
+  }
+
+  // 5. 等待应用数据准备完成（数据完整性、一致性检查）
   if (!appInitialized || !isAppReady) {
     return <Loading />;
   }
 
-  // 3. 应用完全准备就绪，开始渲染界面
+  // 4. 应用完全准备就绪，开始渲染界面
   return (
     <ErrorBoundary>
       <ClipboardManager>
