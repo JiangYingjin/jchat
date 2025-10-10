@@ -159,14 +159,57 @@ const useModalStateManager = () => {
 
 // 将选择器和比较函数提取到组件外部，避免每次渲染时重新创建
 const selectCurrentSession = (state: any) => {
-  if (
-    state.sessions.length === 0 ||
-    state.currentSessionIndex < 0 ||
-    state.currentSessionIndex >= state.sessions.length
-  ) {
-    return null;
+  const {
+    chatListView,
+    chatListGroupView,
+    groups,
+    currentGroupIndex,
+    groupSessions,
+    sessions,
+    currentSessionIndex,
+  } = state;
+
+  // 普通会话模式：从 sessions 数组获取
+  if (chatListView === "sessions") {
+    if (
+      sessions.length === 0 ||
+      currentSessionIndex < 0 ||
+      currentSessionIndex >= sessions.length
+    ) {
+      return null;
+    }
+    return sessions[currentSessionIndex];
   }
-  return state.sessions[state.currentSessionIndex];
+
+  // 组会话模式：根据组内视图决定返回哪个会话
+  if (chatListView === "groups") {
+    // 组内会话模式：返回当前组的当前会话
+    if (chatListGroupView === "group-sessions") {
+      const currentGroup = groups[currentGroupIndex];
+      if (currentGroup && currentGroup.sessionIds.length > 0) {
+        const currentSessionId =
+          currentGroup.sessionIds[currentGroup.currentSessionIndex];
+        const session = groupSessions[currentSessionId];
+        if (session) {
+          return session;
+        }
+      }
+    }
+
+    // 组列表模式：返回当前组的第一个会话
+    if (chatListGroupView === "groups") {
+      const currentGroup = groups[currentGroupIndex];
+      if (currentGroup && currentGroup.sessionIds.length > 0) {
+        const firstSessionId = currentGroup.sessionIds[0];
+        const session = groupSessions[firstSessionId];
+        if (session) {
+          return session;
+        }
+      }
+    }
+  }
+
+  return null;
 };
 
 const Chat = React.memo(function Chat() {
@@ -886,7 +929,7 @@ const Chat = React.memo(function Chat() {
           const newModel = determineModelForSystemPrompt(
             content.trim(),
             session.model,
-            allModels,
+            chatStore.longTextModel,
             session.isModelManuallySelected ?? false,
           );
           if (newModel) {
@@ -916,7 +959,7 @@ const Chat = React.memo(function Chat() {
         // 可以在这里添加错误处理逻辑，比如显示错误提示
       }
     },
-    [session.id, updateSession, allModels, chatStore],
+    [session.id, updateSession, chatStore],
   );
 
   const handleEditMessage = async (
@@ -1143,14 +1186,57 @@ const Chat = React.memo(function Chat() {
  */
 // 将选择器提取到组件外部，避免每次渲染时重新创建
 const selectCurrentSessionId = (state: any) => {
-  if (
-    state.sessions.length === 0 ||
-    state.currentSessionIndex < 0 ||
-    state.currentSessionIndex >= state.sessions.length
-  ) {
-    return null;
+  const {
+    chatListView,
+    chatListGroupView,
+    groups,
+    currentGroupIndex,
+    groupSessions,
+    sessions,
+    currentSessionIndex,
+  } = state;
+
+  // 普通会话模式：从 sessions 数组获取
+  if (chatListView === "sessions") {
+    if (
+      sessions.length === 0 ||
+      currentSessionIndex < 0 ||
+      currentSessionIndex >= sessions.length
+    ) {
+      return null;
+    }
+    return sessions[currentSessionIndex].id;
   }
-  return state.sessions[state.currentSessionIndex].id;
+
+  // 组会话模式：根据组内视图决定返回哪个会话
+  if (chatListView === "groups") {
+    // 组内会话模式：返回当前组的当前会话
+    if (chatListGroupView === "group-sessions") {
+      const currentGroup = groups[currentGroupIndex];
+      if (currentGroup && currentGroup.sessionIds.length > 0) {
+        const currentSessionId =
+          currentGroup.sessionIds[currentGroup.currentSessionIndex];
+        const session = groupSessions[currentSessionId];
+        if (session) {
+          return session.id;
+        }
+      }
+    }
+
+    // 组列表模式：返回当前组的第一个会话
+    if (chatListGroupView === "groups") {
+      const currentGroup = groups[currentGroupIndex];
+      if (currentGroup && currentGroup.sessionIds.length > 0) {
+        const firstSessionId = currentGroup.sessionIds[0];
+        const session = groupSessions[firstSessionId];
+        if (session) {
+          return session.id;
+        }
+      }
+    }
+  }
+
+  return null;
 };
 
 export function ChatPage() {
