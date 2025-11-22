@@ -212,9 +212,17 @@ export function GroupList() {
 
     // 判断是否是第一次点击该组（当前组索引不是这个组）
     if (currentGroupIndex !== groupIndex) {
-      // 第一次点击：切换到该组，选择第一个会话，并切换到组内会话视图
+      // 第一次点击：切换到该组，使用该组保存的 currentSessionIndex
       chatStore.selectGroup(groupIndex);
-      chatStore.selectGroupSession(0, false);
+
+      // 获取目标组保存的 currentSessionIndex，如果无效则使用 0
+      const savedIndex = group.currentSessionIndex;
+      const validIndex =
+        savedIndex >= 0 && savedIndex < group.sessionIds.length
+          ? savedIndex
+          : 0;
+
+      chatStore.selectGroupSession(validIndex, false);
       // 移动端：选择组后切换到聊天界面
       if (isMobileScreen) {
         chatStore.showChatOnMobile();
