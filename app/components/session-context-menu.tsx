@@ -108,16 +108,14 @@ export function SessionContextMenu(props: SessionContextMenuProps) {
   return props.menu.render(
     <>
       {/* 移至顶部 - 仅在 showMoveToTop 为 true 且 sessionIndex 有效时显示 */}
-      {props.showMoveToTop &&
-        props.sessionIndex !== undefined &&
-        props.sessionIndex !== 0 && (
-          <div
-            className={sidebarStyles["search-context-item"]}
-            onClick={handleMoveToTop}
-          >
-            移至顶部
-          </div>
-        )}
+      {props.showMoveToTop && props.sessionIndex !== undefined && (
+        <div
+          className={sidebarStyles["search-context-item"]}
+          onClick={handleMoveToTop}
+        >
+          移至顶部
+        </div>
+      )}
 
       {/* 更新标题 */}
       <div

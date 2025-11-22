@@ -23,7 +23,7 @@ export function MessageActions(props: {
   onBranch: (message: ChatMessage, index: number) => void;
   onBatchApply: (message: ChatMessage) => void; // 新增：批量应用回调
   onBatchDelete: (message: ChatMessage) => void; // 新增：批量删除回调
-  onMergeCopy: (message: ChatMessage) => void; // 新增：合并复制回调
+  onMergeCopy: (message: ChatMessage, format?: "text" | "json") => void; // 新增：合并复制回调，支持格式参数
   index: number;
   showBranch?: boolean; // 新增：控制是否显示分支按钮
   showBatchApply?: boolean; // 新增：控制是否显示批量应用按钮
@@ -76,7 +76,10 @@ export function MessageActions(props: {
             <ChatAction
               text={"合并复制"}
               icon={<MergeCopyIcon />} // 使用新的图标
-              onClick={() => onMergeCopy(message)}
+              onClick={() => onMergeCopy(message, "text")}
+              onContextMenu={(e) => {
+                onMergeCopy(message, "json");
+              }}
               alwaysFullWidth={false}
             />
           )}

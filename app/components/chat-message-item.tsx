@@ -96,8 +96,8 @@ export function ChatMessageItem({
                   showMergeCopy={
                     !!session.groupId && message.role === "assistant"
                   }
-                  onMergeCopy={(msg) =>
-                    handleMergeCopy(msg, session, chatStore)
+                  onMergeCopy={(msg, format) =>
+                    handleMergeCopy(msg, session, chatStore, format)
                   }
                 />
               </div>
@@ -241,8 +241,8 @@ export function ChatMessageItem({
                   showMergeCopy={
                     !!session.groupId && message.role === "assistant"
                   }
-                  onMergeCopy={(msg) =>
-                    handleMergeCopy(msg, session, chatStore)
+                  onMergeCopy={(msg, format) =>
+                    handleMergeCopy(msg, session, chatStore, format)
                   }
                 />
               </div>

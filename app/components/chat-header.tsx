@@ -66,9 +66,7 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
   // 判断是否应该显示"移至顶部"选项
   // 只有在普通会话模式下，且不是第一个会话时才显示
   const shouldShowMoveToTop =
-    chatListView === "sessions" &&
-    currentSessionIndex !== undefined &&
-    currentSessionIndex > 0;
+    chatListView === "sessions" && currentSessionIndex !== undefined;
 
   // 添加调试信息
   React.useEffect(() => {

@@ -99,11 +99,13 @@ export function parseGroupMessageId(id: string): GroupMessageId {
 /**
  * 组内合并复制工具函数，供 onMergeCopy 直接调用
  * 使用 p-limit 控制并发，提升性能与稳定性
+ * @param format 输出格式：'text' 为文本格式，'json' 为 JSON 格式
  */
 export async function handleMergeCopy(
   msg: ChatMessage,
   session: any,
   chatStore: any,
+  format: "text" | "json" = "text",
 ) {
   if (!session.groupId) return;
   const parsed = parseGroupMessageId(msg.id);
@@ -116,9 +118,13 @@ export async function handleMergeCopy(
 
   // p-limit 控制并发，推荐并发数 8
   const limit = pLimit(8);
-  const allContents: string[] = (
+  const contents: Array<{
+    sourceName: string;
+    content: string;
+    sessionId: string;
+  }> = (
     await Promise.all(
-      group.sessionIds.map((sid: string) =>
+      group.sessionIds.map((sid: string, index: number) =>
         limit(async () => {
           const messages = await messageStorage.get(sid);
           const target = messages.find((m: any) => {
@@ -130,24 +136,72 @@ export async function handleMergeCopy(
             if (typeof target.content === "string") content = target.content;
             else if (Array.isArray(target.content))
               content = target.content.map((c: any) => c.text || "").join("\n");
+
+            // 跳过空内容
+            if (!content || content.trim().length === 0) {
+              return null;
+            }
+
             // 查找 session.sourceName
-            let prefix = "";
             const sessionObj =
               chatStore.groupSessions?.[sid] ||
               chatStore.sessions?.find((s: any) => s.id === sid);
-            if (sessionObj && sessionObj.sourceName) {
-              prefix = `# ${sessionObj.sourceName}\n\n`;
-            }
-            return prefix + content;
+            const sourceName = sessionObj?.sourceName || "";
+
+            return {
+              sourceName,
+              content,
+              sessionId: sid,
+            };
           }
           return null;
         }),
       ),
     )
-  ).filter(Boolean) as string[];
+  ).filter(Boolean) as Array<{
+    sourceName: string;
+    content: string;
+    sessionId: string;
+  }>;
 
-  if (allContents.length > 0) {
-    copyToClipboard(allContents.join("\n\n---\n\n"));
+  if (contents.length === 0) return;
+
+  if (format === "json") {
+    // JSON 格式：构建对象，键为 sourceName（无则使用 sessionId），值为内容
+    const jsonObj: Record<string, string> = {};
+    const sourceNameCount: Record<string, number> = {};
+
+    contents.forEach(({ sourceName, content, sessionId }) => {
+      // 生成键名：优先使用 sourceName，如果为空则使用 sessionId
+      let key = sourceName || `session_${sessionId}`;
+
+      // 处理重复的 sourceName：添加序号后缀
+      if (sourceName) {
+        // 如果这个 key 已经存在于 jsonObj 中，说明是重复的，需要添加序号
+        if (jsonObj[key] !== undefined) {
+          // 初始化计数器（如果还没有）
+          if (sourceNameCount[key] === undefined) {
+            sourceNameCount[key] = 1;
+          } else {
+            sourceNameCount[key]++;
+          }
+          key = `${sourceName}_${sourceNameCount[key]}`;
+        }
+      }
+
+      jsonObj[key] = content;
+    });
+
+    // 使用 JSON.stringify 格式化，自动处理转义
+    const jsonString = JSON.stringify(jsonObj, null, 2);
+    copyToClipboard(jsonString);
+  } else {
+    // 文本格式：保持原有逻辑
+    const textContents = contents.map(({ sourceName, content }) => {
+      const prefix = sourceName ? `# ${sourceName}\n\n` : "";
+      return prefix + content;
+    });
+    copyToClipboard(textContents.join("\n\n---\n\n"));
   }
 }
 

@@ -9,6 +9,7 @@ export function ChatAction(props: {
   loding?: boolean;
   innerNode?: JSX.Element;
   onClick: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void; // 新增：右键菜单支持
   style?: React.CSSProperties;
   alwaysFullWidth?: boolean; // 新增参数，控制是否总是 full 宽度
 }) {
@@ -74,6 +75,13 @@ export function ChatAction(props: {
         props.onClick();
         iconRef ? setTimeout(updateWidth, 1) : undefined;
       }}
+      onContextMenu={(e) => {
+        if (props.onContextMenu) {
+          e.preventDefault();
+          e.stopPropagation();
+          props.onContextMenu(e);
+        }
+      }}
       onMouseEnter={props.icon ? updateWidth : undefined}
       onTouchStart={props.icon ? updateWidth : undefined}
       style={style}
@@ -105,6 +113,7 @@ export function DoubleClickChatAction(props: {
   loding?: boolean;
   innerNode?: JSX.Element;
   onClick: () => void;
+  onContextMenu?: (e: React.MouseEvent) => void; // 新增：右键菜单支持
   style?: React.CSSProperties;
   alwaysFullWidth?: boolean;
 }) {
@@ -204,6 +213,13 @@ export function DoubleClickChatAction(props: {
     <div
       className={clsx(styles["chat-input-action"], "clickable")}
       onClick={handleClick}
+      onContextMenu={(e) => {
+        if (props.onContextMenu) {
+          e.preventDefault();
+          e.stopPropagation();
+          props.onContextMenu(e);
+        }
+      }}
       onMouseEnter={props.icon ? updateWidth : undefined}
       onMouseLeave={handleMouseLeave}
       onTouchStart={props.icon ? updateWidth : undefined}
