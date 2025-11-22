@@ -11,14 +11,27 @@ import { aggregateSessionMetrics } from "../utils/session";
 import { formatCost, formatTime, formatTps } from "../utils/metrics";
 import { jchatStorage } from "../utils/store";
 
-export function SessionEditor(props: { onClose: () => void }) {
+export function SessionEditor(props: {
+  onClose: () => void;
+  sessionId?: string; // 新增：可选会话ID，用于编辑指定会话
+}) {
   const chatStore = useChatStore();
-  const session = chatStore.currentSession();
+
+  // 根据 sessionId 获取会话，否则使用当前会话
+  const session = props.sessionId
+    ? chatStore.getSessionById(props.sessionId) || chatStore.currentSession()
+    : chatStore.currentSession();
+
   const [localTitle, setLocalTitle] = useState(session.title);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // 判断是否为组内会话
   const isGroupSession = session.groupId !== null;
+
+  // 当会话变化时，更新本地标题
+  useEffect(() => {
+    setLocalTitle(session.title);
+  }, [session.id, session.title]);
 
   // 组件挂载后自动聚焦到输入框
   useEffect(() => {
@@ -28,7 +41,7 @@ export function SessionEditor(props: { onClose: () => void }) {
       const length = inputRef.current.value.length;
       inputRef.current.setSelectionRange(0, length);
     }
-  }, []);
+  }, [props.sessionId]);
 
   // 更新会话标题
   const updateSessionTitle = (title: string) => {
@@ -46,7 +59,10 @@ export function SessionEditor(props: { onClose: () => void }) {
   // 保存标题并广播更新（异步非阻塞）
   const saveTitleAndBroadcast = async () => {
     const currentChatStore = useChatStore.getState();
-    const currentSession = currentChatStore.currentSession();
+    // 使用当前编辑的会话，而不是 currentSession
+    const sessionToSave = props.sessionId
+      ? currentChatStore.getSessionById(props.sessionId) || session
+      : session;
 
     // 立即更新标题（同步，用户立即看到效果）
     updateSessionTitle(localTitle);
@@ -55,7 +71,7 @@ export function SessionEditor(props: { onClose: () => void }) {
     (async () => {
       try {
         // 保存会话
-        await currentChatStore.saveSessionMessages(currentSession);
+        await currentChatStore.saveSessionMessages(sessionToSave);
 
         // 等待存储写入完成
         await new Promise((resolve) => setTimeout(resolve, 100));
@@ -70,7 +86,7 @@ export function SessionEditor(props: { onClose: () => void }) {
             payload: {
               lastUpdate: Date.now(),
               changeType: "sessionUpdate",
-              sessionId: currentSession.id,
+              sessionId: sessionToSave.id,
             },
           };
           (window as any).__jchat_broadcast_channel.postMessage(message);

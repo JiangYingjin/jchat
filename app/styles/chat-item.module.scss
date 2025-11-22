@@ -33,6 +33,42 @@
   }
 }
 
+// 编辑模式下的输入框样式
+.chat-item-title-input {
+  flex: 1;
+  min-width: 0;
+  // width: 100%;
+  max-width: 100% !important; // 覆盖全局 input 的 max-width: 50% 限制
+  font-size: 14px;
+  font-weight: bolder;
+  font-family: inherit;
+  padding: 2px 0;
+  margin: 0;
+  border: none;
+  border-bottom: 2px solid var(--primary);
+  border-radius: 0;
+  background: transparent;
+  color: var(--text-primary);
+  transition: border-color 0.2s ease;
+  outline: none;
+  cursor: text;
+
+  &:focus {
+    border-bottom-color: var(--primary);
+    border-bottom-width: 2px;
+  }
+
+  &::placeholder {
+    color: rgba(0, 0, 0, 0.4);
+  }
+
+  // 确保输入框在编辑模式下不会触发拖拽
+  &,
+  &:focus {
+    user-select: text;
+  }
+}
+
 // 数字前缀样式 - 简洁优雅设计
 .chat-item-index-prefix {
   display: inline-flex;

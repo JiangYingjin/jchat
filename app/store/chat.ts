@@ -2958,6 +2958,21 @@ export const useChatStore = createPersistStore(
         });
       },
 
+      // 根据会话ID获取会话对象
+      getSessionById(sessionId: string): ChatSession | null {
+        const state = get();
+
+        // 在普通会话中查找
+        const session = state.sessions.find((s) => s.id === sessionId);
+        if (session) return session;
+
+        // 在组会话中查找
+        const groupSession = state.groupSessions[sessionId];
+        if (groupSession) return groupSession;
+
+        return null;
+      },
+
       updateSession(
         session: ChatSession,
         updater: (session: ChatSession) => void,

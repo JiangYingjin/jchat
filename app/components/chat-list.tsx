@@ -25,7 +25,7 @@ import { useChatStore } from "../store";
 import Locale from "../locales";
 import { usePathname, useRouter } from "next/navigation";
 import { Path } from "../constant";
-import { useRef, useMemo, memo } from "react";
+import { useRef, useMemo, memo, useState, useEffect } from "react";
 import { useMobileScreen } from "../utils";
 import { useAppReadyGuard } from "../hooks/app-ready";
 import { useContextMenu } from "./context-menu";
@@ -123,10 +123,31 @@ export function ChatItem(props: {
   const currentPath = usePathname();
   const router = useRouter();
   const moveSession = useChatStore((state) => state.moveSession);
+  const chatStore = useChatStore();
+
+  // 内联编辑状态
+  const [isEditing, setIsEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState(props.title);
+  const editInputRef = useRef<HTMLInputElement>(null);
 
   // 右键菜单（仅在启用时使用）
   const menu = useContextMenu();
   const enableContextMenu = props.enableContextMenu ?? false;
+
+  // 当标题变化时，更新编辑状态中的标题
+  useEffect(() => {
+    if (!isEditing) {
+      setEditTitle(props.title);
+    }
+  }, [props.title, isEditing]);
+
+  // 进入编辑模式时聚焦输入框
+  useEffect(() => {
+    if (isEditing && editInputRef.current) {
+      editInputRef.current.focus();
+      editInputRef.current.select();
+    }
+  }, [isEditing]);
 
   // 使用传入的样式计算函数，默认为普通会话样式
   const styleCalculator = props.styleCalculator || getChatItemStyle;
@@ -156,13 +177,100 @@ export function ChatItem(props: {
   const isActive =
     props.selected && (currentPath === Path.Chat || currentPath === Path.Home);
 
-  // 处理点击事件（考虑右键菜单状态）
+  // 处理点击事件（考虑右键菜单状态和编辑模式）
   const handleClick = () => {
+    if (isEditing) {
+      return; // 编辑模式下不响应点击
+    }
     if (enableContextMenu && menu.isOpen) {
       menu.close();
       return;
     }
     props.onClick?.();
+  };
+
+  // 保存标题
+  const handleSaveTitle = async () => {
+    const session = chatStore.getSessionById(props.id);
+    if (!session) {
+      showToast("会话不存在");
+      setIsEditing(false);
+      return;
+    }
+
+    const newTitle = editTitle.trim();
+    if (!newTitle) {
+      showToast("标题不能为空");
+      setEditTitle(props.title); // 恢复原标题
+      setIsEditing(false);
+      return;
+    }
+
+    // 如果标题没有变化，直接退出编辑模式
+    if (newTitle === props.title) {
+      setIsEditing(false);
+      return;
+    }
+
+    // 判断是否为组内会话
+    const isGroupSession = session.groupId !== null;
+
+    // 更新标题
+    if (isGroupSession) {
+      chatStore.updateGroupSession(session, (s) => {
+        s.title = newTitle;
+      });
+    } else {
+      chatStore.updateSession(session, (s) => {
+        s.title = newTitle;
+      });
+    }
+
+    // 异步保存和广播
+    (async () => {
+      try {
+        await chatStore.saveSessionMessages(session);
+        // 等待存储写入完成
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        // 发送广播通知其他标签页
+        if (
+          typeof window !== "undefined" &&
+          (window as any).__jchat_broadcast_channel
+        ) {
+          const message = {
+            type: "STATE_UPDATE_AVAILABLE",
+            payload: {
+              lastUpdate: Date.now(),
+              changeType: "sessionUpdate",
+              sessionId: session.id,
+            },
+          };
+          (window as any).__jchat_broadcast_channel.postMessage(message);
+        }
+      } catch (error) {
+        console.error("保存会话标题失败:", error);
+      }
+    })();
+
+    setIsEditing(false);
+  };
+
+  // 取消编辑
+  const handleCancelEdit = () => {
+    setEditTitle(props.title);
+    setIsEditing(false);
+  };
+
+  // 处理输入框失去焦点
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    // 延迟处理，以便点击保存按钮时不会立即触发
+    setTimeout(() => {
+      // 检查焦点是否还在输入框或相关元素上
+      const activeElement = document.activeElement;
+      if (activeElement !== editInputRef.current) {
+        handleSaveTitle();
+      }
+    }, 200);
   };
 
   // 渲染前缀
@@ -223,28 +331,87 @@ export function ChatItem(props: {
     >
       <div className={chatItemStyles["chat-item-title"]}>
         {renderPrefix()}
-        <span>{props.title}</span>
+        {isEditing ? (
+          <input
+            ref={editInputRef}
+            type="text"
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                e.stopPropagation();
+                handleSaveTitle();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                e.stopPropagation();
+                handleCancelEdit();
+              }
+            }}
+            onBlur={handleBlur}
+            onClick={(e) => e.stopPropagation()}
+            className={chatItemStyles["chat-item-title-input"]}
+          />
+        ) : (
+          <span>{props.title}</span>
+        )}
       </div>
       <StatusDot status={props.status} />
 
       {/* 右键菜单（仅在启用时渲染） */}
       {enableContextMenu &&
         menu.render(
-          <div
-            className={sidebarStyles["search-context-item"]}
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (props.index !== 0) {
-                moveSession(props.index, 0);
-                showToast(`会话 "${props.title}" 已移至顶部`);
-                // 移除不必要的路由跳转，因为用户已经在首页
-              }
-              menu.close();
-            }}
-          >
-            移至顶部
-          </div>,
+          <>
+            <div
+              className={sidebarStyles["search-context-item"]}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (props.index !== 0) {
+                  moveSession(props.index, 0);
+                  showToast(`会话 "${props.title}" 已移至顶部`);
+                  // 移除不必要的路由跳转，因为用户已经在首页
+                }
+                menu.close();
+              }}
+            >
+              移至顶部
+            </div>
+            <div
+              className={sidebarStyles["search-context-item"]}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsEditing(true);
+                menu.close();
+              }}
+            >
+              {Locale.Chat.Actions.UpdateTitle}
+            </div>
+            <div
+              className={sidebarStyles["search-context-item"]}
+              onClick={async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const session = chatStore.getSessionById(props.id);
+                if (session) {
+                  showToast(Locale.Chat.Actions.GeneratingTitle);
+                  try {
+                    await chatStore.generateSessionTitle(true, session);
+                    showToast(Locale.Chat.Actions.TitleGenerated);
+                  } catch (error) {
+                    console.error("生成标题失败:", error);
+                    showToast("生成标题失败，请重试");
+                  }
+                } else {
+                  showToast("会话不存在");
+                }
+                menu.close();
+              }}
+            >
+              {Locale.Chat.Actions.ForceGenerateTitle}
+            </div>
+          </>,
         )}
     </div>
   );
