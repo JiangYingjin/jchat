@@ -630,8 +630,14 @@ export const useChatStore = createPersistStore(
 
       saveSidebarScrollPosition(key: string, scrollTop: number): void {
         if (!key) return;
-        if (typeof scrollTop !== "number" || isNaN(scrollTop) || scrollTop < 0)
+        if (
+          typeof scrollTop !== "number" ||
+          isNaN(scrollTop) ||
+          scrollTop < 0
+        ) {
           return;
+        }
+
         set((state) => ({
           sidebarScrollHistory: {
             ...state.sidebarScrollHistory,

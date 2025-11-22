@@ -70,22 +70,48 @@ export function SideBar(props: { className?: string }) {
     if (chatListView === "groups") {
       if (chatListGroupView === "groups") return "groups";
       const group = groups[currentGroupIndex];
-      if (group) return `group-sessions:${group.id}`;
-      return "group-sessions:unknown";
+      return group ? `group-sessions:${group.id}` : "group-sessions:unknown";
     }
     return "sessions";
   }, [chatListView, chatListGroupView, groups, currentGroupIndex]);
 
+  // 使用 ref 存储最新的 scrollKey，避免闭包问题
+  const scrollKeyRef = useRef(scrollKey);
+  // 存储防抖定时器，用于在视图切换时取消
+  const debounceTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const prevKey = scrollKeyRef.current;
+    const el = sidebarScrollRef.current;
+
+    // 如果 scrollKey 改变了，说明视图切换了
+    if (prevKey !== scrollKey && prevKey && el) {
+      // 取消待执行的防抖保存
+      if (debounceTimerRef.current) {
+        window.clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+
+      // 立即保存上一个视图的滚动位置
+      const currentScrollTop = el.scrollTop;
+      if (currentScrollTop >= 0 && !isNaN(currentScrollTop)) {
+        chatStore.saveSidebarScrollPosition(prevKey, currentScrollTop);
+      }
+    }
+
+    scrollKeyRef.current = scrollKey;
+  }, [scrollKey, chatStore]);
+
   // --- 简易防抖 ---
   const useDebounced = (fn: (v: number) => void, delay: number) => {
-    const timerRef = useRef<number | null>(null);
     return useCallback(
       (v: number) => {
-        if (timerRef.current) {
-          window.clearTimeout(timerRef.current);
+        if (debounceTimerRef.current) {
+          window.clearTimeout(debounceTimerRef.current);
         }
-        timerRef.current = window.setTimeout(() => {
+        debounceTimerRef.current = window.setTimeout(() => {
           fn(v);
+          debounceTimerRef.current = null;
         }, delay);
       },
       [fn, delay],
@@ -93,8 +119,9 @@ export function SideBar(props: { className?: string }) {
   };
 
   const debouncedSave = useDebounced((scrollTop: number) => {
-    // 只使用按 key 保存的方式，确保不同视图（sessions、groups、group-sessions）的滚动位置独立保存
-    chatStore.saveSidebarScrollPosition(scrollKey, scrollTop);
+    // 使用 ref 中的最新 scrollKey，避免闭包问题
+    const currentScrollKey = scrollKeyRef.current;
+    chatStore.saveSidebarScrollPosition(currentScrollKey, scrollTop);
   }, 120);
 
   // --- 滚动保存 ---
@@ -119,12 +146,23 @@ export function SideBar(props: { className?: string }) {
 
     // 读取保存的滚动位置
     const saved = chatStore.getSidebarScrollPosition(scrollKey);
-    if (saved && saved > 0) {
+    const currentScrollTop = el.scrollTop;
+
+    // 允许恢复 0 值（0 是有效的顶部位置）
+    // 只有当 saved 是 undefined、null 或无效值时才跳过
+    if (saved !== undefined && saved !== null && !isNaN(saved) && saved >= 0) {
+      // 如果当前滚动位置和保存的位置相同，不需要恢复
+      if (Math.abs(currentScrollTop - saved) < 1) {
+        return;
+      }
+
       // 等待布局稳定后再恢复
       const raf = requestAnimationFrame(() => {
         try {
           el.scrollTop = saved;
-        } catch {}
+        } catch (error) {
+          console.error("[Sidebar] 恢复滚动位置失败:", error);
+        }
       });
       return () => cancelAnimationFrame(raf);
     }
