@@ -93,7 +93,7 @@ export function SideBar(props: { className?: string }) {
   };
 
   const debouncedSave = useDebounced((scrollTop: number) => {
-    chatStore.setSidebarScrollPosition(scrollTop);
+    // 只使用按 key 保存的方式，确保不同视图（sessions、groups、group-sessions）的滚动位置独立保存
     chatStore.saveSidebarScrollPosition(scrollKey, scrollTop);
   }, 120);
 
