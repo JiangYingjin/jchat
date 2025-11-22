@@ -30,7 +30,7 @@ import { useMobileScreen } from "../utils";
 import { useAppReadyGuard } from "../hooks/app-ready";
 import { useContextMenu } from "./context-menu";
 import { showToast } from "./ui-lib";
-import sidebarStyles from "../styles/sidebar.module.scss";
+import { SessionContextMenu } from "./session-context-menu";
 
 /**
  * 根据消息数量计算项目样式
@@ -122,7 +122,6 @@ export function ChatItem(props: {
 }) {
   const currentPath = usePathname();
   const router = useRouter();
-  const moveSession = useChatStore((state) => state.moveSession);
   const chatStore = useChatStore();
 
   // 内联编辑状态
@@ -359,60 +358,16 @@ export function ChatItem(props: {
       <StatusDot status={props.status} />
 
       {/* 右键菜单（仅在启用时渲染） */}
-      {enableContextMenu &&
-        menu.render(
-          <>
-            <div
-              className={sidebarStyles["search-context-item"]}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (props.index !== 0) {
-                  moveSession(props.index, 0);
-                  showToast(`会话 "${props.title}" 已移至顶部`);
-                  // 移除不必要的路由跳转，因为用户已经在首页
-                }
-                menu.close();
-              }}
-            >
-              移至顶部
-            </div>
-            <div
-              className={sidebarStyles["search-context-item"]}
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setIsEditing(true);
-                menu.close();
-              }}
-            >
-              {Locale.Chat.Actions.UpdateTitle}
-            </div>
-            <div
-              className={sidebarStyles["search-context-item"]}
-              onClick={async (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                const session = chatStore.getSessionById(props.id);
-                if (session) {
-                  showToast(Locale.Chat.Actions.GeneratingTitle);
-                  try {
-                    await chatStore.generateSessionTitle(true, session);
-                    showToast(Locale.Chat.Actions.TitleGenerated);
-                  } catch (error) {
-                    console.error("生成标题失败:", error);
-                    showToast("生成标题失败，请重试");
-                  }
-                } else {
-                  showToast("会话不存在");
-                }
-                menu.close();
-              }}
-            >
-              {Locale.Chat.Actions.ForceGenerateTitle}
-            </div>
-          </>,
-        )}
+      {enableContextMenu && (
+        <SessionContextMenu
+          sessionId={props.id}
+          showMoveToTop={true}
+          sessionIndex={props.index}
+          enableInlineEdit={true}
+          onUpdateTitle={() => setIsEditing(true)}
+          menu={menu}
+        />
+      )}
     </div>
   );
 }

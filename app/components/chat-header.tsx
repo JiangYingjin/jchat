@@ -13,6 +13,8 @@ import { showToast } from "./ui-lib";
 import { useChatStore } from "../store";
 import { useShallow } from "zustand/react/shallow";
 import { createModuleLogger } from "../utils/logger";
+import { useContextMenu } from "./context-menu";
+import { SessionContextMenu } from "./session-context-menu";
 
 const chatHeaderLogger = createModuleLogger("CHAT_HEADER");
 
@@ -47,6 +49,27 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
   // 保留 chatStore 用于调用方法
   const chatStore = React.useMemo(() => useChatStore.getState(), []);
 
+  // 右键菜单 hook
+  const menu = useContextMenu();
+
+  // 获取当前会话和会话索引
+  const currentSession = React.useMemo(() => {
+    return chatStore.currentSession();
+  }, [chatStore]);
+
+  // 获取当前会话索引（仅在普通会话模式下有效）
+  const currentSessionIndex = useChatStore(
+    (state) => state.currentSessionIndex,
+  );
+  const chatListView = useChatStore((state) => state.chatListView);
+
+  // 判断是否应该显示"移至顶部"选项
+  // 只有在普通会话模式下，且不是第一个会话时才显示
+  const shouldShowMoveToTop =
+    chatListView === "sessions" &&
+    currentSessionIndex !== undefined &&
+    currentSessionIndex > 0;
+
   // 添加调试信息
   React.useEffect(() => {
     debugLog("CHAT_HEADER", "标题组件渲染", {
@@ -57,17 +80,6 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
       timestamp: Date.now(),
     });
   }, [headerData, props.sessionTitle, props.messageCount]);
-
-  // 处理右键单击标题，刷新会话标题
-  const handleTitleContextMenu = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    showToast(Locale.Chat.Actions.RefreshTitleToast);
-    // 使用 getState() 获取当前会话
-    const currentChatStore = useChatStore.getState();
-    const session = currentChatStore.currentSession();
-    await currentChatStore.generateSessionTitle(true, session);
-  };
 
   // 处理普通会话删除点击（带确认逻辑）
   const handleDeleteSessionClick = async () => {
@@ -181,7 +193,7 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
             styles["chat-body-main-title"],
           )}
           onClickCapture={props.onEditSessionClick}
-          onContextMenu={handleTitleContextMenu}
+          onContextMenu={menu.openAtEvent}
         >
           {!props.sessionTitle ? DEFAULT_TITLE : props.sessionTitle}
         </div>
@@ -225,6 +237,19 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
           )}
         </div>
       </div>
+
+      {/* 会话右键菜单 */}
+      {menu.isOpen && currentSession && (
+        <SessionContextMenu
+          sessionId={currentSession.id}
+          session={currentSession}
+          showMoveToTop={shouldShowMoveToTop}
+          sessionIndex={shouldShowMoveToTop ? currentSessionIndex : undefined}
+          enableInlineEdit={false}
+          onEditSession={props.onEditSessionClick}
+          menu={menu}
+        />
+      )}
     </div>
   );
 });
