@@ -216,13 +216,21 @@ export function ChatItem(props: {
 
     // 更新标题
     if (isGroupSession) {
-      chatStore.updateGroupSession(session, (s) => {
-        s.title = newTitle;
-      });
+      chatStore.updateGroupSession(
+        session,
+        (s) => {
+          s.title = newTitle;
+        },
+        true, // 手动编辑，设置 isTitleManuallyEdited = true
+      );
     } else {
-      chatStore.updateSession(session, (s) => {
-        s.title = newTitle;
-      });
+      chatStore.updateSession(
+        session,
+        (s) => {
+          s.title = newTitle;
+        },
+        true, // 手动编辑，设置 isTitleManuallyEdited = true
+      );
     }
 
     // 异步保存和广播

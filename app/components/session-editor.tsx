@@ -46,13 +46,21 @@ export function SessionEditor(props: {
   // 更新会话标题
   const updateSessionTitle = (title: string) => {
     if (isGroupSession) {
-      chatStore.updateGroupSession(session, (session) => {
-        session.title = title;
-      });
+      chatStore.updateGroupSession(
+        session,
+        (session) => {
+          session.title = title;
+        },
+        true, // 手动编辑，设置 isTitleManuallyEdited = true
+      );
     } else {
-      chatStore.updateSession(session, (session) => {
-        session.title = title;
-      });
+      chatStore.updateSession(
+        session,
+        (session) => {
+          session.title = title;
+        },
+        true, // 手动编辑，设置 isTitleManuallyEdited = true
+      );
     }
   };
 

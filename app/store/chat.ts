@@ -469,6 +469,7 @@ export interface ChatSession {
   isModelManuallySelected?: boolean; // 用户是否手动选择了模型（用于自动切换逻辑）
   longInputMode?: boolean; // 是否为长输入模式（Enter 换行，Ctrl+Enter 发送）
   ignoreSystemPrompt?: boolean; // 是否忽略系统提示词（仅在组会话模式下有效）
+  isTitleManuallyEdited?: boolean; // 用户是否手动编辑过标题（用于生成标题时的确认提示）
   groupId: string | null;
   lastUpdate: number;
   messages: ChatMessage[];
@@ -2989,13 +2990,21 @@ export const useChatStore = createPersistStore(
         await generateSessionTitle(session, refreshTitle, (newTitle) => {
           // 根据会话类型选择更新方法
           if (session.groupId) {
-            get().updateGroupSession(session, (session) => {
-              session.title = newTitle;
-            });
+            get().updateGroupSession(
+              session,
+              (session) => {
+                session.title = newTitle;
+              },
+              false, // 自动生成，设置 isTitleManuallyEdited = false
+            );
           } else {
-            get().updateSession(session, (session) => {
-              session.title = newTitle;
-            });
+            get().updateSession(
+              session,
+              (session) => {
+                session.title = newTitle;
+              },
+              false, // 自动生成，设置 isTitleManuallyEdited = false
+            );
           }
         });
       },
@@ -3018,12 +3027,19 @@ export const useChatStore = createPersistStore(
       updateSession(
         session: ChatSession,
         updater: (session: ChatSession) => void,
+        isManualEdit?: boolean, // 新增：是否为手动编辑（用于设置 isTitleManuallyEdited 标志）
       ) {
         set((state) => {
           const index = state.sessions.findIndex((s) => s.id === session.id);
           if (index < 0) return {}; // 如果会话不存在，直接返回空对象
           const updatedSession = { ...state.sessions[index] }; // 修改浅拷贝
           updater(updatedSession); // 修改会话浅拷贝
+
+          // 如果指定了 isManualEdit，设置 isTitleManuallyEdited 标志
+          if (isManualEdit !== undefined) {
+            updatedSession.isTitleManuallyEdited = isManualEdit;
+          }
+
           const sessions = [...state.sessions]; // 会话数组浅拷贝
           sessions[index] = updatedSession; // 更新会话数组浅拷贝
           return { sessions }; // 返回包含新 sessions 数组的状态对象，Zustand 会将这个对象与当前状态合并，触发组件重新渲染
@@ -3034,6 +3050,7 @@ export const useChatStore = createPersistStore(
       updateGroupSession(
         session: ChatSession,
         updater: (session: ChatSession) => void,
+        isManualEdit?: boolean, // 新增：是否为手动编辑（用于设置 isTitleManuallyEdited 标志）
       ) {
         set((state) => {
           // 一定要以 groupSessions 里的最新对象为基础，防止被旧对象覆盖
@@ -3045,6 +3062,11 @@ export const useChatStore = createPersistStore(
 
           // 应用更新器
           updater(updatedSession);
+
+          // 如果指定了 isManualEdit，设置 isTitleManuallyEdited 标志
+          if (isManualEdit !== undefined) {
+            updatedSession.isTitleManuallyEdited = isManualEdit;
+          }
 
           // 如果状态发生了变化，需要更新父组的计数
           const newStatus = updatedSession.status;

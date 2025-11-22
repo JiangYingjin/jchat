@@ -3,7 +3,7 @@
 import React from "react";
 import { useChatStore, type ChatSession } from "../store";
 import { type ContextMenuHook } from "./context-menu";
-import { showToast } from "./ui-lib";
+import { showToast, showConfirm } from "./ui-lib";
 import Locale from "../locales";
 import sidebarStyles from "../styles/sidebar.module.scss";
 
@@ -58,22 +58,49 @@ export function SessionContextMenu(props: SessionContextMenuProps) {
     props.onClose?.();
   };
 
-  // 处理强制生成标题
-  const handleForceGenerateTitle = async (e: React.MouseEvent) => {
+  // 处理生成标题
+  const handleGenerateTitle = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (session) {
-      showToast(Locale.Chat.Actions.GeneratingTitle);
-      try {
-        await chatStore.generateSessionTitle(true, session);
-        showToast(Locale.Chat.Actions.TitleGenerated);
-      } catch (error) {
-        console.error("生成标题失败:", error);
-        showToast("生成标题失败，请重试");
-      }
-    } else {
+
+    if (!session) {
       showToast("会话不存在");
+      props.menu.close();
+      props.onClose?.();
+      return;
     }
+
+    // 检查是否手动编辑过标题
+    if (session.isTitleManuallyEdited) {
+      const confirmed = await showConfirm(
+        <div style={{ padding: "8px 16px" }}>
+          <p style={{ fontSize: "14px", marginBottom: "12px" }}>
+            当前标题 &quot;<strong>{session.title}</strong>&quot;
+            是您手动编辑的。
+          </p>
+          <p style={{ fontSize: "14px", color: "#666" }}>
+            生成新标题将覆盖您手动编辑的标题，是否继续？
+          </p>
+        </div>,
+      );
+
+      if (!confirmed) {
+        props.menu.close();
+        props.onClose?.();
+        return;
+      }
+    }
+
+    // 生成标题
+    showToast(Locale.Chat.Actions.GeneratingTitle);
+    try {
+      await chatStore.generateSessionTitle(true, session);
+      // showToast(Locale.Chat.Actions.TitleGenerated);
+    } catch (error) {
+      console.error("生成标题失败:", error);
+      showToast("生成标题失败，请重试");
+    }
+
     props.menu.close();
     props.onClose?.();
   };
@@ -100,12 +127,12 @@ export function SessionContextMenu(props: SessionContextMenuProps) {
         {Locale.Chat.Actions.UpdateTitle}
       </div>
 
-      {/* 强制生成标题 */}
+      {/* 生成标题 */}
       <div
         className={sidebarStyles["search-context-item"]}
-        onClick={handleForceGenerateTitle}
+        onClick={handleGenerateTitle}
       >
-        {Locale.Chat.Actions.ForceGenerateTitle}
+        {Locale.Chat.Actions.GenerateTitle}
       </div>
     </>,
   );
