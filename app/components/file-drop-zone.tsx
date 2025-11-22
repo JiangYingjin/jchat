@@ -131,8 +131,8 @@ export function FileDropZone({ children }: FileDropZoneProps) {
     if (!currentGroup) return;
 
     for (const file of files) {
-      // 创建新的组内会话
-      await chatStore.newGroupSession();
+      // 创建新的组内会话，直接使用文件名作为标题，避免后续自动生成标题的冗余请求
+      await chatStore.newGroupSession(file.name);
 
       // 等待状态完全同步
       await new Promise((resolve) => setTimeout(resolve, 10));

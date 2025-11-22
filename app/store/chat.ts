@@ -1150,7 +1150,7 @@ export const useChatStore = createPersistStore(
       },
 
       // 新建组内会话
-      async newGroupSession() {
+      async newGroupSession(title?: string) {
         const { groups, currentGroupIndex, groupSessions } = get();
         const currentGroup = groups[currentGroupIndex];
 
@@ -1162,7 +1162,8 @@ export const useChatStore = createPersistStore(
         // 创建新的组内会话
         const newSession = createEmptySession();
         newSession.groupId = currentGroup.id;
-        newSession.title = Locale.Session.Title.DefaultGroup;
+        // 如果传入了标题（如文件名），直接使用；否则使用默认标题
+        newSession.title = title || Locale.Session.Title.DefaultGroup;
 
         // 为组会话设置默认模型和长文本模式
         const state = get();
@@ -3147,7 +3148,7 @@ export const useChatStore = createPersistStore(
             // 创建会话
             const session: ChatSession = {
               id: sessionId,
-              title: Locale.Session.Title.DefaultGroup,
+              title: file.name, // 直接使用文件名作为标题，避免后续自动生成标题的冗余请求
               sourceName: file.name, // 记录源文件名
               model: determineModelForGroupSession(
                 get().groupSessionModel,
