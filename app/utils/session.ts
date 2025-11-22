@@ -120,6 +120,7 @@ export function createEmptySession(): ChatSession {
     lastUpdate: Date.now(),
     model: getDefaultModel(),
     longInputMode: false,
+    ignoreSystemPrompt: false,
     isModelManuallySelected: false,
     groupId: null,
   };
@@ -144,6 +145,7 @@ export function createBranchSession(
   newSession.title = branchTopic;
   newSession.messages = [...messagesToCopy];
   newSession.longInputMode = originalSession.longInputMode;
+  newSession.ignoreSystemPrompt = originalSession.ignoreSystemPrompt;
   newSession.isModelManuallySelected = originalSession.isModelManuallySelected;
   newSession.model = originalSession.model;
   // 更新消息计数和状态
@@ -162,32 +164,35 @@ export async function prepareMessagesForApi(
   // ========== system message 动态加载 ==========
   let systemPrompt: ChatMessage[] = [];
 
-  // 直接从 systemMessageStorage 加载系统提示词，不依赖 messages 中的 system 消息
-  try {
-    const systemMessage = await systemMessageStorage.get(session.id);
+  // 只有当 ignoreSystemPrompt 为 false 或 undefined 时才加载系统提示词
+  if (!session.ignoreSystemPrompt) {
+    // 直接从 systemMessageStorage 加载系统提示词，不依赖 messages 中的 system 消息
+    try {
+      const systemMessage = await systemMessageStorage.get(session.id);
 
-    const hasSystemMessage =
-      systemMessage &&
-      (systemMessage.text.trim() !== "" || systemMessage.images.length > 0);
+      const hasSystemMessage =
+        systemMessage &&
+        (systemMessage.text.trim() !== "" || systemMessage.images.length > 0);
 
-    // 只有当有有效内容时才创建 system 消息
-    if (hasSystemMessage) {
-      // 使用新格式的数据构建 multimodalContent
-      const mContent = buildMultimodalContent(
-        systemMessage.text,
-        systemMessage.images,
-      );
+      // 只有当有有效内容时才创建 system 消息
+      if (hasSystemMessage) {
+        // 使用新格式的数据构建 multimodalContent
+        const mContent = buildMultimodalContent(
+          systemMessage.text,
+          systemMessage.images,
+        );
 
-      // 创建 system 消息（仅用于发送给 API，不存储在 session.messages 中）
-      systemPrompt = [
-        createMessage({
-          role: "system",
-          content: mContent,
-        }),
-      ];
+        // 创建 system 消息（仅用于发送给 API，不存储在 session.messages 中）
+        systemPrompt = [
+          createMessage({
+            role: "system",
+            content: mContent,
+          }),
+        ];
+      }
+    } catch (error) {
+      console.error("[prepareMessagesForApi] 加载系统提示词失败:", error);
     }
-  } catch (error) {
-    console.error("[prepareMessagesForApi] 加载系统提示词失败:", error);
   }
 
   // 获取所有消息（除了错误消息和系统消息）

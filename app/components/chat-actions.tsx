@@ -11,6 +11,7 @@ import RobotIcon from "../icons/robot.svg";
 import EditIcon from "../icons/edit.svg";
 import StopIcon from "../icons/pause.svg";
 import CameraIcon from "../icons/camera.svg";
+import EyeOffIcon from "../icons/eye-off.svg";
 import styles from "../styles/chat.module.scss";
 
 export function ChatActions(props: {
@@ -102,6 +103,48 @@ export function ChatActions(props: {
                 : undefined,
               opacity: session.longInputMode ? 1 : 0.7,
               border: session.longInputMode
+                ? "1.5px solid var(--primary)"
+                : undefined,
+            }}
+          />
+        )}
+        {session.groupId && !isMobileScreen && (
+          <ChatAction
+            onClick={() => {
+              if (session.groupId) {
+                // 获取当前组所有会话
+                const state = useChatStore.getState();
+                const { groups, groupSessions, currentGroupIndex } = state;
+                const currentGroup = groups[currentGroupIndex];
+                if (currentGroup) {
+                  const newMode = !(session.ignoreSystemPrompt ?? false);
+                  currentGroup.sessionIds.forEach((sid) => {
+                    const groupSession = groupSessions[sid];
+                    if (groupSession) {
+                      chatStore.updateGroupSession(groupSession, (sess) => {
+                        sess.ignoreSystemPrompt = newMode;
+                      });
+                    }
+                  });
+                }
+              } else {
+                chatStore.updateSession(session, (s) => {
+                  s.ignoreSystemPrompt = !(s.ignoreSystemPrompt ?? false);
+                });
+              }
+            }}
+            text={"忽略系统提示词"}
+            icon={<EyeOffIcon />}
+            alwaysFullWidth={false}
+            style={{
+              backgroundColor: session.ignoreSystemPrompt
+                ? "var(--primary-light, #e6f0fa)"
+                : undefined,
+              color: session.ignoreSystemPrompt
+                ? "var(--primary, #2196f3)"
+                : undefined,
+              opacity: session.ignoreSystemPrompt ? 1 : 0.7,
+              border: session.ignoreSystemPrompt
                 ? "1.5px solid var(--primary)"
                 : undefined,
             }}
