@@ -2944,6 +2944,48 @@ export const useChatStore = createPersistStore(
         refreshTitle: boolean = false,
         session: ChatSession,
       ) {
+        // 如果消息未加载，先加载消息
+        const needsMessageLoad =
+          session.messageCount > 0 &&
+          (!session.messages || session.messages.length === 0);
+
+        if (needsMessageLoad) {
+          debugLog("GENERATE_TITLE", "消息未加载，先加载消息", {
+            sessionId: session.id,
+            messageCount: session.messageCount,
+            isGroupSession: !!session.groupId,
+          });
+
+          try {
+            if (session.groupId) {
+              await get().loadGroupSessionMessages(session.id);
+            } else {
+              // 对于普通会话，需要找到索引
+              const sessionIndex = get().sessions.findIndex(
+                (s) => s.id === session.id,
+              );
+              if (sessionIndex >= 0) {
+                await get().loadSessionMessages(sessionIndex);
+              }
+            }
+
+            // 重新获取会话对象（消息已加载）
+            const updatedSession = session.groupId
+              ? get().groupSessions[session.id]
+              : get().sessions.find((s) => s.id === session.id);
+
+            if (updatedSession) {
+              session = updatedSession;
+            }
+          } catch (error) {
+            console.error("加载消息失败:", error);
+            debugLog("GENERATE_TITLE", "加载消息失败", {
+              error: error instanceof Error ? error.message : String(error),
+            });
+            // 继续执行，即使加载失败也尝试生成标题
+          }
+        }
+
         await generateSessionTitle(session, refreshTitle, (newTitle) => {
           // 根据会话类型选择更新方法
           if (session.groupId) {
