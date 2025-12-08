@@ -83,7 +83,9 @@ export function useScrollToBottom(
 /**
  * 实现了一个自定义的三击事件监听器
  */
-export function useTripleClick(messageEditRef: React.RefObject<HTMLElement>) {
+export function useTripleClick(
+  messageEditRef: React.RefObject<HTMLElement | null>,
+) {
   const [lastClickTime, setLastClickTime] = useState(0);
   const [clickCount, setClickCount] = useState(0);
   const [lastClickX, setLastClickX] = useState(0);

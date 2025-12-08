@@ -100,10 +100,10 @@ JChat believes that technical communication should not be limited to plain text.
     ```
 
 2.  **Install dependencies**
-    Using `yarn` is recommended:
+    Using `pnpm` is recommended:
 
     ```bash
-    yarn install
+    pnpm install
     ```
 
 3.  **Configure Environment Variables**
@@ -139,7 +139,7 @@ JChat believes that technical communication should not be limited to plain text.
 4.  **Start the development server**
 
     ```bash
-    yarn dev
+    pnpm dev
     ```
 
     The application will be running at `http://localhost:3000`.

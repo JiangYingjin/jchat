@@ -1,9 +1,9 @@
 {
-  "./app/**/*.{js,ts,jsx,tsx,json,html,md}": [
-    "eslint --fix",
-    "prettier --write"
-  ],
-  "./app/**/*.css": [
-    "prettier --write"
-  ]
+    "./app/**/*.{js,ts,jsx,tsx,json,html,md}": [
+        "eslint --fix",
+        "prettier --write"
+    ],
+    "./app/**/*.css": [
+        "prettier --write"
+    ]
 }

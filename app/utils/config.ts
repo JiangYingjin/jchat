@@ -21,9 +21,29 @@ export const getServerSideConfig = () => {
       "[Server Config] you are importing a nodejs-only module outside of nodejs",
     );
 
+  // 检查是否在构建阶段（Next.js 构建时会设置 NEXT_PHASE）
+  const isBuildTime =
+    process.env.NEXT_PHASE === "phase-production-build" ||
+    process.env.NEXT_PHASE === "phase-development-build";
+
   // 验证 MODELS 环境变量
   const modelsString = process.env.MODELS?.trim();
   if (!modelsString) {
+    // 构建时允许为空，不报错，也不使用默认模型
+    if (isBuildTime) {
+      return {
+        baseUrl: process.env.BASE_URL || FALLBACK_BASE_URL,
+        apiKey: process.env.API_KEY?.trim(),
+        code: process.env.CODE,
+        codes: new Set<string>(),
+        proxyUrl: process.env.PROXY_URL,
+        models: [],
+        longTextModel: null,
+        groupSessionModel: null,
+        defaultModel: undefined,
+      };
+    }
+    // 运行时才抛出错误
     throw new Error(
       "[Server Config] MODELS environment variable is required but not set. " +
         "Please set MODELS to a comma-separated list of available models, e.g., 'model1,model2,model3'",
@@ -36,6 +56,21 @@ export const getServerSideConfig = () => {
     .filter((v) => !!v && v.length > 0);
 
   if (models.length === 0) {
+    // 构建时允许为空，不报错
+    if (isBuildTime) {
+      return {
+        baseUrl: process.env.BASE_URL || FALLBACK_BASE_URL,
+        apiKey: process.env.API_KEY?.trim(),
+        code: process.env.CODE,
+        codes: new Set<string>(),
+        proxyUrl: process.env.PROXY_URL,
+        models: [],
+        longTextModel: null,
+        groupSessionModel: null,
+        defaultModel: undefined,
+      };
+    }
+    // 运行时才抛出错误
     throw new Error(
       "[Server Config] MODELS environment variable is empty or contains no valid models. " +
         "Please provide at least one valid model name.",
@@ -75,6 +110,6 @@ export const getServerSideConfig = () => {
     models,
     longTextModel: validLongTextModel,
     groupSessionModel: validGroupSessionModel,
-    defaultModel: models[0], // 默认模型是第一个
+    defaultModel: models.length > 0 ? models[0] : undefined,
   };
 };

@@ -360,7 +360,7 @@ export function Markdown(
   props: {
     content: string;
     loading?: boolean;
-    parentRef?: RefObject<HTMLDivElement>;
+    parentRef?: RefObject<HTMLDivElement | null>;
     defaultShow?: boolean;
   } & React.DOMAttributes<HTMLDivElement>,
 ) {

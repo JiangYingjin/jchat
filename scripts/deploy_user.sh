@@ -44,10 +44,10 @@ nvm use 24
 
 # 需要安装非软链接 node_modules 依赖，不能直接使用软链接
 # 否则构建之后的 .next/standalone/node_modules 还是软连接，非特权用户会无法访问
-yarn
+pnpm i
 
 # 构建
-if ! yarn build; then
+if ! pnpm build; then
     echo "❌ 构建失败，不应用更改"
     exit 1
 fi

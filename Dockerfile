@@ -9,14 +9,14 @@ RUN corepack enable
 # 设置工作目录
 WORKDIR /app
 
-# 复制 package.json 和 yarn.lock 并安装依赖
-COPY package.json yarn.lock ./
-RUN yarn
+# 复制 package.json 和 pnpm-lock.yaml 并安装依赖
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm i
 
 # 复制所有项目文件
 COPY . .
 
-RUN yarn build
+RUN pnpm build
 
 # ======================================================
 # 第二阶段：运行阶段

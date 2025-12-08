@@ -5,9 +5,9 @@ import LoadingIcon from "../icons/three-dots.svg";
 
 export function ChatAction(props: {
   text: string;
-  icon?: JSX.Element;
+  icon?: React.ReactElement;
   loding?: boolean;
-  innerNode?: JSX.Element;
+  innerNode?: React.ReactElement;
   onClick: () => void;
   onContextMenu?: (e: React.MouseEvent) => void; // 新增：右键菜单支持
   style?: React.CSSProperties;
@@ -109,9 +109,9 @@ export function ChatAction(props: {
 // 新增：双击确认的 ChatAction 组件
 export function DoubleClickChatAction(props: {
   text: string;
-  icon?: JSX.Element;
+  icon?: React.ReactElement;
   loding?: boolean;
-  innerNode?: JSX.Element;
+  innerNode?: React.ReactElement;
   onClick: () => void;
   onContextMenu?: (e: React.MouseEvent) => void; // 新增：右键菜单支持
   style?: React.CSSProperties;

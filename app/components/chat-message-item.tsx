@@ -17,7 +17,7 @@ interface ChatMessageItemProps {
   isUser: boolean;
   showActions: boolean;
   messageRefs: React.MutableRefObject<{ [key: string]: HTMLDivElement | null }>;
-  scrollRef: RefObject<HTMLDivElement>;
+  scrollRef: RefObject<HTMLDivElement | null>;
   messageHeights: { [key: string]: number };
   onResend: (message: ChatMessage) => void;
   onDelete: (msgId: string) => void;

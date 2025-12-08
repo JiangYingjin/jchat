@@ -54,7 +54,7 @@ export interface EditorCoreProps {
     selection?: { start: number; end: number };
   };
   // Monaco Editor容器引用（兼容性）
-  textareaRef?: React.RefObject<HTMLElement>;
+  textareaRef?: React.RefObject<HTMLElement | null>;
   // Monaco Editor实例回调，用于智能定位
   onEditorMount?: (editor: any) => void;
 }
@@ -498,7 +498,7 @@ const MessageEditDialog = React.memo(
       retryOnConfirm?: boolean,
     ) => void;
     title?: string;
-    textareaRef?: React.RefObject<HTMLElement>;
+    textareaRef?: React.RefObject<HTMLElement | null>;
     message?: ChatMessage;
 
     // Monaco特有的配置

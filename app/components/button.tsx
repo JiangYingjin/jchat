@@ -11,7 +11,7 @@ import DeleteIcon from "../icons/clear.svg";
 export function IconButton(props: {
   onClick?: () => void;
   onContextMenu?: (e: React.MouseEvent) => void;
-  icon?: JSX.Element;
+  icon?: React.ReactElement;
   type?: ButtonType;
   text?: string;
   bordered?: boolean;
