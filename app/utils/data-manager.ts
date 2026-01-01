@@ -230,6 +230,101 @@ class JChatDataManager {
   }
 
   /**
+   * 检测是否是原始 IndexedDB 导出格式（来自 exportIndexedDB.js）
+   */
+  private isRawIndexedDBExport(data: any): boolean {
+    if (!data || typeof data !== "object") return false;
+
+    // 原始格式：直接包含 objectStore 名称作为键，值为数组
+    const expectedStores = [
+      "default",
+      "messages",
+      "systemMessages",
+      "chatInput",
+    ];
+    const hasStoreKeys = expectedStores.some((store) => store in data);
+
+    // 如果包含 objectStore 名称，且没有 version/timestamp/data 结构，则是原始格式
+    return (
+      hasStoreKeys &&
+      !("version" in data) &&
+      !("timestamp" in data) &&
+      !("data" in data)
+    );
+  }
+
+  /**
+   * 将原始 IndexedDB 导出格式转换为 JChatBackupData 格式
+   */
+  private convertRawIndexedDBExport(rawData: any): JChatBackupData {
+    const convertedData: JChatBackupData = {
+      version: this.CURRENT_VERSION,
+      timestamp: Date.now(),
+      metadata: {
+        totalSessions: 0,
+        totalMessages: 0,
+        exportSource: "IndexedDB Raw Export",
+      },
+      data: {
+        default: {},
+        messages: {},
+        systemMessages: {},
+        chatInput: {},
+      },
+    };
+
+    // 处理每个 objectStore
+    const storeNames = ["default", "messages", "systemMessages", "chatInput"];
+    for (const storeName of storeNames) {
+      if (!(storeName in rawData) || !Array.isArray(rawData[storeName])) {
+        continue;
+      }
+
+      const storeArray = rawData[storeName];
+      const storeData: Record<string, any> = {};
+
+      for (let i = 0; i < storeArray.length; i++) {
+        const item = storeArray[i];
+        // 新格式：{ key: ..., value: ... }
+        if (
+          item &&
+          typeof item === "object" &&
+          "key" in item &&
+          "value" in item
+        ) {
+          const key = String(item.key);
+          storeData[key] = item.value;
+        }
+        // 旧格式：只有值（向后兼容，但无法恢复键，使用索引作为键）
+        else {
+          // 警告：旧格式无法恢复原始键，使用索引作为临时键
+          if (i === 0) {
+            console.warn(
+              `[DataManager] 检测到旧格式导出数据（${storeName}），无法恢复原始键，将使用索引作为键`,
+            );
+          }
+          storeData[`_imported_${i}`] = item;
+        }
+      }
+
+      convertedData.data[storeName as keyof typeof convertedData.data] =
+        storeData;
+
+      // 统计信息
+      if (storeName === "messages") {
+        convertedData.metadata.totalSessions = Object.keys(storeData).length;
+        convertedData.metadata.totalMessages = Object.values(storeData).reduce(
+          (sum, messages) =>
+            sum + (Array.isArray(messages) ? messages.length : 0),
+          0,
+        );
+      }
+    }
+
+    return convertedData;
+  }
+
+  /**
    * 导入并恢复 JChat 数据
    */
   async importData(): Promise<void> {
@@ -251,11 +346,20 @@ class JChatDataManager {
       showToast("正在解析备份数据...");
 
       // 解析 JSON 数据
-      const backupData = JSON.parse(fileData.content);
+      const parsedData = JSON.parse(fileData.content);
 
-      // 验证备份数据格式
-      if (!this.validateBackupData(backupData)) {
-        throw new Error("备份文件格式不正确或版本不兼容");
+      let backupData: JChatBackupData;
+
+      // 检测是否是原始 IndexedDB 导出格式
+      if (this.isRawIndexedDBExport(parsedData)) {
+        showToast("检测到 IndexedDB 原始导出格式，正在转换...");
+        backupData = this.convertRawIndexedDBExport(parsedData);
+      } else {
+        // 验证标准备份数据格式
+        if (!this.validateBackupData(parsedData)) {
+          throw new Error("备份文件格式不正确或版本不兼容");
+        }
+        backupData = parsedData;
       }
 
       showToast("正在恢复数据到 IndexedDB...");

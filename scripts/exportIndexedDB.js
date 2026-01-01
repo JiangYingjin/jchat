@@ -34,9 +34,8 @@ async function exportIndexedDB(dbName) {
                 cursorRequest.onsuccess = (e) => {
                     const cursor = e.target.result;
                     if (cursor) {
-                        // 如果你只需要值，而不是键，可以使用 cursor.value
-                        // 如果你需要键值对，可以使用 { key: cursor.key, value: cursor.value }
-                        storeData.push(cursor.value);
+                        // 导出键值对格式，保留键信息以便导入时恢复
+                        storeData.push({ key: cursor.key, value: cursor.value });
                         cursor.continue();
                     } else {
                         // No more entries in this store

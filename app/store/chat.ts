@@ -3998,6 +3998,9 @@ async function loadTabState(): Promise<TabIndependentState> {
 // 跨标签页同步机制 - Broadcast Channel API
 // ============================================================================
 
+// 广播机制开关（写死关闭）
+const ENABLE_BROADCAST_SYNC = false;
+
 let broadcastChannel: BroadcastChannel | null = null;
 const BROADCAST_CHANNEL_NAME = "jchat-state-sync";
 
@@ -4010,6 +4013,12 @@ if (typeof window !== "undefined") {
 
 // 启动跨标签页同步机制
 function setupCrossTabSync() {
+  // 检查广播机制开关
+  if (!ENABLE_BROADCAST_SYNC) {
+    debugLog("SYNC", "广播机制已关闭，跳过跨标签页同步");
+    return;
+  }
+
   if (typeof window === "undefined" || !("BroadcastChannel" in window)) {
     debugLog("SYNC", "Broadcast Channel 不可用，跳过跨标签页同步");
     return;
@@ -4034,6 +4043,11 @@ function setupCrossTabSync() {
 
       // --- 监听来自其他标签页的同步请求 ---
       broadcastChannel.onmessage = (event) => {
+        // 检查广播机制开关
+        if (!ENABLE_BROADCAST_SYNC) {
+          return;
+        }
+
         // 收到广播消息
 
         debugLog("SYNC", "收到广播消息", {
@@ -4397,6 +4411,11 @@ function setupCrossTabSync() {
       let isUpdatingFromSync = false; // 标志：是否正在从同步更新状态
 
       useChatStore.subscribe((state) => {
+        // 检查广播机制开关
+        if (!ENABLE_BROADCAST_SYNC) {
+          return;
+        }
+
         // 如果正在从同步更新状态，跳过广播
         if (isUpdatingFromSync) {
           syncDebugLog("SYNC", "跳过广播：正在从同步更新状态");
@@ -4504,6 +4523,11 @@ function setupCrossTabSync() {
 
           // 延迟广播，确保存储写入完成
           setTimeout(() => {
+            // 再次检查广播机制开关
+            if (!ENABLE_BROADCAST_SYNC) {
+              return;
+            }
+
             const message = {
               type: "STATE_UPDATE_AVAILABLE",
               payload: {
