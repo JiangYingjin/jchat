@@ -9,6 +9,7 @@ import chatItemStyles from "../styles/chat-item.module.scss";
 import groupSessionsStyles from "../styles/group-sessions.module.scss";
 import BackIcon from "../icons/left.svg";
 import Locale from "../locales";
+import { useShallow } from "zustand/react/shallow";
 import {
   DndContext,
   closestCenter,
@@ -102,25 +103,41 @@ function StatusDot({ status, title }: StatusDotProps) {
 
 // 独立的 GroupSessionsHeader 组件
 export function GroupSessionsHeader() {
-  const [groups, currentGroupIndex, chatListGroupView, chatStore] =
-    useChatStore((state) => [
-      state.groups,
-      state.currentGroupIndex,
-      state.chatListGroupView,
-      state,
-    ]);
+  // 使用 useShallow 避免无限循环，缓存选择器结果
+  const {
+    groups,
+    currentGroupIndex,
+    chatListGroupView,
+    groupSessions: allGroupSessions,
+  } = useChatStore(
+    useShallow((state) => ({
+      groups: state.groups,
+      currentGroupIndex: state.currentGroupIndex,
+      chatListGroupView: state.chatListGroupView,
+      groupSessions: state.groupSessions,
+    })),
+  );
+
+  // 使用 useMemo 获取 chatStore 方法，避免订阅状态变化
+  const chatStore = useMemo(() => useChatStore.getState(), []);
 
   // 返回到组列表
   const handleBackToGroups = () => {
     chatStore.setchatListGroupView("groups");
   };
 
-  const currentGroup = groups[currentGroupIndex];
-  const groupSessions = currentGroup
-    ? currentGroup.sessionIds
-        .map((sessionId: string) => chatStore.groupSessions[sessionId])
-        .filter(Boolean)
-    : [];
+  // 使用 useMemo 缓存计算结果
+  const currentGroup = useMemo(
+    () => groups[currentGroupIndex],
+    [groups, currentGroupIndex],
+  );
+
+  const groupSessions = useMemo(() => {
+    if (!currentGroup) return [];
+    return currentGroup.sessionIds
+      .map((sessionId: string) => allGroupSessions[sessionId])
+      .filter(Boolean);
+  }, [currentGroup, allGroupSessions]);
 
   return (
     <div className={groupSessionsStyles["group-sessions-header"]}>
@@ -161,19 +178,26 @@ export function GroupSessionsHeader() {
 
 // 组会话列表组件
 export function GroupList() {
-  const [
+  // 使用 useShallow 避免无限循环，缓存选择器结果
+  const {
     groups,
     currentGroupIndex,
     chatListView,
     chatListGroupView,
-    chatStore,
-  ] = useChatStore((state) => [
-    state.groups,
-    state.currentGroupIndex,
-    state.chatListView,
-    state.chatListGroupView,
-    state,
-  ]);
+    groupSessions: allGroupSessions,
+  } = useChatStore(
+    useShallow((state) => ({
+      groups: state.groups,
+      currentGroupIndex: state.currentGroupIndex,
+      chatListView: state.chatListView,
+      chatListGroupView: state.chatListGroupView,
+      groupSessions: state.groupSessions,
+    })),
+  );
+
+  // 使用 useMemo 获取 chatStore 方法，避免订阅状态变化
+  const chatStore = useMemo(() => useChatStore.getState(), []);
+
   const router = useRouter();
   const isMobileScreen = useMobileScreen();
   const isAppReady = useAppReadyGuard();
@@ -190,6 +214,21 @@ export function GroupList() {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
+
+  // 在条件渲染之前计算组内会话列表（使用 useMemo）
+  const currentGroup = useMemo(
+    () => groups[currentGroupIndex] || null,
+    [groups, currentGroupIndex],
+  );
+
+  const groupSessions = useMemo(() => {
+    if (!currentGroup || chatListGroupView !== "group-sessions") {
+      return [];
+    }
+    return currentGroup.sessionIds
+      .map((sessionId: string) => allGroupSessions[sessionId])
+      .filter(Boolean);
+  }, [currentGroup, chatListGroupView, allGroupSessions]);
 
   // 🔥 确保应用完全准备好后再渲染组列表
   if (!isAppReady) {
@@ -312,15 +351,9 @@ export function GroupList() {
 
   // 渲染组内会话列表视图
   if (chatListGroupView === "group-sessions") {
-    const currentGroup = groups[currentGroupIndex];
-
     if (!currentGroup) {
       return null;
     }
-
-    const groupSessions = currentGroup.sessionIds
-      .map((sessionId: string) => chatStore.groupSessions[sessionId])
-      .filter(Boolean);
 
     return (
       <div className={groupSessionsStyles["group-sessions-view"]}>

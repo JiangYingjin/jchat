@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styles from "../styles/file-drop-zone.module.scss";
 import {
   validateDropEvent,
@@ -21,6 +21,7 @@ import { systemMessageStorage } from "../store/system";
 import { uploadImage } from "../utils/chat";
 import { showToast } from "./ui-lib";
 import { filterEmptyGroupSessions, updateSessionStats } from "../utils/session";
+import { useShallow } from "zustand/react/shallow";
 
 interface FileDropZoneProps {
   children: React.ReactNode;
@@ -35,13 +36,57 @@ export function FileDropZone({ children }: FileDropZoneProps) {
   const [isProcessingFiles, setIsProcessingFiles] = useState(false);
   const [rawFiles, setRawFiles] = useState<File[]>([]);
 
-  const chatStore = useChatStore();
+  // 使用 getState() 获取方法，避免订阅整个 store
+  const chatStore = useMemo(() => useChatStore.getState(), []);
 
-  // 检查是否处于组内会话模式
+  // 使用 useShallow 订阅必要的状态，避免无限循环
+  const {
+    chatListView,
+    chatListGroupView,
+    groups,
+    currentGroupIndex,
+    groupSessions,
+  } = useChatStore(
+    useShallow((state) => ({
+      chatListView: state.chatListView,
+      chatListGroupView: state.chatListGroupView,
+      groups: state.groups,
+      currentGroupIndex: state.currentGroupIndex,
+      groupSessions: state.groupSessions,
+    })),
+  );
+
+  // 使用 useMemo 缓存计算结果，避免在每次渲染时重新计算
+  const inGroupSessionsView = useMemo(
+    () =>
+      chatListView === "groups" &&
+      chatListGroupView === "group-sessions" &&
+      groups.length > 0,
+    [chatListView, chatListGroupView, groups.length],
+  );
+
+  const inGroupsView = useMemo(
+    () =>
+      chatListView === "groups" &&
+      chatListGroupView === "groups" &&
+      groups.length > 0,
+    [chatListView, chatListGroupView, groups.length],
+  );
+
+  // 获取当前组的会话信息 - 使用 useMemo 缓存
+  const currentGroupSessions = useMemo(() => {
+    const currentGroup = groups[currentGroupIndex];
+    if (!currentGroup) return [];
+
+    return currentGroup.sessionIds
+      .map((sessionId: string) => groupSessions[sessionId])
+      .filter(Boolean) as ChatSession[];
+  }, [groups, currentGroupIndex, groupSessions]);
+
+  // 检查是否处于组内会话模式 - 保留为函数供异步操作使用
   const isInGroupSessionsView = () => {
     const state = useChatStore.getState();
-    const { chatListView, chatListGroupView, groups, currentGroupIndex } =
-      state;
+    const { chatListView, chatListGroupView, groups } = state;
     return (
       chatListView === "groups" &&
       chatListGroupView === "group-sessions" &&
@@ -49,11 +94,10 @@ export function FileDropZone({ children }: FileDropZoneProps) {
     );
   };
 
-  // 检查是否处于组列表模式
+  // 检查是否处于组列表模式 - 保留为函数供异步操作使用
   const isInGroupsView = () => {
     const state = useChatStore.getState();
-    const { chatListView, chatListGroupView, groups, currentGroupIndex } =
-      state;
+    const { chatListView, chatListGroupView, groups } = state;
     return (
       chatListView === "groups" &&
       chatListGroupView === "groups" &&
@@ -61,7 +105,7 @@ export function FileDropZone({ children }: FileDropZoneProps) {
     );
   };
 
-  // 获取当前组的会话信息
+  // 获取当前组的会话信息 - 保留为函数供异步操作使用
   const getCurrentGroupSessions = () => {
     const state = useChatStore.getState();
     const { groups, currentGroupIndex, groupSessions } = state;
@@ -182,14 +226,25 @@ export function FileDropZone({ children }: FileDropZoneProps) {
     // 更新组的会话ID顺序
     const newSessionIds = sortedSessions.map((session) => session.id);
 
-    useChatStore.setState((state) => {
-      const newGroups = [...state.groups];
-      newGroups[currentGroupIndex] = {
-        ...currentGroup,
-        sessionIds: newSessionIds,
-      };
-      return { groups: newGroups };
-    });
+    // 只有在顺序真正改变时才更新状态，避免不必要的重新渲染
+    const currentSessionIds = currentGroup.sessionIds;
+    const hasChanged =
+      newSessionIds.length !== currentSessionIds.length ||
+      newSessionIds.some((id, index) => id !== currentSessionIds[index]);
+
+    if (hasChanged) {
+      useChatStore.setState((state) => {
+        const newGroups = [...state.groups];
+        const updatedGroup = state.groups[currentGroupIndex];
+        if (updatedGroup) {
+          newGroups[currentGroupIndex] = {
+            ...updatedGroup,
+            sessionIds: newSessionIds,
+          };
+        }
+        return { groups: newGroups };
+      });
+    }
   };
 
   // 按文件名附加逻辑 - 独立函数
@@ -457,15 +512,15 @@ export function FileDropZone({ children }: FileDropZoneProps) {
     handleKeyDown,
   ]);
 
-  // 检查当前模式
-  const inGroupSessionsView = isInGroupSessionsView();
-  const inGroupsView = isInGroupsView();
-  const currentGroupSessions = getCurrentGroupSessions();
+  // 计算文件数量和会话数量
   const fileCount = rawFiles.length;
   const sessionCount = currentGroupSessions.length;
 
   // 判断是否应该显示附加按钮
-  const shouldShowAppendButtons = inGroupSessionsView || inGroupsView;
+  const shouldShowAppendButtons = useMemo(
+    () => inGroupSessionsView || inGroupsView,
+    [inGroupSessionsView, inGroupsView],
+  );
 
   return (
     <div className={styles.container}>
