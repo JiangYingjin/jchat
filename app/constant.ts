@@ -39,6 +39,11 @@ export const FALLBACK_BASE_URL = "oneapi.jyj.cx";
 export const CHAT_PAGE_SIZE = 15;
 export const MAX_RENDER_MSG_COUNT = 45;
 
+// 会话列表分页加载配置
+export const SESSION_PAGE_SIZE = 50; // 每页加载的会话数量
+export const SESSION_LOAD_MORE_THRESHOLD = 200; // 距离底部多少像素时触发加载更多
+export const SESSION_INITIAL_LOAD_COUNT = 50; // 初始加载的会话数量
+
 export const DEFAULT_FONT_SIZE = 14.5;
 export const DEFAULT_FONT_FAMILY = "";
 export enum Theme {

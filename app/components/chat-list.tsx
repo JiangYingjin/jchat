@@ -25,7 +25,7 @@ import { useChatStore } from "../store";
 import Locale from "../locales";
 import { usePathname, useRouter } from "next/navigation";
 import { Path } from "../constant";
-import { useRef, useMemo, memo, useState, useEffect } from "react";
+import { useRef, useMemo, memo, useState, useEffect, useCallback } from "react";
 import { useMobileScreen } from "../utils";
 import { useAppReadyGuard } from "../hooks/app-ready";
 import { useContextMenu } from "./context-menu";
@@ -380,25 +380,65 @@ export function ChatItem(props: {
   );
 }
 
+// 加载更多提示组件
+function LoadMoreIndicator({
+  isLoading,
+  hasMore,
+}: {
+  isLoading: boolean;
+  hasMore: boolean;
+}) {
+  if (!hasMore) {
+    return null;
+  }
+
+  return (
+    <div
+      className="flex items-center justify-center py-4"
+      style={{ minHeight: "40px" }}
+    >
+      {isLoading ? (
+        <div className="flex items-center gap-2 text-gray-500 text-xs">
+          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-400"></div>
+          <span>加载中...</span>
+        </div>
+      ) : (
+        <div className="text-gray-400 text-xs">滚动加载更多</div>
+      )}
+    </div>
+  );
+}
+
 // 创建一个只订阅会话列表的组件，用于跨标签页同步
 const ChatListSessions = memo(function ChatListSessions({
   sessions,
   selectedIndex,
   selectSession,
   moveSession,
+  sessionPagination,
 }: {
   sessions: any[];
   selectedIndex: number;
   selectSession: (index: number) => void;
   moveSession: (from: number, to: number) => void;
+  sessionPagination: {
+    loadedCount: number;
+    isLoading: boolean;
+    hasMore: boolean;
+  };
 }) {
   const chatStore = useChatStore();
   const router = useRouter();
   const isMobileScreen = useMobileScreen();
   const isAppReady = useAppReadyGuard();
 
-  // 使用 useMemo 优化渲染，只在 sessions 或 selectedIndex 变化时重新渲染
-  const memoizedSessions = useMemo(() => sessions, [sessions]);
+  // 计算可见的会话（只包含已加载的）
+  const visibleSessions = useMemo(() => {
+    return sessions.slice(0, sessionPagination.loadedCount);
+  }, [sessions, sessionPagination.loadedCount]);
+
+  // 使用 useMemo 优化渲染
+  const memoizedSessions = useMemo(() => visibleSessions, [visibleSessions]);
   const memoizedSelectedIndex = useMemo(() => selectedIndex, [selectedIndex]);
 
   // 🔥 所有 hooks 必须在条件渲染之前调用
@@ -484,6 +524,10 @@ const ChatListSessions = memo(function ChatListSessions({
               enableContextMenu={true}
             />
           ))}
+          <LoadMoreIndicator
+            isLoading={sessionPagination.isLoading}
+            hasMore={sessionPagination.hasMore}
+          />
         </div>
       </SortableContext>
     </DndContext>
@@ -497,6 +541,43 @@ export function ChatList(props: {}) {
   const selectedIndex = useChatStore((state) => state.currentSessionIndex);
   const selectSession = useChatStore((state) => state.selectSession);
   const moveSession = useChatStore((state) => state.moveSession);
+  const sessionPagination = useChatStore((state) => state.sessionPagination);
+  const ensureSessionLoaded = useChatStore(
+    (state) => state.ensureSessionLoaded,
+  );
+
+  // 当选中会话变化时，确保该会话已加载
+  useEffect(() => {
+    if (selectedIndex >= 0 && selectedIndex < sessions.length) {
+      ensureSessionLoaded(selectedIndex);
+    }
+  }, [selectedIndex, sessions.length, ensureSessionLoaded]);
+
+  // 当会话列表变化时，更新分页状态
+  useEffect(() => {
+    const { loadedCount, hasMore } = sessionPagination;
+    const totalCount = sessions.length;
+
+    // 如果已加载数量超过总数量，需要调整
+    if (loadedCount > totalCount) {
+      const chatStore = useChatStore.getState();
+      chatStore.setSessionPagination({
+        loadedCount: Math.min(loadedCount, totalCount),
+        hasMore: false,
+      });
+    } else if (loadedCount < totalCount && !hasMore) {
+      // 如果还有更多会话但 hasMore 为 false，需要更新
+      const chatStore = useChatStore.getState();
+      chatStore.setSessionPagination({
+        hasMore: true,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    sessions.length,
+    sessionPagination.loadedCount,
+    sessionPagination.hasMore,
+  ]);
 
   // 使用 React.memo 优化，只在必要的时候重新渲染
   return (
@@ -505,6 +586,7 @@ export function ChatList(props: {}) {
       selectedIndex={selectedIndex}
       selectSession={selectSession}
       moveSession={moveSession}
+      sessionPagination={sessionPagination}
     />
   );
 }

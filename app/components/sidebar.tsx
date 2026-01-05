@@ -11,7 +11,11 @@ import GroupIcon from "../icons/group.svg";
 import { useChatStore } from "../store";
 import { useAppReadyGuard } from "../hooks/app-ready";
 
-import { DEFAULT_SIDEBAR_WIDTH, Path } from "../constant";
+import {
+  DEFAULT_SIDEBAR_WIDTH,
+  Path,
+  SESSION_LOAD_MORE_THRESHOLD,
+} from "../constant";
 
 import { useRouter, usePathname } from "next/navigation";
 import { useMobileScreen } from "../utils";
@@ -124,10 +128,19 @@ export function SideBar(props: { className?: string }) {
     chatStore.saveSidebarScrollPosition(currentScrollKey, scrollTop);
   }, 120);
 
-  // --- 滚动保存 ---
+  // --- 分页加载相关 ---
+  const sessionPagination = useChatStore((state) => state.sessionPagination);
+  const loadMoreSessions = useChatStore((state) => state.loadMoreSessions);
+  const resetSessionPagination = useChatStore(
+    (state) => state.resetSessionPagination,
+  );
+
+  // --- 滚动保存和加载更多 ---
   const handleScroll = useCallback(
     (e: React.UIEvent<HTMLDivElement>) => {
-      const scrollTop = e.currentTarget.scrollTop;
+      const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+
+      // 保存滚动位置
       if (
         typeof scrollTop === "number" &&
         scrollTop >= 0 &&
@@ -135,8 +148,28 @@ export function SideBar(props: { className?: string }) {
       ) {
         debouncedSave(scrollTop);
       }
+
+      // 检测是否需要加载更多（仅在会话列表模式下）
+      if (chatListView === "sessions") {
+        const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+
+        // 当距离底部小于阈值时，加载更多
+        if (
+          distanceToBottom < SESSION_LOAD_MORE_THRESHOLD &&
+          sessionPagination.hasMore &&
+          !sessionPagination.isLoading
+        ) {
+          loadMoreSessions();
+        }
+      }
     },
-    [debouncedSave],
+    [
+      debouncedSave,
+      chatListView,
+      sessionPagination.hasMore,
+      sessionPagination.isLoading,
+      loadMoreSessions,
+    ],
   );
 
   // --- 滚动恢复 ---
@@ -168,6 +201,13 @@ export function SideBar(props: { className?: string }) {
     }
   }, [scrollKey, chatListView, chatListGroupView, chatStore]);
 
+  // 当视图切换时，重置分页状态（必须在条件渲染之前）
+  useEffect(() => {
+    if (chatListView === "sessions") {
+      resetSessionPagination();
+    }
+  }, [chatListView, resetSessionPagination]);
+
   // 获取当前列表模式 (已在上面声明)
 
   // 🔥 确保应用完全准备好后再渲染侧边栏
@@ -198,6 +238,8 @@ export function SideBar(props: { className?: string }) {
     } else {
       // 从组模式切换回普通会话模式
       chatStore.setchatListView("sessions");
+      // 重置分页状态
+      resetSessionPagination();
     }
   };
 

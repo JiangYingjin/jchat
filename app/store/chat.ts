@@ -2,7 +2,11 @@ import type { ClientApi, MultimodalContent } from "../client/api";
 import { getClientApi, getHeaders } from "../client/api";
 import { ChatControllerPool } from "../client/controller";
 import { showToast } from "../components/ui-lib";
-import { StoreKey } from "../constant";
+import {
+  StoreKey,
+  SESSION_PAGE_SIZE,
+  SESSION_INITIAL_LOAD_COUNT,
+} from "../constant";
 import Locale from "../locales";
 import { prettyObject } from "../utils/format";
 import { createPersistStore, jchatStorage } from "../utils/store";
@@ -520,6 +524,13 @@ const DEFAULT_CHAT_STATE = {
   // --- Sidebar scroll states ---
   sidebarScrollPosition: 0, // 侧边栏当前滚动位置（即时值）
   sidebarScrollHistory: {} as Record<string, number>, // 不同列表视图的滚动位置缓存
+  // --- Session pagination states ---
+  sessionPagination: {
+    pageSize: SESSION_PAGE_SIZE,
+    loadedCount: SESSION_INITIAL_LOAD_COUNT,
+    isLoading: false,
+    hasMore: true,
+  },
 };
 
 export const DEFAULT_TITLE = Locale.Session.Title.Default;
@@ -1085,9 +1096,21 @@ export const useChatStore = createPersistStore(
             currentSessionIndex: 0,
           });
 
+          // 新会话添加到开头，已加载数量需要增加1
+          const { sessionPagination } = state;
+          const newLoadedCount = Math.min(
+            sessionPagination.loadedCount + 1,
+            newSessions.length,
+          );
+
           return {
             currentSessionIndex: 0,
             sessions: newSessions,
+            sessionPagination: {
+              ...sessionPagination,
+              loadedCount: newLoadedCount,
+              hasMore: newLoadedCount < newSessions.length,
+            },
           };
         });
 
@@ -1219,6 +1242,11 @@ export const useChatStore = createPersistStore(
       // 设置聊天列表模式
       setchatListView(mode: "sessions" | "groups") {
         set({ chatListView: mode });
+
+        // 切换到会话模式时，重置分页状态
+        if (mode === "sessions") {
+          get().resetSessionPagination();
+        }
 
         // 切换模式后，确保当前会话的消息已加载
         setTimeout(() => {
@@ -2100,10 +2128,24 @@ export const useChatStore = createPersistStore(
         }
 
         // 立即更新UI状态（从sessions数组中移除）
-        set(() => ({
-          currentSessionIndex: nextIndex,
-          sessions,
-        }));
+        set((state) => {
+          const { sessionPagination } = state;
+          // 如果删除后总数少于已加载数量，需要调整
+          const newLoadedCount = Math.min(
+            sessionPagination.loadedCount,
+            sessions.length,
+          );
+
+          return {
+            currentSessionIndex: nextIndex,
+            sessions,
+            sessionPagination: {
+              ...sessionPagination,
+              loadedCount: newLoadedCount,
+              hasMore: newLoadedCount < sessions.length,
+            },
+          };
+        });
 
         // **修复：在切换到新session后，立即加载其消息**
         await get().loadSessionMessages(nextIndex);
@@ -3354,6 +3396,91 @@ export const useChatStore = createPersistStore(
           format,
           timestamp: Date.now(),
         });
+      },
+
+      // --- Session pagination methods ---
+      // 设置分页状态
+      setSessionPagination(
+        pagination: Partial<typeof DEFAULT_CHAT_STATE.sessionPagination>,
+      ): void {
+        set((state) => ({
+          sessionPagination: {
+            ...state.sessionPagination,
+            ...pagination,
+          },
+        }));
+      },
+
+      // 加载更多会话
+      loadMoreSessions(): void {
+        const state = get();
+        const { sessions, sessionPagination } = state;
+        const { pageSize, loadedCount, isLoading } = sessionPagination;
+
+        // 如果正在加载或已加载全部，则返回
+        if (isLoading || loadedCount >= sessions.length) {
+          return;
+        }
+
+        // 计算新的加载数量
+        const newLoadedCount = Math.min(
+          loadedCount + pageSize,
+          sessions.length,
+        );
+        const hasMore = newLoadedCount < sessions.length;
+
+        // 更新状态
+        set({
+          sessionPagination: {
+            ...sessionPagination,
+            loadedCount: newLoadedCount,
+            hasMore,
+            isLoading: false, // 同步加载，不需要 loading 状态
+          },
+        });
+      },
+
+      // 重置分页状态（切换视图时调用）
+      resetSessionPagination(): void {
+        const state = get();
+        const { sessions } = state;
+        const initialCount = Math.min(
+          SESSION_INITIAL_LOAD_COUNT,
+          sessions.length,
+        );
+
+        set({
+          sessionPagination: {
+            pageSize: SESSION_PAGE_SIZE,
+            loadedCount: initialCount,
+            isLoading: false,
+            hasMore: initialCount < sessions.length,
+          },
+        });
+      },
+
+      // 确保指定索引的会话已加载（用于选中会话时）
+      ensureSessionLoaded(sessionIndex: number): void {
+        const state = get();
+        const { sessions, sessionPagination } = state;
+        const { loadedCount } = sessionPagination;
+
+        // 如果会话索引超出已加载范围，需要加载更多
+        if (sessionIndex >= loadedCount) {
+          // 加载到包含该会话的位置，并额外加载一些上下文
+          const targetCount = Math.min(
+            sessionIndex + SESSION_PAGE_SIZE,
+            sessions.length,
+          );
+
+          set({
+            sessionPagination: {
+              ...sessionPagination,
+              loadedCount: targetCount,
+              hasMore: targetCount < sessions.length,
+            },
+          });
+        }
       },
     };
 
