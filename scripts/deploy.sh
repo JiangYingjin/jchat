@@ -2,15 +2,8 @@
 
 set -e
 
-docker build -t jchat:latest -f Dockerfile . 
-docker stop jchat 2>/dev/null
-docker rm jchat 2>/dev/null
-docker run -d \
-    --name jchat \
-    --restart unless-stopped \
-    -p 8037:3000 \
-    --env-file .env \
-    --env-file .env.production \
-    --cpus=2 \
-    --memory=1g \
-    jchat:latest
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+docker build -t jchat:latest -f "$PROJECT_ROOT/Dockerfile" "$PROJECT_ROOT"
+cd "$PROJECT_ROOT" && bash "$SCRIPT_DIR/restart.sh"
