@@ -210,6 +210,46 @@ export function SideBar(props: { className?: string }) {
 
   // 获取当前列表模式 (已在上面声明)
 
+  const stopSearch = useCallback(() => {
+    setIsSearching(false);
+    searchBarRef.current?.clearInput();
+  }, []);
+
+  const handleNewButtonClick = useCallback(async () => {
+    try {
+      if (chatListView === "sessions") {
+        await chatStore.newSession();
+      } else if (chatStore.chatListGroupView === "groups") {
+        const newGroup = createEmptyGroup();
+        await chatStore.newGroup(newGroup);
+      } else {
+        await chatStore.newGroupSession();
+      }
+      if (isMobileScreen) {
+        chatStore.showChatOnMobile();
+      } else {
+        if (!pathname.includes(Path.Home) && !pathname.includes(Path.Chat)) {
+          router.push(Path.Home);
+        }
+      }
+      stopSearch();
+    } catch (error) {
+      console.error("[Sidebar] 新建按钮点击出错:", error);
+    }
+  }, [chatListView, chatStore, isMobileScreen, pathname, router, stopSearch]);
+
+  // Ctrl+N / Cmd+N：等同于点击「新建会话/新建组/新建组内会话」按钮
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "n") {
+        e.preventDefault();
+        handleNewButtonClick();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [handleNewButtonClick]);
+
   // 🔥 确保应用完全准备好后再渲染侧边栏
   if (!isAppReady) {
     return (
@@ -223,11 +263,6 @@ export function SideBar(props: { className?: string }) {
       </div>
     );
   }
-
-  const stopSearch = () => {
-    setIsSearching(false);
-    searchBarRef.current?.clearInput();
-  };
 
   const toggleGroupMode = () => {
     if (chatListView === "sessions") {
@@ -332,36 +367,7 @@ export function SideBar(props: { className?: string }) {
         <div>
           <IconButton
             icon={<AddIcon />}
-            onClick={async () => {
-              try {
-                // 判断当前模式并执行相应操作
-                if (chatListView === "sessions") {
-                  await chatStore.newSession();
-                } else if (chatStore.chatListGroupView === "groups") {
-                  const newGroup = createEmptyGroup();
-                  await chatStore.newGroup(newGroup);
-                } else {
-                  await chatStore.newGroupSession();
-                }
-
-                // 移动端：新建会话后切换到聊天界面
-                if (isMobileScreen) {
-                  chatStore.showChatOnMobile();
-                } else {
-                  // 桌面端：新建会话后导航到首页
-                  if (
-                    !pathname.includes(Path.Home) &&
-                    !pathname.includes(Path.Chat)
-                  ) {
-                    router.push(Path.Home);
-                  }
-                }
-
-                stopSearch();
-              } catch (error) {
-                console.error("[Sidebar] 新建按钮点击出错:", error);
-              }
-            }}
+            onClick={handleNewButtonClick}
             title={
               chatListView === "sessions"
                 ? "新建会话"

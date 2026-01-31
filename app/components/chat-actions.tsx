@@ -41,6 +41,23 @@ export function ChatActions(props: {
     setShowUploadImage(isMobileScreen);
   }, [isMobileScreen]);
 
+  // Alt+Z：切换当前会话的用户记忆（仅普通会话且已配置 mem0_user_id 时有效）
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === "z" || e.key === "Z")) {
+        const state = useChatStore.getState();
+        const sess = state.currentSession();
+        if (sess.groupId || !state.mem0_user_id?.trim()) return;
+        e.preventDefault();
+        state.updateSession(sess, (s) => {
+          s.useMemory = !(s.useMemory ?? false);
+        });
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
     <div className={styles["chat-input-actions"]}>
       <>
@@ -67,6 +84,32 @@ export function ChatActions(props: {
           icon={<RobotIcon />}
           alwaysFullWidth={true}
         />
+        {!session.groupId &&
+          !!chatStore.mem0_user_id?.trim() &&
+          !isMobileScreen && (
+            <ChatAction
+              onClick={() => {
+                chatStore.updateSession(session, (s) => {
+                  s.useMemory = !(s.useMemory ?? false);
+                });
+              }}
+              text={Locale.Chat.InputActions.UseMemory}
+              icon={<BrainIcon />}
+              alwaysFullWidth={false}
+              style={{
+                backgroundColor: session.useMemory
+                  ? "var(--primary-light, #e6f0fa)"
+                  : undefined,
+                color: session.useMemory
+                  ? "var(--primary, #2196f3)"
+                  : undefined,
+                opacity: session.useMemory ? 1 : 0.7,
+                border: session.useMemory
+                  ? "1.5px solid var(--primary)"
+                  : undefined,
+              }}
+            />
+          )}
         {!isMobileScreen && (
           <ChatAction
             onClick={() => {
@@ -109,32 +152,6 @@ export function ChatActions(props: {
             }}
           />
         )}
-        {!session.groupId &&
-          !!chatStore.mem0_user_id?.trim() &&
-          !isMobileScreen && (
-            <ChatAction
-              onClick={() => {
-                chatStore.updateSession(session, (s) => {
-                  s.useMemory = !(s.useMemory ?? false);
-                });
-              }}
-              text={Locale.Chat.InputActions.UseMemory}
-              icon={<BrainIcon />}
-              alwaysFullWidth={false}
-              style={{
-                backgroundColor: session.useMemory
-                  ? "var(--primary-light, #e6f0fa)"
-                  : undefined,
-                color: session.useMemory
-                  ? "var(--primary, #2196f3)"
-                  : undefined,
-                opacity: session.useMemory ? 1 : 0.7,
-                border: session.useMemory
-                  ? "1.5px solid var(--primary)"
-                  : undefined,
-              }}
-            />
-          )}
         {session.groupId && !isMobileScreen && (
           <ChatAction
             onClick={() => {
