@@ -250,6 +250,24 @@ export function SideBar(props: { className?: string }) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [handleNewButtonClick]);
 
+  // Ctrl+Shift+F：定位到搜索框并全选（不进入“搜索展开”状态，避免隐藏会话列表）
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === "F") {
+        e.preventDefault();
+        if (chatListView !== "sessions") {
+          chatStore.setchatListView("sessions");
+        }
+        // 不调用 setIsSearching(true)，否则 sidebar-body 会被隐藏
+        setTimeout(() => {
+          searchBarRef.current?.focusAndSelectAll?.();
+        }, 0);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [chatListView, chatStore]);
+
   // 🔥 确保应用完全准备好后再渲染侧边栏
   if (!isAppReady) {
     return (

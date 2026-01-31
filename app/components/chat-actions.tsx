@@ -58,6 +58,38 @@ export function ChatActions(props: {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, []);
 
+  // Alt+L：切换长输入模式（与「长输入模式」按钮一致）
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.altKey && (e.key === "l" || e.key === "L")) {
+        const state = useChatStore.getState();
+        const sess = state.currentSession();
+        e.preventDefault();
+        if (sess.groupId) {
+          const { groups, groupSessions, currentGroupIndex } = state;
+          const currentGroup = groups[currentGroupIndex];
+          if (currentGroup) {
+            const newMode = !(sess.longInputMode ?? false);
+            currentGroup.sessionIds.forEach((sid) => {
+              const gs = groupSessions[sid];
+              if (gs) {
+                state.updateGroupSession(gs, (s) => {
+                  s.longInputMode = newMode;
+                });
+              }
+            });
+          }
+        } else {
+          state.updateSession(sess, (s) => {
+            s.longInputMode = !(s.longInputMode ?? false);
+          });
+        }
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
   return (
     <div className={styles["chat-input-actions"]}>
       <>

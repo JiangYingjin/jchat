@@ -14,6 +14,7 @@ import { useMobileScreen, autoGrowTextArea } from "../utils";
 import { usePasteImageUpload } from "../utils/hooks";
 import { capturePhoto, uploadImage } from "../utils/file-upload";
 import { chatInputStorage } from "../store/input";
+import { useChatStore } from "../store";
 
 import styles from "../styles/chat.module.scss";
 
@@ -537,6 +538,24 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
 
   // 键盘事件处理
   const onInputKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // 普通模式下 Shift+Enter：开启长输入模式并插入换行（不 toggle）
+    if (!longInputMode && e.shiftKey && e.key === "Enter") {
+      const state = useChatStore.getState();
+      const session = state.currentSession();
+      if (session?.id === sessionId) {
+        if (session.groupId) {
+          state.updateGroupSession(session, (s) => {
+            s.longInputMode = true;
+          });
+        } else {
+          state.updateSession(session, (s) => {
+            s.longInputMode = true;
+          });
+        }
+      }
+      // 不 preventDefault，让浏览器插入换行
+      return;
+    }
     // 如果是长输入模式，Enter 换行，Ctrl+Enter 发送
     if (longInputMode) {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
@@ -647,6 +666,23 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
   const handleFullscreenKeyDown = (
     e: React.KeyboardEvent<HTMLTextAreaElement>,
   ) => {
+    // 普通模式下 Shift+Enter：开启长输入模式并插入换行
+    if (!longInputMode && e.shiftKey && e.key === "Enter") {
+      const state = useChatStore.getState();
+      const session = state.currentSession();
+      if (session?.id === sessionId) {
+        if (session.groupId) {
+          state.updateGroupSession(session, (s) => {
+            s.longInputMode = true;
+          });
+        } else {
+          state.updateSession(session, (s) => {
+            s.longInputMode = true;
+          });
+        }
+      }
+      return;
+    }
     // 如果是长输入模式，Enter 换行，Ctrl+Enter 发送
     if (longInputMode) {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {

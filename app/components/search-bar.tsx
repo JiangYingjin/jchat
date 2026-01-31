@@ -59,6 +59,8 @@ export interface SearchInputRef {
   setInput: (value: string) => void;
   clearInput: () => void;
   inputElement: HTMLInputElement | null;
+  /** 聚焦搜索框并全选文本 */
+  focusAndSelectAll: () => void;
 }
 
 // 保留escapeRegExp函数以防其他地方使用
@@ -329,11 +331,10 @@ function SearchBarComponent(
   const lastSearchRef = useRef<string>("");
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-  useImperativeHandle(ref, () => ({
-    setInput: handleSetInput,
-    clearInput: handleClearInput,
-    inputElement: inputRef.current,
-  }));
+  const focusAndSelectAll = useCallback(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
 
   // 设置输入值的函数
   const handleSetInput = useCallback((value: string) => {
@@ -360,6 +361,17 @@ function SearchBarComponent(
     setIsSearching(false);
     lastSearchRef.current = "";
   }, [setIsSearching]);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      setInput: handleSetInput,
+      clearInput: handleClearInput,
+      inputElement: inputRef.current,
+      focusAndSelectAll,
+    }),
+    [handleSetInput, handleClearInput, focusAndSelectAll],
+  );
 
   // 验证搜索语法
   const validateSyntax = useCallback((query: string) => {
