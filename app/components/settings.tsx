@@ -210,6 +210,19 @@ function LocalDataItems() {
           />
         </div>
       </ListItem>
+      <ListItem
+        title={Locale.Settings.Mem0.Title}
+        subTitle={Locale.Settings.Mem0.SubTitle}
+      >
+        <input
+          type="text"
+          className={styles["mem0-input"]}
+          placeholder={Locale.Settings.Mem0.Placeholder}
+          value={chatStore.mem0_user_id}
+          onChange={(e) => chatStore.setMem0UserId(e.target.value)}
+          aria-label={Locale.Settings.Mem0.Title}
+        />
+      </ListItem>
     </List>
   );
 }

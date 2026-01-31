@@ -121,6 +121,7 @@ export function createEmptySession(): ChatSession {
     model: getDefaultModel(),
     longInputMode: false,
     ignoreSystemPrompt: false,
+    useMemory: false,
     isModelManuallySelected: false,
     groupId: null,
   };
@@ -146,6 +147,7 @@ export function createBranchSession(
   newSession.messages = [...messagesToCopy];
   newSession.longInputMode = originalSession.longInputMode;
   newSession.ignoreSystemPrompt = originalSession.ignoreSystemPrompt;
+  newSession.useMemory = originalSession.useMemory ?? false;
   newSession.isModelManuallySelected = originalSession.isModelManuallySelected;
   newSession.model = originalSession.model;
   // 更新消息计数和状态

@@ -50,6 +50,7 @@ const cn = {
     InputActions: {
       UploadImage: "上传图片",
       Stop: "停止",
+      UseMemory: "用户记忆",
     },
     DeleteMessageToast: "消息已删除",
     DeleteSessionToast: "会话已删除",
@@ -95,6 +96,11 @@ const cn = {
         return `${overview.chat} 组对话，${overview.message} 条消息`;
       },
       ImportFailed: "导入失败",
+    },
+    Mem0: {
+      Title: "用户记忆",
+      SubTitle: "通过 Mem0 管理记忆",
+      Placeholder: "Mem0 User ID",
     },
   },
   Copy: {

@@ -12,6 +12,7 @@ import EditIcon from "../icons/edit.svg";
 import StopIcon from "../icons/pause.svg";
 import CameraIcon from "../icons/camera.svg";
 import EyeOffIcon from "../icons/eye-off.svg";
+import BrainIcon from "../icons/brain.svg";
 import styles from "../styles/chat.module.scss";
 
 export function ChatActions(props: {
@@ -108,6 +109,32 @@ export function ChatActions(props: {
             }}
           />
         )}
+        {!session.groupId &&
+          !!chatStore.mem0_user_id?.trim() &&
+          !isMobileScreen && (
+            <ChatAction
+              onClick={() => {
+                chatStore.updateSession(session, (s) => {
+                  s.useMemory = !(s.useMemory ?? false);
+                });
+              }}
+              text={Locale.Chat.InputActions.UseMemory}
+              icon={<BrainIcon />}
+              alwaysFullWidth={false}
+              style={{
+                backgroundColor: session.useMemory
+                  ? "var(--primary-light, #e6f0fa)"
+                  : undefined,
+                color: session.useMemory
+                  ? "var(--primary, #2196f3)"
+                  : undefined,
+                opacity: session.useMemory ? 1 : 0.7,
+                border: session.useMemory
+                  ? "1.5px solid var(--primary)"
+                  : undefined,
+              }}
+            />
+          )}
         {session.groupId && !isMobileScreen && (
           <ChatAction
             onClick={() => {

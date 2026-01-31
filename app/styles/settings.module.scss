@@ -3,6 +3,17 @@
   overflow: auto;
 }
 
+/* 用 input 提高特异性，覆盖 globals 里 input[type="text"] 的 max-width: 50% */
+input.mem0-input {
+  width: 100%;
+  max-width: 160px;
+  padding: 8px 12px;
+  border: var(--border-in-light);
+  border-radius: 10px;
+  font-size: 14px;
+  font-family: inherit;
+}
+
 .edit-prompt-modal {
   display: flex;
   flex-direction: column;
