@@ -9,11 +9,18 @@ import { MongoClient, Collection, Db } from "mongodb";
 const DB_NAME = "jchat";
 const COLLECTION_SHARE = "share";
 
+/** 分享文档：兼容旧版 (title + messages) 与版本化全量 (version + session + systemPrompt + messages) */
 export interface ShareDoc {
   shareId: string;
   title?: string;
   messages: unknown[];
   createdAt: Date;
+  /** 全量分享：payload 版本号 */
+  version?: number;
+  /** 全量分享：会话元数据 */
+  session?: unknown;
+  /** 全量分享：系统提示词 */
+  systemPrompt?: unknown;
 }
 
 let cachedClient: MongoClient | null = null;

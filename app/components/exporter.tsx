@@ -24,7 +24,10 @@ import { toBlob, toPng } from "html-to-image";
 
 import { EXPORT_MESSAGE_CLASS_NAME } from "../constant";
 import { getHeaders } from "../client/api";
-import { buildSharePayload } from "../utils/share";
+import {
+  buildFullSharePayload,
+  type SessionLikeForShare,
+} from "../utils/share";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
@@ -323,10 +326,9 @@ export function MessageExporter() {
                     if (sharing) return;
                     setSharing(true);
                     try {
-                      const payload = await buildSharePayload(
-                        selectedMessages,
-                        session.title,
-                        session.id,
+                      const payload = await buildFullSharePayload(
+                        session as unknown as SessionLikeForShare &
+                          Record<string, unknown>,
                         systemMessageData,
                       );
                       const res = await fetch("/api/share", {

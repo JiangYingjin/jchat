@@ -98,7 +98,14 @@ export function SharePageClient({ shareId }: { shareId: string }) {
       })
       .then((body) => {
         if (!cancelled && Array.isArray(body.messages)) {
-          setData({ title: body.title, messages: body.messages });
+          const title =
+            typeof body.version === "number" &&
+            body.session &&
+            typeof body.session === "object" &&
+            "title" in body.session
+              ? (body.session as { title?: string }).title
+              : body.title;
+          setData({ title, messages: body.messages });
         } else {
           setError("数据格式异常");
         }

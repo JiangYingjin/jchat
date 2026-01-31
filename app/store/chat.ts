@@ -1066,6 +1066,177 @@ export const useChatStore = createPersistStore(
         });
       },
 
+      /** 通过分享链接无损载入会话：当前为空则覆盖当前会话，否则新建会话并载入 */
+      async loadShareByLink(
+        shareId: string,
+      ): Promise<{ ok: boolean; error?: string }> {
+        if (!isDataRestored) {
+          return { ok: false, error: "数据未恢复，请稍后再试" };
+        }
+        const state = get();
+        if (state.chatListView !== "sessions") {
+          return { ok: false, error: "请切换到普通会话列表后再载入分享链接" };
+        }
+        let res: Response;
+        try {
+          res = await fetch(`/api/share/${shareId}`);
+        } catch (e) {
+          return { ok: false, error: "网络错误，载入失败" };
+        }
+        if (!res.ok) {
+          const msg = res.status === 404 ? "分享不存在或已失效" : "载入失败";
+          return { ok: false, error: msg };
+        }
+        let body: {
+          version?: number;
+          session?: Record<string, unknown>;
+          systemPrompt?: { text: string; images: string[] };
+          title?: string;
+          messages?: unknown[];
+        };
+        try {
+          body = await res.json();
+        } catch {
+          return { ok: false, error: "数据格式异常" };
+        }
+        const messagesRaw = Array.isArray(body.messages) ? body.messages : [];
+        const normalizedMessages: ChatMessage[] = messagesRaw.map((m: any) => ({
+          ...m,
+          id: m.id ?? nanoid(),
+          role: m.role ?? "user",
+          content: m.content ?? "",
+          date:
+            typeof m.date === "string"
+              ? m.date
+              : m.date
+                ? new Date(m.date).toLocaleString()
+                : new Date().toLocaleString(),
+        }));
+
+        const meta =
+          body.session && typeof body.session === "object"
+            ? body.session
+            : null;
+        const legacyTitle =
+          typeof body.title === "string" ? body.title.trim() : undefined;
+        const systemPromptPayload =
+          body.systemPrompt &&
+          typeof body.systemPrompt === "object" &&
+          (typeof body.systemPrompt.text === "string" ||
+            Array.isArray(body.systemPrompt.images))
+            ? body.systemPrompt
+            : null;
+
+        const currentSession = get().currentSession();
+        const isEmpty =
+          currentSession &&
+          currentSession.messages.length === 0 &&
+          currentSession.title === Locale.Session.Title.Default;
+
+        let targetSession: ChatSession;
+        if (isEmpty && currentSession) {
+          targetSession = currentSession;
+          get().updateSession(targetSession, (s) => {
+            s.messages = normalizedMessages;
+            s.messageCount = normalizedMessages.length;
+            s.lastUpdate = Date.now();
+            s.title = (meta?.title as string) ?? legacyTitle ?? s.title;
+            if (typeof meta?.model === "string") s.model = meta.model;
+            if (typeof meta?.longInputMode === "boolean")
+              s.longInputMode = meta.longInputMode;
+            if (typeof meta?.ignoreSystemPrompt === "boolean")
+              s.ignoreSystemPrompt = meta.ignoreSystemPrompt;
+            if (typeof meta?.useMemory === "boolean")
+              s.useMemory = meta.useMemory;
+            if (typeof meta?.isTitleManuallyEdited === "boolean")
+              s.isTitleManuallyEdited = meta.isTitleManuallyEdited;
+            if (
+              typeof meta?.status === "string" &&
+              ["normal", "error", "pending"].includes(meta.status)
+            )
+              s.status = meta.status as "normal" | "error" | "pending";
+            if (typeof meta?.isModelManuallySelected === "boolean")
+              s.isModelManuallySelected = meta.isModelManuallySelected;
+            if (typeof meta?.sourceName === "string")
+              s.sourceName = meta.sourceName;
+          });
+        } else {
+          // 当前会话非空：新建会话并直接写入分享数据，不调用 newSession()，
+          // 避免 newSession() 内部 loadSessionMessages(0) 从 storage 拉空数据覆盖
+          const newSession = createEmptySession();
+          newSession.messages = normalizedMessages;
+          newSession.messageCount = normalizedMessages.length;
+          newSession.lastUpdate = Date.now();
+          newSession.title =
+            (meta?.title as string) ?? legacyTitle ?? newSession.title;
+          if (typeof meta?.model === "string") newSession.model = meta.model;
+          if (typeof meta?.longInputMode === "boolean")
+            newSession.longInputMode = meta.longInputMode;
+          if (typeof meta?.ignoreSystemPrompt === "boolean")
+            newSession.ignoreSystemPrompt = meta.ignoreSystemPrompt;
+          if (typeof meta?.useMemory === "boolean")
+            newSession.useMemory = meta.useMemory;
+          if (typeof meta?.isTitleManuallyEdited === "boolean")
+            newSession.isTitleManuallyEdited = meta.isTitleManuallyEdited;
+          if (
+            typeof meta?.status === "string" &&
+            ["normal", "error", "pending"].includes(meta.status)
+          )
+            newSession.status = meta.status as "normal" | "error" | "pending";
+          if (typeof meta?.isModelManuallySelected === "boolean")
+            newSession.isModelManuallySelected = meta.isModelManuallySelected;
+          if (typeof meta?.sourceName === "string")
+            newSession.sourceName = meta.sourceName;
+
+          set((state) => {
+            const newSessions = [newSession].concat(state.sessions);
+            const { sessionPagination } = state;
+            const newLoadedCount = Math.min(
+              sessionPagination.loadedCount + 1,
+              newSessions.length,
+            );
+            return {
+              currentSessionIndex: 0,
+              sessions: newSessions,
+              chatListView: "sessions",
+              sessionPagination: {
+                ...sessionPagination,
+                loadedCount: newLoadedCount,
+                hasMore: newLoadedCount < newSessions.length,
+              },
+            };
+          });
+          targetSession = newSession;
+        }
+
+        const sessionId = targetSession.id;
+        if (systemPromptPayload) {
+          try {
+            await systemMessageStorage.save(sessionId, {
+              text:
+                typeof systemPromptPayload.text === "string"
+                  ? systemPromptPayload.text
+                  : "",
+              images: Array.isArray(systemPromptPayload.images)
+                ? systemPromptPayload.images
+                : [],
+              scrollTop: 0,
+              selection: { start: 0, end: 0 },
+              updateAt: Date.now(),
+            });
+          } catch (e) {
+            console.error("[loadShareByLink] 保存系统提示词失败", e);
+          }
+        }
+
+        try {
+          await get().saveSessionMessages(targetSession, true);
+        } catch (e) {
+          console.error("[loadShareByLink] 保存消息失败", e);
+        }
+        return { ok: true };
+      },
+
       async newSession() {
         const session = createEmptySession();
 

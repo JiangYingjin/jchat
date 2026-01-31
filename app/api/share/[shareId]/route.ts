@@ -17,8 +17,19 @@ export async function GET(
     return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 
+  // 版本化全量分享：返回完整 payload，便于载入时无损恢复
+  if (typeof doc.version === "number") {
+    return NextResponse.json({
+      version: doc.version,
+      session: doc.session ?? null,
+      systemPrompt: doc.systemPrompt ?? null,
+      messages: doc.messages ?? [],
+    });
+  }
+
+  // 旧版：仅 title + messages
   return NextResponse.json({
     title: doc.title,
-    messages: doc.messages,
+    messages: doc.messages ?? [],
   });
 }

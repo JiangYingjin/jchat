@@ -21,6 +21,7 @@ import { useRouter } from "next/navigation";
 import { Path } from "@/app/constant";
 import Locale from "../locales";
 import { getMessageTextContent } from "../utils";
+import { parseShareLink } from "../utils/share";
 import {
   searchService,
   SearchResult,
@@ -486,6 +487,26 @@ function SearchBarComponent(
         return;
       }
 
+      // 若是分享链接，直接载入会话（粘贴或输入完成后即执行，无需回车）
+      const shareId = parseShareLink(value.trim());
+      if (shareId) {
+        searchService.cancelCurrentSearch();
+        if (searchTimeoutRef.current) {
+          clearTimeout(searchTimeoutRef.current);
+          searchTimeoutRef.current = null;
+        }
+        handleClearInput();
+        setIsSearching(false);
+        useChatStore
+          .getState()
+          .loadShareByLink(shareId)
+          .then((r) => {
+            if (r.ok) showToast("已载入分享会话");
+            else showToast(r.error ?? "载入失败");
+          });
+        return;
+      }
+
       // 实时语法验证（非阻塞）
       const isValidSyntax = validateSyntax(value);
 
@@ -575,6 +596,22 @@ function SearchBarComponent(
             onChange={(e) => handleChange(e.target.value)}
             onFocus={handleFocus}
             onBlur={handleBlur}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              const shareId = parseShareLink(input.trim());
+              if (shareId) {
+                e.preventDefault();
+                handleClearInput();
+                setIsSearching(false);
+                useChatStore
+                  .getState()
+                  .loadShareByLink(shareId)
+                  .then((r) => {
+                    if (r.ok) showToast("已载入分享会话");
+                    else showToast(r.error ?? "载入失败");
+                  });
+              }
+            }}
             placeholder={Locale.Search.Title}
           />
           {input.trim().length > 0 && (

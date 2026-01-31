@@ -8,13 +8,14 @@ import SendWhiteIcon from "../icons/send-white.svg";
 import { ChatActions } from "./chat-actions";
 import { DeleteImageButton } from "./button";
 import { IconButton } from "./button";
-import { showImageModal } from "./ui-lib";
+import { showImageModal, showToast } from "./ui-lib";
 import { copyImageToClipboard } from "../utils/image";
 import { useMobileScreen, autoGrowTextArea } from "../utils";
 import { usePasteImageUpload } from "../utils/hooks";
 import { capturePhoto, uploadImage } from "../utils/file-upload";
 import { chatInputStorage } from "../store/input";
 import { useChatStore } from "../store";
+import { parseShareLink } from "../utils/share";
 
 import styles from "../styles/chat.module.scss";
 
@@ -486,6 +487,19 @@ export function ChatInputPanel(props: ChatInputPanelProps) {
   const doSubmit = async (input: string) => {
     const value = userInput || input;
     if (value.trim() === "" && isEmpty(attachImages)) return;
+
+    const shareId = parseShareLink(value.trim());
+    if (shareId) {
+      setUserInput("");
+      try {
+        const result = await useChatStore.getState().loadShareByLink(shareId);
+        if (result.ok) showToast("已载入分享会话");
+        else showToast(result.error ?? "载入失败");
+      } catch {
+        showToast("载入失败");
+      }
+      return;
+    }
 
     debugLog("Submit Start", {
       value: value.substring(0, 50) + "...",
