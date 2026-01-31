@@ -7,6 +7,8 @@ export enum Path {
   Chat = "/chat",
   Settings = "/settings",
   Auth = "/auth",
+  /** 分享页 base path，实际路由为 /s/[id] */
+  ShareBase = "/s",
 }
 
 export enum ApiPath {

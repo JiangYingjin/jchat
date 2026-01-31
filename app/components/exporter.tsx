@@ -8,6 +8,7 @@ import {
   copyToClipboard,
   downloadAs,
   getMessageImages,
+  getMessageTextContent,
   useMobileScreen,
 } from "../utils";
 
@@ -22,7 +23,8 @@ import dynamic from "next/dynamic";
 import { toBlob, toPng } from "html-to-image";
 
 import { EXPORT_MESSAGE_CLASS_NAME } from "../constant";
-import { getMessageTextContent } from "../utils";
+import { getHeaders } from "../client/api";
+import { buildSharePayload } from "../utils/share";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
@@ -135,6 +137,7 @@ export function MessageExporter() {
 
   // 添加系统提示词状态
   const [systemMessageData, setSystemMessageData] = useState<any>(null);
+  const [sharing, setSharing] = useState(false);
 
   // 加载保存的导出格式
   useEffect(() => {
@@ -307,6 +310,49 @@ export function MessageExporter() {
                     </option>
                   ))}
                 </Select>
+              </ListItem>
+              <ListItem
+                title={Locale.Export.ShareLink}
+                subTitle="生成链接后复制到剪贴板"
+              >
+                <IconButton
+                  text={Locale.Export.ShareLink}
+                  bordered
+                  icon={sharing ? <LoadingIcon /> : <CopyIcon />}
+                  onClick={async () => {
+                    if (sharing) return;
+                    setSharing(true);
+                    try {
+                      const payload = await buildSharePayload(
+                        selectedMessages,
+                        session.title,
+                        session.id,
+                        systemMessageData,
+                      );
+                      const res = await fetch("/api/share", {
+                        method: "POST",
+                        headers: getHeaders(),
+                        body: JSON.stringify(payload),
+                      });
+                      const data = await res.json();
+                      if (!res.ok) {
+                        throw new Error(data.msg || Locale.Export.ShareFailed);
+                      }
+                      if (data.link) {
+                        await copyToClipboard(data.link);
+                        showToast(Locale.Export.LinkCopied);
+                      }
+                    } catch (e) {
+                      showToast(
+                        e instanceof Error
+                          ? e.message
+                          : Locale.Export.ShareFailed,
+                      );
+                    } finally {
+                      setSharing(false);
+                    }
+                  }}
+                />
               </ListItem>
             </List>
             <div className={styles["message-exporter-body"]}>{preview()}</div>

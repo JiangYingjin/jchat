@@ -86,7 +86,7 @@ export async function convertImageUrlsToBase64(
   if (typeof content === "string") {
     return content;
   }
-  const result = [];
+  const result: MultimodalContent[] = [];
   for (const part of content) {
     if (part?.type == "image_url" && part?.image_url?.url) {
       try {
@@ -94,12 +94,38 @@ export async function convertImageUrlsToBase64(
         result.push({ type: part.type, image_url: { url } });
       } catch (error) {
         console.error("Error processing image URL:", error);
+        // 分享场景：单图失败则跳过，不写入
       }
     } else {
       result.push({ ...part });
     }
   }
   return result;
+}
+
+/**
+ * 为分享链接构建系统提示词 content：text + images（每张图转 base64，失败则跳过）
+ */
+export async function buildSystemContentForShare(data: {
+  text: string;
+  images: string[];
+}): Promise<string | MultimodalContent[]> {
+  const parts: MultimodalContent[] = [];
+  if (data.text?.trim()) {
+    parts.push({ type: "text", text: data.text.trim() });
+  }
+  for (const url of data.images ?? []) {
+    try {
+      const dataUrl = await cacheImageToBase64Image(url);
+      parts.push({ type: "image_url", image_url: { url: dataUrl } });
+    } catch {
+      // 单图失败则跳过
+    }
+  }
+  if (parts.length === 0) return "";
+  if (parts.length === 1 && parts[0].type === "text")
+    return parts[0].text ?? "";
+  return parts;
 }
 
 const imageCaches: Record<string, string> = {};

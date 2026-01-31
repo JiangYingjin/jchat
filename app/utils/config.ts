@@ -11,6 +11,9 @@ declare global {
       LONG_TEXT_MODEL?: string;
       GROUP_SESSION_MODEL?: string;
       PROXY_URL?: string;
+      MONGODB_USER?: string;
+      MONGODB_PASSWD?: string;
+      NEXT_PUBLIC_APP_BASE?: string;
     }
   }
 }

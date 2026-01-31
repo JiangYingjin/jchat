@@ -42,6 +42,8 @@ interface MessageListProps {
   autoScroll: boolean;
   setAutoScroll: (autoScroll: boolean) => void;
   setHitBottom: (hitBottom: boolean) => void;
+  /** 分享页只读：展示系统消息（有内容时）、无操作、不依赖 store 会话 */
+  readOnly?: boolean;
 }
 
 // 创建选择器：只订阅当前会话的消息列表
@@ -53,6 +55,26 @@ const selectCurrentSessionMessages = (state: any) => {
     sessionId: currentSession.id,
   };
 };
+
+/** readOnly 时使用稳定引用，避免 getSnapshot 每次返回新对象导致无限循环 */
+const EMPTY_SESSION_SNAPSHOT = {
+  messages: [] as any[],
+  sessionId: null as string | null,
+};
+
+function hasMessageContent(message: RenderMessage): boolean {
+  if (typeof message.content === "string") {
+    return message.content.trim().length > 0;
+  }
+  if (Array.isArray(message.content)) {
+    return message.content.some(
+      (p) =>
+        (p.type === "text" && (p.text?.trim() ?? "").length > 0) ||
+        (p.type === "image_url" && p.image_url?.url),
+    );
+  }
+  return false;
+}
 
 export const MessageList = React.memo(function MessageList({
   messages,
@@ -67,20 +89,22 @@ export const MessageList = React.memo(function MessageList({
   autoScroll,
   setAutoScroll,
   setHitBottom,
+  readOnly = false,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobileScreen = useMobileScreen();
 
-  // 独立订阅消息相关状态
-  const messagesData = useChatStore(useShallow(selectCurrentSessionMessages));
+  const messagesData = useChatStore(
+    useShallow(
+      readOnly ? () => EMPTY_SESSION_SNAPSHOT : selectCurrentSessionMessages,
+    ),
+  );
 
-  // 保留 chatStore 用于调用方法
   const chatStore = React.useMemo(() => useChatStore.getState(), []);
-  const currentSession = chatStore.currentSession();
+  const currentSession = readOnly ? null : chatStore.currentSession();
 
-  // 新增：滚动状态管理
   const { saveScrollState, restoreScrollState } = useScrollState(
-    currentSession?.id || "",
+    readOnly ? "share" : currentSession?.id || "",
   );
 
   // 添加调试信息
@@ -307,9 +331,10 @@ export const MessageList = React.memo(function MessageList({
           (message.content.length === 0 && !message.reasoningContent)
         );
 
-        // 系统级提示词在会话界面中隐藏
+        // 会话界面隐藏系统消息；分享页仅当有内容时展示
         if (isSystem) {
-          return null;
+          if (!readOnly) return null;
+          if (!hasMessageContent(message)) return null;
         }
 
         return (
@@ -319,6 +344,7 @@ export const MessageList = React.memo(function MessageList({
             index={i}
             isUser={isUser}
             showActions={showActions}
+            readOnly={readOnly}
             messageRefs={messageRefs}
             scrollRef={scrollRef}
             messageHeights={messageHeights}

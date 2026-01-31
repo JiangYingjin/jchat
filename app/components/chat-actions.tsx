@@ -116,32 +116,28 @@ export function ChatActions(props: {
           icon={<RobotIcon />}
           alwaysFullWidth={true}
         />
-        {!session.groupId &&
-          !!chatStore.mem0_user_id?.trim() &&
-          !isMobileScreen && (
-            <ChatAction
-              onClick={() => {
-                chatStore.updateSession(session, (s) => {
-                  s.useMemory = !(s.useMemory ?? false);
-                });
-              }}
-              text={Locale.Chat.InputActions.UseMemory}
-              icon={<BrainIcon />}
-              alwaysFullWidth={false}
-              style={{
-                backgroundColor: session.useMemory
-                  ? "var(--primary-light, #e6f0fa)"
-                  : undefined,
-                color: session.useMemory
-                  ? "var(--primary, #2196f3)"
-                  : undefined,
-                opacity: session.useMemory ? 1 : 0.7,
-                border: session.useMemory
-                  ? "1.5px solid var(--primary)"
-                  : undefined,
-              }}
-            />
-          )}
+        {!session.groupId && !!chatStore.mem0_user_id?.trim() && (
+          <ChatAction
+            onClick={() => {
+              chatStore.updateSession(session, (s) => {
+                s.useMemory = !(s.useMemory ?? false);
+              });
+            }}
+            text={Locale.Chat.InputActions.UseMemory}
+            icon={<BrainIcon />}
+            alwaysFullWidth={false}
+            style={{
+              backgroundColor: session.useMemory
+                ? "var(--primary-light, #e6f0fa)"
+                : undefined,
+              color: session.useMemory ? "var(--primary, #2196f3)" : undefined,
+              opacity: session.useMemory ? 1 : 0.7,
+              border: session.useMemory
+                ? "1.5px solid var(--primary)"
+                : undefined,
+            }}
+          />
+        )}
         {!isMobileScreen && (
           <ChatAction
             onClick={() => {

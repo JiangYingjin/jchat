@@ -23,8 +23,8 @@ interface ChatMessageItemProps {
   onDelete: (msgId: string) => void;
   onUserStop: (messageId: string) => void;
   onBranch: (message: ChatMessage, index: number) => void;
-  onBatchApply: (message: ChatMessage) => void; // 新增：批量应用回调
-  onBatchDelete: (message: ChatMessage) => void; // 新增：批量删除回调
+  onBatchApply: (message: ChatMessage) => void;
+  onBatchDelete: (message: ChatMessage) => void;
   onEditMessage: (
     message: ChatMessage,
     type?: "content" | "reasoningContent",
@@ -34,6 +34,8 @@ interface ChatMessageItemProps {
     e: React.MouseEvent,
     callback: (select: { anchorText: string; extendText: string }) => void,
   ) => void;
+  /** 分享页只读：无操作按钮、无双击/三击编辑 */
+  readOnly?: boolean;
 }
 
 export function ChatMessageItem({
@@ -52,10 +54,12 @@ export function ChatMessageItem({
   onBatchDelete,
   onEditMessage,
   handleTripleClick,
+  readOnly = false,
 }: ChatMessageItemProps) {
   const chatStore = useChatStore();
-  const session = chatStore.currentSession();
-  const showBranch = !session.groupId; // 组内会话不显示分支按钮
+  const session = readOnly ? null : chatStore.currentSession();
+  const showBranch = session ? !session?.groupId : false;
+  const effectiveShowActions = readOnly ? false : showActions;
 
   return (
     <Fragment key={message.id}>
@@ -75,10 +79,12 @@ export function ChatMessageItem({
         >
           <div className={styles["chat-message-header"]}>
             {!isUser && (
-              <div className={styles["chat-model-name"]}>{message.model}</div>
+              <div className={styles["chat-model-name"]}>
+                {message.model ?? (message.role === "system" ? "系统" : "模型")}
+              </div>
             )}
 
-            {showActions && (
+            {effectiveShowActions && (
               <div className={styles["chat-message-actions"]}>
                 <MessageActions
                   message={message}
@@ -90,14 +96,16 @@ export function ChatMessageItem({
                   onBatchDelete={onBatchDelete}
                   index={index}
                   showBranch={showBranch}
-                  showBatchApply={!!session.groupId} // 组内会话下所有消息都显示批量应用按钮
-                  showBatchDelete={!!session.groupId} // 只有组内会话显示批量删除按钮
-                  showDelete={!session.groupId} // 组内会话隐藏单个删除按钮
+                  showBatchApply={!!session?.groupId}
+                  showBatchDelete={!!session?.groupId}
+                  showDelete={!session?.groupId}
                   showMergeCopy={
-                    !!session.groupId && message.role === "assistant"
+                    !!session?.groupId && message.role === "assistant"
                   }
                   onMergeCopy={(msg, format) =>
-                    handleMergeCopy(msg, session, chatStore, format)
+                    session
+                      ? handleMergeCopy(msg, session, chatStore, format)
+                      : undefined
                   }
                 />
               </div>
@@ -107,10 +115,13 @@ export function ChatMessageItem({
           {!isUser && message.reasoningContent && (
             <ThinkingContent
               message={message}
-              onDoubleClick={(e) =>
-                handleTripleClick(e, (select) => {
-                  onEditMessage(message, "reasoningContent", select);
-                })
+              onDoubleClick={
+                readOnly
+                  ? undefined
+                  : (e) =>
+                      handleTripleClick(e, (select) => {
+                        onEditMessage(message, "reasoningContent", select);
+                      })
               }
             />
           )}
@@ -122,21 +133,21 @@ export function ChatMessageItem({
                 messageRefs.current[message.id] = el;
               }
             }}
-            onDoubleClick={async (e) => {
-              if (message.streaming) return;
-              // 用户消息保持双击编辑
-              if (isUser) {
-                onEditMessage(message, "content");
-              }
-            }}
-            onClick={(e) => {
-              // 非用户消息使用三击编辑
-              if (!isUser) {
-                handleTripleClick(e, (select) => {
-                  onEditMessage(message, "content", select);
-                });
-              }
-            }}
+            {...(readOnly
+              ? {}
+              : {
+                  onDoubleClick: async () => {
+                    if (message.streaming) return;
+                    if (isUser) onEditMessage(message, "content");
+                  },
+                  onClick: (e: React.MouseEvent) => {
+                    if (!isUser) {
+                      handleTripleClick(e, (select) =>
+                        onEditMessage(message, "content", select),
+                      );
+                    }
+                  },
+                })}
           >
             {Array.isArray(message.content) ? (
               message.content.map((content, contentIndex) => (
@@ -223,6 +234,7 @@ export function ChatMessageItem({
 
           {/* 将底部操作按钮组移到这里，只在非用户消息时显示 */}
           {!isUser &&
+            effectiveShowActions &&
             messageHeights[message.id ?? ""] > window.innerHeight * 0.65 && (
               <div className={styles["chat-message-bottom-actions"]}>
                 <MessageActions
@@ -235,14 +247,16 @@ export function ChatMessageItem({
                   onBatchDelete={onBatchDelete}
                   index={index}
                   showBranch={showBranch}
-                  showBatchApply={!!session.groupId} // 组内会话下所有消息都显示批量应用按钮
-                  showBatchDelete={!!session.groupId} // 组内会话下所有消息都显示批量删除按钮
-                  showDelete={!session.groupId} // 组内会话隐藏单个删除按钮
+                  showBatchApply={!!session?.groupId} // 组内会话下所有消息都显示批量应用按钮
+                  showBatchDelete={!!session?.groupId} // 组内会话下所有消息都显示批量删除按钮
+                  showDelete={!session?.groupId} // 组内会话隐藏单个删除按钮
                   showMergeCopy={
-                    !!session.groupId && message.role === "assistant"
+                    !!session?.groupId && message.role === "assistant"
                   }
                   onMergeCopy={(msg, format) =>
-                    handleMergeCopy(msg, session, chatStore, format)
+                    session
+                      ? handleMergeCopy(msg, session, chatStore, format)
+                      : undefined
                   }
                 />
               </div>
@@ -250,9 +264,13 @@ export function ChatMessageItem({
 
           <div className={styles["chat-message-footer"]}>
             <div className={styles["chat-message-date"]}>
-              {message.date.toLocaleString()}
+              {message.date
+                ? typeof message.date === "string"
+                  ? new Date(message.date).toLocaleString()
+                  : (message.date as Date).toLocaleString()
+                : ""}
             </div>
-            <MessageMetrics message={message} />
+            {!readOnly && <MessageMetrics message={message} />}
           </div>
         </div>
       </div>

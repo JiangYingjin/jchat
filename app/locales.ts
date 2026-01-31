@@ -78,6 +78,9 @@ const cn = {
       Toast: "生成截图中",
       Modal: "图片预览",
     },
+    ShareLink: "分享为链接",
+    LinkCopied: "链接已复制",
+    ShareFailed: "分享失败",
   },
   Select: {
     Search: "搜索消息",

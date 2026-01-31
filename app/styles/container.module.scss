@@ -149,3 +149,9 @@
     display: block;
   }
 }
+
+/* 分享页：同一元素同时为 container 与 window-content 时，内容区占满（无侧边栏） */
+.container.window-content {
+  --window-content-width: 100%;
+  max-width: 580px;
+}

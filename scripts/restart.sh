@@ -11,6 +11,7 @@ docker run -d \
     --name jchat \
     --restart unless-stopped \
     -p 8037:3000 \
+    --add-host=host:host-gateway \
     --env-file "$PROJECT_ROOT/.env" \
     --env-file "$PROJECT_ROOT/.env.production" \
     --cpus=2 \

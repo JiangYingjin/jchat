@@ -35,38 +35,39 @@ const selectCurrentSessionHeader = (state: any) => {
 export const ChatHeader = React.memo(function ChatHeader(props: {
   sessionTitle: string;
   messageCount: number;
-  onEditSystemMessageClick: () => void;
-  onEditSessionClick: () => void;
-  onExportClick: () => void;
-  onDeleteSessionClick: () => void;
-  onDeleteGroupClick?: () => void; // 新增：删除整个组的回调
-  hasGroupId?: boolean; // 新增：是否有 groupId
+  onEditSystemMessageClick?: () => void;
+  onEditSessionClick?: () => void;
+  onExportClick?: () => void;
+  onDeleteSessionClick?: () => void;
+  onDeleteGroupClick?: () => void;
+  hasGroupId?: boolean;
+  /** 分享页只读：仅展示标题，无点击、无右键、无操作按钮 */
+  readOnly?: boolean;
 }) {
   const isMobileScreen = useMobileScreen();
-  // 独立订阅标题相关状态
-  const headerData = useChatStore(useShallow(selectCurrentSessionHeader));
+  const readOnly = props.readOnly ?? false;
+  // 只读模式下不订阅 store
+  const headerData = useChatStore(
+    useShallow(readOnly ? () => null : selectCurrentSessionHeader),
+  );
 
-  // 保留 chatStore 用于调用方法
   const chatStore = React.useMemo(() => useChatStore.getState(), []);
-
-  // 右键菜单 hook
   const menu = useContextMenu();
 
-  // 获取当前会话和会话索引
   const currentSession = React.useMemo(() => {
+    if (readOnly) return null;
     return chatStore.currentSession();
-  }, [chatStore]);
+  }, [chatStore, readOnly]);
 
-  // 获取当前会话索引（仅在普通会话模式下有效）
-  const currentSessionIndex = useChatStore(
-    (state) => state.currentSessionIndex,
+  const currentSessionIndex = useChatStore((state) =>
+    readOnly ? undefined : state.currentSessionIndex,
   );
   const chatListView = useChatStore((state) => state.chatListView);
 
-  // 判断是否应该显示"移至顶部"选项
-  // 只有在普通会话模式下，且不是第一个会话时才显示
   const shouldShowMoveToTop =
-    chatListView === "sessions" && currentSessionIndex !== undefined;
+    !readOnly &&
+    chatListView === "sessions" &&
+    currentSessionIndex !== undefined;
 
   // 添加调试信息
   React.useEffect(() => {
@@ -83,7 +84,7 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
   const handleDeleteSessionClick = async () => {
     // 对于组内会话，直接删除（保持现有逻辑）
     if (props.hasGroupId) {
-      props.onDeleteSessionClick();
+      props.onDeleteSessionClick?.();
       return;
     }
 
@@ -110,11 +111,11 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
       );
 
       if (confirmed) {
-        props.onDeleteSessionClick();
+        props.onDeleteSessionClick?.();
       }
     } else {
       // 消息数量 <= 15，直接删除（保持现有行为）
-      props.onDeleteSessionClick();
+      props.onDeleteSessionClick?.();
     }
   };
 
@@ -190,8 +191,12 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
             "window-header-main-title",
             styles["chat-body-main-title"],
           )}
-          onClickCapture={props.onEditSessionClick}
-          onContextMenu={menu.openAtEvent}
+          {...(readOnly
+            ? {}
+            : {
+                onClickCapture: props.onEditSessionClick,
+                onContextMenu: menu.openAtEvent,
+              })}
         >
           {!props.sessionTitle ? DEFAULT_TITLE : props.sessionTitle}
         </div>
@@ -201,43 +206,43 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
           </div>
         )}
       </div>
-      <div className="window-actions">
-        <div className="window-action-button">
-          <IconButton
-            icon={<EditIcon />}
-            bordered
-            title="编辑上下文"
-            onClick={props.onEditSystemMessageClick}
-          />
-        </div>
-        <div className="window-action-button">
-          <IconButton
-            icon={<ExportIcon />}
-            bordered
-            title={Locale.Chat.Actions.Export}
-            onClick={props.onExportClick}
-          />
-        </div>
-        <div className="window-action-button">
-          {/* 只有当消息数量小于30时才显示删除按钮 */}
-          {props.messageCount < 30 && (
+      {!readOnly && (
+        <div className="window-actions">
+          <div className="window-action-button">
             <IconButton
-              icon={<DeleteIcon />}
+              icon={<EditIcon />}
               bordered
-              title={
-                props.hasGroupId
-                  ? "左键删除会话，右键删除整个组"
-                  : Locale.Chat.Actions.Delete
-              }
-              onClick={handleDeleteSessionClick}
-              onContextMenu={handleDeleteButtonContextMenu}
+              title="编辑上下文"
+              onClick={props.onEditSystemMessageClick}
             />
-          )}
+          </div>
+          <div className="window-action-button">
+            <IconButton
+              icon={<ExportIcon />}
+              bordered
+              title={Locale.Chat.Actions.Export}
+              onClick={props.onExportClick}
+            />
+          </div>
+          <div className="window-action-button">
+            {props.messageCount < 30 && (
+              <IconButton
+                icon={<DeleteIcon />}
+                bordered
+                title={
+                  props.hasGroupId
+                    ? "左键删除会话，右键删除整个组"
+                    : Locale.Chat.Actions.Delete
+                }
+                onClick={handleDeleteSessionClick}
+                onContextMenu={handleDeleteButtonContextMenu}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* 会话右键菜单 */}
-      {menu.isOpen && currentSession && (
+      {!readOnly && menu.isOpen && currentSession && (
         <SessionContextMenu
           sessionId={currentSession.id}
           session={currentSession}
