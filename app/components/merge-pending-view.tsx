@@ -11,7 +11,6 @@ import {
   DragEndEvent,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
@@ -27,7 +26,20 @@ import Locale from "../locales";
 import { aggregateSessionMetrics } from "../utils/session";
 import { formatCost, formatTime, formatTps } from "../utils/metrics";
 import { showToast } from "./ui-lib";
-import chatItemStyles from "../styles/chat-item.module.scss";
+import styles from "../styles/merge-pending-view.module.scss";
+
+function DragHandleIcon() {
+  return (
+    <svg viewBox="0 0 14 14" fill="currentColor" aria-hidden>
+      <circle cx="5" cy="4" r="1.2" />
+      <circle cx="9" cy="4" r="1.2" />
+      <circle cx="5" cy="7" r="1.2" />
+      <circle cx="9" cy="7" r="1.2" />
+      <circle cx="5" cy="10" r="1.2" />
+      <circle cx="9" cy="10" r="1.2" />
+    </svg>
+  );
+}
 
 function MergeOrderItem({
   sessionId,
@@ -97,28 +109,27 @@ function MergeOrderItem({
     <div
       ref={setNodeRef}
       style={style}
-      className={
-        chatItemStyles["chat-item"] +
-        " " +
-        chatItemStyles["chat-item-merge"] +
-        " flex flex-col gap-1 py-2"
-      }
+      className={`${styles.item} ${isDragging ? styles.itemDragging : ""}`}
       {...attributes}
       {...listeners}
     >
-      <div className="font-medium">{session.title}</div>
-      <div className="text-xs text-gray-500 flex flex-wrap gap-x-3">
-        <span>
-          {Locale.Chat.Merge.MessagesCount(session.messageCount ?? 0)}
-        </span>
-        {statsLine && <span>{statsLine}</span>}
+      <div className={styles.dragHandle} aria-hidden>
+        <DragHandleIcon />
+      </div>
+      <div className={styles.itemBody}>
+        <div className={styles.itemTitle}>{session.title}</div>
+        <div className={styles.itemMeta}>
+          <span>
+            {Locale.Chat.Merge.MessagesCount(session.messageCount ?? 0)}
+          </span>
+          {statsLine && <span>{statsLine}</span>}
+        </div>
       </div>
     </div>
   );
 }
 
 export function MergePendingView() {
-  const chatStore = useChatStore();
   const mergeOrderSessionIds = useChatStore(
     (state) => state.mergeOrderSessionIds,
   );
@@ -183,9 +194,13 @@ export function MergePendingView() {
   if (mergeOrderSessionIds.length < 2) return null;
 
   return (
-    <div className="flex flex-col h-full overflow-auto p-4">
-      <h2 className="text-lg font-semibold mb-1">{Locale.Chat.Merge.Title}</h2>
-      <p className="text-sm text-gray-500 mb-4">{Locale.Chat.Merge.Hint}</p>
+    <div className={styles.wrap}>
+      <header className={styles.header}>
+        <h2 className={styles.title}>
+          {Locale.Chat.Merge.Title}
+          <span className={styles.badge}>{mergeOrderSessionIds.length}</span>
+        </h2>
+      </header>
 
       <DndContext
         sensors={sensors}
@@ -197,30 +212,32 @@ export function MergePendingView() {
           items={mergeOrderSessionIds}
           strategy={verticalListSortingStrategy}
         >
-          <div className="space-y-2 flex-1 overflow-auto">
-            {mergeOrderSessionIds.map((id, i) => (
-              <MergeOrderItem key={id} sessionId={id} index={i} />
-            ))}
+          <div className={styles.listWrap}>
+            <div className={styles.list}>
+              {mergeOrderSessionIds.map((id, i) => (
+                <MergeOrderItem key={id} sessionId={id} index={i} />
+              ))}
+            </div>
           </div>
         </SortableContext>
       </DndContext>
 
-      <div className="flex gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <footer className={styles.footer}>
         <button
           type="button"
-          className="px-4 py-2 rounded-lg bg-primary text-white hover:opacity-90"
+          className={styles.btnPrimary}
           onClick={handleConfirm}
         >
           {Locale.Chat.Merge.Confirm}
         </button>
         <button
           type="button"
-          className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+          className={styles.btnSecondary}
           onClick={exitMergeMode}
         >
           {Locale.Chat.Merge.Cancel}
         </button>
-      </div>
+      </footer>
     </div>
   );
 }
