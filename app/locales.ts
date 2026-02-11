@@ -58,6 +58,13 @@ const cn = {
     DeleteGroupToast: "组已删除",
     BatchDeleteToast: "批量删除完成",
     Revert: "撤销",
+    Merge: {
+      Title: "待合并会话",
+      Hint: "可拖拽调整顺序，确认后将合并为一条新会话（原会话保留）",
+      Confirm: "确认合并",
+      Cancel: "取消",
+      MessagesCount: (n: number) => `${n} 条消息`,
+    },
   },
   Export: {
     Title: "会话分享/导出",

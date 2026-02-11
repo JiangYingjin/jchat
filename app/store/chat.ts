@@ -533,6 +533,10 @@ const DEFAULT_CHAT_STATE = {
     isLoading: false,
     hasMore: true,
   },
+  // --- Session merge (仅普通会话) ---
+  mergeMode: false,
+  selectedSessionIdsForMerge: [] as string[],
+  mergeOrderSessionIds: [] as string[],
 };
 
 export const DEFAULT_TITLE = Locale.Session.Title.Default;
@@ -3253,6 +3257,133 @@ export const useChatStore = createPersistStore(
         return null;
       },
 
+      // ---------- 会话合并（仅普通会话） ----------
+      toggleMergeSelection(sessionId: string): void {
+        const state = get();
+        const current = state.sessions[state.currentSessionIndex];
+        if (!current || current.groupId !== null) return; // 仅普通会话
+        const session = state.sessions.find((s) => s.id === sessionId);
+        if (!session || session.groupId !== null) return;
+
+        const isCurrent = sessionId === current.id;
+        if (isCurrent) return; // 当前会话始终参与，不通过 toggle 加入
+
+        set((s) => {
+          const next = s.selectedSessionIdsForMerge.includes(sessionId)
+            ? s.selectedSessionIdsForMerge.filter((id) => id !== sessionId)
+            : [...s.selectedSessionIdsForMerge, sessionId];
+          const order = [current.id, ...next];
+          return {
+            selectedSessionIdsForMerge: next,
+            mergeOrderSessionIds: order,
+            mergeMode: order.length >= 2,
+          };
+        });
+      },
+
+      exitMergeMode(): void {
+        set({
+          mergeMode: false,
+          selectedSessionIdsForMerge: [],
+          mergeOrderSessionIds: [],
+        });
+      },
+
+      reorderMergeOrder(fromIndex: number, toIndex: number): void {
+        const state = get();
+        if (state.mergeOrderSessionIds.length <= 1) return;
+        const next = [...state.mergeOrderSessionIds];
+        const [removed] = next.splice(fromIndex, 1);
+        next.splice(toIndex, 0, removed);
+        set({ mergeOrderSessionIds: next });
+      },
+
+      async mergeSessionsAndCreateNew(): Promise<void> {
+        const state = get();
+        const order = state.mergeOrderSessionIds;
+        if (order.length < 2) return;
+
+        const sessions = state.sessions;
+        for (let i = 0; i < order.length; i++) {
+          const idx = sessions.findIndex((s) => s.id === order[i]);
+          if (idx >= 0) await get().loadSessionMessages(idx);
+        }
+
+        const mergedMessages: ChatMessage[] = [];
+        for (const id of order) {
+          const s = get().getSessionById(id);
+          if (s && s.messages?.length) {
+            const nonSystem = s.messages.filter(
+              (m) => !m.isError && m.role !== "system",
+            );
+            mergedMessages.push(...nonSystem);
+          }
+        }
+
+        const systemTexts: string[] = [];
+        const systemImages: string[] = [];
+        for (const id of order) {
+          const data = await systemMessageStorage.get(id);
+          if (data.text?.trim()) systemTexts.push(data.text.trim());
+          if (data.images?.length) systemImages.push(...data.images);
+        }
+        const mergedSystemText =
+          systemTexts.length > 0 ? systemTexts.join("\n\n---\n\n") : "";
+        const mergedSystemImages = systemImages;
+
+        const firstSession = get().getSessionById(order[0]);
+        if (!firstSession) return;
+
+        const newSession = createEmptySession();
+        newSession.title = `${firstSession.title}等合并会话`;
+        newSession.model = firstSession.model;
+        newSession.longInputMode = firstSession.longInputMode;
+        newSession.ignoreSystemPrompt = firstSession.ignoreSystemPrompt;
+        newSession.useMemory = firstSession.useMemory ?? false;
+        newSession.isModelManuallySelected =
+          firstSession.isModelManuallySelected;
+        newSession.messages = mergedMessages;
+        newSession.messageCount = mergedMessages.length;
+        updateSessionStatsBasic(newSession);
+
+        try {
+          await get().saveSessionMessages(newSession, true);
+        } catch (e) {
+          console.error("[mergeSessionsAndCreateNew] 保存消息失败", e);
+        }
+        await systemMessageStorage.save(newSession.id, {
+          text: mergedSystemText,
+          images: mergedSystemImages,
+          scrollTop: 0,
+          selection: { start: 0, end: 0 },
+          updateAt: Date.now(),
+        });
+
+        set((s) => {
+          const newSessions = [newSession].concat(s.sessions);
+          const { sessionPagination } = s;
+          const newLoadedCount = Math.min(
+            sessionPagination.loadedCount + 1,
+            newSessions.length,
+          );
+          return {
+            sessions: newSessions,
+            currentSessionIndex: 0,
+            sessionPagination: {
+              ...sessionPagination,
+              loadedCount: newLoadedCount,
+              hasMore: newLoadedCount < newSessions.length,
+            },
+            mergeMode: false,
+            selectedSessionIdsForMerge: [],
+            mergeOrderSessionIds: [],
+          };
+        });
+
+        await get().loadSessionMessages(0);
+        get().generateSessionTitle(true, get().currentSession());
+      },
+
       updateSession(
         session: ChatSession,
         updater: (session: ChatSession) => void,
@@ -3722,6 +3853,10 @@ export const useChatStore = createPersistStore(
         sidebarScrollHistory,
         batchApplyMode,
         activeBatchRequests,
+        // 会话合并为临时 UI 状态，不持久化
+        mergeMode,
+        selectedSessionIdsForMerge,
+        mergeOrderSessionIds,
         // 其他不需要持久化的运行时状态
         ...stateToPersist
       } = state;

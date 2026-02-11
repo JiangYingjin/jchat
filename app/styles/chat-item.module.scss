@@ -18,6 +18,12 @@
   border: 2px solid var(--primary);
 }
 
+// 待合并模式下被选中的会话
+.chat-item-merge {
+  border-color: rgba(34, 197, 94, 0.6);
+  background-color: rgba(34, 197, 94, 0.08);
+}
+
 .chat-item-title {
   font-size: 14px;
   font-weight: bolder;

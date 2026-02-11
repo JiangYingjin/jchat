@@ -104,11 +104,12 @@ function StatusDot({ status, title }: StatusDotProps) {
 
 // 统一的聊天项目组件
 export function ChatItem(props: {
-  onClick?: () => void;
+  onClick?: (e?: React.MouseEvent) => void;
   onDelete?: () => void;
   title: string;
   count: number;
   selected: boolean;
+  selectedForMerge?: boolean; // 是否被选入待合并列表
   id: string;
   index: number;
   status: "normal" | "error" | "pending";
@@ -177,7 +178,7 @@ export function ChatItem(props: {
     props.selected && (currentPath === Path.Chat || currentPath === Path.Home);
 
   // 处理点击事件（考虑右键菜单状态和编辑模式）
-  const handleClick = () => {
+  const handleClick = (e: React.MouseEvent) => {
     if (isEditing) {
       return; // 编辑模式下不响应点击
     }
@@ -185,7 +186,7 @@ export function ChatItem(props: {
       menu.close();
       return;
     }
-    props.onClick?.();
+    props.onClick?.(e);
   };
 
   // 保存标题
@@ -327,7 +328,8 @@ export function ChatItem(props: {
       ref={setNodeRef}
       className={
         chatItemStyles["chat-item"] +
-        (isActive ? " " + chatItemStyles["chat-item-selected"] : "")
+        (isActive ? " " + chatItemStyles["chat-item-selected"] : "") +
+        (props.selectedForMerge ? " " + chatItemStyles["chat-item-merge"] : "")
       }
       onClick={handleClick}
       onContextMenu={enableContextMenu ? menu.openAtEvent : undefined}
@@ -416,6 +418,9 @@ const ChatListSessions = memo(function ChatListSessions({
   selectSession,
   moveSession,
   sessionPagination,
+  mergeOrderSessionIds,
+  toggleMergeSelection,
+  exitMergeMode,
 }: {
   sessions: any[];
   selectedIndex: number;
@@ -426,6 +431,9 @@ const ChatListSessions = memo(function ChatListSessions({
     isLoading: boolean;
     hasMore: boolean;
   };
+  mergeOrderSessionIds: string[];
+  toggleMergeSelection: (sessionId: string) => void;
+  exitMergeMode: () => void;
 }) {
   const chatStore = useChatStore();
   const router = useRouter();
@@ -506,7 +514,15 @@ const ChatListSessions = memo(function ChatListSessions({
               id={item.id}
               index={i}
               selected={i === memoizedSelectedIndex}
-              onClick={async () => {
+              selectedForMerge={mergeOrderSessionIds.includes(item.id)}
+              onClick={async (e?: React.MouseEvent) => {
+                if (e && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  toggleMergeSelection(item.id);
+                  return;
+                }
+                exitMergeMode();
                 await selectSession(i);
                 // 移动端：选择会话后切换到聊天界面
                 if (isMobileScreen) {
@@ -545,6 +561,13 @@ export function ChatList(props: {}) {
   const ensureSessionLoaded = useChatStore(
     (state) => state.ensureSessionLoaded,
   );
+  const mergeOrderSessionIds = useChatStore(
+    (state) => state.mergeOrderSessionIds,
+  );
+  const toggleMergeSelection = useChatStore(
+    (state) => state.toggleMergeSelection,
+  );
+  const exitMergeMode = useChatStore((state) => state.exitMergeMode);
 
   // 当选中会话变化时，确保该会话已加载
   useEffect(() => {
@@ -587,6 +610,9 @@ export function ChatList(props: {}) {
       selectSession={selectSession}
       moveSession={moveSession}
       sessionPagination={sessionPagination}
+      mergeOrderSessionIds={mergeOrderSessionIds}
+      toggleMergeSelection={toggleMergeSelection}
+      exitMergeMode={exitMergeMode}
     />
   );
 }

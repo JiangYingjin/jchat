@@ -36,6 +36,7 @@ import groupSessionsStyles from "../styles/group-sessions.module.scss";
 // -----------------------------------------------------------------------------
 import { Settings } from "./settings";
 import { ChatPage as Chat } from "./chat";
+import { MergePendingView } from "./merge-pending-view";
 import { AuthPage as AuthComponent } from "./auth";
 
 // 3. 辅助/工具组件
@@ -177,10 +178,10 @@ function MobileAwareLayout({
   isHome: boolean;
   isMobileScreen: boolean;
 }) {
-  // 不要订阅整个 store，使用 getState() 来访问方法
   const router = useRouter();
   const pathname = usePathname();
   const mobileViewState = useChatStore((state) => state.mobileViewState);
+  const mergeMode = useChatStore((state) => state.mergeMode);
 
   // 移动端初始化：确保初次进入时显示侧边栏
   useEffect(() => {
@@ -271,7 +272,7 @@ function MobileAwareLayout({
     } else {
       return (
         <div className={containerStyles["window-content"]} id={SlotID.AppBody}>
-          <Chat />
+          {mergeMode ? <MergePendingView /> : <Chat />}
         </div>
       );
     }
@@ -285,9 +286,15 @@ function MobileAwareLayout({
         {pathname === Path.Settings ? (
           <Settings />
         ) : pathname === Path.Chat ? (
-          <Chat />
+          mergeMode ? (
+            <MergePendingView />
+          ) : (
+            <Chat />
+          )
         ) : pathname === Path.Auth ? (
           <AuthComponent />
+        ) : mergeMode ? (
+          <MergePendingView />
         ) : (
           <Chat />
         )}
