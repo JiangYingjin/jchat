@@ -220,7 +220,7 @@ export async function generateSessionTitle(
 
   const model = useChatStore.getState().models[0];
   const api: ClientApi = getClientApi();
-  const messages = session.messages.slice();
+  const messages = (session.messages || []).slice();
 
   // 触发条件判断
   const isDefaultTitle =
@@ -229,6 +229,16 @@ export async function generateSessionTitle(
 
   const messagesTextLengthReached =
     calculateMessagesTextLength(messages) >= TRIGGER_MIN_LEN;
+
+  // 无任何消息时不要发请求，否则模型只看到「请为以上对话生成…」会复述成「生成概述标题」等
+  if (messages.length === 0 && (isDefaultTitle || forceRefresh)) {
+    const fallbackTitle =
+      session.title === Locale.Session.Title.DefaultGroup
+        ? Locale.Session.Title.DefaultGroup
+        : DEFAULT_TOPIC;
+    onSessionTitleUpdate?.(fallbackTitle);
+    return;
+  }
 
   if ((isDefaultTitle && messagesTextLengthReached) || forceRefresh) {
     // 会话标题

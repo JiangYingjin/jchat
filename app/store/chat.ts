@@ -3172,10 +3172,12 @@ export const useChatStore = createPersistStore(
         refreshTitle: boolean = false,
         session: ChatSession,
       ) {
-        // 如果消息未加载，先加载消息
+        // 若消息未加载则先加载：messageCount>0 表示应有消息，或用户主动点击「生成标题」时也尝试加载（避免 messageCount 未同步导致不加载）
+        const messagesEmpty =
+          !session.messages || session.messages.length === 0;
         const needsMessageLoad =
-          session.messageCount > 0 &&
-          (!session.messages || session.messages.length === 0);
+          (session.messageCount > 0 && messagesEmpty) ||
+          (refreshTitle && messagesEmpty);
 
         if (needsMessageLoad) {
           debugLog("GENERATE_TITLE", "消息未加载，先加载消息", {
