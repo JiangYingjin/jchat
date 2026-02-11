@@ -21,6 +21,8 @@ export interface ShareDoc {
   session?: unknown;
   /** 全量分享：系统提示词 */
   systemPrompt?: unknown;
+  /** 仅展示这些 id 的消息；有则分享页只渲染这些，无则全部 */
+  displayMessageIds?: string[];
 }
 
 let cachedClient: MongoClient | null = null;

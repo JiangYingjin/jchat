@@ -11,6 +11,8 @@ type FullBody = {
   session?: unknown;
   systemPrompt?: unknown;
   messages?: unknown[];
+  /** 仅展示这些 id 的消息；缺失或空则展示全部（便于分享时只展示勾选消息） */
+  displayMessageIds?: string[];
 };
 
 function isFullPayload(body: unknown): body is FullBody {
@@ -94,12 +96,18 @@ export async function POST(req: NextRequest) {
 
   if (isFullPayload(body)) {
     const messages = Array.isArray(body.messages) ? body.messages : [];
+    const displayMessageIds = Array.isArray(body.displayMessageIds)
+      ? body.displayMessageIds
+      : undefined;
     await collection.insertOne({
       shareId,
       version: body.version,
       session: body.session ?? null,
       systemPrompt: body.systemPrompt ?? null,
       messages,
+      ...(displayMessageIds != null && displayMessageIds.length > 0
+        ? { displayMessageIds }
+        : {}),
       createdAt: new Date(),
     });
   } else {

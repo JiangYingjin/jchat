@@ -331,10 +331,19 @@ export function MessageExporter() {
                           Record<string, unknown>,
                         systemMessageData,
                       );
+                      // 仅展示勾选的消息：传入选中的 id，网页打开时只渲染这些
+                      const displayMessageIds =
+                        selection.size > 0 ? Array.from(selection) : undefined;
                       const res = await fetch("/api/share", {
                         method: "POST",
                         headers: getHeaders(),
-                        body: JSON.stringify(payload),
+                        body: JSON.stringify({
+                          ...payload,
+                          ...(displayMessageIds != null &&
+                          displayMessageIds.length > 0
+                            ? { displayMessageIds }
+                            : {}),
+                        }),
                       });
                       const data = await res.json();
                       if (!res.ok) {

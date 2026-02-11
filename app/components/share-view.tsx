@@ -105,7 +105,18 @@ export function SharePageClient({ shareId }: { shareId: string }) {
             "title" in body.session
               ? (body.session as { title?: string }).title
               : body.title;
-          setData({ title, messages: body.messages });
+          // 若有 displayMessageIds 则仅展示勾选的消息，否则展示全部
+          const displayIds = Array.isArray(body.displayMessageIds)
+            ? body.displayMessageIds
+            : null;
+          const messages =
+            displayIds != null && displayIds.length > 0
+              ? body.messages.filter(
+                  (m: ShareMessage & { id?: string }) =>
+                    m.id != null && displayIds.includes(m.id),
+                )
+              : body.messages;
+          setData({ title, messages });
         } else {
           setError("数据格式异常");
         }
