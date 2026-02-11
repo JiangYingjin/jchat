@@ -10,82 +10,106 @@
  * @returns {Promise<string>} 一个 Promise，解析为操作成功或失败的消息。
  */
 async function deleteJChatSpecificTables() {
-    const DB_NAME = 'JChat';
-    const TABLES_TO_DELETE = ['chatInput_v2', 'systemMessages_v2'];
+  const DB_NAME = "JChat";
+  const TABLES_TO_DELETE = ["chatInput_v2", "systemMessages_v2"];
 
-    return new Promise(async (resolve, reject) => {
-        let db;
+  return new Promise(async (resolve, reject) => {
+    let db;
 
-        try {
-            // 1. 尝试打开数据库，以获取当前版本
-            // 这里我们用一个临时的请求来获取版本，不等待它完成，
-            // 而是等待 onsuccess 或 onerror 来确定版本。
-            const initialRequest = indexedDB.open(DB_NAME);
+    try {
+      // 1. 尝试打开数据库，以获取当前版本
+      // 这里我们用一个临时的请求来获取版本，不等待它完成，
+      // 而是等待 onsuccess 或 onerror 来确定版本。
+      const initialRequest = indexedDB.open(DB_NAME);
 
-            initialRequest.onsuccess = async (event) => {
-                db = event.target.result;
-                const currentVersion = db.version;
-                db.close(); // 关闭初始连接，以便后续升级可以进行
+      initialRequest.onsuccess = async (event) => {
+        db = event.target.result;
+        const currentVersion = db.version;
+        db.close(); // 关闭初始连接，以便后续升级可以进行
 
-                console.log(`[IndexedDB] Found JChat database, current version: ${currentVersion}`);
+        console.log(
+          `[IndexedDB] Found JChat database, current version: ${currentVersion}`,
+        );
 
-                // 2. 尝试以新版本打开数据库，触发 onupgradeneeded
-                const upgradeRequest = indexedDB.open(DB_NAME, currentVersion + 1);
+        // 2. 尝试以新版本打开数据库，触发 onupgradeneeded
+        const upgradeRequest = indexedDB.open(DB_NAME, currentVersion + 1);
 
-                upgradeRequest.onupgradeneeded = (upgradeEvent) => {
-                    const upgradeDb = upgradeEvent.target.result;
-                    const transaction = upgradeEvent.target.transaction; // 获取升级事务
+        upgradeRequest.onupgradeneeded = (upgradeEvent) => {
+          const upgradeDb = upgradeEvent.target.result;
+          const transaction = upgradeEvent.target.transaction; // 获取升级事务
 
-                    console.log(`[IndexedDB] Upgrading JChat from version ${upgradeEvent.oldVersion} to ${upgradeEvent.newVersion}`);
+          console.log(
+            `[IndexedDB] Upgrading JChat from version ${upgradeEvent.oldVersion} to ${upgradeEvent.newVersion}`,
+          );
 
-                    TABLES_TO_DELETE.forEach(tableName => {
-                        if (upgradeDb.objectStoreNames.contains(tableName)) {
-                            upgradeDb.deleteObjectStore(tableName);
-                            console.log(`[IndexedDB] Deleted object store: ${tableName}`);
-                        } else {
-                            console.log(`[IndexedDB] Object store '${tableName}' not found, skipping deletion.`);
-                        }
-                    });
+          TABLES_TO_DELETE.forEach((tableName) => {
+            if (upgradeDb.objectStoreNames.contains(tableName)) {
+              upgradeDb.deleteObjectStore(tableName);
+              console.log(`[IndexedDB] Deleted object store: ${tableName}`);
+            } else {
+              console.log(
+                `[IndexedDB] Object store '${tableName}' not found, skipping deletion.`,
+              );
+            }
+          });
 
-                    // 确保升级事务完成
-                    transaction.oncomplete = () => {
-                        console.log(`[IndexedDB] Database upgrade for ${DB_NAME} completed successfully.`);
-                    };
+          // 确保升级事务完成
+          transaction.oncomplete = () => {
+            console.log(
+              `[IndexedDB] Database upgrade for ${DB_NAME} completed successfully.`,
+            );
+          };
 
-                    transaction.onerror = (txError) => {
-                        console.error(`[IndexedDB] Database upgrade transaction failed:`, txError);
-                        reject(`Failed to upgrade JChat database: ${txError.target.error.message}`);
-                    };
-                };
+          transaction.onerror = (txError) => {
+            console.error(
+              `[IndexedDB] Database upgrade transaction failed:`,
+              txError,
+            );
+            reject(
+              `Failed to upgrade JChat database: ${txError.target.error.message}`,
+            );
+          };
+        };
 
-                upgradeRequest.onsuccess = (upgradeEvent) => {
-                    const upgradedDb = upgradeEvent.target.result;
-                    upgradedDb.close(); // 关闭新连接
-                    resolve(`Successfully deleted 'chatInput' and 'systemMessages' from JChat database.`);
-                };
+        upgradeRequest.onsuccess = (upgradeEvent) => {
+          const upgradedDb = upgradeEvent.target.result;
+          upgradedDb.close(); // 关闭新连接
+          resolve(
+            `Successfully deleted 'chatInput' and 'systemMessages' from JChat database.`,
+          );
+        };
 
-                upgradeRequest.onerror = (error) => {
-                    console.error(`[IndexedDB] Error opening database for upgrade:`, error);
-                    reject(`Failed to open JChat database for upgrade: ${error.target.error.message}`);
-                };
-            };
+        upgradeRequest.onerror = (error) => {
+          console.error(
+            `[IndexedDB] Error opening database for upgrade:`,
+            error,
+          );
+          reject(
+            `Failed to open JChat database for upgrade: ${error.target.error.message}`,
+          );
+        };
+      };
 
-            initialRequest.onerror = (event) => {
-                const error = event.target.error;
-                if (error && error.name === 'NotFoundError') {
-                    // 数据库不存在，无需删除
-                    console.log(`[IndexedDB] JChat database not found. No tables to delete.`);
-                    resolve(`JChat database does not exist. No tables deleted.`);
-                } else {
-                    console.error(`[IndexedDB] Error accessing JChat database:`, error);
-                    reject(`Failed to access JChat database: ${error ? error.message : 'Unknown error'}`);
-                }
-            };
-        } catch (error) {
-            console.error(`[IndexedDB] Unexpected error:`, error);
-            reject(`An unexpected error occurred: ${error.message}`);
+      initialRequest.onerror = (event) => {
+        const error = event.target.error;
+        if (error && error.name === "NotFoundError") {
+          // 数据库不存在，无需删除
+          console.log(
+            `[IndexedDB] JChat database not found. No tables to delete.`,
+          );
+          resolve(`JChat database does not exist. No tables deleted.`);
+        } else {
+          console.error(`[IndexedDB] Error accessing JChat database:`, error);
+          reject(
+            `Failed to access JChat database: ${error ? error.message : "Unknown error"}`,
+          );
         }
-    });
+      };
+    } catch (error) {
+      console.error(`[IndexedDB] Unexpected error:`, error);
+      reject(`An unexpected error occurred: ${error.message}`);
+    }
+  });
 }
 
 // --- 如何使用这个函数 ---
@@ -105,11 +129,10 @@ document.getElementById('deleteTablesBtn').addEventListener('click', async () =>
 
 // 或者直接调用 (在支持 async/await 的环境中，如现代浏览器控制台)
 (async () => {
-    try {
-        const message = await deleteJChatSpecificTables();
-        console.log(message);
-    } catch (error) {
-        console.error("Operation failed:", error);
-    }
+  try {
+    const message = await deleteJChatSpecificTables();
+    console.log(message);
+  } catch (error) {
+    console.error("Operation failed:", error);
+  }
 })();
-
