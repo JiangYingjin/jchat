@@ -66,5 +66,11 @@
     "watch": "^1.0.2",
     "webpack": "^5.104.1"
   },
-  "packageManager": "pnpm@9.15.0"
+  "packageManager": "pnpm@9.15.0",
+  "pnpm": {
+    "overrides": {
+      "lodash-es": "4.17.23",
+      "merge": "2.1.1"
+    }
+  }
 }
