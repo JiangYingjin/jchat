@@ -41,13 +41,13 @@ export function ChatActions(props: {
     setShowUploadImage(isMobileScreen);
   }, [isMobileScreen]);
 
-  // Alt+Z：切换当前会话的用户记忆（仅普通会话且已配置 mem0_user_id 时有效）
+  // Alt+Z：切换当前会话的用户记忆（仅普通会话且已配置 user_id 时有效）
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && (e.key === "z" || e.key === "Z")) {
         const state = useChatStore.getState();
         const sess = state.currentSession();
-        if (sess.groupId || !state.mem0_user_id?.trim()) return;
+        if (sess.groupId || !state.user_id?.trim()) return;
         e.preventDefault();
         state.updateSession(sess, (s) => {
           s.useMemory = !(s.useMemory ?? false);
@@ -116,7 +116,7 @@ export function ChatActions(props: {
           icon={<RobotIcon />}
           alwaysFullWidth={true}
         />
-        {!session.groupId && !!chatStore.mem0_user_id?.trim() && (
+        {!session.groupId && !!chatStore.user_id?.trim() && (
           <ChatAction
             onClick={() => {
               chatStore.updateSession(session, (s) => {

@@ -107,9 +107,9 @@ const cn = {
       ImportFailed: "导入失败",
     },
     Mem0: {
-      Title: "用户记忆",
-      SubTitle: "通过 Mem0 管理记忆",
-      Placeholder: "Mem0 User ID",
+      Title: "用户标识",
+      SubTitle: "启用并唯一标识 Mem0 用户记忆等（可选）",
+      Placeholder: "用户标识（可选）",
     },
   },
   Copy: {

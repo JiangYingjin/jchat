@@ -13,7 +13,9 @@ export interface RequestPayload {
   stream?: boolean;
   model: string;
   max_tokens?: number;
-  mem0_user_id?: string;
+  user_id?: string;
+  session_type?: "chat" | "group";
+  use_memory?: boolean;
 }
 
 export class OpenAIApi implements LLMApi {
@@ -40,8 +42,13 @@ export class OpenAIApi implements LLMApi {
         max_tokens: 8000,
         stream: true,
       };
-      const mem0Id = options.mem0_user_id?.trim();
-      if (mem0Id) requestPayload.mem0_user_id = mem0Id;
+      const uid = options.user_id?.trim();
+      if (uid) {
+        requestPayload.user_id = uid;
+        if (options.session_type)
+          requestPayload.session_type = options.session_type;
+        if (options.use_memory) requestPayload.use_memory = true;
+      }
       console.log("[Request] openai payload: ", requestPayload);
 
       const chatPath = this.path(OpenaiPath.ChatPath);

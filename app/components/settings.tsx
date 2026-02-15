@@ -218,8 +218,8 @@ function LocalDataItems() {
           type="text"
           className={styles["mem0-input"]}
           placeholder={Locale.Settings.Mem0.Placeholder}
-          value={chatStore.mem0_user_id}
-          onChange={(e) => chatStore.setMem0UserId(e.target.value)}
+          value={chatStore.user_id}
+          onChange={(e) => chatStore.setUserId(e.target.value)}
           aria-label={Locale.Settings.Mem0.Title}
         />
       </ListItem>

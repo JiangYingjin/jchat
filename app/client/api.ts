@@ -33,8 +33,10 @@ export interface RequestMessage {
 export interface ChatOptions {
   messages: RequestMessage[];
   model: string;
-  /** 仅普通会话且启用用户记忆时传入，组会话不传 */
-  mem0_user_id?: string;
+  /** 用户标识，非空时请求带 user_id + session_type；仅启用记忆时再带 use_memory */
+  user_id?: string;
+  session_type?: "chat" | "group";
+  use_memory?: boolean;
 
   onUpdate?: (
     message: string | MultimodalContent[],

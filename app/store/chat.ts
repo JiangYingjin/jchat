@@ -517,7 +517,7 @@ const DEFAULT_CHAT_STATE = {
   configError: null as string | null,
   fetchState: 0 as number, // 0 not fetch, 1 fetching, 2 done
   accessCode: "",
-  mem0_user_id: "", // Mem0 用户记忆 ID，设置页配置；空则不启用
+  user_id: "", // 用户标识，设置页配置；用于 Mem0 等，空则不启用
   batchApplyMode: false, // 批量应用模式
   activeBatchRequests: 0, // 活跃的批量请求计数器
   mobileViewState: "sidebar" as "sidebar" | "chat" | "settings", // 移动端界面状态
@@ -603,9 +603,9 @@ export const useChatStore = createPersistStore(
         set({ expandMetrics: expanded });
       },
 
-      // 用户记忆（Mem0）：设置页配置的 mem0_user_id
-      setMem0UserId(value: string): void {
-        set({ mem0_user_id: value ?? "" });
+      // 用户标识（Mem0 等）：设置页配置的 user_id
+      setUserId(value: string): void {
+        set({ user_id: value ?? "" });
       },
 
       // 新增：增加活跃批量请求计数
@@ -2816,17 +2816,21 @@ export const useChatStore = createPersistStore(
         get().incrementBatchRequest();
 
         const api: ClientApi = getClientApi();
-        const mem0Id =
-          !session.groupId &&
-          (session.useMemory ?? false) &&
-          get().mem0_user_id?.trim()
-            ? get().mem0_user_id.trim()
-            : undefined;
-        // make request
+        const uid = get().user_id?.trim();
+        const sessionType = session.groupId ? "group" : "chat";
+        const useMemory =
+          !session.groupId && (session.useMemory ?? false) && !!uid;
+        // make request：有 user_id 时始终带 user_id + session_type；仅启用记忆时带 use_memory
         api.llm.chat({
           messages: sendMessages,
           model: session.model,
-          ...(mem0Id ? { mem0_user_id: mem0Id } : {}),
+          ...(uid
+            ? {
+                user_id: uid,
+                session_type: sessionType,
+                ...(useMemory ? { use_memory: true } : {}),
+              }
+            : {}),
           onUpdate(message, chunk, usage) {
             modelMessage.streaming = true;
             if (message) {
@@ -3813,7 +3817,7 @@ export const useChatStore = createPersistStore(
   },
   {
     name: StoreKey.Chat,
-    version: 5.4,
+    version: 5.5,
     storage: jchatStorage,
 
     /**
@@ -4224,6 +4228,14 @@ export const useChatStore = createPersistStore(
     },
 
     migrate(persistedState: any, version: number) {
+      // 5.4 -> 5.5: mem0_user_id 迁移为 user_id
+      if (persistedState && persistedState.mem0_user_id != null) {
+        const uid = String(persistedState.mem0_user_id).trim();
+        if (!persistedState.user_id && uid) {
+          persistedState.user_id = persistedState.mem0_user_id;
+        }
+        delete persistedState.mem0_user_id;
+      }
       return persistedState;
     },
   },
