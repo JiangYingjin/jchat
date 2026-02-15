@@ -93,8 +93,24 @@ export function validString(x: string): boolean {
   return x?.length > 0;
 }
 
-export function getHeaders(ignoreHeaders: boolean = false) {
+/** 是否为需使用 overrideApiKey 的专用模型（如 agent） */
+export function isDedicatedModel(model: string | undefined): boolean {
+  if (!model?.trim()) return false;
+  const key = model.includes("/") ? model.split("/")[1] : model;
+  return key?.trim() === "agent";
+}
+
+export function getHeaders(
+  ignoreHeadersOrOption?: boolean | { model?: string },
+) {
   const chatStore = useChatStore.getState();
+  const option =
+    typeof ignoreHeadersOrOption === "object"
+      ? ignoreHeadersOrOption
+      : undefined;
+  const ignoreHeaders =
+    typeof ignoreHeadersOrOption === "boolean" ? ignoreHeadersOrOption : false;
+
   let headers: Record<string, string> = {};
   if (!ignoreHeaders) {
     headers = {
@@ -103,7 +119,13 @@ export function getHeaders(ignoreHeaders: boolean = false) {
     };
   }
 
-  if (validString(chatStore.accessCode)) {
+  const useOverride =
+    option?.model &&
+    isDedicatedModel(option.model) &&
+    validString(chatStore.overrideApiKey);
+  if (useOverride) {
+    headers["Authorization"] = getBearerToken(chatStore.overrideApiKey.trim());
+  } else if (validString(chatStore.accessCode)) {
     headers["Authorization"] = getBearerToken(chatStore.accessCode);
   }
 

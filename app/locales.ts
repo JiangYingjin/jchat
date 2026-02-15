@@ -111,6 +111,11 @@ const cn = {
       SubTitle: "启用并唯一标识 Mem0 用户记忆等（可选）",
       Placeholder: "用户标识（可选）",
     },
+    OverrideApiKey: {
+      Title: "API Key",
+      SubTitle: "覆盖服务器端默认密钥以调用专用模型（可选）",
+      Placeholder: "可选",
+    },
   },
   Copy: {
     Success: "已写入剪切板",

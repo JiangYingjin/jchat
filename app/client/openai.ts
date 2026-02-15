@@ -52,7 +52,9 @@ export class OpenAIApi implements LLMApi {
       console.log("[Request] openai payload: ", requestPayload);
 
       const chatPath = this.path(OpenaiPath.ChatPath);
-      const headers = getHeaders();
+      const model =
+        options.model || useChatStore.getState().currentSession().model;
+      const headers = getHeaders({ model });
 
       const extractStreamData = (text: string) => {
         const delta = JSON.parse(text).choices?.[0]?.delta;

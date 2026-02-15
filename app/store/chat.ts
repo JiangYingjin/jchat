@@ -518,6 +518,7 @@ const DEFAULT_CHAT_STATE = {
   fetchState: 0 as number, // 0 not fetch, 1 fetching, 2 done
   accessCode: "",
   user_id: "", // 用户标识，设置页配置；用于 Mem0 等，空则不启用
+  overrideApiKey: "", // 专用模型 API Key，覆盖默认密钥以调用 agent 等（可选）
   batchApplyMode: false, // 批量应用模式
   activeBatchRequests: 0, // 活跃的批量请求计数器
   mobileViewState: "sidebar" as "sidebar" | "chat" | "settings", // 移动端界面状态
@@ -606,6 +607,11 @@ export const useChatStore = createPersistStore(
       // 用户标识（Mem0 等）：设置页配置的 user_id
       setUserId(value: string): void {
         set({ user_id: value ?? "" });
+      },
+
+      // 专用模型 API Key：设置页配置，用于 agent 等
+      setOverrideApiKey(value: string): void {
+        set({ overrideApiKey: value ?? "" });
       },
 
       // 新增：增加活跃批量请求计数

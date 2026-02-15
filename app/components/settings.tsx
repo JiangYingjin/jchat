@@ -22,6 +22,7 @@ import styles from "../styles/settings.module.scss";
 import CloseIcon from "../icons/close.svg";
 import DownloadIcon from "../icons/download.svg";
 import UploadIcon from "../icons/upload.svg";
+import EyeIcon from "../icons/eye.svg";
 
 // Utilities and Constants
 import Locale from "../locales";
@@ -40,6 +41,7 @@ export function Settings() {
   const router = useRouter();
   const isMobileScreen = useMobileScreen();
   const chatStore = useChatStore();
+  const [showOverrideApiKey, setShowOverrideApiKey] = useState(false);
 
   const goHome = () => {
     if (isMobileScreen) {
@@ -222,6 +224,31 @@ function LocalDataItems() {
           onChange={(e) => chatStore.setUserId(e.target.value)}
           aria-label={Locale.Settings.Mem0.Title}
         />
+      </ListItem>
+      <ListItem
+        title={Locale.Settings.OverrideApiKey.Title}
+        subTitle={Locale.Settings.OverrideApiKey.SubTitle}
+      >
+        <div className={styles["api-key-wrap"]}>
+          <input
+            type={showOverrideApiKey ? "text" : "password"}
+            className={styles["api-key-input"]}
+            placeholder={Locale.Settings.OverrideApiKey.Placeholder}
+            value={chatStore.overrideApiKey}
+            onChange={(e) => chatStore.setOverrideApiKey(e.target.value)}
+            aria-label={Locale.Settings.OverrideApiKey.Title}
+          />
+          <button
+            type="button"
+            className={styles["api-key-eye"]}
+            aria-label={showOverrideApiKey ? "隐藏" : "显示"}
+            onPointerDown={() => setShowOverrideApiKey(true)}
+            onPointerUp={() => setShowOverrideApiKey(false)}
+            onPointerLeave={() => setShowOverrideApiKey(false)}
+          >
+            <EyeIcon />
+          </button>
+        </div>
       </ListItem>
     </List>
   );
