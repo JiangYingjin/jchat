@@ -37,6 +37,8 @@ export interface ChatOptions {
   user_id?: string;
   session_type?: "chat" | "group";
   use_memory?: boolean;
+  /** 会话 id（如 jchat 的 session.id），agent 模型时后端用于 --resume 多轮延续 */
+  session_id?: string;
 
   onUpdate?: (
     message: string | MultimodalContent[],

@@ -2837,6 +2837,7 @@ export const useChatStore = createPersistStore(
                 ...(useMemory ? { use_memory: true } : {}),
               }
             : {}),
+          ...(session.id ? { session_id: session.id } : {}),
           onUpdate(message, chunk, usage) {
             modelMessage.streaming = true;
             if (message) {

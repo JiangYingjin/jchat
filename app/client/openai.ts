@@ -16,6 +16,7 @@ export interface RequestPayload {
   user_id?: string;
   session_type?: "chat" | "group";
   use_memory?: boolean;
+  session_id?: string;
 }
 
 export class OpenAIApi implements LLMApi {
@@ -48,6 +49,9 @@ export class OpenAIApi implements LLMApi {
         if (options.session_type)
           requestPayload.session_type = options.session_type;
         if (options.use_memory) requestPayload.use_memory = true;
+      }
+      if (options.session_id?.trim()) {
+        requestPayload.session_id = options.session_id.trim();
       }
       console.log("[Request] openai payload: ", requestPayload);
 
