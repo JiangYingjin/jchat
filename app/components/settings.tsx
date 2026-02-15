@@ -41,7 +41,6 @@ export function Settings() {
   const router = useRouter();
   const isMobileScreen = useMobileScreen();
   const chatStore = useChatStore();
-  const [showOverrideApiKey, setShowOverrideApiKey] = useState(false);
 
   const goHome = () => {
     if (isMobileScreen) {
@@ -122,6 +121,7 @@ export function Settings() {
  */
 function LocalDataItems() {
   const chatStore = useChatStore();
+  const [showOverrideApiKey, setShowOverrideApiKey] = useState(false);
   const [databaseStats, setDatabaseStats] = useState({
     sessions: 0,
     messages: 0,
