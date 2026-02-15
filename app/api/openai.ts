@@ -1,7 +1,7 @@
 import { getServerSideConfig } from "@/app/utils/config";
 import { prettyObject } from "@/app/utils/format";
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "./auth";
+import { authForOpenai } from "./auth";
 
 const serverConfig = getServerSideConfig();
 
@@ -57,7 +57,7 @@ export async function handle(
   if (req.method === "OPTIONS") {
     return NextResponse.json({ body: "OK" });
   }
-  const authResult = auth(req);
+  const authResult = authForOpenai(req);
   if (authResult.error) {
     return NextResponse.json(authResult, { status: 401 });
   }
