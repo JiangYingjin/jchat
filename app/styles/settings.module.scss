@@ -3,6 +3,10 @@
   overflow: auto;
 }
 
+.auto-backup {
+  margin-top: 4px;
+}
+
 /* 用 input 提高特异性，覆盖 globals 里 input[type="text"] 的 max-width: 50% */
 input.mem0-input {
   width: 100%;

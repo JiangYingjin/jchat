@@ -4,13 +4,13 @@
 // Grouped by type for clarity and better organization.
 
 // React and Hooks
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 // State Management
 import { useChatStore } from "../store";
 import { useMobileScreen } from "../utils";
-import { jchatDataManager } from "../utils/data-manager";
+import { jchatDataManager, type AutoBackupConfig } from "../utils/data-manager";
 
 // UI Components
 import { List, ListItem, showToast } from "./ui-lib";
@@ -250,6 +250,155 @@ function LocalDataItems() {
           </button>
         </div>
       </ListItem>
+      <AutoBackupItems />
     </List>
+  );
+}
+
+/**
+ * 定时备份到本地文件夹：选择目录、开关、间隔、保留份数。
+ * 不包含任何个人路径或敏感信息，目录由用户通过浏览器选择。
+ */
+function AutoBackupItems() {
+  const [config, setConfig] = useState<AutoBackupConfig | null>(null);
+  const [hasDir, setHasDir] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+
+  const load = useCallback(async () => {
+    const c = await jchatDataManager.getAutoBackupConfig();
+    setConfig(c);
+    const h = await jchatDataManager.getStoredBackupDirHandle();
+    setHasDir(!!h);
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  if (!jchatDataManager.isBackupToDirectorySupported()) {
+    return (
+      <ListItem
+        title={Locale.Settings.AutoBackup.Title}
+        subTitle={Locale.Settings.AutoBackup.Unsupported}
+      />
+    );
+  }
+
+  if (config === null) return null;
+
+  const handleSelectDir = async () => {
+    setSelecting(true);
+    try {
+      const handle = await jchatDataManager.requestBackupDirectory();
+      if (handle) {
+        setHasDir(true);
+        showToast(Locale.Settings.AutoBackup.Saved);
+      }
+    } finally {
+      setSelecting(false);
+    }
+  };
+
+  const handleEnabledChange = async (enabled: boolean) => {
+    const next = { ...config, enabled };
+    await jchatDataManager.setAutoBackupConfig(next);
+    setConfig(next);
+  };
+
+  const handleIntervalChange = async (intervalMinutes: number) => {
+    const next = { ...config, intervalMinutes };
+    await jchatDataManager.setAutoBackupConfig(next);
+    setConfig(next);
+  };
+
+  const handleMaxCountChange = async (maxCount: number) => {
+    const next = { ...config, maxCount };
+    await jchatDataManager.setAutoBackupConfig(next);
+    setConfig(next);
+  };
+
+  return (
+    <ListItem
+      title={Locale.Settings.AutoBackup.Title}
+      subTitle={Locale.Settings.AutoBackup.SubTitle}
+      vertical
+    >
+      <div className={styles["auto-backup"]}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            flexWrap: "wrap",
+          }}
+        >
+          <button
+            type="button"
+            className={styles["mem0-input"]}
+            style={{ maxWidth: "160px" }}
+            onClick={handleSelectDir}
+            disabled={selecting}
+          >
+            {selecting ? "…" : Locale.Settings.AutoBackup.SelectDirectory}
+          </button>
+          <span className={styles["list-item-sub-title"]}>
+            {hasDir
+              ? Locale.Settings.AutoBackup.DirectorySelected
+              : Locale.Settings.AutoBackup.DirectoryNotSelected}
+          </span>
+        </div>
+        <label
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginTop: "8px",
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={config.enabled}
+            onChange={(e) => handleEnabledChange(e.target.checked)}
+            aria-label={Locale.Settings.AutoBackup.Enable}
+          />
+          <span>{Locale.Settings.AutoBackup.Enable}</span>
+        </label>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginTop: "8px",
+            flexWrap: "wrap",
+          }}
+        >
+          <span>{Locale.Settings.AutoBackup.Interval}</span>
+          <select
+            value={config.intervalMinutes}
+            onChange={(e) => handleIntervalChange(Number(e.target.value))}
+            className={styles["mem0-input"]}
+            style={{ width: "auto" }}
+            aria-label={Locale.Settings.AutoBackup.Interval}
+          >
+            <option value={60}>{Locale.Settings.AutoBackup.Interval1h}</option>
+            <option value={360}>{Locale.Settings.AutoBackup.Interval6h}</option>
+            <option value={1440}>
+              {Locale.Settings.AutoBackup.Interval24h}
+            </option>
+          </select>
+          <span>{Locale.Settings.AutoBackup.MaxCount}</span>
+          <input
+            type="number"
+            min={1}
+            max={50}
+            value={config.maxCount}
+            onChange={(e) => handleMaxCountChange(Number(e.target.value) || 1)}
+            className={styles["mem0-input"]}
+            style={{ width: "60px" }}
+            aria-label={Locale.Settings.AutoBackup.MaxCount}
+          />
+        </div>
+      </div>
+    </ListItem>
   );
 }

@@ -4,6 +4,7 @@ import "./styles/highlight.scss";
 import "./styles/monaco-editor-global.css"; // 🚀 Monaco Editor全局样式
 import "./styles/monaco-editor.module.scss"; // 🚀 Monaco Editor模块化样式
 import type { Metadata, Viewport } from "next";
+import { AutoBackupScheduler } from "./components/auto-backup-scheduler";
 
 export const metadata: Metadata = {
   title: "JChat",
@@ -35,7 +36,10 @@ export default function RootLayout({
         <link rel="manifest" href="/site.webmanifest"></link>
         <script src="/serviceWorkerRegister.js" defer></script>
       </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <AutoBackupScheduler />
+      </body>
     </html>
   );
 }

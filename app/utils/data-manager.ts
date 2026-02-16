@@ -36,9 +36,35 @@ export interface JChatBackupData {
   };
 }
 
+/** 定时备份到本地文件夹的配置（仅存于浏览器，不提交到仓库） */
+export interface AutoBackupConfig {
+  enabled: boolean;
+  intervalMinutes: number;
+  maxCount: number;
+}
+
+const BACKUP_CONFIG_STORE = "backupConfig";
+const KEY_AUTO_BACKUP_CONFIG = "autoBackupConfig";
+const KEY_BACKUP_DIR_HANDLE = "backupDirHandle";
+const KEY_LAST_BACKUP_TIME = "lastBackupTime";
+const BACKUP_FILE_PREFIX = "JChat-Backup-";
+const BACKUP_FILE_SUFFIX = ".json.gz";
+
 class JChatDataManager {
   private readonly CURRENT_VERSION = "2.0.0";
   private readonly isClient = typeof window !== "undefined";
+  private readonly defaultConfig: AutoBackupConfig = {
+    enabled: false,
+    intervalMinutes: 60,
+    maxCount: 10,
+  };
+
+  private getBackupConfigStore() {
+    return localforage.createInstance({
+      name: "JChat",
+      storeName: BACKUP_CONFIG_STORE,
+    });
+  }
 
   /**
    * 获取指定存储桶的所有数据
@@ -118,114 +144,249 @@ class JChatDataManager {
   }
 
   /**
-   * 导出完整的 JChat 数据
+   * 构建备份 Blob 与文件名（供导出下载与定时写入目录共用）
+   */
+  async buildBackupBlob(): Promise<{
+    blob: Blob;
+    fileName: string;
+    totalSessions: number;
+    totalMessages: number;
+  }> {
+    const [defaultData, messagesData, systemMessagesData, chatInputData] =
+      await Promise.all([
+        this.getAllDataFromStore("default"),
+        this.getAllDataFromStore("messages"),
+        this.getAllDataFromStore("systemMessages"),
+        this.getAllDataFromStore("chatInput"),
+      ]);
+
+    const totalSessions = Object.keys(messagesData).length;
+    const totalMessages = Object.values(messagesData).reduce(
+      (sum, messages) => sum + (Array.isArray(messages) ? messages.length : 0),
+      0,
+    );
+
+    const backupData: JChatBackupData = {
+      version: this.CURRENT_VERSION,
+      timestamp: Date.now(),
+      metadata: {
+        totalSessions,
+        totalMessages,
+        exportSource: "JChat Desktop",
+      },
+      data: {
+        default: defaultData,
+        messages: messagesData,
+        systemMessages: systemMessagesData,
+        chatInput: chatInputData,
+      },
+    };
+
+    const now = new Date();
+    const y = now.getFullYear();
+    const M = String(now.getMonth() + 1).padStart(2, "0");
+    const d = String(now.getDate()).padStart(2, "0");
+    const h = String(now.getHours()).padStart(2, "0");
+    const m = String(now.getMinutes()).padStart(2, "0");
+    const s = String(now.getSeconds()).padStart(2, "0");
+    const datePart = `${y}${M}${d}-${h}${m}${s}`;
+    const fileName = `${BACKUP_FILE_PREFIX}${datePart}${BACKUP_FILE_SUFFIX}`;
+
+    const jsonText = await jsonStringifyOffMainThread(backupData);
+    let blob: Blob;
+
+    if (typeof CompressionStream !== "undefined") {
+      const jsonBlob = new Blob([jsonText], { type: "application/json" });
+      const compressedStream = jsonBlob
+        .stream()
+        .pipeThrough(new CompressionStream("gzip"));
+      const chunks: Uint8Array[] = [];
+      const reader = compressedStream.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+      }
+      const totalLength = chunks.reduce((s, c) => s + c.length, 0);
+      const result = new Uint8Array(totalLength);
+      let offset = 0;
+      for (const chunk of chunks) {
+        result.set(chunk, offset);
+        offset += chunk.length;
+      }
+      blob = new Blob([result], { type: "application/gzip" });
+    } else {
+      blob = new Blob([jsonText], { type: "application/json" });
+    }
+
+    return { blob, fileName, totalSessions, totalMessages };
+  }
+
+  /**
+   * 导出完整的 JChat 数据（下载到用户设备）
    */
   async exportData(): Promise<void> {
     if (!this.isClient) {
       showToast("导出功能仅在客户端环境可用");
       return;
     }
-
     try {
       showToast("正在导出数据...");
-
-      // 并发获取所有存储桶的数据（限制在单个 Promise.all 中完成，以避免额外的事件循环阻塞）
-      const [defaultData, messagesData, systemMessagesData, chatInputData] =
-        await Promise.all([
-          this.getAllDataFromStore("default"),
-          this.getAllDataFromStore("messages"),
-          this.getAllDataFromStore("systemMessages"),
-          this.getAllDataFromStore("chatInput"),
-        ]);
-
-      // 计算统计信息
-      const totalSessions = Object.keys(messagesData).length;
-      const totalMessages = Object.values(messagesData).reduce(
-        (sum, messages) =>
-          sum + (Array.isArray(messages) ? messages.length : 0),
-        0,
-      );
-
-      // 构建完整的备份数据
-      const backupData: JChatBackupData = {
-        version: this.CURRENT_VERSION,
-        timestamp: Date.now(),
-        metadata: {
-          totalSessions,
-          totalMessages,
-          exportSource: "JChat Desktop",
-        },
-        data: {
-          default: defaultData,
-          messages: messagesData,
-          systemMessages: systemMessagesData,
-          chatInput: chatInputData,
-        },
-      };
-
-      // 生成文件名并开始序列化
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const day = String(now.getDate()).padStart(2, "0");
-      const hours = String(now.getHours()).padStart(2, "0");
-      const minutes = String(now.getMinutes()).padStart(2, "0");
-      const seconds = String(now.getSeconds()).padStart(2, "0");
-      const datePart = `${year}${month}${day}-${hours}${minutes}${seconds}`;
-      const fileName = `JChat-Backup-${datePart}.json.gz`;
-
-      showToast("正在生成导出文件...");
-
-      // 使用 Web Worker 进行 JSON 序列化，完全避免阻塞主线程
-      let jsonText = await jsonStringifyOffMainThread(backupData);
-
-      let blob: Blob;
-
-      // 使用 gzip 压缩
-      if (typeof CompressionStream !== "undefined") {
-        showToast("正在 Gzip 压缩...");
-
-        // 创建 gzip 压缩流
-        const jsonBlob = new Blob([jsonText], { type: "application/json" });
-        const compressedStream = jsonBlob
-          .stream()
-          .pipeThrough(new CompressionStream("gzip"));
-
-        // 将 ReadableStream 转换为 Uint8Array
-        const chunks: Uint8Array[] = [];
-        const reader = compressedStream.getReader();
-
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-        }
-
-        // 合并所有块
-        const totalLength = chunks.reduce(
-          (sum, chunk) => sum + chunk.length,
-          0,
-        );
-        const result = new Uint8Array(totalLength);
-        let offset = 0;
-        for (const chunk of chunks) {
-          result.set(chunk, offset);
-          offset += chunk.length;
-        }
-
-        blob = new Blob([result], { type: "application/gzip" });
-      } else {
-        blob = new Blob([jsonText], { type: "application/json" });
-      }
-
+      const { blob, fileName, totalSessions, totalMessages } =
+        await this.buildBackupBlob();
       await downloadBlob(blob, fileName);
-
       showToast(
         `导出成功！包含 ${totalSessions} 个会话，${totalMessages} 条消息`,
       );
     } catch (error) {
       console.error("[DataManager] 导出数据失败:", error);
       showToast("导出失败，请检查控制台获取详细信息");
+    }
+  }
+
+  /** 是否支持「选择备份目录」API（File System Access） */
+  isBackupToDirectorySupported(): boolean {
+    return (
+      this.isClient && typeof (window as any).showDirectoryPicker === "function"
+    );
+  }
+
+  /** 获取当前定时备份配置 */
+  async getAutoBackupConfig(): Promise<AutoBackupConfig> {
+    if (!this.isClient) return this.defaultConfig;
+    try {
+      const raw = await this.getBackupConfigStore().getItem<AutoBackupConfig>(
+        KEY_AUTO_BACKUP_CONFIG,
+      );
+      if (raw && typeof raw.enabled === "boolean") {
+        return {
+          enabled: raw.enabled,
+          intervalMinutes: Math.max(1, raw.intervalMinutes ?? 60),
+          maxCount: Math.max(1, Math.min(50, raw.maxCount ?? 10)),
+        };
+      }
+    } catch (e) {
+      console.warn("[DataManager] 读取自动备份配置失败", e);
+    }
+    return { ...this.defaultConfig };
+  }
+
+  /** 保存定时备份配置 */
+  async setAutoBackupConfig(config: AutoBackupConfig): Promise<void> {
+    if (!this.isClient) return;
+    await this.getBackupConfigStore().setItem(KEY_AUTO_BACKUP_CONFIG, {
+      ...this.defaultConfig,
+      ...config,
+    });
+  }
+
+  /** 用户选择备份目录（File System Access），并持久化句柄 */
+  async requestBackupDirectory(): Promise<FileSystemDirectoryHandle | null> {
+    if (!this.isClient || !this.isBackupToDirectorySupported()) return null;
+    try {
+      const handle = await (window as any).showDirectoryPicker({
+        mode: "readwrite",
+      });
+      await this.getBackupConfigStore().setItem(KEY_BACKUP_DIR_HANDLE, handle);
+      return handle;
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") {
+        console.error("[DataManager] 选择备份目录失败", e);
+      }
+      return null;
+    }
+  }
+
+  /** 获取已保存的备份目录句柄（会请求权限） */
+  async getStoredBackupDirHandle(): Promise<FileSystemDirectoryHandle | null> {
+    if (!this.isClient) return null;
+    try {
+      const handle =
+        await this.getBackupConfigStore().getItem<FileSystemDirectoryHandle>(
+          KEY_BACKUP_DIR_HANDLE,
+        );
+      if (!handle || handle.kind !== "directory") return null;
+      const ok =
+        (await (handle as any).queryPermission?.({ mode: "readwrite" })) ===
+        "granted";
+      if (ok) return handle;
+      const granted =
+        (await (handle as any).requestPermission?.({ mode: "readwrite" })) ===
+        "granted";
+      return granted ? handle : null;
+    } catch (e) {
+      console.warn("[DataManager] 获取备份目录句柄失败", e);
+      return null;
+    }
+  }
+
+  /** 清除已保存的备份目录 */
+  async clearBackupDirHandle(): Promise<void> {
+    if (!this.isClient) return;
+    await this.getBackupConfigStore().removeItem(KEY_BACKUP_DIR_HANDLE);
+  }
+
+  /** 读取上次备份时间（用于定时判断） */
+  async getLastBackupTime(): Promise<number> {
+    if (!this.isClient) return 0;
+    const t =
+      await this.getBackupConfigStore().getItem<number>(KEY_LAST_BACKUP_TIME);
+    return typeof t === "number" ? t : 0;
+  }
+
+  /** 写入上次备份时间 */
+  async setLastBackupTime(time: number): Promise<void> {
+    if (!this.isClient) return;
+    await this.getBackupConfigStore().setItem(KEY_LAST_BACKUP_TIME, time);
+  }
+
+  /**
+   * 将当前数据备份写入已选择的目录，并按配置删除过多旧文件
+   */
+  async writeBackupToDirectory(): Promise<{ ok: boolean; message?: string }> {
+    if (!this.isClient) return { ok: false, message: "仅支持浏览器环境" };
+    const handle = await this.getStoredBackupDirHandle();
+    if (!handle) {
+      return { ok: false, message: "请先在设置中选择备份目录" };
+    }
+    try {
+      const { blob, fileName, totalSessions, totalMessages } =
+        await this.buildBackupBlob();
+      const fileHandle = await handle.getFileHandle(fileName, { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+
+      const config = await this.getAutoBackupConfig();
+      const maxCount = Math.max(1, config.maxCount);
+      const names: string[] = [];
+      // FileSystemDirectoryHandle 是异步可迭代的，TS 类型可能未包含
+      for await (const [name] of handle as unknown as AsyncIterable<
+        [string, FileSystemHandle]
+      >) {
+        if (
+          name.startsWith(BACKUP_FILE_PREFIX) &&
+          name.endsWith(BACKUP_FILE_SUFFIX)
+        ) {
+          names.push(name);
+        }
+      }
+      names.sort();
+      while (names.length > maxCount) {
+        const toRemove = names.shift()!;
+        await handle.removeEntry(toRemove);
+      }
+
+      console.log(
+        `[DataManager] 已写入备份 ${fileName}，${totalSessions} 会话，${totalMessages} 条消息`,
+      );
+      return { ok: true };
+    } catch (e) {
+      console.error("[DataManager] 写入备份目录失败", e);
+      return {
+        ok: false,
+        message: (e as Error).message || "写入失败",
+      };
     }
   }
 
