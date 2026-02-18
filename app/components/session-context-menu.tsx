@@ -58,6 +58,20 @@ export function SessionContextMenu(props: SessionContextMenuProps) {
     props.onClose?.();
   };
 
+  // 处理收藏/取消收藏（仅普通会话）
+  const handleToggleFavorite = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    chatStore.toggleSessionFavorite(session.id);
+    showToast(
+      session.isFavorite
+        ? Locale.Chat.Actions.UnfavoriteToast
+        : Locale.Chat.Actions.FavoriteToast,
+    );
+    props.menu.close();
+    props.onClose?.();
+  };
+
   // 处理生成标题
   const handleGenerateTitle = async (e: React.MouseEvent) => {
     e.preventDefault();
@@ -114,6 +128,18 @@ export function SessionContextMenu(props: SessionContextMenuProps) {
           onClick={handleMoveToTop}
         >
           移至顶部
+        </div>
+      )}
+
+      {/* 收藏/取消收藏 - 仅普通会话显示 */}
+      {session.groupId === null && (
+        <div
+          className={sidebarStyles["search-context-item"]}
+          onClick={handleToggleFavorite}
+        >
+          {session.isFavorite
+            ? Locale.Chat.Actions.UnfavoriteSession
+            : Locale.Chat.Actions.FavoriteSession}
         </div>
       )}
 

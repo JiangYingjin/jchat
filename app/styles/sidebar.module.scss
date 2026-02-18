@@ -290,16 +290,23 @@
 
 .sidebar-tail {
   display: flex;
-  justify-content: space-between;
+  width: 100%;
   padding-top: 20px;
 }
 
 .sidebar-actions {
-  display: inline-flex;
+  display: flex;
+  flex: 1;
+  gap: 8px;
+  min-width: 0;
 }
 
-.sidebar-action:not(:last-child) {
-  margin-right: 15px;
+.sidebar-action {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 /* 搜索结果增强样式 */

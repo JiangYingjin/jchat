@@ -7,6 +7,8 @@ import { IconButton } from "./button";
 import SettingsIcon from "../icons/settings.svg";
 import AddIcon from "../icons/add.svg";
 import GroupIcon from "../icons/group.svg";
+import PinIcon from "../icons/pin.svg";
+import Locale from "../locales";
 
 import { useChatStore } from "../store";
 import { useAppReadyGuard } from "../hooks/app-ready";
@@ -64,20 +66,33 @@ export function SideBar(props: { className?: string }) {
 
   // --- 读取用于计算 key 的状态 ---
   const chatListView = useChatStore((state) => state.chatListView);
+  const chatListSessionsFilter = useChatStore(
+    (state) => state.chatListSessionsFilter,
+  );
   const chatListGroupView = useChatStore((state) => state.chatListGroupView);
   const groups = useChatStore((state) => state.groups);
   const currentGroupIndex = useChatStore((state) => state.currentGroupIndex);
 
   // --- 计算滚动 key ---
   const scrollKey = useMemo(() => {
-    if (chatListView === "sessions") return "sessions";
+    if (chatListView === "sessions") {
+      return chatListSessionsFilter === "favorited"
+        ? "sessions-favorited"
+        : "sessions";
+    }
     if (chatListView === "groups") {
       if (chatListGroupView === "groups") return "groups";
       const group = groups[currentGroupIndex];
       return group ? `group-sessions:${group.id}` : "group-sessions:unknown";
     }
     return "sessions";
-  }, [chatListView, chatListGroupView, groups, currentGroupIndex]);
+  }, [
+    chatListView,
+    chatListSessionsFilter,
+    chatListGroupView,
+    groups,
+    currentGroupIndex,
+  ]);
 
   // 使用 ref 存储最新的 scrollKey，避免闭包问题
   const scrollKeyRef = useRef(scrollKey);
@@ -201,12 +216,12 @@ export function SideBar(props: { className?: string }) {
     }
   }, [scrollKey, chatListView, chatListGroupView, chatStore]);
 
-  // 当视图切换时，重置分页状态（必须在条件渲染之前）
+  // 当会话列表视图或筛选切换时，重置分页状态（必须在条件渲染之前）
   useEffect(() => {
     if (chatListView === "sessions") {
       resetSessionPagination();
     }
-  }, [chatListView, resetSessionPagination]);
+  }, [chatListView, chatListSessionsFilter, resetSessionPagination]);
 
   // 获取当前列表模式 (已在上面声明)
 
@@ -291,8 +306,21 @@ export function SideBar(props: { className?: string }) {
     } else {
       // 从组模式切换回普通会话模式
       chatStore.setchatListView("sessions");
-      // 重置分页状态
       resetSessionPagination();
+    }
+  };
+
+  // 已收藏会话：在「全部普通会话」与「已收藏」子集间切换；若当前在组视图则先切到会话视图并显示已收藏
+  const toggleFavoritedView = () => {
+    if (chatListView === "groups") {
+      chatStore.setchatListView("sessions");
+      chatStore.setChatListSessionsFilter("favorited");
+      setIsSearching(false);
+      searchBarRef.current?.clearInput();
+    } else {
+      chatStore.setChatListSessionsFilter(
+        chatListSessionsFilter === "favorited" ? "all" : "favorited",
+      );
     }
   };
 
@@ -369,6 +397,21 @@ export function SideBar(props: { className?: string }) {
           <div className={sidebarStyles["sidebar-action"]}>
             {!isMobileScreen && (
               <IconButton
+                icon={<PinIcon />}
+                onClick={toggleFavoritedView}
+                title={Locale.Chat.Actions.FavoritedSessionsList}
+                className={
+                  chatListView === "sessions" &&
+                  chatListSessionsFilter === "favorited"
+                    ? buttonStyles["active"]
+                    : ""
+                }
+              />
+            )}
+          </div>
+          <div className={sidebarStyles["sidebar-action"]}>
+            {!isMobileScreen && (
+              <IconButton
                 icon={<GroupIcon />}
                 onClick={() => {
                   toggleGroupMode();
@@ -380,20 +423,19 @@ export function SideBar(props: { className?: string }) {
               />
             )}
           </div>
-        </div>
-
-        <div>
-          <IconButton
-            icon={<AddIcon />}
-            onClick={handleNewButtonClick}
-            title={
-              chatListView === "sessions"
-                ? "新建会话"
-                : chatStore.chatListGroupView === "groups"
-                  ? "新建组"
-                  : "新建组内会话"
-            }
-          />
+          <div className={sidebarStyles["sidebar-action"]}>
+            <IconButton
+              icon={<AddIcon />}
+              onClick={handleNewButtonClick}
+              title={
+                chatListView === "sessions"
+                  ? "新建会话"
+                  : chatStore.chatListGroupView === "groups"
+                    ? "新建组"
+                    : "新建组内会话"
+              }
+            />
+          </div>
         </div>
       </div>
     </div>

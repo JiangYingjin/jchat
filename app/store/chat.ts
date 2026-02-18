@@ -13,7 +13,7 @@ import { createPersistStore, jchatStorage } from "../utils/store";
 import { chatInputStorage } from "./input";
 import { storageManager } from "../utils/storage-manager";
 import { appReadyManager } from "../utils/app-ready-manager";
-import { uploadImage } from "../utils/chat";
+import { uploadImage, isOpenAiApiPath } from "../utils/chat";
 import { isImageFileLike, isTextFileLike } from "../utils/file-drop";
 import { systemMessageStorage } from "./system";
 import { messageStorage, type ChatMessage } from "./message";
@@ -475,6 +475,7 @@ export interface ChatSession {
   ignoreSystemPrompt?: boolean; // 是否忽略系统提示词（仅在组会话模式下有效）
   useMemory?: boolean; // 是否启用用户记忆（仅普通会话有效，组会话不使用）
   isTitleManuallyEdited?: boolean; // 用户是否手动编辑过标题（用于生成标题时的确认提示）
+  isFavorite?: boolean; // 是否已收藏（仅普通会话有效）
   groupId: string | null;
   lastUpdate: number;
   messages: ChatMessage[];
@@ -509,6 +510,7 @@ const DEFAULT_CHAT_STATE = {
   currentSessionIndex: 0,
   currentGroupIndex: 0,
   chatListView: "sessions" as "sessions" | "groups",
+  chatListSessionsFilter: "all" as "all" | "favorited", // 普通会话列表筛选：全部 / 已收藏
   chatListGroupView: "groups" as "groups" | "group-sessions",
   models: [] as string[],
   longTextModel: null as string | null,
@@ -979,6 +981,12 @@ export const useChatStore = createPersistStore(
         }));
       },
 
+      // 按会话 id 选中会话（用于已收藏等视图中点击）
+      selectSessionById(sessionId: string) {
+        const index = get().sessions.findIndex((s) => s.id === sessionId);
+        if (index !== -1) get().selectSession(index);
+      },
+
       // 优化：组会话切换时的清理
       selectGroupSession(index: number, switchToChatView: boolean = true) {
         // 严格要求数据恢复完成
@@ -1051,6 +1059,14 @@ export const useChatStore = createPersistStore(
         if (newIndex !== oldIndex) {
           get().loadSessionMessages(newIndex);
         }
+      },
+
+      // 按会话 id 移动会话（用于拖拽，支持全部/已收藏视图）
+      moveSessionByIds(fromId: string, toId: string) {
+        const sessions = get().sessions;
+        const from = sessions.findIndex((s) => s.id === fromId);
+        const to = sessions.findIndex((s) => s.id === toId);
+        if (from !== -1 && to !== -1) get().moveSession(from, to);
       },
 
       // 移动组的位置
@@ -1425,6 +1441,32 @@ export const useChatStore = createPersistStore(
 
         // 确保新会话的消息正确加载
         await get().loadGroupSessionMessages(newSession.id);
+      },
+
+      // 当前显示的普通会话列表（全部或已收藏子集）
+      getDisplaySessions(): ChatSession[] {
+        const state = get();
+        if (state.chatListView !== "sessions") return state.sessions;
+        return state.chatListSessionsFilter === "favorited"
+          ? state.sessions.filter((s) => s.isFavorite)
+          : state.sessions;
+      },
+
+      // 设置普通会话列表筛选：全部 / 已收藏
+      setChatListSessionsFilter(filter: "all" | "favorited") {
+        set({ chatListSessionsFilter: filter });
+        if (get().chatListView === "sessions") {
+          get().resetSessionPagination();
+        }
+      },
+
+      // 切换会话收藏状态（仅普通会话有效，点击即持久化）
+      toggleSessionFavorite(sessionId: string) {
+        const session = get().getSessionById(sessionId);
+        if (!session || session.groupId !== null) return;
+        get().updateSession(session, (s) => {
+          s.isFavorite = !s.isFavorite;
+        });
       },
 
       // 设置聊天列表模式
@@ -2996,7 +3038,7 @@ export const useChatStore = createPersistStore(
                 );
               });
           },
-          onFinish(message, responseRes, usage) {
+          onFinish(message, responseRes, usage, requestPath?: string) {
             modelMessage.streaming = false;
             if (message) {
               modelMessage.content = message;
@@ -3004,10 +3046,11 @@ export const useChatStore = createPersistStore(
               if (responseRes && responseRes.status !== 200) {
                 modelMessage.isError = true;
 
-                // 如果返回 401 未授权，清空 accessCode 并跳转到 auth 页面
-                if (responseRes.status === 401) {
-                  // 需要通过某种方式获取 navigate 函数
-                  // 这里我们先在 window 对象上设置一个全局的处理函数
+                // 401 未授权时，仅当非 /api/openai 子路径才跳转到 auth 页
+                if (
+                  responseRes.status === 401 &&
+                  !isOpenAiApiPath(requestPath ?? "")
+                ) {
                   if (
                     typeof window !== "undefined" &&
                     (window as any).__handleUnauthorized
@@ -3740,23 +3783,24 @@ export const useChatStore = createPersistStore(
         }));
       },
 
-      // 加载更多会话
+      // 加载更多会话（针对当前显示列表：全部或已收藏）
       loadMoreSessions(): void {
         const state = get();
-        const { sessions, sessionPagination } = state;
+        const displaySessions = state.getDisplaySessions();
+        const { sessionPagination } = state;
         const { pageSize, loadedCount, isLoading } = sessionPagination;
 
         // 如果正在加载或已加载全部，则返回
-        if (isLoading || loadedCount >= sessions.length) {
+        if (isLoading || loadedCount >= displaySessions.length) {
           return;
         }
 
         // 计算新的加载数量
         const newLoadedCount = Math.min(
           loadedCount + pageSize,
-          sessions.length,
+          displaySessions.length,
         );
-        const hasMore = newLoadedCount < sessions.length;
+        const hasMore = newLoadedCount < displaySessions.length;
 
         // 更新状态
         set({
@@ -3772,10 +3816,10 @@ export const useChatStore = createPersistStore(
       // 重置分页状态（切换视图时调用）
       resetSessionPagination(): void {
         const state = get();
-        const { sessions } = state;
+        const displaySessions = state.getDisplaySessions();
         const initialCount = Math.min(
           SESSION_INITIAL_LOAD_COUNT,
-          sessions.length,
+          displaySessions.length,
         );
 
         set({
@@ -3783,7 +3827,7 @@ export const useChatStore = createPersistStore(
             pageSize: SESSION_PAGE_SIZE,
             loadedCount: initialCount,
             isLoading: false,
-            hasMore: initialCount < sessions.length,
+            hasMore: initialCount < displaySessions.length,
           },
         });
       },
@@ -3824,7 +3868,7 @@ export const useChatStore = createPersistStore(
   },
   {
     name: StoreKey.Chat,
-    version: 5.5,
+    version: 5.6,
     storage: jchatStorage,
 
     /**
@@ -4242,6 +4286,18 @@ export const useChatStore = createPersistStore(
           persistedState.user_id = persistedState.mem0_user_id;
         }
         delete persistedState.mem0_user_id;
+      }
+      // 5.5 -> 5.6: 收藏会话：chatListSessionsFilter、sessions[].isFavorite
+      if (persistedState) {
+        if (persistedState.chatListSessionsFilter == null) {
+          persistedState.chatListSessionsFilter = "all";
+        }
+        if (Array.isArray(persistedState.sessions)) {
+          persistedState.sessions = persistedState.sessions.map((s: any) => ({
+            ...s,
+            isFavorite: s.isFavorite === true,
+          }));
+        }
       }
       return persistedState;
     },

@@ -123,6 +123,7 @@ export function createEmptySession(): ChatSession {
     ignoreSystemPrompt: false,
     useMemory: false,
     isModelManuallySelected: false,
+    isFavorite: false,
     groupId: null,
   };
 }

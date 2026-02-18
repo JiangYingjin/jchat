@@ -162,6 +162,30 @@ export function SessionEditor(props: {
             />
           </ListItem>
 
+          {!isGroupSession && (
+            <ListItem
+              title={
+                session.isFavorite
+                  ? Locale.Chat.Actions.UnfavoriteSession
+                  : Locale.Chat.Actions.FavoriteSession
+              }
+              subTitle={session.isFavorite ? "点击取消收藏" : "点击收藏此会话"}
+            >
+              <IconButton
+                text={session.isFavorite ? "取消收藏" : "收藏"}
+                bordered
+                onClick={() => {
+                  chatStore.toggleSessionFavorite(session.id);
+                  showToast(
+                    session.isFavorite
+                      ? Locale.Chat.Actions.UnfavoriteToast
+                      : Locale.Chat.Actions.FavoriteToast,
+                  );
+                }}
+              />
+            </ListItem>
+          )}
+
           {(() => {
             const metrics = aggregateSessionMetrics(session, {
               includeStreaming: false,

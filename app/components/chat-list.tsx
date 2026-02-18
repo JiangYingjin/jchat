@@ -415,8 +415,8 @@ function LoadMoreIndicator({
 const ChatListSessions = memo(function ChatListSessions({
   sessions,
   selectedIndex,
-  selectSession,
-  moveSession,
+  selectSessionById,
+  moveSessionByIds,
   sessionPagination,
   mergeOrderSessionIds,
   toggleMergeSelection,
@@ -424,8 +424,8 @@ const ChatListSessions = memo(function ChatListSessions({
 }: {
   sessions: any[];
   selectedIndex: number;
-  selectSession: (index: number) => void;
-  moveSession: (from: number, to: number) => void;
+  selectSessionById: (sessionId: string) => void;
+  moveSessionByIds: (fromId: string, toId: string) => void;
   sessionPagination: {
     loadedCount: number;
     isLoading: boolean;
@@ -480,17 +480,8 @@ const ChatListSessions = memo(function ChatListSessions({
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
 
-    if (active.id !== over?.id) {
-      const oldIndex = memoizedSessions.findIndex(
-        (session) => session.id === active.id,
-      );
-      const newIndex = memoizedSessions.findIndex(
-        (session) => session.id === over?.id,
-      );
-
-      if (oldIndex !== -1 && newIndex !== -1) {
-        moveSession(oldIndex, newIndex);
-      }
+    if (over && active.id !== over.id) {
+      moveSessionByIds(String(active.id), String(over.id));
     }
   };
 
@@ -523,7 +514,7 @@ const ChatListSessions = memo(function ChatListSessions({
                   return;
                 }
                 exitMergeMode();
-                await selectSession(i);
+                selectSessionById(item.id);
                 // 移动端：选择会话后切换到聊天界面
                 if (isMobileScreen) {
                   chatStore.showChatOnMobile();
@@ -533,7 +524,11 @@ const ChatListSessions = memo(function ChatListSessions({
                 }
               }}
               onDelete={async () => {
-                await chatStore.deleteSession(i);
+                const globalIndex = useChatStore
+                  .getState()
+                  .sessions.findIndex((s) => s.id === item.id);
+                if (globalIndex !== -1)
+                  await useChatStore.getState().deleteSession(globalIndex);
               }}
               status={item.status}
               prefixType="none"
@@ -552,12 +547,17 @@ const ChatListSessions = memo(function ChatListSessions({
 
 // 主要的 ChatList 组件，使用细粒度订阅
 export function ChatList(props: {}) {
-  // 使用细粒度订阅，分别订阅不同的状态
   const sessions = useChatStore((state) => state.sessions);
-  const selectedIndex = useChatStore((state) => state.currentSessionIndex);
-  const selectSession = useChatStore((state) => state.selectSession);
-  const moveSession = useChatStore((state) => state.moveSession);
+  const chatListSessionsFilter = useChatStore(
+    (state) => state.chatListSessionsFilter,
+  );
+  const currentSessionIndex = useChatStore(
+    (state) => state.currentSessionIndex,
+  );
+  const currentSession = useChatStore((state) => state.currentSession());
   const sessionPagination = useChatStore((state) => state.sessionPagination);
+  const selectSessionById = useChatStore((state) => state.selectSessionById);
+  const moveSessionByIds = useChatStore((state) => state.moveSessionByIds);
   const ensureSessionLoaded = useChatStore(
     (state) => state.ensureSessionLoaded,
   );
@@ -569,19 +569,34 @@ export function ChatList(props: {}) {
   );
   const exitMergeMode = useChatStore((state) => state.exitMergeMode);
 
-  // 当选中会话变化时，确保该会话已加载
-  useEffect(() => {
-    if (selectedIndex >= 0 && selectedIndex < sessions.length) {
-      ensureSessionLoaded(selectedIndex);
-    }
-  }, [selectedIndex, sessions.length, ensureSessionLoaded]);
+  // 当前显示的列表：全部普通会话或已收藏子集
+  const displaySessions = useMemo(() => {
+    return chatListSessionsFilter === "favorited"
+      ? sessions.filter((s) => s.isFavorite)
+      : sessions;
+  }, [sessions, chatListSessionsFilter]);
 
-  // 当会话列表变化时，更新分页状态
+  // 当前选中项在 displaySessions 中的索引（用于高亮）
+  const selectedIndexInDisplay = useMemo(
+    () =>
+      currentSession
+        ? displaySessions.findIndex((s) => s.id === currentSession.id)
+        : -1,
+    [displaySessions, currentSession],
+  );
+
+  // 当选中会话变化时，确保该会话已加载（使用全局索引）
+  useEffect(() => {
+    if (currentSessionIndex >= 0 && currentSessionIndex < sessions.length) {
+      ensureSessionLoaded(currentSessionIndex);
+    }
+  }, [currentSessionIndex, sessions.length, ensureSessionLoaded]);
+
+  // 当显示列表或分页变化时，同步分页状态
   useEffect(() => {
     const { loadedCount, hasMore } = sessionPagination;
-    const totalCount = sessions.length;
+    const totalCount = displaySessions.length;
 
-    // 如果已加载数量超过总数量，需要调整
     if (loadedCount > totalCount) {
       const chatStore = useChatStore.getState();
       chatStore.setSessionPagination({
@@ -589,7 +604,6 @@ export function ChatList(props: {}) {
         hasMore: false,
       });
     } else if (loadedCount < totalCount && !hasMore) {
-      // 如果还有更多会话但 hasMore 为 false，需要更新
       const chatStore = useChatStore.getState();
       chatStore.setSessionPagination({
         hasMore: true,
@@ -597,18 +611,17 @@ export function ChatList(props: {}) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    sessions.length,
+    displaySessions.length,
     sessionPagination.loadedCount,
     sessionPagination.hasMore,
   ]);
 
-  // 使用 React.memo 优化，只在必要的时候重新渲染
   return (
     <ChatListSessions
-      sessions={sessions}
-      selectedIndex={selectedIndex}
-      selectSession={selectSession}
-      moveSession={moveSession}
+      sessions={displaySessions}
+      selectedIndex={selectedIndexInDisplay}
+      selectSessionById={selectSessionById}
+      moveSessionByIds={moveSessionByIds}
       sessionPagination={sessionPagination}
       mergeOrderSessionIds={mergeOrderSessionIds}
       toggleMergeSelection={toggleMergeSelection}
