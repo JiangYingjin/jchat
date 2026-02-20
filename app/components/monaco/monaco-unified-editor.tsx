@@ -560,6 +560,26 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
     [],
   );
 
+  // 全选：供移动端使用（Monaco 在触摸设备上无键盘且长按菜单已禁用）
+  const handleSelectAll = useCallback(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    try {
+      const action = editor.getAction?.("editor.action.selectAll");
+      if (action?.run) {
+        action.run();
+      } else {
+        const model = editor.getModel();
+        if (model) {
+          editor.setSelection(model.getFullModelRange());
+          editor.focus();
+        }
+      }
+    } catch (e) {
+      console.warn("Monaco selectAll failed:", e);
+    }
+  }, []);
+
   if (error) {
     return (
       <ErrorDisplay
@@ -575,7 +595,18 @@ export const MonacoUnifiedEditor: React.FC<MonacoUnifiedEditorProps> = ({
     <div className={panelClassName}>
       {/* Monaco Editor 编辑器 */}
       <div className={monacoStyles["monaco-wrapper"]}>
-        <StatsBar stats={stats} text={value} images={images} />
+        <div className={monacoStyles["monaco-status-bar-row"]}>
+          <StatsBar stats={stats} text={value} images={images} />
+          <button
+            type="button"
+            className={monacoStyles["monaco-select-all-btn"]}
+            onClick={handleSelectAll}
+            title="全选"
+            aria-label="全选"
+          >
+            全选
+          </button>
+        </div>
 
         <div
           ref={containerRef}

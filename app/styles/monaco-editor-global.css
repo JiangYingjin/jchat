@@ -51,6 +51,18 @@
   --monaco-background: var(--white);
   --monaco-foreground: var(--text-color);
   --monaco-border: var(--border-in-light);
+  /* 移动端：允许触摸选择文本，避免被父级 user-select 覆盖 */
+  user-select: text;
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+}
+
+/* 编辑区内部 view lines 也允许选择 */
+.monaco-editor .view-lines,
+.monaco-editor .margin-view-overlays {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* Monaco Editor的tooltip样式优化 */

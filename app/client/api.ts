@@ -66,6 +66,7 @@ export interface ChatOptions {
       prompt_tokens?: number;
       cost?: number;
     },
+    requestPath?: string,
   ) => void;
   onError?: (err: Error) => void;
   onController?: (controller: AbortController) => void;

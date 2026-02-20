@@ -2,7 +2,20 @@ import {
   CACHE_URL_PREFIX,
   UPLOAD_URL,
   REQUEST_TIMEOUT_MS,
+  ApiPath,
 } from "@/app/constant";
+
+/** 请求路径是否为 /api/openai 或其子路径（未授权时不重定向到 auth 页） */
+export function isOpenAiApiPath(pathOrUrl: string): boolean {
+  try {
+    const path = pathOrUrl.startsWith("http")
+      ? new URL(pathOrUrl).pathname
+      : pathOrUrl;
+    return path.startsWith(ApiPath.OpenAI);
+  } catch {
+    return pathOrUrl.startsWith(ApiPath.OpenAI);
+  }
+}
 import {
   ImageContent,
   MultimodalContent,
@@ -284,15 +297,20 @@ export function stream(
   // start animaion
   animateResponseText();
 
-  const finish = () => {
+  const finish = (requestPath?: string) => {
     if (!finished) {
       console.debug("[ChatAPI] end");
       finished = true;
-      options.onFinish(responseText + remainText, responseRes, usageInfo);
+      options.onFinish(
+        responseText + remainText,
+        responseRes,
+        usageInfo,
+        requestPath,
+      );
     }
   };
 
-  controller.signal.onabort = finish;
+  controller.signal.onabort = () => finish(chatPath);
 
   function chatApi(chatPath: string, headers: any, requestPayload: any) {
     const chatPayload = {
@@ -307,15 +325,11 @@ export function stream(
     );
     fetchEventSource(chatPath, {
       fetch: (input, init) => {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(
-          () => controller.abort(),
-          REQUEST_TIMEOUT_MS,
-        );
-        return fetch(input, {
-          ...(init || {}),
-          signal: controller.signal,
-        }).finally(() => clearTimeout(timeoutId));
+        // 必须把用户 signal（ChatControllerPool 的 controller）传给实际 fetch，
+        // 否则点击「暂停」只停 UI，HTTP 连接和 event stream 仍会继续接收。
+        // 不设整次请求的超时，流式请求可跑任意时长，仅由用户点「暂停」中止。
+        const userSignal = (init ?? ({} as RequestInit))?.signal;
+        return fetch(input, { ...(init || {}), signal: userSignal });
       },
       ...chatPayload,
       async onopen(res) {
@@ -326,7 +340,7 @@ export function stream(
 
         if (contentType?.startsWith("text/plain")) {
           responseText = await res.clone().text();
-          return finish();
+          return finish(chatPath);
         }
 
         if (
@@ -344,8 +358,9 @@ export function stream(
           } catch {}
 
           if (res.status === 401) {
-            // 处理未授权响应：清空 accessCode 并跳转到 auth 页面
+            // /api/openai 子路径的未授权不重定向到 auth 页（供 API 调用方自行处理）
             if (
+              !isOpenAiApiPath(chatPath) &&
               typeof window !== "undefined" &&
               (window as any).__handleUnauthorized
             ) {
@@ -359,12 +374,12 @@ export function stream(
 
           responseText = responseTexts.join("\n\n");
 
-          return finish();
+          return finish(chatPath);
         }
       },
       onmessage(msg) {
         if (msg.data === "[DONE]" || finished) {
-          return finish();
+          return finish(chatPath);
         }
         const text = msg.data;
         if (!text || text.trim().length === 0) {
@@ -422,7 +437,7 @@ export function stream(
         }
       },
       onclose() {
-        finish();
+        finish(chatPath);
       },
       onerror(e) {
         options?.onError?.(e);

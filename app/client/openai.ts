@@ -40,7 +40,6 @@ export class OpenAIApi implements LLMApi {
       const requestPayload: RequestPayload = {
         messages,
         model: options.model || useChatStore.getState().currentSession().model,
-        max_tokens: 8000,
         stream: true,
       };
       const uid = options.user_id?.trim();

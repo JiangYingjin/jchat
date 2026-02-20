@@ -4,6 +4,16 @@
 
 // 🎨 模块化样式 - 可在组件中使用的类名
 
+// 状态栏一行：左侧统计 + 右侧全选（移动端可见）
+.monaco-status-bar-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: 0;
+}
+
 .monaco-status-bar {
   display: flex;
   justify-content: space-between;
@@ -14,6 +24,8 @@
   font-size: 11px;
   color: var(--text-color-secondary);
   flex-shrink: 0;
+  flex: 1 1 auto;
+  min-width: 0;
 
   .monaco-stats {
     display: flex;
@@ -43,6 +55,34 @@
       animation: spin 0.8s linear infinite;
       margin-left: 4px;
     }
+  }
+}
+
+/* 全选按钮：移动端可见，解决触摸设备无法 Ctrl+A 全选 */
+.monaco-select-all-btn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  font-size: 12px;
+  color: var(--text-color-secondary);
+  background: var(--gray-50);
+  border: 1px solid var(--border-in-light);
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.2s, color 0.2s;
+
+  &:hover {
+    background: var(--border-in-light);
+    color: var(--text-color);
+  }
+  &:active {
+    background: rgba(0, 0, 0, 0.08);
+  }
+
+  @media (min-width: 769px) {
+    padding: 2px 8px;
+    font-size: 11px;
+    opacity: 0.85;
   }
 }
 
