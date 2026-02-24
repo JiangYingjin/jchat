@@ -29,13 +29,15 @@ function normalizeShareMessages(
   }));
 }
 
-/** 分享页只读视图：复用 ChatHeader + MessageList，与 Chat 相同布局，无侧边栏/输入/操作 */
+/** 分享页只读视图：复用 ChatHeader + MessageList，与 Chat 相同布局，无侧边栏/输入/操作。传入 shareId 以按链接持久化滚动位置。 */
 export function ShareView({
   title,
   messages,
+  shareId,
 }: {
   title?: string;
   messages: ShareMessage[];
+  shareId?: string;
 }) {
   const normalized = React.useMemo(
     () => normalizeShareMessages(messages),
@@ -69,6 +71,7 @@ export function ShareView({
             setAutoScroll={setAutoScroll}
             setHitBottom={setHitBottom}
             readOnly
+            shareId={shareId}
           />
         </div>
       </div>
@@ -155,5 +158,7 @@ export function SharePageClient({ shareId }: { shareId: string }) {
     );
   }
   if (!data) return null;
-  return <ShareView title={data.title} messages={data.messages} />;
+  return (
+    <ShareView title={data.title} messages={data.messages} shareId={shareId} />
+  );
 }

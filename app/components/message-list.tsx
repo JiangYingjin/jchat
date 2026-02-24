@@ -44,6 +44,8 @@ interface MessageListProps {
   setHitBottom: (hitBottom: boolean) => void;
   /** 分享页只读：展示系统消息（有内容时）、无操作、不依赖 store 会话 */
   readOnly?: boolean;
+  /** 分享页的 shareId（如 3vQZpn），用于按链接持久化滚动位置，与鉴权会话数据隔离（key 为 share_${shareId}） */
+  shareId?: string;
 }
 
 // 创建选择器：只订阅当前会话的消息列表
@@ -90,6 +92,7 @@ export const MessageList = React.memo(function MessageList({
   setAutoScroll,
   setHitBottom,
   readOnly = false,
+  shareId,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const isMobileScreen = useMobileScreen();
@@ -103,9 +106,13 @@ export const MessageList = React.memo(function MessageList({
   const chatStore = React.useMemo(() => useChatStore.getState(), []);
   const currentSession = readOnly ? null : chatStore.currentSession();
 
-  const { saveScrollState, restoreScrollState } = useScrollState(
-    readOnly ? "share" : currentSession?.id || "",
-  );
+  // 分享页按 shareId 隔离存储（share_${shareId}），与鉴权会话 ID 不混用
+  const scrollKey = readOnly
+    ? shareId
+      ? `share_${shareId}`
+      : "share"
+    : currentSession?.id || "";
+  const { saveScrollState, restoreScrollState } = useScrollState(scrollKey);
 
   // 添加调试信息
   React.useEffect(() => {
@@ -117,14 +124,15 @@ export const MessageList = React.memo(function MessageList({
     });
   }, [messagesData.sessionId, messagesData.messages.length, messages.length]); // 包含所有必要的依赖
 
-  const [msgRenderIndex, setMsgRenderIndex] = useState(
-    Math.max(0, messages.length - CHAT_PAGE_SIZE),
+  // 分享页首次打开默认从顶部开始；会话页从底部
+  const [msgRenderIndex, setMsgRenderIndex] = useState(() =>
+    readOnly && shareId ? 0 : Math.max(0, messages.length - CHAT_PAGE_SIZE),
   );
   const [messageHeights, setMessageHeights] = useState<{
     [key: string]: number;
   }>({});
   const messageRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
-  const prevSessionId = useRef<string | undefined>(undefined);
+  const prevScrollKey = useRef<string | undefined>(undefined);
 
   // 辅助函数：重置到最后一页
   const resetToLastPage = useCallback(() => {
@@ -133,63 +141,65 @@ export const MessageList = React.memo(function MessageList({
     return newIndex;
   }, [messages.length]);
 
-  // 🔧 优化：每次会话加载时都尝试恢复滚动状态
+  // 🔧 会话或分享页加载时恢复滚动状态；分享页无保存状态时保持在顶部
   useEffect(() => {
-    const currentSessionId = messagesData.sessionId;
+    const sessionIdForRestore = readOnly ? scrollKey : messagesData.sessionId;
+    if (!sessionIdForRestore || prevScrollKey.current === sessionIdForRestore) {
+      return;
+    }
 
-    // 只有当会话ID存在且与之前不同时才恢复
-    if (currentSessionId && prevSessionId.current !== currentSessionId) {
-      debugLog("MESSAGE_LIST", "会话加载，开始恢复滚动状态", {
-        sessionId: currentSessionId,
-        prevSessionId: prevSessionId.current,
-      });
+    debugLog("MESSAGE_LIST", "开始恢复滚动状态", {
+      scrollKey: sessionIdForRestore,
+      prevScrollKey: prevScrollKey.current,
+    });
 
-      // 设置恢复标记
-      isRestoringRef.current = true;
+    isRestoringRef.current = true;
+    prevScrollKey.current = sessionIdForRestore;
 
-      restoreScrollState()
-        .then((scrollState) => {
-          if (scrollState) {
-            // 恢复分片状态
-            setMsgRenderIndex(scrollState.messageIndex);
-            // 临时禁用自动滚动，避免覆盖恢复的位置
+    restoreScrollState()
+      .then((scrollState) => {
+        if (scrollState) {
+          setMsgRenderIndex(scrollState.messageIndex);
+          setAutoScroll(false);
+          setTimeout(() => {
+            if (scrollRef.current) {
+              scrollRef.current.scrollTop = scrollState.scrollTop;
+              debugLog("MESSAGE_LIST", "滚动位置已恢复", {
+                scrollKey: sessionIdForRestore,
+                messageIndex: scrollState.messageIndex,
+                scrollTop: scrollState.scrollTop,
+              });
+            }
+          }, 100);
+        } else {
+          // 分享页无保存状态：保持在顶部；会话页：重置到最后一页
+          if (sessionIdForRestore.startsWith("share_")) {
+            setMsgRenderIndex(0);
             setAutoScroll(false);
-
-            // 延迟恢复滚动位置，确保DOM已更新
             setTimeout(() => {
-              if (scrollRef.current) {
-                scrollRef.current.scrollTop = scrollState.scrollTop;
-                debugLog("MESSAGE_LIST", "滚动位置已恢复", {
-                  sessionId: currentSessionId,
-                  messageIndex: scrollState.messageIndex,
-                  scrollTop: scrollState.scrollTop,
-                });
-              }
+              if (scrollRef.current) scrollRef.current.scrollTop = 0;
             }, 100);
           } else {
-            // 没有保存的滚动状态，重置到最后一页
-            const newIndex = resetToLastPage();
-            debugLog("MESSAGE_LIST", "无滚动状态，重置到最后一页", {
-              sessionId: currentSessionId,
-              newIndex,
-            });
+            resetToLastPage();
           }
-        })
-        .catch((error) => {
-          debugLog("MESSAGE_LIST", "恢复滚动状态失败", {
-            sessionId: currentSessionId,
-            error,
-          });
-        })
-        .finally(() => {
-          // 统一清除恢复标记
-          isRestoringRef.current = false;
+        }
+      })
+      .catch((error) => {
+        debugLog("MESSAGE_LIST", "恢复滚动状态失败", {
+          scrollKey: sessionIdForRestore,
+          error,
         });
-
-      // 更新前一个会话ID
-      prevSessionId.current = currentSessionId;
-    }
+        if (sessionIdForRestore.startsWith("share_")) {
+          setMsgRenderIndex(0);
+          if (scrollRef.current) scrollRef.current.scrollTop = 0;
+        }
+      })
+      .finally(() => {
+        isRestoringRef.current = false;
+      });
   }, [
+    scrollKey,
+    readOnly,
     messagesData.sessionId,
     messages.length,
     restoreScrollState,
@@ -250,8 +260,8 @@ export const MessageList = React.memo(function MessageList({
     setHitBottom(isHitBottom);
     setAutoScroll(isHitBottom);
 
-    // 新增：保存滚动状态
-    if (currentSession?.id) {
+    // 保存滚动状态（会话页与分享页按 scrollKey 隔离存储）
+    if (scrollKey) {
       saveScrollState(e.scrollTop, msgRenderIndex, e.clientHeight);
     }
   };
