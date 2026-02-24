@@ -70,7 +70,10 @@
   "pnpm": {
     "overrides": {
       "lodash-es": "4.17.23",
-      "merge": "2.1.1"
+      "merge": "2.1.1",
+      "minimatch": "10.2.1",
+      "ajv@6": "6.14.0",
+      "ajv@8": "8.18.0"
     }
   }
 }
