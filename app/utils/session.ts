@@ -279,6 +279,52 @@ export async function generateSessionTitle(
 }
 
 /**
+ * 根据给定消息列表生成简短标题（用于分享页等），与会话原标题分离。
+ * 使用与会话标题相同的 prompt，仅输入消息不同。
+ */
+export async function generateTitleFromMessages(
+  messages: ChatMessage[],
+  onDone: (title: string) => void,
+): Promise<void> {
+  const filtered = (messages || []).filter(
+    (m) => !m.isError && (m.role === "user" || m.role === "assistant"),
+  );
+  if (filtered.length === 0) {
+    onDone(Locale.Session.Title.Default);
+    return;
+  }
+
+  const model = useChatStore.getState().models[0];
+  const api: ClientApi = getClientApi();
+  let out: string | MultimodalContent[] = "";
+
+  api.llm.chat({
+    messages: filtered.concat(
+      createMessage({
+        role: "user",
+        content: Locale.Session.Title.RefreshPrompt,
+      }),
+    ),
+    model,
+    onUpdate(message) {
+      if (message) out = message;
+    },
+    onFinish(message, responseRes) {
+      const final = message || out;
+      if (responseRes?.status === 200 && final) {
+        const title =
+          (typeof final === "string"
+            ? final
+            : getTextContent(final as MultimodalContent[]).trim()) || "";
+        onDone(trimTopic(title) || Locale.Session.Title.Default);
+      } else {
+        onDone(Locale.Session.Title.Default);
+      }
+    },
+  });
+}
+
+/**
  * 准备发送的消息列表
  */
 export function prepareSendMessages(

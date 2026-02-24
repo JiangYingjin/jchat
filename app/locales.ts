@@ -92,6 +92,7 @@ const cn = {
     ShareLink: "分享为链接",
     LinkCopied: "链接已复制",
     ShareFailed: "分享失败",
+    ShareTitleGenerated: "分享标题已生成",
   },
   Select: {
     Search: "搜索消息",

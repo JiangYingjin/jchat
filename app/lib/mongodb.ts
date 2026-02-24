@@ -23,6 +23,8 @@ export interface ShareDoc {
   systemPrompt?: unknown;
   /** 仅展示这些 id 的消息；有则分享页只渲染这些，无则全部 */
   displayMessageIds?: string[];
+  /** 根据本次分享的消息生成的标题，与 session 原标题分离，仅用于分享页展示 */
+  shareTitle?: string;
 }
 
 let cachedClient: MongoClient | null = null;

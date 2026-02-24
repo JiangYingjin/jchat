@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 import { ChatMessage, useChatStore, systemMessageStorage } from "../store";
 import Locale from "../locales";
 import styles from "../styles/exporter.module.scss";
@@ -28,6 +27,7 @@ import {
   buildFullSharePayload,
   type SessionLikeForShare,
 } from "../utils/share";
+import { generateTitleFromMessages } from "../utils/session";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
   loading: () => <LoadingIcon />,
@@ -349,9 +349,44 @@ export function MessageExporter() {
                       if (!res.ok) {
                         throw new Error(data.msg || Locale.Export.ShareFailed);
                       }
-                      if (data.link) {
+                      if (data.link && data.shareId) {
                         await copyToClipboard(data.link);
                         showToast(Locale.Export.LinkCopied);
+                        // 异步根据本次分享的消息生成标题并更新远程，与 session 原标题分离；完成后提示
+                        const messagesToTitle =
+                          selectedMessages.filter(
+                            (m) =>
+                              !m.isError &&
+                              (m.role === "user" || m.role === "assistant"),
+                          ).length > 0
+                            ? selectedMessages
+                            : [];
+                        if (messagesToTitle.length > 0) {
+                          generateTitleFromMessages(
+                            messagesToTitle,
+                            async (newTitle) => {
+                              try {
+                                const patchRes = await fetch(
+                                  `/api/share/${data.shareId}`,
+                                  {
+                                    method: "PATCH",
+                                    headers: getHeaders(),
+                                    body: JSON.stringify({
+                                      shareTitle: newTitle,
+                                    }),
+                                  },
+                                );
+                                if (patchRes.ok) {
+                                  showToast(
+                                    `${Locale.Export.ShareTitleGenerated}：${newTitle}`,
+                                  );
+                                }
+                              } catch {
+                                // 静默忽略 PATCH 失败，链接已可用
+                              }
+                            },
+                          );
+                        }
                       }
                     } catch (e) {
                       showToast(

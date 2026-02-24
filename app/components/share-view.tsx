@@ -101,13 +101,19 @@ export function SharePageClient({ shareId }: { shareId: string }) {
       })
       .then((body) => {
         if (!cancelled && Array.isArray(body.messages)) {
-          const title =
+          // 优先使用根据分享内容生成的 shareTitle，与 session 原标题分离
+          const shareTitle =
+            typeof body.shareTitle === "string" && body.shareTitle.trim() !== ""
+              ? body.shareTitle.trim()
+              : undefined;
+          const sessionOrLegacyTitle =
             typeof body.version === "number" &&
             body.session &&
             typeof body.session === "object" &&
             "title" in body.session
               ? (body.session as { title?: string }).title
               : body.title;
+          const title = shareTitle ?? sessionOrLegacyTitle;
           // 若有 displayMessageIds 则仅展示勾选的消息，否则展示全部
           const displayIds = Array.isArray(body.displayMessageIds)
             ? body.displayMessageIds
