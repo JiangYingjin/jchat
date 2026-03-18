@@ -26,7 +26,7 @@
     "monaco-editor": "^0.55.1",
     "mongodb": "^7.0.0",
     "nanoid": "^5.1.6",
-    "next": "^16.1.6",
+    "next": "^16.1.7",
     "p-limit": "^7.2.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -52,7 +52,7 @@
     "autoprefixer": "^10.4.24",
     "baseline-browser-mapping": "^2.9.19",
     "eslint": "^9.26.0",
-    "eslint-config-next": "^16.1.6",
+    "eslint-config-next": "^16.1.7",
     "eslint-config-prettier": "^9.1.2",
     "eslint-plugin-prettier": "^5.5.5",
     "eslint-plugin-unused-imports": "^4.3.0",
@@ -73,7 +73,16 @@
       "merge": "2.1.1",
       "minimatch": "10.2.4",
       "ajv@6": "6.14.0",
-      "ajv@8": "8.18.0"
+      "ajv@8": "8.18.0",
+      "flatted": "3.4.0",
+      "svgo": "3.3.3",
+      "immutable": "5.1.5",
+      "dompurify": "3.3.2",
+      "serialize-javascript": "7.0.3",
+      "diff": "4.0.4",
+      "mdast-util-to-hast": "13.2.1",
+      "glob": "10.5.0",
+      "js-yaml": "4.1.1"
     }
   }
 }
