@@ -72,6 +72,8 @@
       "lodash-es": "4.17.23",
       "merge": "2.1.1",
       "minimatch": "10.2.4",
+      "picomatch@2": "2.3.2",
+      "picomatch@4": "4.0.4",
       "ajv@6": "6.14.0",
       "ajv@8": "8.18.0",
       "flatted": "3.4.0",
