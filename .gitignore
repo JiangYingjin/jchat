@@ -41,3 +41,6 @@ build
 .yarn
 
 docs/proposals
+
+# PM2：含本机部署路径与端口，勿入库；克隆后复制 jchat.json.example 为 jchat.json 再改
+jchat.json

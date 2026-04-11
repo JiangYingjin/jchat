@@ -112,8 +112,11 @@ done
 echo "🧩 准备 PM2 配置：$PM2_CONF_PATH"
 if [ -f "$PROJECT_ROOT/jchat.json" ]; then
   cp "$PROJECT_ROOT/jchat.json" "$PM2_CONF_PATH"
+elif [ -f "$PROJECT_ROOT/jchat.json.example" ]; then
+  echo "⚠️  未找到 jchat.json，已使用 jchat.json.example；生产环境请复制示例为 jchat.json 并按机子修改 cwd/PORT 等"
+  cp "$PROJECT_ROOT/jchat.json.example" "$PM2_CONF_PATH"
 else
-  die "未找到仓库内 PM2 配置：$PROJECT_ROOT/jchat.json"
+  die "未找到 PM2 配置：$PROJECT_ROOT/jchat.json 或 jchat.json.example"
 fi
 
 echo "🔄 重启服务（pm2）"
