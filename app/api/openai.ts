@@ -11,12 +11,18 @@ async function requestOpenai(req: NextRequest) {
 
   try {
     const path = req.nextUrl.pathname.replace("/api/openai/", "");
-    const base = serverConfig.baseUrl;
+    const base = serverConfig.upstreamBaseUrl;
     const baseUrl = base.startsWith("http") ? base : `https://${base}`;
 
     const fetchUrl = new URL(path, baseUrl);
     // console.log("[Proxy] ", path);
     // console.log("[Base Url]", baseUrl);
+
+    // 将入站 body 读成字符串再转发：把 ReadableStream 直接交给 fetch 指向本机 http 时，Undici 可能发出空 body（Django JSONDecodeError）。
+    let forwardBody: string | undefined;
+    if (req.method !== "GET" && req.method !== "HEAD") {
+      forwardBody = await req.text();
+    }
 
     const fetchOptions: RequestInit = {
       headers: {
@@ -25,10 +31,8 @@ async function requestOpenai(req: NextRequest) {
         Authorization: req.headers.get("Authorization") ?? "",
       },
       method: req.method,
-      body: req.body,
+      body: forwardBody,
       redirect: "manual",
-      // @ts-ignore
-      duplex: "half",
       signal: controller.signal,
     };
 
