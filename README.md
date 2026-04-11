@@ -112,28 +112,20 @@ JChat believes that technical communication should not be limited to plain text.
     ```dotenv
     # .env.local
 
-    # [Required] OpenAI API Key
-    # Get yours from https://platform.openai.com/account/api-keys
-    API_KEY="sk-..."
+    # [Required] OpenRouter API Key
+    # Create at https://openrouter.ai/settings/keys
+    API_KEY="sk-or-v1-..."
 
     # [Optional] Access Code
     # Restrict access with a password. Use commas for multiple codes.
     CODE="your_access_code_1,your_access_code_2"
 
-    # [Optional] OpenAI API Proxy Endpoint
-    # Use this if you cannot access the OpenAI API directly.
-    # e.g., https://api.openai.com
-    BASE_URL=""
+    # [Required] OpenRouter API base (OpenAI-compatible)
+    # Docs: https://openrouter.ai/docs/api/reference/overview
+    BASE_URL="https://openrouter.ai/api/v1"
 
-    # [Optional] Specify Available Models
-    # Override the default model list. Use commas for multiple models.
-    # e.g., gpt-4,gpt-4-32k,gpt-3.5-turbo
-    MODELS=""
-
-    # [Optional] SOCKS or HTTP Proxy
-    # For server-side requests to bypass network restrictions.
-    # e.g., socks5://127.0.0.1:1080
-    PROXY_URL=""
+    # [Required] Model IDs from OpenRouter (comma-separated). List changes often — see https://openrouter.ai/models
+    MODELS="openai/gpt-5.4-mini,anthropic/claude-sonnet-4.6,google/gemini-3.1-flash-lite-preview,deepseek/deepseek-v3.2,x-ai/grok-4.20"
     ```
 
 4.  **Start the development server**
