@@ -76,21 +76,6 @@ const useHasHydrated = () => {
 
 // 移除本地的 useAppReady 函数，使用导入的 Hook
 
-/**
- * 异步加载 Google 字体
- */
-const loadAsyncGoogleFont = () => {
-  const linkEl = document.createElement("link");
-  const proxyFontUrl = "/google-fonts";
-  linkEl.rel = "stylesheet";
-  linkEl.href =
-    proxyFontUrl +
-    "/css2?family=" +
-    encodeURIComponent("Noto Sans:wght@300;400;700;900") +
-    "&display=swap";
-  document.head.appendChild(linkEl);
-};
-
 // 5. 核心业务/布局组件
 // -----------------------------------------------------------------------------
 /**
@@ -103,11 +88,6 @@ function Screen() {
   const isAuth = pathname === Path.Auth;
   const isMobileScreen = useMobileScreen();
   const shouldTightBorder = !isMobileScreen;
-
-  // 异步加载字体
-  useEffect(() => {
-    loadAsyncGoogleFont();
-  }, []);
 
   // 权限检查
   useEffect(() => {

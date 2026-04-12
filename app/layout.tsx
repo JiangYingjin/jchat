@@ -4,7 +4,16 @@ import "./styles/highlight.scss";
 import "./styles/monaco-editor-global.css"; // 🚀 Monaco Editor全局样式
 import "./styles/monaco-editor.module.scss"; // 🚀 Monaco Editor模块化样式
 import type { Metadata, Viewport } from "next";
+import { Noto_Sans } from "next/font/google";
 import { AutoBackupScheduler } from "./components/auto-backup-scheduler";
+
+const notoSans = Noto_Sans({
+  weight: ["300", "400", "700", "900"],
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-noto-sans",
+  adjustFontFallback: true,
+});
 
 export const metadata: Metadata = {
   title: "JChat",
@@ -27,7 +36,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
+    <html lang="en" className={notoSans.variable}>
       <head>
         <meta
           name="viewport"

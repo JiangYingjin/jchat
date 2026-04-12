@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 import type { WebpackConfigContext } from "next/dist/server/config-shared"; // 导入 WebpackConfigContext 类型
-import type { Header, Rewrite } from "next/dist/lib/load-custom-routes"; // 导入 Header 和 Rewrite 类型
+import type { Header } from "next/dist/lib/load-custom-routes"; // 导入 Header 类型
 
 const nextConfig: NextConfig = {
   webpack(config: any, { isServer }: WebpackConfigContext) {
@@ -39,19 +39,6 @@ const CorsHeaders: Header["headers"] = [
 
 nextConfig.headers = async () => {
   return [{ source: "/api/:path*", headers: CorsHeaders }];
-};
-
-nextConfig.rewrites = async () => {
-  const ret: Rewrite[] = [
-    {
-      source: "/google-fonts/:path*",
-      destination: "https://fonts.googleapis.com/:path*",
-    },
-  ];
-
-  return {
-    beforeFiles: ret,
-  };
 };
 
 export default nextConfig;
