@@ -14,6 +14,15 @@ import { messageStorage } from "../store/message";
 // 定义默认主题，避免循环依赖
 const DEFAULT_TOPIC = Locale.Session.Title.Default;
 
+/** 自动生成/刷新会话标题、分享标题等使用的模型（固定轻量模型，与当前对话所选模型无关）。 */
+const SESSION_TITLE_MODEL = "jyj.cx/lite";
+
+function getModelForTitleGeneration(): string {
+  const models = useChatStore.getState().models;
+  if (models.includes(SESSION_TITLE_MODEL)) return SESSION_TITLE_MODEL;
+  return models[0] ?? SESSION_TITLE_MODEL;
+}
+
 /**
  * 计算会话状态
  */
@@ -219,7 +228,7 @@ export async function generateSessionTitle(
 ): Promise<void> {
   const TRIGGER_MIN_LEN = 50;
 
-  const model = useChatStore.getState().models[0];
+  const model = getModelForTitleGeneration();
   const api: ClientApi = getClientApi();
   const messages = (session.messages || []).slice();
 
@@ -294,7 +303,7 @@ export async function generateTitleFromMessages(
     return;
   }
 
-  const model = useChatStore.getState().models[0];
+  const model = getModelForTitleGeneration();
   const api: ClientApi = getClientApi();
   let out: string | MultimodalContent[] = "";
 
