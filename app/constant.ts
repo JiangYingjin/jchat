@@ -36,7 +36,7 @@ export const REQUEST_TIMEOUT_MS_FOR_IMAGE_GENERATION = REQUEST_TIMEOUT_MS * 5;
 
 export const EXPORT_MESSAGE_CLASS_NAME = "export-markdown";
 
-export const FALLBACK_BASE_URL = "oneapi.jyj.cx";
+export const FALLBACK_BASE_URL = "dj.jyj.cx";
 
 export const CHAT_PAGE_SIZE = 15;
 export const MAX_RENDER_MSG_COUNT = 45;
