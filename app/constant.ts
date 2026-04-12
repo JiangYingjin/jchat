@@ -46,6 +46,9 @@ export const SESSION_PAGE_SIZE = 25; // 每页加载的会话数量
 export const SESSION_LOAD_MORE_THRESHOLD = 200; // 距离底部多少像素时触发加载更多
 export const SESSION_INITIAL_LOAD_COUNT = 25; // 初始加载的会话数量
 
+/** 自动生成/刷新会话标题、分享标题等使用的模型 id（与当前对话所选模型无关）。 */
+export const SESSION_TITLE_MODEL = "jyj.cx/lite";
+
 export const DEFAULT_FONT_SIZE = 14.5;
 export const DEFAULT_FONT_FAMILY = "";
 export enum Theme {

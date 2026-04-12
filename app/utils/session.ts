@@ -10,12 +10,10 @@ import { buildMultimodalContent } from "./chat";
 import { systemMessageStorage } from "../store/system";
 import { parseGroupMessageId } from "./group";
 import { messageStorage } from "../store/message";
+import { SESSION_TITLE_MODEL } from "../constant";
 
 // 定义默认主题，避免循环依赖
 const DEFAULT_TOPIC = Locale.Session.Title.Default;
-
-/** 自动生成/刷新会话标题、分享标题等使用的模型（固定轻量模型，与当前对话所选模型无关）。 */
-const SESSION_TITLE_MODEL = "jyj.cx/lite";
 
 function getModelForTitleGeneration(): string {
   const models = useChatStore.getState().models;
