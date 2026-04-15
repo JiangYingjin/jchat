@@ -9,7 +9,7 @@ import React, {
 
 import styles from "../../styles/chat.module.scss";
 import clsx from "clsx";
-import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
+import * as monaco from "monaco-editor";
 import monacoStyles from "../../styles/monaco-editor.module.scss";
 import { DeleteImageButton } from "../button";
 import { copyImageToClipboard } from "../../utils/image";

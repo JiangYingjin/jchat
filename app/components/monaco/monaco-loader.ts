@@ -1,4 +1,4 @@
-import * as monaco from "monaco-editor/esm/vs/editor/editor.api";
+import * as monaco from "monaco-editor";
 import { getMonaco, isMonacoLoaded, monacoPreloader } from "./monaco-preloader";
 
 // 🚀 使用预加载的Monaco Editor，提升加载性能
