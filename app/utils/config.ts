@@ -5,6 +5,7 @@ import { FALLBACK_BASE_URL } from "../constant";
  * 服务端 /api/openai 代理访问上游（One API / Django v1）的 origin。
  * 未设置 SERVER_BASE_URL 时与 BASE_URL 相同。
  * 与 Django 同机部署时设为 http://127.0.0.1:<本机端口>，可避免 Next 服务端经公网域名绕 HK 再穿透回内网，降低 Connect 超时与 TLS 抖动。
+ * 若设置 SERVER_UNIX_SOCKET（如 /run/dj_app_stable.sock），则 /api/openai 将优先通过 Unix socket 转发。
  */
 function resolveUpstreamBaseUrl(): string {
   const internal = process.env.SERVER_BASE_URL?.trim();
@@ -18,6 +19,7 @@ declare global {
       CODE?: string;
       BASE_URL?: string;
       SERVER_BASE_URL?: string;
+      SERVER_UNIX_SOCKET?: string;
       API_KEY?: string;
       MODELS?: string;
       LONG_TEXT_MODEL?: string;
@@ -49,6 +51,7 @@ export const getServerSideConfig = () => {
       return {
         baseUrl: process.env.BASE_URL || FALLBACK_BASE_URL,
         upstreamBaseUrl: resolveUpstreamBaseUrl(),
+        serverUnixSocket: process.env.SERVER_UNIX_SOCKET?.trim() || undefined,
         apiKey: process.env.API_KEY?.trim(),
         code: process.env.CODE,
         codes: new Set<string>(),
@@ -77,6 +80,7 @@ export const getServerSideConfig = () => {
       return {
         baseUrl: process.env.BASE_URL || FALLBACK_BASE_URL,
         upstreamBaseUrl: resolveUpstreamBaseUrl(),
+        serverUnixSocket: process.env.SERVER_UNIX_SOCKET?.trim() || undefined,
         apiKey: process.env.API_KEY?.trim(),
         code: process.env.CODE,
         codes: new Set<string>(),
@@ -121,6 +125,7 @@ export const getServerSideConfig = () => {
   return {
     baseUrl: process.env.BASE_URL || FALLBACK_BASE_URL,
     upstreamBaseUrl: resolveUpstreamBaseUrl(),
+    serverUnixSocket: process.env.SERVER_UNIX_SOCKET?.trim() || undefined,
     apiKey: process.env.API_KEY?.trim(),
     code: process.env.CODE,
     codes: ACCESS_CODES,
