@@ -10,6 +10,8 @@ TMP_BUILD_DIR="${TMP_BUILD_DIR:-/tmp/jchat/build}"
 SERVE_DIR="${SERVE_DIR:-/www/jchat}"
 PM2_PROCESS_NAME="${PM2_PROCESS_NAME:-jchat}"
 PM2_CONF_PATH="${PM2_CONF_PATH:-$SERVE_DIR/jchat.json}"
+# .env* 部署方式：link（默认）= 硬链优先、失败则软链到 PROJECT_ROOT；copy = 仍复制文件（跨盘或无需单源时用）
+JCHAT_DEPLOY_ENV_MODE="${JCHAT_DEPLOY_ENV_MODE:-link}"
 
 START_TIME="$(date +%s)"
 
@@ -67,6 +69,25 @@ load_env_file() {
   done <"$env_file"
 }
 
+# 将 PROJECT_ROOT 下的 .env* 接到 SERVE_DIR，与源码目录共用一份文件（改 ~/proj/jchat/.env 即生效于部署目录）。
+link_project_env_into_serve_dir() {
+  local pattern dest abs_src
+  shopt -s nullglob
+  for pattern in "$PROJECT_ROOT"/.env*; do
+    [ -f "$pattern" ] || continue
+    dest="$SERVE_DIR/$(basename "$pattern")"
+    abs_src="$(cd "$(dirname "$pattern")" && pwd)/$(basename "$pattern")"
+    if ln "$abs_src" "$dest" 2>/dev/null; then
+      echo "   🔗 硬链接: $(basename "$pattern")"
+    elif ln -sf "$abs_src" "$dest"; then
+      echo "   🔗 软链接: $(basename "$pattern") -> $abs_src"
+    else
+      die "无法链接环境文件：$abs_src -> $dest"
+    fi
+  done
+  shopt -u nullglob
+}
+
 ensure_cmd rsync
 ensure_cmd node
 ensure_cmd corepack
@@ -102,12 +123,17 @@ cp -r .next/standalone/* "$SERVE_DIR/"
 cp -r .next "$SERVE_DIR/"
 cp -r public "$SERVE_DIR/"
 
-echo "📄 复制 .env 文件到服务目录（如果存在）"
-for env_file in "$PROJECT_ROOT"/.env*; do
-  if [ -f "$env_file" ]; then
-    cp "$env_file" "$SERVE_DIR/"
-  fi
-done
+echo "📄 环境文件（.env*）→ 服务目录：${JCHAT_DEPLOY_ENV_MODE}"
+if [ "$JCHAT_DEPLOY_ENV_MODE" = "copy" ]; then
+  for env_file in "$PROJECT_ROOT"/.env*; do
+    if [ -f "$env_file" ]; then
+      cp "$env_file" "$SERVE_DIR/"
+      echo "   📋 已复制: $(basename "$env_file")"
+    fi
+  done
+else
+  link_project_env_into_serve_dir
+fi
 
 echo "🧩 准备 PM2 配置：$PM2_CONF_PATH"
 if [ -f "$PROJECT_ROOT/jchat.json" ]; then
