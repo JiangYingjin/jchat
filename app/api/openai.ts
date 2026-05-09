@@ -23,6 +23,8 @@ function requestViaUnixSocket(
           "Content-Type": "application/json",
           "Cache-Control": "no-store",
           Authorization: req.headers.get("Authorization") ?? "",
+          "HTTP-Referer": "https://chat.jyj.cx",
+          "X-OpenRouter-Title": "JChat",
           ...(body
             ? { "Content-Length": String(Buffer.byteLength(body, "utf8")) }
             : {}),
@@ -85,6 +87,8 @@ async function requestOpenai(req: NextRequest) {
         "Content-Type": "application/json",
         "Cache-Control": "no-store",
         Authorization: req.headers.get("Authorization") ?? "",
+        "HTTP-Referer": "https://chat.jyj.cx",
+        "X-OpenRouter-Title": "JChat",
       },
       method: req.method,
       body: forwardBody,
