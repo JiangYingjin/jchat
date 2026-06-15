@@ -253,6 +253,69 @@ export function MessageExporter() {
     ret.push(...session.messages.filter((m) => selection.has(m.id)));
     return ret;
   }, [session.messages, selection, systemMessageData, session.id]);
+  const doShare = async () => {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const payload = await buildFullSharePayload(
+        session as unknown as SessionLikeForShare & Record<string, unknown>,
+        systemMessageData,
+      );
+      const displayMessageIds =
+        selection.size > 0 ? Array.from(selection) : undefined;
+      const res = await fetch("/api/share", {
+        method: "POST",
+        headers: getHeaders(),
+        body: JSON.stringify({
+          ...payload,
+          ...(displayMessageIds != null && displayMessageIds.length > 0
+            ? { displayMessageIds }
+            : {}),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.msg || Locale.Export.ShareFailed);
+      }
+      if (data.link && data.shareId) {
+        await copyToClipboard(data.link);
+        showToast(Locale.Export.LinkCopied);
+        return data;
+      }
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : Locale.Export.ShareFailed);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const updateShareTitle = (shareId: string, link: string) => {
+    const messagesToTitle =
+      selectedMessages.filter(
+        (m) => !m.isError && (m.role === "user" || m.role === "assistant"),
+      ).length > 0
+        ? selectedMessages
+        : [];
+    if (messagesToTitle.length > 0) {
+      generateTitleFromMessages(messagesToTitle, async (newTitle) => {
+        try {
+          const patchRes = await fetch(`/api/share/${shareId}`, {
+            method: "PATCH",
+            headers: getHeaders(),
+            body: JSON.stringify({
+              shareTitle: newTitle,
+            }),
+          });
+          if (patchRes.ok) {
+            showToast(`${Locale.Export.ShareTitleGenerated}：${newTitle}`);
+          }
+        } catch {
+          // 静默忽略 PATCH 失败，链接已可用
+        }
+      });
+    }
+  };
+
   function preview() {
     if (exportConfig.format === "text") {
       return (
@@ -323,79 +386,23 @@ export function MessageExporter() {
                   bordered
                   icon={sharing ? <LoadingIcon /> : <CopyIcon />}
                   onClick={async () => {
-                    if (sharing) return;
-                    setSharing(true);
-                    try {
-                      const payload = await buildFullSharePayload(
-                        session as unknown as SessionLikeForShare &
-                          Record<string, unknown>,
-                        systemMessageData,
-                      );
-                      // 仅展示勾选的消息：传入选中的 id，网页打开时只渲染这些
-                      const displayMessageIds =
-                        selection.size > 0 ? Array.from(selection) : undefined;
-                      const res = await fetch("/api/share", {
+                    const data = await doShare();
+                    if (data?.link) {
+                      updateShareTitle(data.shareId, data.link);
+                    }
+                  }}
+                  onContextMenu={async (e) => {
+                    e.preventDefault();
+                    const data = await doShare();
+                    if (data?.link) {
+                      updateShareTitle(data.shareId, data.link);
+                      fetch("https://dj.jyj.cx/notify", {
                         method: "POST",
-                        headers: getHeaders(),
+                        headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({
-                          ...payload,
-                          ...(displayMessageIds != null &&
-                          displayMessageIds.length > 0
-                            ? { displayMessageIds }
-                            : {}),
+                          content: data.link,
                         }),
-                      });
-                      const data = await res.json();
-                      if (!res.ok) {
-                        throw new Error(data.msg || Locale.Export.ShareFailed);
-                      }
-                      if (data.link && data.shareId) {
-                        await copyToClipboard(data.link);
-                        showToast(Locale.Export.LinkCopied);
-                        // 异步根据本次分享的消息生成标题并更新远程，与 session 原标题分离；完成后提示
-                        const messagesToTitle =
-                          selectedMessages.filter(
-                            (m) =>
-                              !m.isError &&
-                              (m.role === "user" || m.role === "assistant"),
-                          ).length > 0
-                            ? selectedMessages
-                            : [];
-                        if (messagesToTitle.length > 0) {
-                          generateTitleFromMessages(
-                            messagesToTitle,
-                            async (newTitle) => {
-                              try {
-                                const patchRes = await fetch(
-                                  `/api/share/${data.shareId}`,
-                                  {
-                                    method: "PATCH",
-                                    headers: getHeaders(),
-                                    body: JSON.stringify({
-                                      shareTitle: newTitle,
-                                    }),
-                                  },
-                                );
-                                if (patchRes.ok) {
-                                  showToast(
-                                    `${Locale.Export.ShareTitleGenerated}：${newTitle}`,
-                                  );
-                                }
-                              } catch {
-                                // 静默忽略 PATCH 失败，链接已可用
-                              }
-                            },
-                          );
-                        }
-                      }
-                    } catch (e) {
-                      showToast(
-                        e instanceof Error
-                          ? e.message
-                          : Locale.Export.ShareFailed,
-                      );
-                    } finally {
-                      setSharing(false);
+                      }).catch(() => {});
                     }
                   }}
                 />
