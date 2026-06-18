@@ -45,11 +45,6 @@ if ("serviceWorker" in navigator) {
         window._SW_ENABLED = false;
       },
     );
-
-    // 监听 ServiceWorker 控制器变化
-    navigator.serviceWorker.addEventListener("controllerchange", function () {
-      window.location.reload(true);
-    });
   });
 } else {
   window._SW_ENABLED = false;

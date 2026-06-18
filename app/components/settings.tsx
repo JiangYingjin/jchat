@@ -263,6 +263,7 @@ function AutoBackupItems() {
   const [config, setConfig] = useState<AutoBackupConfig | null>(null);
   const [hasDir, setHasDir] = useState(false);
   const [selecting, setSelecting] = useState(false);
+  const [backingUp, setBackingUp] = useState(false);
 
   const load = useCallback(async () => {
     const c = await jchatDataManager.getAutoBackupConfig();
@@ -315,6 +316,25 @@ function AutoBackupItems() {
     const next = { ...config, maxCount };
     await jchatDataManager.setAutoBackupConfig(next);
     setConfig(next);
+  };
+
+  const handleBackupNow = async () => {
+    if (!hasDir) {
+      showToast("请先选择备份目录");
+      return;
+    }
+    setBackingUp(true);
+    try {
+      const { ok, message } = await jchatDataManager.writeBackupToDirectory();
+      if (ok) {
+        showToast(Locale.Settings.AutoBackup.BackupSuccess);
+        await jchatDataManager.setLastBackupTime(Date.now());
+      } else {
+        showToast(message || Locale.Settings.AutoBackup.WriteFailed);
+      }
+    } finally {
+      setBackingUp(false);
+    }
   };
 
   return (
@@ -397,6 +417,26 @@ function AutoBackupItems() {
             style={{ width: "60px" }}
             aria-label={Locale.Settings.AutoBackup.MaxCount}
           />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "8px",
+            marginTop: "8px",
+          }}
+        >
+          <button
+            type="button"
+            className={styles["mem0-input"]}
+            style={{ maxWidth: "120px" }}
+            onClick={handleBackupNow}
+            disabled={backingUp || !hasDir}
+          >
+            {backingUp
+              ? Locale.Settings.AutoBackup.BackingUp
+              : Locale.Settings.AutoBackup.BackupNow}
+          </button>
         </div>
       </div>
     </ListItem>

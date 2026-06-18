@@ -11,11 +11,14 @@ const CHECK_INTERVAL_MS = 60_000; // 每分钟检查一次是否该备份
  */
 export function AutoBackupScheduler() {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isWritingRef = useRef(false);
 
   useEffect(() => {
     if (!jchatDataManager.isBackupToDirectorySupported()) return;
 
     const tick = async () => {
+      if (isWritingRef.current) return;
+
       const config = await jchatDataManager.getAutoBackupConfig();
       if (!config.enabled) return;
       const handle = await jchatDataManager.getStoredBackupDirHandle();
@@ -26,11 +29,15 @@ export function AutoBackupScheduler() {
       const intervalMs = config.intervalMinutes * 60 * 1000;
       if (last > 0 && now - last < intervalMs) return;
 
-      const { ok, message } = await jchatDataManager.writeBackupToDirectory();
-      if (ok) {
+      isWritingRef.current = true;
+      try {
         await jchatDataManager.setLastBackupTime(now);
-      } else if (message) {
-        console.warn("[AutoBackupScheduler]", message);
+        const { ok, message } = await jchatDataManager.writeBackupToDirectory();
+        if (!ok && message) {
+          console.warn("[AutoBackupScheduler]", message);
+        }
+      } finally {
+        isWritingRef.current = false;
       }
     };
 

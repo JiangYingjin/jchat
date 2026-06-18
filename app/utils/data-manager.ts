@@ -343,6 +343,40 @@ class JChatDataManager {
   /**
    * 将当前数据备份写入已选择的目录，并按配置删除过多旧文件
    */
+  /** 清理旧备份文件，保留最近 maxCount 个 */
+  private async cleanupOldBackups(
+    handle: FileSystemDirectoryHandle,
+    maxCount: number,
+  ): Promise<void> {
+    const names: string[] = [];
+    for await (const [name] of handle as unknown as AsyncIterable<
+      [string, FileSystemHandle]
+    >) {
+      if (
+        name.startsWith(BACKUP_FILE_PREFIX) &&
+        name.endsWith(BACKUP_FILE_SUFFIX)
+      ) {
+        names.push(name);
+      }
+    }
+    names.sort();
+    let removed = 0;
+    while (names.length > maxCount) {
+      const toRemove = names.shift()!;
+      try {
+        await handle.removeEntry(toRemove);
+        removed++;
+      } catch (e) {
+        console.warn(`[DataManager] 删除旧备份文件失败: ${toRemove}`, e);
+      }
+    }
+    if (removed > 0 || names.length > maxCount) {
+      console.log(
+        `[DataManager] 清理备份: 删 ${removed} 个, 剩 ${names.length} 个 (上限 ${maxCount})`,
+      );
+    }
+  }
+
   async writeBackupToDirectory(): Promise<{ ok: boolean; message?: string }> {
     if (!this.isClient) return { ok: false, message: "仅支持浏览器环境" };
     const handle = await this.getStoredBackupDirHandle();
@@ -350,32 +384,17 @@ class JChatDataManager {
       return { ok: false, message: "请先在设置中选择备份目录" };
     }
     try {
+      const config = await this.getAutoBackupConfig();
+      const maxCount = Math.max(1, config.maxCount);
+
+      await this.cleanupOldBackups(handle, maxCount);
+
       const { blob, fileName, totalSessions, totalMessages } =
         await this.buildBackupBlob();
       const fileHandle = await handle.getFileHandle(fileName, { create: true });
       const writable = await fileHandle.createWritable();
       await writable.write(blob);
       await writable.close();
-
-      const config = await this.getAutoBackupConfig();
-      const maxCount = Math.max(1, config.maxCount);
-      const names: string[] = [];
-      // FileSystemDirectoryHandle 是异步可迭代的，TS 类型可能未包含
-      for await (const [name] of handle as unknown as AsyncIterable<
-        [string, FileSystemHandle]
-      >) {
-        if (
-          name.startsWith(BACKUP_FILE_PREFIX) &&
-          name.endsWith(BACKUP_FILE_SUFFIX)
-        ) {
-          names.push(name);
-        }
-      }
-      names.sort();
-      while (names.length > maxCount) {
-        const toRemove = names.shift()!;
-        await handle.removeEntry(toRemove);
-      }
 
       console.log(
         `[DataManager] 已写入备份 ${fileName}，${totalSessions} 会话，${totalMessages} 条消息`,
