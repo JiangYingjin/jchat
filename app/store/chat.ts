@@ -2616,8 +2616,8 @@ export const useChatStore = createPersistStore(
           if (usage.completion_tokens) {
             message.completion_tokens = usage.completion_tokens;
           }
-          if (usage.cost) {
-            message.cost = usage.cost;
+          if (usage.cost_details?.upstream_inference_cost_cny) {
+            message.cost = usage.cost_details.upstream_inference_cost_cny;
           }
 
           // 最终计算 tps
@@ -2907,8 +2907,9 @@ export const useChatStore = createPersistStore(
               if (usage.completion_tokens) {
                 modelMessage.completion_tokens = usage.completion_tokens;
               }
-              if (usage.cost) {
-                modelMessage.cost = usage.cost;
+              if (usage.cost_details?.upstream_inference_cost_cny) {
+                modelMessage.cost =
+                  usage.cost_details.upstream_inference_cost_cny;
               }
 
               // 计算 tps (tokens per second)
@@ -2983,8 +2984,9 @@ export const useChatStore = createPersistStore(
               if (usage.completion_tokens) {
                 modelMessage.completion_tokens = usage.completion_tokens;
               }
-              if (usage.cost) {
-                modelMessage.cost = usage.cost;
+              if (usage.cost_details?.upstream_inference_cost_cny) {
+                modelMessage.cost =
+                  usage.cost_details.upstream_inference_cost_cny;
               }
 
               // 计算 tps (tokens per second)

@@ -30,6 +30,15 @@ export interface RequestMessage {
   reasoningContent?: string;
 }
 
+export type UsageInfo = {
+  completion_tokens?: number;
+  prompt_tokens?: number;
+  cost?: number;
+  cost_details?: {
+    upstream_inference_cost_cny?: number;
+  };
+};
+
 export interface ChatOptions {
   messages: RequestMessage[];
   model: string;
@@ -43,29 +52,17 @@ export interface ChatOptions {
   onUpdate?: (
     message: string | MultimodalContent[],
     chunk: string,
-    usage?: {
-      completion_tokens?: number;
-      prompt_tokens?: number;
-      cost?: number;
-    },
+    usage?: UsageInfo,
   ) => void;
   onReasoningUpdate?: (
     message: string,
     chunk: string,
-    usage?: {
-      completion_tokens?: number;
-      prompt_tokens?: number;
-      cost?: number;
-    },
+    usage?: UsageInfo,
   ) => void;
   onFinish: (
     message: string | MultimodalContent[],
     responseRes: Response,
-    usage?: {
-      completion_tokens?: number;
-      prompt_tokens?: number;
-      cost?: number;
-    },
+    usage?: UsageInfo,
     requestPath?: string,
   ) => void;
   onError?: (err: Error) => void;
