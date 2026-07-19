@@ -1249,6 +1249,8 @@ export function ChatPage() {
     useShallow((state) => selectCurrentSessionId(state)),
   );
 
+  const chatListView = useChatStore((state) => state.chatListView);
+
   // 追踪重新渲染次数和 sessionId 变化
   const renderCount = React.useRef(0);
   const lastSessionIdRef = React.useRef<string | null>(null);
@@ -1276,10 +1278,50 @@ export function ChatPage() {
 
   // 如果没有会话，显示空状态
   if (!currentSessionId) {
+    const isGroupMode = chatListView === "groups";
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <p className="text-gray-600">暂无会话</p>
+      <div className={styles["chat-empty"]}>
+        <div className={styles["chat-empty-card"]}>
+          <div className={styles["chat-empty-icon"]}>
+            {isGroupMode ? (
+              <svg viewBox="0 0 16 16" fill="none">
+                <rect
+                  x="2"
+                  y="3"
+                  width="9"
+                  height="9"
+                  rx="1.5"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                />
+                <rect
+                  x="5"
+                  y="6"
+                  width="9"
+                  height="9"
+                  rx="1.5"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M8 1.5C4.69 1.5 2 3.96 2 7c0 1.2.4 2.32 1.08 3.22L2 14l3.5-1.5c.77.32 1.62.5 2.5.5 3.31 0 6-2.46 6-5.5S11.31 1.5 8 1.5z"
+                  stroke="currentColor"
+                  strokeWidth="1.2"
+                />
+              </svg>
+            )}
+          </div>
+          <h3 className={styles["chat-empty-title"]}>
+            {isGroupMode ? "暂无组会话" : "暂无会话"}
+          </h3>
+          <p className={styles["chat-empty-desc"]}>
+            {isGroupMode
+              ? "将文件拖拽到左侧区域，即可创建组会话批量处理"
+              : "点击左侧「新会话」按钮，开始与 AI 对话"}
+          </p>
         </div>
       </div>
     );
