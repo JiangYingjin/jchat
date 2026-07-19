@@ -9,6 +9,7 @@ async function handle() {
       models: config.models,
       longTextModel: config.longTextModel,
       groupSessionModel: config.groupSessionModel,
+      sessionTitleModel: config.sessionTitleModel,
       defaultModel: config.defaultModel,
     });
   } catch (error) {

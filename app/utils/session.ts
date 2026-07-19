@@ -10,15 +10,16 @@ import { buildMultimodalContent } from "./chat";
 import { systemMessageStorage } from "../store/system";
 import { parseGroupMessageId } from "./group";
 import { messageStorage } from "../store/message";
-import { SESSION_TITLE_MODEL } from "../constant";
 
 // 定义默认主题，避免循环依赖
 const DEFAULT_TOPIC = Locale.Session.Title.Default;
 
 function getModelForTitleGeneration(): string {
-  const models = useChatStore.getState().models;
-  if (models.includes(SESSION_TITLE_MODEL)) return SESSION_TITLE_MODEL;
-  return models[0] ?? SESSION_TITLE_MODEL;
+  const state = useChatStore.getState();
+  const { sessionTitleModel, models } = state;
+  if (sessionTitleModel && models.includes(sessionTitleModel))
+    return sessionTitleModel;
+  return models[0] ?? "";
 }
 
 /**

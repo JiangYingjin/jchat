@@ -515,6 +515,7 @@ const DEFAULT_CHAT_STATE = {
   models: [] as string[],
   longTextModel: null as string | null,
   groupSessionModel: null as string | null,
+  sessionTitleModel: null as string | null,
   defaultModel: null as string | null,
   configError: null as string | null,
   fetchState: 0 as number, // 0 not fetch, 1 fetching, 2 done
@@ -3575,6 +3576,7 @@ export const useChatStore = createPersistStore(
                 models: res.models,
                 longTextModel: res.longTextModel,
                 groupSessionModel: res.groupSessionModel,
+                sessionTitleModel: res.sessionTitleModel,
                 defaultModel: res.defaultModel,
                 configError: null,
                 fetchState: 2,

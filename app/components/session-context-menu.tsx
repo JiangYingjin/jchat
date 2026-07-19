@@ -36,8 +36,13 @@ export function SessionContextMenu(props: SessionContextMenuProps) {
     e.preventDefault();
     e.stopPropagation();
     if (props.sessionIndex !== undefined && props.sessionIndex !== 0) {
-      moveSession(props.sessionIndex, 0);
-      showToast(`会话 "${session.title}" 已移至顶部`);
+      // 使用全局索引：moveSession 操作的是全局 sessions 数组
+      const sessions = useChatStore.getState().sessions;
+      const globalIndex = sessions.findIndex((s) => s.id === props.sessionId);
+      if (globalIndex > 0) {
+        moveSession(globalIndex, 0);
+        showToast(`会话 "${session.title}" 已移至顶部`);
+      }
     }
     props.menu.close();
     props.onClose?.();

@@ -24,6 +24,7 @@ declare global {
       MODELS?: string;
       LONG_TEXT_MODEL?: string;
       GROUP_SESSION_MODEL?: string;
+      SESSION_TITLE_MODEL?: string;
       PROXY_URL?: string;
       MONGODB_USER?: string;
       MONGODB_PASSWD?: string;
@@ -59,6 +60,7 @@ export const getServerSideConfig = () => {
         models: [],
         longTextModel: null,
         groupSessionModel: null,
+        sessionTitleModel: null,
         defaultModel: undefined,
       };
     }
@@ -88,6 +90,7 @@ export const getServerSideConfig = () => {
         models: [],
         longTextModel: null,
         groupSessionModel: null,
+        sessionTitleModel: null,
         defaultModel: undefined,
       };
     }
@@ -108,6 +111,13 @@ export const getServerSideConfig = () => {
   const validGroupSessionModel =
     groupSessionModel && models.includes(groupSessionModel)
       ? groupSessionModel
+      : null;
+
+  // 验证 SESSION_TITLE_MODEL 环境变量（可选）
+  const sessionTitleModel = process.env.SESSION_TITLE_MODEL?.trim();
+  const validSessionTitleModel =
+    sessionTitleModel && models.includes(sessionTitleModel)
+      ? sessionTitleModel
       : null;
 
   const ACCESS_CODES = (function getAccessCodes(): Set<string> {
@@ -133,6 +143,7 @@ export const getServerSideConfig = () => {
     models,
     longTextModel: validLongTextModel,
     groupSessionModel: validGroupSessionModel,
+    sessionTitleModel: validSessionTitleModel,
     defaultModel: models.length > 0 ? models[0] : undefined,
   };
 };
