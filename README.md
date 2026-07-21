@@ -1,156 +1,144 @@
 <div align="center">
 
-# JChat: The Super Terminal for Advanced AI Interaction & Workflow Automation
+# JChat
 
-<p>
-<a href="https://chat.jyj.cx"><img src="https://img.shields.io/badge/Live%20Demo-blue?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxZW0iIGhlaWdodD0iMWVtIiB2aWV3Qm94PSIwIDAgMjQgMjQiPjxwYXRoIGZpbGw9ImN1cnJlbnRDb2xvciIgZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEycy00LjQ4IDEwIDEwIDEwczEwLTQuNDggMTAtMTBTMTcuNTIgMiAxMiAyWk04LjUgMTYuNUw0IDEybDEuNDE1LTEuNDE1TDguNSAxMy42NTVsNy4wODUtNy4wODVMMTcgOC41TDguNSAxNi41WiIvPjwvc3ZnPg==" alt="Live Demo"></a>
-<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge" alt="License: MIT"></a>
-</p>
-
-> **JChat is more than just a chat application—it's a powerful AI super terminal designed for developers, researchers, and power users. It elevates your interaction with Large Language Models (LLMs) to a new level of productivity by offering unparalleled long-context capabilities, an innovative group session workflow engine, and 100% local data storage.**
-
-**🌐 Live Demo: [https://chat.jyj.cx](https://chat.jyj.cx)**
+<a href="https://chat.jyj.cx"><img src="https://img.shields.io/badge/在线演示-chat.jyj.cx-1e88e5?style=flat-square&logo=data:image/svg+xml;base64,PHN2ZyByb2xlPSJpbWciIHZpZXdCb3g9IjAgMCAyNCAyNCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cGF0aCBmaWxsPSIjZmZmIiBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJzNC40OCAxMCAxMCAxMCAxMC00LjQ4IDEwLTEwUzE3LjUyIDIgMTIgMnptLTEgMTcuOTNjLTUuMDUtLjU0LTktNS4wNS05LTEwLjA3IDAtMS4wNC4xNC0yLjA0LjQtM2wyLjg2IDIuODVhMy45OSAzLjk5IDAgMCAwIDUuNjYgNS42NmwyLjg2IDIuODVjLS45Ni4yNi0xLjk2LjQtMyAuNDF6bTYuMjUtMy44NGE0IDQgMCAwIDAtNS42Ni01LjY2bC0yLjg2LTIuODVjLjk2LS4yNiAxLjk2LS40IDMtLjQxIDUuMDUuNTQgOSA1LjA1IDkgMTAuMDcgMCAxLjA0LS4xNCAyLjA0LS40IDIuOTdsLTIuODUtMi44NnoiLz48L3N2Zz4=" alt="Live Demo"></a>
+<a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-4caf50?style=flat-square" alt="License: MIT"></a>
+<a href="https://github.com/ChatGPTNextWeb/NextChat"><img src="https://img.shields.io/badge/基于-NextChat-9c27b0?style=flat-square" alt="Based on NextChat"></a>
 
 </div>
 
+<br>
+
+<p align="center">基于 NextChat (ChatGPT-Next-Web) 的 AI 聊天客户端二次开发。</p>
+
+<p align="center">本地优先，数据自管，百万上下文编辑，AST 搜索引擎。</p>
+
+<br>
+
 ---
 
-## ✨ Key Features
+## 📋 背景
 
-| Feature                              | Description                                                                                                                                              |
-| :----------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 🚀 **Unparalleled Context-Handling** | Built-in **Monaco Editor** (from VS Code), deeply optimized for million-token contexts. Effortlessly analyze entire codebases or read lengthy documents. |
-| 🤖 **Workflow Automation Engine**    | Innovative **"Group Session"** feature to batch-create sessions from files and "batch-apply" commands, turning your AI into a dedicated work team.       |
-| 🛡️ **100% Local-First**              | All data is stored in your browser's **IndexedDB**, ensuring maximum speed, offline access, and absolute data privacy.                                   |
-| 💬 **Advanced Dialogue Management**  | **Branch** conversations from any point, **edit any message** in the history, and safely **delete with undo** for unprecedented flexibility.             |
-| 🎨 **Rich Content Support**          | Render **LaTeX** equations, **Mermaid** diagrams, and full **GitHub Flavored Markdown** directly in your chats.                                          |
-| 📦 **Robust Backup System**          | A full-featured, version-aware **import/export** system ensures your valuable data is never lost.                                                        |
+上游 NextChat 在轻量使用场景下表现良好，但随着使用强度的增加——几个核心体验问题逐渐显现：
 
-## 🤔 Why JChat?
+- **数据存储**：上游将整个应用状态序列化为单 blob 存入 IndexedDB。每次状态变更（切换会话、发送消息、修改设置）都要全量读写整个 blob，数据量越大，启动速度和操作响应越慢。
+- **上下文编辑**：原生 textarea 在数万词元的系统提示词编辑中与 React 状态更新耦合，导致明显卡顿。
+- **会话检索**：数千个会话累积后，简单的列表滚动和文字过滤无法快速定位历史。
+- **会话管理**：基础 CRUD 操作无法满足分支探索、误删恢复、多会话合并等日常需求。
 
-Current AI chat tools often fall short when you try to tackle complex tasks, leading to common bottlenecks:
+本 fork 针对这些问题，在保留上游交互框架的前提下，对存储、编辑器、搜索、会话管理等基础设施做了系统性的重构与增强。
 
-- **Context Length Anxiety**: Want an AI to analyze a codebase or a long report? Sorry, you've hit the context limit. You're forced to manually split and feed data, a frustrating and painful process.
-- **The Nightmare of Batch Tasks**: Need to apply the same pattern to 20 different files? You're stuck performing the same manual operation 20 times, which is incredibly inefficient.
-- **Chaotic Conversation Management**: Dozens of chats get jumbled together, making them difficult to organize and review. Exploring different branches of a single problem means opening new chats, leading to a cluttered mess.
-- **Data Privacy Concerns**: All your conversation data is stored on the cloud, posing a risk of privacy leaks.
+---
 
-**JChat was born to solve these problems.** It refuses to be a mere "toy" and strives to be a true **AI Productivity Engine**. By combining a powerful editor, an innovative workflow, and a local-first architecture, JChat empowers you to truly harness AI to accomplish complex tasks that were previously unimaginable.
+## 🔧 核心改进
 
-## ⚙️ In-Depth Features
+### 🗄️ 数据存储
 
-### 1. An Editor Built for Ultra-Long Context
+上游将整个应用状态序列化为单 blob 存入 IndexedDB，每次操作触发全量读写，数据量增长后响应迟滞明显。改为了元数据、消息体、系统提示词、输入草稿四桶分离的架构，消息按需懒加载。操作响应与数据总量解耦，无论是 10MB 还是 100MB 的数据量，体验一致。
 
-Most AI tools' system prompt inputs become incredibly difficult to use, or even crash the browser, when faced with tens of thousands of tokens.
+配套完整的会话导出导入和定时自动备份机制。
 
-JChat solves this fundamentally. We have creatively integrated the powerful **Monaco Editor** (the core of VS Code) seamlessly into the system prompt editing workflow. This means you can easily and smoothly edit and manage contexts of up to a million tokens, just like in a professional IDE.
+### ✏️ 上下文编辑
 
-- **Say Goodbye to Lag and Crashes**: No matter how long your context is, Monaco Editor's virtualization technology ensures extreme performance and a smooth editing experience.
-- **A Convenient Editing Experience**: Enjoy multi-cursor support, syntax highlighting (coming soon), search-and-replace, and all the familiar IDE features.
-- **Real-time Token Count**: The bottom-right corner of the editor displays a real-time token count of the current context, helping you precisely control costs and input.
-- **Intelligent Model Switching**: Based on the length of your context, JChat will intelligently recommend and switch to an AI model that supports that length.
+上游使用原生 textarea 作为输入组件，在数万词元的系统提示词编辑场景下与 React 状态更新耦合，卡顿明显。集成了 Monaco Editor（VS Code 的 Web 编辑器核心），虚拟化渲染使编辑性能与文档长度解耦，无论上下文多长都保持流畅。系统提示词中可附加多张图片。
 
-> Leave behind the anxiety of editing prompts in a tiny input box. In JChat, context management is finally a pleasure.
+### 💬 会话管理
 
-### 2. A Powerful Group Session & Workflow Engine
+上游的会话操作限于基础增删改。日常使用中逐步扩展为多个功能：
 
-JChat introduces the innovative "Group Session" feature, upgrading the traditional, linear chat model to an organizable, batch-operable **workflow model**.
+- **分支**：从长对话的任意消息点分出新会话，原会话保留，命名自动递增
+- **合并**：多选会话后按拖拽顺序合并为一个新会话
+- **删除撤回**：误删后可撤销恢复
+- **收藏与排序**：标记重要会话，拖拽调整列表顺序，列表背景色深度指示消息数量
+- **性能指标**：展示 TTFT、Cost、TPS 等接口指标
+- **滚动恢复**：离开后自动恢复精确滚动位置
+- **其他**：消息编辑、标题 LLM 自动生成、右键菜单等
 
-- **Batch-Create Sessions**: Drag and drop multiple files (code, documents, logs, etc.) from your local machine, and JChat will automatically create a session group for you, with each file becoming a separate session containing its content.
-- **Batch-Apply Commands**: You can "batch-apply" the same command to all sessions within a group. JChat will automatically execute these tasks in the background and notify you upon completion. This exponentially increases your efficiency for scenarios like batch refactoring, translation, or summarization.
-- **Clear Organization & Navigation**: All groups and their sessions are displayed in a clear, tree-like structure that supports drag-and-drop sorting, allowing you to easily manage dozens or even hundreds of conversations.
-- **Status Tracking**: Each group and session has a clear status indicator (normal, pending, error), giving you an at-a-glance overview of all your tasks.
+### 🔗 分享系统
 
-> Imagine giving a single command: "Refactor these components using TypeScript," and JChat automatically processes all the JS files in the group. This is the workflow revolution that JChat brings.
+将会话生成为短链接分享给他人。基于本机 MongoDB 存储，搜索栏中粘贴链接自动识别并导入——当前会话为空则覆盖，非空则新建。支持 Markdown 和图片格式的会话导出。
 
-### 3. Advanced Dialogue Management
+### 🔍 搜索引擎
 
-JChat provides a suite of sophisticated tools to manage your conversations like you manage your code.
+上游搜索基于简单的子串匹配，缺少组合查询能力。实现了一组搜索语法：空格分隔的词做 AND 逻辑，`|` 做 OR，`"引号"` 做精确匹配，`标题:` 限定搜索范围。查询经 AST 求值后执行，结果中的关键词按相关性高亮显示。
 
-- **Branching**: No more starting a new chat just to explore a new idea. You can create a "branch" from any point in the conversation history to freely explore different paths while keeping the main conversation clean.
-- **Edit Any Message**: Whether it's your input or the AI's response, you can go back and edit any message at any time, then continue the conversation from that point, providing immense flexibility for debugging and refining prompts.
-- **Safe Deletion with Undo**: Accidentally deleted the wrong message, session, or even an entire group? No worries. JChat features a delayed deletion with an "Undo" option, giving you plenty of time to change your mind.
 
-### 4. Local-First Architecture & Data Security
+---
 
-JChat's design philosophy puts user data sovereignty first.
+## 📊 与上游对比
+| 维度 | NextChat | JChat |
+|------|----------|-------|
+| 数据存储 | 单 blob 全量序列化，localStorage 降级 | 四桶分离，按需懒加载 |
+| 编辑器 | 原生 textarea | Monaco Editor，虚拟化渲染 |
+| 搜索 | 子串匹配 | AST 语法（AND / OR / 标题 / 精确匹配） |
+| 会话操作 | 基础 CRUD | 分支 / 撤回 / 合并 / 收藏 / 拖拽排序 |
+| 性能指标 | — | TTFT / Cost / TPS 展示 |
+| 分享 | — | MongoDB 短链，搜索栏导入 |
+| 数据备份 | — | 导出导入 + 定时自动备份 |
+| 视觉辅助 | — | 背景色指示消息数量 |
 
-- **100% Local Storage**: All your data, from the session list to every single message, is stored in your own computer's browser (IndexedDB). This means:
-  - **Extreme Speed**: No waiting for network requests; operations are silky smooth.
-  - **Offline Access**: You can review and organize your conversation history anytime, even without an internet connection.
-  - **Absolute Privacy**: Your data is never uploaded to any third-party server, completely eliminating the risk of privacy leaks.
-- **Complete Backup & Restore**: A single click exports a JSON file containing all your data, which can be used to perfectly restore your workspace on a new device, making data migration effortless.
+---
 
-### 5. Rich Content Support & Data Export
+## 📋 功能速览
+| 功能 | 说明 |
+|------|------|
+| 本地数据管理 | IndexedDB 四桶存储，160MB+ 数据按需加载，导出导入自动备份 |
+| Monaco 编辑器 | 虚拟化渲染，支持长文本编辑与图像附件 |
+| 会话管理 | 分支、删除撤回、合并、收藏、拖拽排序、标题管理、滚动恢复、消息编辑 |
+| 搜索引擎 | AST 搜索语法，支持 AND/OR/标题/精确匹配组合查询 |
+| 分享 | MongoDB 短链，搜索栏粘贴即导入 |
+| 指标展示 | TTFT / Cost / TPS |
+| 长输入模式 | Shift+Enter 切换，适用于编写较长提示词的场景 |
+| 模型配置 | 默认 / 长文 / 组会话 / 标题生成四路独立模型 |
+| 移动端适配 | 支持移动端独立导航操作 |
+| 主题 | 亮色 / 深色 / 跟随系统 |
+| 国际化 | 简体中文、英文 |
 
-JChat believes that technical communication should not be limited to plain text.
+---
 
-- **Rich Text & Images**: Full support for GFM (GitHub Flavored Markdown), allowing you to easily use tables, lists, code blocks, and more. It also supports mixed text and images, with uploaded images displayed directly in the conversation.
-- **Mathematical Formulas**: A built-in KaTeX rendering engine perfectly displays complex LaTeX mathematical formulas.
-- **Diagrams & Charts**: A built-in Mermaid rendering engine allows you to generate flowcharts, sequence diagrams, Gantt charts, and more, directly in the chat using simple text descriptions.
-- **One-Click Export to Image**: Any part of a conversation can be exported as a beautiful image, perfect for sharing on social media.
+## 🚀 快速开始
+```bash
+git clone https://github.com/JiangYingjin/jchat.git
+cd jchat
+pnpm install
+```
 
-## 🚀 Getting Started
+创建 `.env.local`：
 
-1.  **Clone the repository**
+```dotenv
+API_KEY="sk-or-v1-..."
+BASE_URL="https://openrouter.ai/api/v1"
+MODELS="openai/gpt-5.6-luna,anthropic/claude-sonnet-5,google/gemini-3.1-flash"
+```
 
-    ```bash
-    git clone https://github.com/JiangYingjin/JChat.git
-    cd JChat
-    ```
+启动开发服务器：
 
-2.  **Install dependencies**
-    Using `pnpm` is recommended:
+```bash
+pnpm dev
+```
 
-    ```bash
-    pnpm install
-    ```
+访问 `http://localhost:3000`。
 
-3.  **Configure Environment Variables**
-    Create a file named `.env.local` in the project root and add your configuration.
+---
 
-    ```dotenv
-    # .env.local
+## 🛠️ 技术栈
+| 层 | 选型 |
+|------|------|
+| 框架 | Next.js 16 (App Router) |
+| UI | React 19 |
+| 状态管理 | Zustand 5 |
+| 本地存储 | IndexedDB via `localforage` |
+| 代码编辑器 | Monaco Editor |
+| 搜索引擎 | AST 解析引擎 |
+| 分享数据库 | MongoDB via `mongoose` |
+| Markdown | react-markdown + remark-gfm + rehype-katex |
+| 图表 | Mermaid |
+| 拖拽 | @dnd-kit |
+| 国际化 | 自定义实现，中英双语 |
 
-    # [Required] OpenRouter API Key
-    # Create at https://openrouter.ai/settings/keys
-    API_KEY="sk-or-v1-..."
+---
 
-    # [Optional] Access Code
-    # Restrict access with a password. Use commas for multiple codes.
-    CODE="your_access_code_1,your_access_code_2"
-
-    # [Required] OpenRouter API base (OpenAI-compatible)
-    # Docs: https://openrouter.ai/docs/api/reference/overview
-    BASE_URL="https://openrouter.ai/api/v1"
-
-    # [Required] Model IDs from OpenRouter (comma-separated). List changes often — see https://openrouter.ai/models
-    MODELS="openai/gpt-5.4-mini,anthropic/claude-sonnet-4.6,google/gemini-3.1-flash-lite-preview,deepseek/deepseek-v3.2,x-ai/grok-4.20"
-    ```
-
-4.  **Start the development server**
-
-    ```bash
-    pnpm dev
-    ```
-
-    The application will be running at `http://localhost:3000`.
-
-## 🛠️ Tech Stack
-
-- **Framework**: [Next.js](https://nextjs.org/) 15 (App Router)
-- **State Management**: [Zustand](https://github.com/pmndrs/zustand)
-- **UI**: [React](https://react.dev/)
-- **Local Storage**: [IndexedDB](https://developer.mozilla.org/en-US/docs/Web/API/IndexedDB_API) (via `localforage`)
-- **Code Editor**: [Monaco Editor](https://microsoft.github.io/monaco-editor/)
-- **Markdown/LaTeX**: [react-markdown](https://github.com/remarkjs/react-markdown) with `remark-gfm`, `rehype-katex`
-- **Diagrams**: [Mermaid](https://mermaid.js.org/)
-- **Drag & Drop**: [@dnd-kit](https://dndkit.com/)
-
-## 🤝 Contributing
-
-We welcome and encourage community contributions! If you have any ideas, suggestions, or have found a bug, please feel free to open an Issue or submit a Pull Request.
-
-## 📄 License
-
-This project is open-source under the [MIT License](LICENSE).
+## 🔗 相关链接
+- 在线演示：[chat.jyj.cx](https://chat.jyj.cx)
+- 上游仓库：[ChatGPTNextWeb/NextChat](https://github.com/ChatGPTNextWeb/NextChat)
