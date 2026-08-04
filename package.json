@@ -26,7 +26,7 @@
     "monaco-editor": "^0.55.1",
     "mongodb": "^7.0.0",
     "nanoid": "^5.1.6",
-    "next": "^16.2.6",
+    "next": "^16.2.11",
     "p-limit": "^7.2.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
@@ -37,7 +37,7 @@
     "remark-gfm": "^4.0.1",
     "remark-math": "^6.0.0",
     "sass": "^1.97.3",
-    "sharp": "^0.34.5",
+    "sharp": "^0.35.0",
     "spark-md5": "^3.0.2",
     "use-debounce": "^10.1.0",
     "zustand": "^5.0.10"
@@ -58,7 +58,7 @@
     "eslint-plugin-unused-imports": "^4.3.0",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
-    "postcss": "^8.5.6",
+    "postcss": "^8.5.18",
     "prettier": "^3.8.1",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
@@ -77,17 +77,20 @@
       "ajv@6": "6.14.0",
       "ajv@8": "8.18.0",
       "flatted": "3.4.2",
-      "svgo": "3.3.3",
-      "immutable": "5.1.5",
-      "dompurify": "3.4.0",
+      "svgo": "3.3.4",
+      "immutable": "5.1.8",
+      "dompurify": "3.4.12",
       "serialize-javascript": "7.0.5",
       "diff": "4.0.4",
       "mdast-util-to-hast": "13.2.1",
       "glob": "10.5.0",
-      "js-yaml": "4.1.1",
-      "fast-uri": "3.1.2",
+      "js-yaml": "4.3.0",
+      "fast-uri": "3.1.4",
       "uuid": "11.1.1",
-      "@babel/plugin-transform-modules-systemjs": "7.29.4"
+      "@babel/plugin-transform-modules-systemjs": "7.29.4",
+      "postcss": "8.5.18",
+      "brace-expansion": "5.0.7",
+      "@babel/core": "7.29.6"
     }
   }
 }
