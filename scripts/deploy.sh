@@ -88,6 +88,11 @@ link_project_env_into_serve_dir() {
   shopt -u nullglob
 }
 
+# 显式加载 nvm 并激活指定 node 版本（部署工具链依赖 node/corepack/pnpm；与 next/scripts/deploy.sh 保持一致）
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm use 24
+
 ensure_cmd rsync
 ensure_cmd node
 ensure_cmd corepack
