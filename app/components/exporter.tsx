@@ -24,9 +24,9 @@ import { toBlob, toPng } from "html-to-image";
 import { EXPORT_MESSAGE_CLASS_NAME } from "../constant";
 import { getHeaders } from "../client/api";
 import {
-  buildFullSharePayload,
+  shareSessionAsLink,
   type SessionLikeForShare,
-} from "../utils/share";
+} from "../utils/share-client";
 import { generateTitleFromMessages } from "../utils/session";
 
 const Markdown = dynamic(async () => (await import("./markdown")).Markdown, {
@@ -257,28 +257,14 @@ export function MessageExporter() {
     if (sharing) return;
     setSharing(true);
     try {
-      const payload = await buildFullSharePayload(
-        session as unknown as SessionLikeForShare & Record<string, unknown>,
-        systemMessageData,
-      );
       const displayMessageIds =
         selection.size > 0 ? Array.from(selection) : undefined;
-      const res = await fetch("/api/share", {
-        method: "POST",
-        headers: getHeaders(),
-        body: JSON.stringify({
-          ...payload,
-          ...(displayMessageIds != null && displayMessageIds.length > 0
-            ? { displayMessageIds }
-            : {}),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data.msg || Locale.Export.ShareFailed);
-      }
-      if (data.link && data.shareId) {
-        await copyToClipboard(data.link);
+      const data = await shareSessionAsLink(
+        session as unknown as SessionLikeForShare & Record<string, unknown>,
+        systemMessageData,
+        displayMessageIds,
+      );
+      if (data) {
         showToast(Locale.Export.LinkCopied);
         return data;
       }

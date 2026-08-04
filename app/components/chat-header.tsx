@@ -1,5 +1,5 @@
 import { IconButton } from "./button";
-import { DEFAULT_TITLE } from "../store";
+import { DEFAULT_TITLE, systemMessageStorage } from "../store";
 import EditIcon from "../icons/edit.svg";
 import ExportIcon from "../icons/share.svg";
 import DeleteIcon from "../icons/clear.svg";
@@ -11,6 +11,10 @@ import React from "react";
 import { showConfirm } from "./ui-lib";
 import { showToast } from "./ui-lib";
 import { useChatStore } from "../store";
+import {
+  shareSessionAsLink,
+  type SessionLikeForShare,
+} from "../utils/share-client";
 import { useShallow } from "zustand/react/shallow";
 import { createModuleLogger } from "../utils/logger";
 import { useContextMenu } from "./context-menu";
@@ -183,6 +187,35 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
     }
   };
 
+  // 处理导出按钮右键：分享为链接并发送到通知服务（等同导出面板中"分享为链接"的右键单击）
+  const handleExportButtonContextMenu = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const session = chatStore.currentSession();
+    if (!session) return;
+
+    try {
+      const systemMessageData = await systemMessageStorage.get(session.id);
+      const data = await shareSessionAsLink(
+        session as unknown as SessionLikeForShare & Record<string, unknown>,
+        systemMessageData,
+      );
+      if (data?.link) {
+        showToast(Locale.Export.LinkCopied);
+        fetch("https://dj.jyj.cx/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            content: data.link,
+          }),
+        }).catch(() => {});
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : Locale.Export.ShareFailed);
+    }
+  };
+
   return (
     <div className="window-header">
       <div className={clsx("window-header-title", styles["chat-body-title"])}>
@@ -222,6 +255,7 @@ export const ChatHeader = React.memo(function ChatHeader(props: {
               bordered
               title={Locale.Chat.Actions.Export}
               onClick={props.onExportClick}
+              onContextMenu={handleExportButtonContextMenu}
             />
           </div>
           <div className="window-action-button">
