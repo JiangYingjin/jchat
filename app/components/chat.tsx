@@ -1319,7 +1319,7 @@ export function ChatPage() {
           </h3>
           <p className={styles["chat-empty-desc"]}>
             {isGroupMode
-              ? "将文件拖拽到左侧区域，即可创建组会话批量处理"
+              ? "将文件（图片 jpg/png/gif/…、文档 txt/md/json/… 等格式）拖拽到本区域，即可创建组会话批量处理"
               : "点击左侧「新会话」按钮，开始与 AI 对话"}
           </p>
         </div>
