@@ -338,107 +338,79 @@ function AutoBackupItems() {
   };
 
   return (
-    <ListItem
-      title={Locale.Settings.AutoBackup.Title}
-      subTitle={Locale.Settings.AutoBackup.SubTitle}
-      vertical
-    >
-      <div className={styles["auto-backup"]}>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            flexWrap: "wrap",
-          }}
-        >
+    <>
+      <ListItem
+        title="备份目录"
+        subTitle={
+          <span className={styles["backup-dir-status"]}>
+            <span
+              className={`${styles["dir-dot"]} ${hasDir ? styles["selected"] : styles["not-selected"]}`}
+            />
+            {hasDir ? "已选择备份目录" : "未选择备份目录"}
+          </span>
+        }
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
           <button
             type="button"
-            className={styles["mem0-input"]}
-            style={{ maxWidth: "160px" }}
+            className={styles["backup-select-btn"]}
             onClick={handleSelectDir}
             disabled={selecting}
           >
-            {selecting ? "…" : Locale.Settings.AutoBackup.SelectDirectory}
+            {selecting ? "…" : hasDir ? "更换目录" : "选择目录"}
           </button>
-          <span className={styles["list-item-sub-title"]}>
-            {hasDir
-              ? Locale.Settings.AutoBackup.DirectorySelected
-              : Locale.Settings.AutoBackup.DirectoryNotSelected}
-          </span>
+          {hasDir && (
+            <button
+              type="button"
+              className={styles["backup-now-btn"]}
+              onClick={handleBackupNow}
+              disabled={backingUp}
+            >
+              {backingUp ? "正在备份…" : "立即备份"}
+            </button>
+          )}
         </div>
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            marginTop: "8px",
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={config.enabled}
-            onChange={(e) => handleEnabledChange(e.target.checked)}
-            aria-label={Locale.Settings.AutoBackup.Enable}
-          />
-          <span>{Locale.Settings.AutoBackup.Enable}</span>
-        </label>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            marginTop: "8px",
-            flexWrap: "wrap",
-          }}
-        >
-          <span>{Locale.Settings.AutoBackup.Interval}</span>
-          <select
-            value={config.intervalMinutes}
-            onChange={(e) => handleIntervalChange(Number(e.target.value))}
-            className={styles["mem0-input"]}
-            style={{ width: "auto" }}
-            aria-label={Locale.Settings.AutoBackup.Interval}
-          >
-            <option value={60}>{Locale.Settings.AutoBackup.Interval1h}</option>
-            <option value={360}>{Locale.Settings.AutoBackup.Interval6h}</option>
-            <option value={1440}>
-              {Locale.Settings.AutoBackup.Interval24h}
-            </option>
-          </select>
-          <span>{Locale.Settings.AutoBackup.MaxCount}</span>
-          <input
-            type="number"
-            min={1}
-            max={50}
-            value={config.maxCount}
-            onChange={(e) => handleMaxCountChange(Number(e.target.value) || 1)}
-            className={styles["mem0-input"]}
-            style={{ width: "60px" }}
-            aria-label={Locale.Settings.AutoBackup.MaxCount}
-          />
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-            marginTop: "8px",
-          }}
-        >
-          <button
-            type="button"
-            className={styles["mem0-input"]}
-            style={{ maxWidth: "120px" }}
-            onClick={handleBackupNow}
-            disabled={backingUp || !hasDir}
-          >
-            {backingUp
-              ? Locale.Settings.AutoBackup.BackingUp
-              : Locale.Settings.AutoBackup.BackupNow}
-          </button>
-        </div>
-      </div>
-    </ListItem>
+      </ListItem>
+      {hasDir && (
+        <ListItem title="定时备份">
+          <div className={styles["backup-schedule"]}>
+            <label className={styles["backup-toggle"]}>
+              <input
+                type="checkbox"
+                checked={config.enabled}
+                onChange={(e) => handleEnabledChange(e.target.checked)}
+              />
+              <span className={styles["toggle-label"]}>开启</span>
+            </label>
+            <span className={styles["schedule-group"]}>
+              <span>间隔</span>
+              <select
+                value={config.intervalMinutes}
+                onChange={(e) => handleIntervalChange(Number(e.target.value))}
+                className={styles["backup-select"]}
+              >
+                <option value={60}>1 小时</option>
+                <option value={360}>6 小时</option>
+                <option value={1440}>24 小时</option>
+              </select>
+            </span>
+            <span className={styles["schedule-group"]}>
+              <span>保留</span>
+              <input
+                type="number"
+                min={1}
+                max={50}
+                value={config.maxCount}
+                onChange={(e) =>
+                  handleMaxCountChange(Number(e.target.value) || 1)
+                }
+                className={styles["backup-number"]}
+              />
+              <span>份</span>
+            </span>
+          </div>
+        </ListItem>
+      )}
+    </>
   );
 }
