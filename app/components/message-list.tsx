@@ -13,6 +13,11 @@ import { CHAT_PAGE_SIZE } from "../constant";
 import { useScrollState } from "../hooks/use-scroll-state";
 import styles from "../styles/chat.module.scss";
 import { createModuleLogger } from "../utils/logger";
+import { showToast } from "./ui-lib";
+import { useContextMenu } from "./context-menu";
+import sidebarStyles from "../styles/sidebar.module.scss";
+import type { SessionScrollBookmark } from "../types/scroll";
+import { nanoid } from "nanoid";
 
 const messageListLogger = createModuleLogger("MESSAGE_LIST");
 
@@ -95,6 +100,16 @@ export const MessageList = React.memo(function MessageList({
   shareId,
 }: MessageListProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const programmaticScrollRef = useRef(false);
+  const contextMenu = useContextMenu();
+  const [bookmarks, setBookmarks] = useState<SessionScrollBookmark[]>([]);
+  const [contextMenuMode, setContextMenuMode] = useState<"mark" | "remove">(
+    "mark",
+  );
+  const [contextMenuBookmarkId, setContextMenuBookmarkId] = useState<
+    string | null
+  >(null);
+  const [navigationTailHeight, setNavigationTailHeight] = useState(0);
   const isMobileScreen = useMobileScreen();
 
   const messagesData = useChatStore(
@@ -113,6 +128,21 @@ export const MessageList = React.memo(function MessageList({
       : "share"
     : currentSession?.id || "";
   const { saveScrollState, restoreScrollState } = useScrollState(scrollKey);
+
+  // 书签是用户意图，与自动保存的最近滚动状态分开存储。
+  useEffect(() => {
+    let active = true;
+    setBookmarks([]);
+    if (!scrollKey || readOnly) return;
+    import("../store/scroll").then(({ scrollBookmarkStorage }) =>
+      scrollBookmarkStorage.getAll(scrollKey).then((saved) => {
+        if (active) setBookmarks(saved);
+      }),
+    );
+    return () => {
+      active = false;
+    };
+  }, [scrollKey, readOnly]);
 
   // 添加调试信息
   React.useEffect(() => {
@@ -239,6 +269,248 @@ export const MessageList = React.memo(function MessageList({
     return messages.slice(msgRenderIndex, endRenderIndex);
   }, [msgRenderIndex, messages]);
 
+  const persistBookmarks = useCallback(
+    async (nextBookmarks: SessionScrollBookmark[]) => {
+      if (!scrollKey) return false;
+      const { scrollBookmarkStorage } = await import("../store/scroll");
+      return scrollBookmarkStorage.saveAll(scrollKey, nextBookmarks);
+    },
+    [scrollKey],
+  );
+
+  // 消息插入/删除后维持书签在全会话导航轨道上的正确索引。
+  useEffect(() => {
+    if (!bookmarks.length || messages.length === 0) return;
+    let changed = false;
+    const updated = bookmarks.map((bookmark) => {
+      const currentIndex = messages.findIndex(
+        (message) => message.id === bookmark.messageId,
+      );
+      if (currentIndex < 0 || currentIndex === bookmark.messageIndex)
+        return bookmark;
+      changed = true;
+      return { ...bookmark, messageIndex: currentIndex };
+    });
+    if (changed) {
+      setBookmarks(updated);
+      void persistBookmarks(updated);
+    }
+  }, [bookmarks, messages, persistBookmarks]);
+
+  const captureBookmark = useCallback(
+    async (replaceBookmarkId?: string) => {
+      const viewport = scrollRef.current;
+      if (!viewport || !scrollKey) return;
+      const bookmarkToReplace = replaceBookmarkId
+        ? bookmarks.find((bookmark) => bookmark.id === replaceBookmarkId)
+        : undefined;
+      if (replaceBookmarkId && !bookmarkToReplace) {
+        contextMenu.close();
+        return;
+      }
+      const viewportRect = viewport.getBoundingClientRect();
+      const renderedElements = new Map(
+        Array.from(
+          viewport.querySelectorAll<HTMLElement>("[data-message-id]"),
+        ).map((element) => [element.dataset.messageId, element]),
+      );
+      const visible = messages
+        .map((message, index) => {
+          const element = renderedElements.get(message.id);
+          if (!element) return null;
+          return {
+            message,
+            index,
+            element,
+            rect: element.getBoundingClientRect(),
+          };
+        })
+        .find(
+          (item) =>
+            item &&
+            item.rect.bottom > viewportRect.top + 2 &&
+            item.rect.top < viewportRect.bottom,
+        );
+
+      if (!visible?.message.id) return;
+      const nextBookmark: SessionScrollBookmark = {
+        sessionId: scrollKey,
+        id: bookmarkToReplace?.id ?? nanoid(),
+        messageId: visible.message.id,
+        messageIndex: visible.index,
+        viewportOffset: visible.rect.top - viewportRect.top,
+        messageProgress: Math.max(
+          0,
+          Math.min(
+            1,
+            (viewportRect.top - visible.rect.top) /
+              Math.max(1, visible.rect.height),
+          ),
+        ),
+        createdAt: Date.now(),
+      };
+      const nextBookmarks = bookmarkToReplace
+        ? bookmarks.map((bookmark) =>
+            bookmark.id === bookmarkToReplace.id ? nextBookmark : bookmark,
+          )
+        : [...bookmarks, nextBookmark];
+      setBookmarks(nextBookmarks);
+      contextMenu.close();
+      const saved = await persistBookmarks(nextBookmarks);
+      if (saved) {
+        showToast(bookmarkToReplace ? "标记已更新" : "已标记当前位置");
+      } else {
+        setBookmarks(bookmarks);
+        debugLog("MESSAGE_LIST", "阅读书签保存失败", nextBookmark);
+      }
+    },
+    [messages, scrollKey, persistBookmarks, contextMenu, bookmarks],
+  );
+
+  const findMessageElement = useCallback((messageId: string) => {
+    return Array.from(
+      scrollRef.current?.querySelectorAll<HTMLElement>("[data-message-id]") ??
+        [],
+    ).find((item) => item.dataset.messageId === messageId);
+  }, []);
+
+  const jumpToMessage = useCallback(
+    (
+      messageId: string,
+      messageIndex: number,
+      viewportOffset: number,
+      leaveRoomForTopAlignment = false,
+    ) => {
+      const viewport = scrollRef.current;
+      if (!viewport || messages.length === 0) return;
+      const safeIndex = Math.max(
+        0,
+        Math.min(messages.length - 1, messageIndex),
+      );
+      const maxStart = Math.max(0, messages.length - CHAT_PAGE_SIZE);
+      const newStart = Math.max(
+        0,
+        Math.min(maxStart, safeIndex - CHAT_PAGE_SIZE),
+      );
+      setAutoScroll(false);
+      setHitBottom(false);
+      setMsgRenderIndex(newStart);
+      programmaticScrollRef.current = true;
+
+      // 末条短消息可能因容器底部空间不足而无法顶端对齐，补足滚动尾部空间。
+      if (leaveRoomForTopAlignment) {
+        setNavigationTailHeight(viewport.clientHeight + 24);
+      }
+
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          const currentViewport = scrollRef.current;
+          const element = findMessageElement(messageId);
+          if (currentViewport && element) {
+            const viewportTop = currentViewport.getBoundingClientRect().top;
+            const elementTop = element.getBoundingClientRect().top;
+            currentViewport.scrollTop +=
+              elementTop - viewportTop - viewportOffset;
+          }
+          requestAnimationFrame(() => {
+            programmaticScrollRef.current = false;
+          });
+        });
+      });
+    },
+    [messages, setAutoScroll, setHitBottom, findMessageElement],
+  );
+
+  const jumpToBookmark = useCallback(
+    (bookmark: SessionScrollBookmark) => {
+      if (messages.length === 0) return;
+      const currentIndex = messages.findIndex(
+        (message) => message.id === bookmark.messageId,
+      );
+      const fallbackIndex = Math.max(
+        0,
+        Math.min(messages.length - 1, bookmark.messageIndex),
+      );
+      const targetIndex = currentIndex >= 0 ? currentIndex : fallbackIndex;
+      const target = messages[targetIndex];
+      if (!target?.id) return;
+
+      const adjustedBookmark =
+        target.id === bookmark.messageId &&
+        targetIndex === bookmark.messageIndex
+          ? bookmark
+          : { ...bookmark, messageId: target.id, messageIndex: targetIndex };
+      if (adjustedBookmark !== bookmark) {
+        const updated = bookmarks.map((item) =>
+          item.id === bookmark.id ? adjustedBookmark : item,
+        );
+        setBookmarks(updated);
+        void persistBookmarks(updated);
+      }
+      jumpToMessage(target.id, targetIndex, adjustedBookmark.viewportOffset);
+    },
+    [bookmarks, messages, jumpToMessage, persistBookmarks],
+  );
+
+  const jumpToLastMessage = useCallback(() => {
+    const lastIndex = messages.length - 1;
+    const lastMessage = messages[lastIndex];
+    if (!lastMessage?.id) return;
+    jumpToMessage(lastMessage.id, lastIndex, 0, true);
+  }, [messages, jumpToMessage]);
+
+  const removeBookmark = useCallback(async () => {
+    if (!contextMenuBookmarkId) return;
+    const previousBookmarks = bookmarks;
+    const nextBookmarks = bookmarks.filter(
+      (item) => item.id !== contextMenuBookmarkId,
+    );
+    setBookmarks(nextBookmarks);
+    contextMenu.close();
+    const { scrollBookmarkStorage } = await import("../store/scroll");
+    const removed = await scrollBookmarkStorage.remove(
+      scrollKey,
+      contextMenuBookmarkId,
+    );
+    if (removed) {
+      showToast("标记已删除");
+    } else {
+      setBookmarks(previousBookmarks);
+      debugLog("MESSAGE_LIST", "阅读书签删除失败", { scrollKey });
+    }
+  }, [bookmarks, contextMenu, contextMenuBookmarkId, scrollKey]);
+
+  const openViewportContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement;
+      if (
+        target.closest(
+          "input, textarea, select, button, a, [contenteditable='true'], iframe, video, audio",
+        )
+      ) {
+        return;
+      }
+      if (window.getSelection()?.toString().trim()) return;
+      event.preventDefault();
+      event.stopPropagation();
+      setContextMenuMode("mark");
+      setContextMenuBookmarkId(null);
+      contextMenu.openAtEvent(event);
+    },
+    [contextMenu],
+  );
+
+  const openBookmarkContextMenu = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>, bookmarkId: string) => {
+      event.preventDefault();
+      event.stopPropagation();
+      setContextMenuMode("remove");
+      setContextMenuBookmarkId(bookmarkId);
+      contextMenu.openAtEvent(event);
+    },
+    [contextMenu],
+  );
+
   const onChatBodyScroll = (e: HTMLElement) => {
     const bottomHeight = e.scrollTop + e.clientHeight;
     const edgeThreshold = e.clientHeight;
@@ -251,14 +523,18 @@ export const MessageList = React.memo(function MessageList({
     const prevPageMsgIndex = msgRenderIndex - CHAT_PAGE_SIZE;
     const nextPageMsgIndex = msgRenderIndex + CHAT_PAGE_SIZE;
 
-    if (isTouchTopEdge && !isTouchBottomEdge) {
-      updateMsgRenderIndex(prevPageMsgIndex);
-    } else if (isTouchBottomEdge) {
-      updateMsgRenderIndex(nextPageMsgIndex);
+    if (!programmaticScrollRef.current) {
+      if (isTouchTopEdge && !isTouchBottomEdge) {
+        updateMsgRenderIndex(prevPageMsgIndex);
+      } else if (isTouchBottomEdge) {
+        updateMsgRenderIndex(nextPageMsgIndex);
+      }
     }
 
-    setHitBottom(isHitBottom);
-    setAutoScroll(isHitBottom);
+    if (!programmaticScrollRef.current) {
+      setHitBottom(isHitBottom);
+      setAutoScroll(isHitBottom);
+    }
 
     // 保存滚动状态（会话页与分享页按 scrollKey 隔离存储）
     if (scrollKey) {
@@ -313,62 +589,155 @@ export const MessageList = React.memo(function MessageList({
   }, [messages.length]); // 只在消息列表长度变化时重新设置观察者
 
   return (
-    <div
-      className={styles["chat-body"]}
-      ref={scrollRef}
-      onScroll={(e) => onChatBodyScroll(e.currentTarget)}
-      onMouseDown={() => {
-        // 移除对 inputRef 的依赖，改为通用的失焦处理
-        const activeElement = document.activeElement as HTMLElement;
-        if (activeElement && activeElement.tagName === "TEXTAREA") {
-          activeElement.blur();
-        }
-      }}
-      onTouchStart={() => {
-        // 移除对 inputRef 的依赖，改为通用的失焦处理
-        const activeElement = document.activeElement as HTMLElement;
-        if (activeElement && activeElement.tagName === "TEXTAREA") {
-          activeElement.blur();
-        }
-        setAutoScroll(false);
-      }}
-    >
-      {renderMessages.map((message, i) => {
-        const isUser = message.role === "user";
-        const isSystem = message.role === "system";
-        const showActions = !(
-          message.preview ||
-          (message.content.length === 0 && !message.reasoningContent)
-        );
+    <div className={styles["chat-message-region"]}>
+      <div
+        className={styles["chat-body"]}
+        ref={scrollRef}
+        onScroll={(e) => onChatBodyScroll(e.currentTarget)}
+        onContextMenu={readOnly ? undefined : openViewportContextMenu}
+        onMouseDown={() => {
+          const activeElement = document.activeElement as HTMLElement;
+          if (activeElement && activeElement.tagName === "TEXTAREA") {
+            activeElement.blur();
+          }
+        }}
+        onTouchStart={() => {
+          const activeElement = document.activeElement as HTMLElement;
+          if (activeElement && activeElement.tagName === "TEXTAREA") {
+            activeElement.blur();
+          }
+          setAutoScroll(false);
+        }}
+      >
+        {renderMessages.map((message, i) => {
+          const isUser = message.role === "user";
+          const isSystem = message.role === "system";
+          const showActions = !(
+            message.preview ||
+            (message.content.length === 0 && !message.reasoningContent)
+          );
 
-        // 会话界面隐藏系统消息；分享页仅当有内容时展示
-        if (isSystem) {
-          if (!readOnly) return null;
-          if (!hasMessageContent(message)) return null;
-        }
+          if (isSystem) {
+            if (!readOnly) return null;
+            if (!hasMessageContent(message)) return null;
+          }
 
-        return (
-          <ChatMessageItem
-            key={message.id}
-            message={message}
-            index={i}
-            isUser={isUser}
-            showActions={showActions}
-            readOnly={readOnly}
-            messageRefs={messageRefs}
-            scrollRef={scrollRef}
-            messageHeights={messageHeights}
-            onResend={onResend}
-            onDelete={onDelete}
-            onUserStop={onUserStop}
-            onBranch={onBranch}
-            onBatchApply={onBatchApply}
-            onBatchDelete={onBatchDelete}
-            onEditMessage={onEditMessage}
-            handleTripleClick={handleTripleClick}
-          />
-        );
-      })}
+          return (
+            <ChatMessageItem
+              key={message.id}
+              message={message}
+              index={msgRenderIndex + i}
+              isUser={isUser}
+              showActions={showActions}
+              readOnly={readOnly}
+              messageRefs={messageRefs}
+              scrollRef={scrollRef}
+              messageHeights={messageHeights}
+              onResend={onResend}
+              onDelete={onDelete}
+              onUserStop={onUserStop}
+              onBranch={onBranch}
+              onBatchApply={onBatchApply}
+              onBatchDelete={onBatchDelete}
+              onEditMessage={onEditMessage}
+              handleTripleClick={handleTripleClick}
+            />
+          );
+        })}
+        {navigationTailHeight > 0 &&
+          renderMessages.some(
+            (message) => message.id === messages.at(-1)?.id,
+          ) && (
+            <div
+              aria-hidden="true"
+              className={styles["scroll-navigation-tail"]}
+              style={{ height: navigationTailHeight }}
+            />
+          )}
+      </div>
+
+      {!readOnly && messages.length > 0 && (
+        <div className={styles["scroll-marker-rail"]} aria-label="会话导航标记">
+          {bookmarks.map((bookmark, index) => {
+            const position =
+              ((bookmark.messageIndex + bookmark.messageProgress) /
+                Math.max(1, messages.length)) *
+              100;
+            const nearbyCount = bookmarks
+              .slice(0, index)
+              .filter(
+                (previous) =>
+                  Math.abs(
+                    previous.messageIndex +
+                      previous.messageProgress -
+                      bookmark.messageIndex -
+                      bookmark.messageProgress,
+                  ) <= Math.max(1, messages.length * 0.018),
+              ).length;
+            return (
+              <button
+                key={bookmark.id}
+                type="button"
+                className={`${styles["scroll-marker"]} ${styles["scroll-marker-bookmark"]}`}
+                style={{
+                  top: `calc(${position}% + ${nearbyCount * (isMobileScreen ? 7 : 5)}px)`,
+                  marginTop:
+                    bookmark.messageIndex === messages.length - 1
+                      ? isMobileScreen
+                        ? -20
+                        : -16
+                      : 0,
+                }}
+                title={`返回阅读标记 ${index + 1}；右键删除`}
+                aria-label={`返回阅读标记 ${index + 1}；右键打开删除菜单`}
+                onClick={() => jumpToBookmark(bookmark)}
+                onContextMenu={(event) =>
+                  openBookmarkContextMenu(event, bookmark.id)
+                }
+              >
+                <span aria-hidden="true">◆</span>
+              </button>
+            );
+          })}
+          <button
+            type="button"
+            className={`${styles["scroll-marker"]} ${styles["scroll-marker-last"]}`}
+            style={{ top: "100%" }}
+            title="跳到最后一条消息的顶部"
+            aria-label="跳到最后一条消息的顶部"
+            onClick={jumpToLastMessage}
+          >
+            <span aria-hidden="true">●</span>
+          </button>
+        </div>
+      )}
+
+      {contextMenu.render(
+        <>
+          <div
+            className={sidebarStyles["search-context-item"]}
+            onClick={() => {
+              if (contextMenuMode === "remove") {
+                void removeBookmark();
+              } else {
+                void captureBookmark();
+              }
+            }}
+          >
+            {contextMenuMode === "remove" ? "删除标记" : "标记当前位置"}
+          </div>
+          {contextMenuMode === "remove" && (
+            <div
+              className={sidebarStyles["search-context-item"]}
+              onClick={() => {
+                void captureBookmark(contextMenuBookmarkId ?? undefined);
+              }}
+            >
+              更新为当前位置
+            </div>
+          )}
+        </>,
+      )}
     </div>
   );
 });

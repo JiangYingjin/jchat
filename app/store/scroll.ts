@@ -4,13 +4,17 @@
  */
 
 import localforage from "localforage";
-import type { SessionScrollState } from "../types/scroll";
+import type {
+  SessionScrollBookmark,
+  SessionScrollState,
+} from "../types/scroll";
 
 // 检查是否在客户端环境
 const isClient = typeof window !== "undefined";
 
 // 独立的滚动状态存储实例
 let scrollStorageInstance: LocalForage | null = null;
+let bookmarkStorageInstance: LocalForage | null = null;
 
 const getScrollStorage = (): LocalForage | null => {
   if (!isClient) return null;
@@ -22,6 +26,18 @@ const getScrollStorage = (): LocalForage | null => {
     });
   }
   return scrollStorageInstance;
+};
+
+const getBookmarkStorage = (): LocalForage | null => {
+  if (!isClient) return null;
+  if (!bookmarkStorageInstance) {
+    bookmarkStorageInstance = localforage.createInstance({
+      name: "JChat",
+      storeName: "sessionBookmarks",
+      description: "User-created session reading bookmarks",
+    });
+  }
+  return bookmarkStorageInstance;
 };
 
 import { createModuleLogger } from "../utils/logger";
@@ -107,3 +123,83 @@ class ScrollStorage implements ScrollStateStorage {
 
 // 导出存储实例
 export const scrollStorage = new ScrollStorage();
+
+/**
+ * 用户阅读书签存储：与自动恢复位置使用独立 object store，互不覆盖。
+ */
+class ScrollBookmarkStorage {
+  async saveAll(
+    sessionId: string,
+    bookmarks: SessionScrollBookmark[],
+  ): Promise<boolean> {
+    try {
+      const storage = getBookmarkStorage();
+      if (!storage) return false;
+      await storage.setItem(sessionId, bookmarks);
+      return true;
+    } catch (error) {
+      debugLog("BOOKMARK_SAVE_ERROR", `保存阅读书签失败: ${error}`);
+      return false;
+    }
+  }
+
+  async getAll(sessionId: string): Promise<SessionScrollBookmark[]> {
+    try {
+      const storage = getBookmarkStorage();
+      if (!storage) return [];
+      const data = await storage.getItem<
+        SessionScrollBookmark[] | SessionScrollBookmark
+      >(sessionId);
+      if (!data) return [];
+      const records = Array.isArray(data) ? data : [data];
+      const bookmarks = records.flatMap((record) => {
+        if (
+          !record ||
+          record.sessionId !== sessionId ||
+          typeof record.messageId !== "string" ||
+          !Number.isFinite(record.messageIndex) ||
+          !Number.isFinite(record.viewportOffset)
+        ) {
+          return [];
+        }
+        return [
+          {
+            ...record,
+            id:
+              typeof record.id === "string"
+                ? record.id
+                : `legacy-${record.messageId}-${record.createdAt}`,
+            messageProgress: Number.isFinite(record.messageProgress)
+              ? record.messageProgress
+              : 0,
+          },
+        ];
+      });
+      if (!Array.isArray(data) || bookmarks.length !== records.length) {
+        await storage.setItem(sessionId, bookmarks);
+      }
+      return bookmarks;
+    } catch (error) {
+      debugLog("BOOKMARK_GET_ERROR", `读取阅读书签失败: ${error}`);
+      return [];
+    }
+  }
+
+  async remove(sessionId: string, bookmarkId: string): Promise<boolean> {
+    try {
+      const storage = getBookmarkStorage();
+      if (!storage) return false;
+      const bookmarks = await this.getAll(sessionId);
+      await storage.setItem(
+        sessionId,
+        bookmarks.filter((bookmark) => bookmark.id !== bookmarkId),
+      );
+      return true;
+    } catch (error) {
+      debugLog("BOOKMARK_REMOVE_ERROR", `删除阅读书签失败: ${error}`);
+      return false;
+    }
+  }
+}
+
+export const scrollBookmarkStorage = new ScrollBookmarkStorage();
