@@ -109,7 +109,6 @@ export const MessageList = React.memo(function MessageList({
   const [contextMenuBookmarkId, setContextMenuBookmarkId] = useState<
     string | null
   >(null);
-  const [navigationTailHeight, setNavigationTailHeight] = useState(0);
   const isMobileScreen = useMobileScreen();
 
   const messagesData = useChatStore(
@@ -379,7 +378,7 @@ export const MessageList = React.memo(function MessageList({
       messageId: string,
       messageIndex: number,
       viewportOffset: number,
-      leaveRoomForTopAlignment = false,
+      alignLastMessage = false,
     ) => {
       const viewport = scrollRef.current;
       if (!viewport || messages.length === 0) return;
@@ -405,34 +404,22 @@ export const MessageList = React.memo(function MessageList({
           return;
         }
 
-        const viewportTop = currentViewport.getBoundingClientRect().top;
-        const elementTop = element.getBoundingClientRect().top;
-        const scrollDelta = elementTop - viewportTop - viewportOffset;
+        const viewportRect = currentViewport.getBoundingClientRect();
+        const elementRect = element.getBoundingClientRect();
+        const scrollDelta = elementRect.top - viewportRect.top - viewportOffset;
 
-        if (leaveRoomForTopAlignment) {
-          const tail = currentViewport.querySelector<HTMLElement>(
-            "[data-navigation-tail]",
-          );
-          const currentTailHeight = tail?.getBoundingClientRect().height ?? 0;
-          const baseMaxScroll =
-            currentViewport.scrollHeight -
-            currentTailHeight -
-            currentViewport.clientHeight;
+        if (alignLastMessage) {
           const targetScrollTop = currentViewport.scrollTop + scrollDelta;
-          // 仅补足将末条消息顶端对齐所需的差额，避免在会话末尾留下整屏空滚动区。
-          const requiredTailHeight = Math.max(
-            0,
-            Math.ceil(targetScrollTop - baseMaxScroll + 1),
-          );
+          const maxScrollTop =
+            currentViewport.scrollHeight - currentViewport.clientHeight;
 
-          if (Math.abs(requiredTailHeight - currentTailHeight) > 1) {
-            setNavigationTailHeight(requiredTailHeight);
-            requestAnimationFrame(() => requestAnimationFrame(alignMessage));
-            return;
-          }
+          // 短末条消息无法在不添加尾部空白的情况下顶端对齐；此时停在真实内容末端，
+          // 让消息靠近视口底部。较长消息仍按要求顶端对齐。
+          currentViewport.scrollTop =
+            targetScrollTop <= maxScrollTop ? targetScrollTop : maxScrollTop;
+        } else {
+          currentViewport.scrollTop += scrollDelta;
         }
-
-        currentViewport.scrollTop += scrollDelta;
         requestAnimationFrame(() => {
           programmaticScrollRef.current = false;
         });
@@ -666,17 +653,6 @@ export const MessageList = React.memo(function MessageList({
             />
           );
         })}
-        {navigationTailHeight > 0 &&
-          renderMessages.some(
-            (message) => message.id === messages.at(-1)?.id,
-          ) && (
-            <div
-              aria-hidden="true"
-              data-navigation-tail="true"
-              className={styles["scroll-navigation-tail"]}
-              style={{ height: navigationTailHeight }}
-            />
-          )}
       </div>
 
       {!readOnly && messages.length > 0 && (
