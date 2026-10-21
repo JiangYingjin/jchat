@@ -297,61 +297,75 @@ export const MessageList = React.memo(function MessageList({
     }
   }, [bookmarks, messages, persistBookmarks]);
 
-  const captureBookmark = useCallback(async () => {
-    const viewport = scrollRef.current;
-    if (!viewport || !scrollKey) return;
-    const viewportRect = viewport.getBoundingClientRect();
-    const renderedElements = new Map(
-      Array.from(
-        viewport.querySelectorAll<HTMLElement>("[data-message-id]"),
-      ).map((element) => [element.dataset.messageId, element]),
-    );
-    const visible = messages
-      .map((message, index) => {
-        const element = renderedElements.get(message.id);
-        if (!element) return null;
-        return {
-          message,
-          index,
-          element,
-          rect: element.getBoundingClientRect(),
-        };
-      })
-      .find(
-        (item) =>
-          item &&
-          item.rect.bottom > viewportRect.top + 2 &&
-          item.rect.top < viewportRect.bottom,
+  const captureBookmark = useCallback(
+    async (replaceBookmarkId?: string) => {
+      const viewport = scrollRef.current;
+      if (!viewport || !scrollKey) return;
+      const bookmarkToReplace = replaceBookmarkId
+        ? bookmarks.find((bookmark) => bookmark.id === replaceBookmarkId)
+        : undefined;
+      if (replaceBookmarkId && !bookmarkToReplace) {
+        contextMenu.close();
+        return;
+      }
+      const viewportRect = viewport.getBoundingClientRect();
+      const renderedElements = new Map(
+        Array.from(
+          viewport.querySelectorAll<HTMLElement>("[data-message-id]"),
+        ).map((element) => [element.dataset.messageId, element]),
       );
+      const visible = messages
+        .map((message, index) => {
+          const element = renderedElements.get(message.id);
+          if (!element) return null;
+          return {
+            message,
+            index,
+            element,
+            rect: element.getBoundingClientRect(),
+          };
+        })
+        .find(
+          (item) =>
+            item &&
+            item.rect.bottom > viewportRect.top + 2 &&
+            item.rect.top < viewportRect.bottom,
+        );
 
-    if (!visible?.message.id) return;
-    const nextBookmark: SessionScrollBookmark = {
-      sessionId: scrollKey,
-      id: nanoid(),
-      messageId: visible.message.id,
-      messageIndex: visible.index,
-      viewportOffset: visible.rect.top - viewportRect.top,
-      messageProgress: Math.max(
-        0,
-        Math.min(
-          1,
-          (viewportRect.top - visible.rect.top) /
-            Math.max(1, visible.rect.height),
+      if (!visible?.message.id) return;
+      const nextBookmark: SessionScrollBookmark = {
+        sessionId: scrollKey,
+        id: bookmarkToReplace?.id ?? nanoid(),
+        messageId: visible.message.id,
+        messageIndex: visible.index,
+        viewportOffset: visible.rect.top - viewportRect.top,
+        messageProgress: Math.max(
+          0,
+          Math.min(
+            1,
+            (viewportRect.top - visible.rect.top) /
+              Math.max(1, visible.rect.height),
+          ),
         ),
-      ),
-      createdAt: Date.now(),
-    };
-    const nextBookmarks = [...bookmarks, nextBookmark];
-    setBookmarks(nextBookmarks);
-    contextMenu.close();
-    const saved = await persistBookmarks(nextBookmarks);
-    if (saved) {
-      showToast("已标记当前位置");
-    } else {
-      setBookmarks(bookmarks);
-      debugLog("MESSAGE_LIST", "阅读书签保存失败", nextBookmark);
-    }
-  }, [messages, scrollKey, persistBookmarks, contextMenu, bookmarks]);
+        createdAt: Date.now(),
+      };
+      const nextBookmarks = bookmarkToReplace
+        ? bookmarks.map((bookmark) =>
+            bookmark.id === bookmarkToReplace.id ? nextBookmark : bookmark,
+          )
+        : [...bookmarks, nextBookmark];
+      setBookmarks(nextBookmarks);
+      contextMenu.close();
+      const saved = await persistBookmarks(nextBookmarks);
+      if (saved) {
+        showToast(bookmarkToReplace ? "标记已更新" : "已标记当前位置");
+      } else {
+        setBookmarks(bookmarks);
+        debugLog("MESSAGE_LIST", "阅读书签保存失败", nextBookmark);
+      }
+    },
+    [messages, scrollKey, persistBookmarks, contextMenu, bookmarks],
+  );
 
   const findMessageElement = useCallback((messageId: string) => {
     return Array.from(
@@ -712,6 +726,16 @@ export const MessageList = React.memo(function MessageList({
           >
             {contextMenuMode === "remove" ? "删除标记" : "标记当前位置"}
           </div>
+          {contextMenuMode === "remove" && (
+            <div
+              className={sidebarStyles["search-context-item"]}
+              onClick={() => {
+                void captureBookmark(contextMenuBookmarkId ?? undefined);
+              }}
+            >
+              更新为当前位置
+            </div>
+          )}
         </>,
       )}
     </div>
