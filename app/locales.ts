@@ -105,6 +105,9 @@ const cn = {
   Settings: {
     Title: "设置",
     SubTitle: "所有设置选项",
+    DeviceTransfer: {
+      Title: "跨设备会话传送",
+    },
     LocalData: {
       LocalState: "本地数据",
       Overview: (overview: any) => {

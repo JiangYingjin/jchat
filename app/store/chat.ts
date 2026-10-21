@@ -1093,6 +1093,142 @@ export const useChatStore = createPersistStore(
         });
       },
 
+      /** 导入跨设备快照到本地：始终创建新会话，不修改当前会话。 */
+      async importTransferredSession(body: {
+        version?: number;
+        session?: Record<string, unknown>;
+        systemPrompt?: { text: string; images: string[] } | null;
+        messages?: unknown[];
+      }): Promise<{ ok: boolean; error?: string }> {
+        if (!isDataRestored) {
+          return { ok: false, error: "数据未恢复，请稍后再试" };
+        }
+        if (
+          typeof body?.version !== "number" ||
+          body.version !== 1 ||
+          !body.session ||
+          typeof body.session !== "object" ||
+          !Array.isArray(body.messages)
+        ) {
+          return { ok: false, error: "会话快照格式无效" };
+        }
+        if (
+          body.messages.some(
+            (message: any) =>
+              !message ||
+              typeof message !== "object" ||
+              !["system", "user", "assistant"].includes(message.role) ||
+              !(
+                typeof message.content === "string" ||
+                Array.isArray(message.content)
+              ),
+          )
+        ) {
+          return { ok: false, error: "会话消息格式无效，未导入会话" };
+        }
+
+        const normalizedMessages: ChatMessage[] = body.messages.map(
+          (message: any) => ({
+            ...message,
+            id: message?.id ?? nanoid(),
+            role: message?.role ?? "user",
+            content: message?.content ?? "",
+            date:
+              typeof message?.date === "string"
+                ? message.date
+                : message?.date
+                  ? new Date(message.date).toLocaleString()
+                  : new Date().toLocaleString(),
+          }),
+        );
+        const meta =
+          body.session && typeof body.session === "object" ? body.session : {};
+        const newSession = createEmptySession();
+        newSession.messages = normalizedMessages;
+        newSession.messageCount = normalizedMessages.length;
+        newSession.lastUpdate = Date.now();
+        if (typeof meta.title === "string") newSession.title = meta.title;
+        if (typeof meta.model === "string") newSession.model = meta.model;
+        if (typeof meta.longInputMode === "boolean")
+          newSession.longInputMode = meta.longInputMode;
+        if (typeof meta.ignoreSystemPrompt === "boolean")
+          newSession.ignoreSystemPrompt = meta.ignoreSystemPrompt;
+        if (typeof meta.useMemory === "boolean")
+          newSession.useMemory = meta.useMemory;
+        if (typeof meta.isTitleManuallyEdited === "boolean")
+          newSession.isTitleManuallyEdited = meta.isTitleManuallyEdited;
+        if (
+          typeof meta.status === "string" &&
+          ["normal", "error", "pending"].includes(meta.status)
+        )
+          newSession.status = meta.status as "normal" | "error" | "pending";
+        if (typeof meta.isModelManuallySelected === "boolean")
+          newSession.isModelManuallySelected = meta.isModelManuallySelected;
+        if (typeof meta.sourceName === "string")
+          newSession.sourceName = meta.sourceName;
+
+        const systemPrompt = body.systemPrompt;
+        if (
+          systemPrompt &&
+          typeof systemPrompt === "object" &&
+          (typeof systemPrompt.text === "string" ||
+            Array.isArray(systemPrompt.images))
+        ) {
+          const systemSaved = await systemMessageStorage.save(newSession.id, {
+            text:
+              typeof systemPrompt.text === "string" ? systemPrompt.text : "",
+            images: Array.isArray(systemPrompt.images)
+              ? systemPrompt.images
+              : [],
+            scrollTop: 0,
+            selection: { start: 0, end: 0 },
+            updateAt: Date.now(),
+          });
+          if (!systemSaved) {
+            return { ok: false, error: "系统提示词保存失败，未导入会话" };
+          }
+        }
+        try {
+          const messageSaved = await messageStorage.saveAndWait(
+            newSession.id,
+            normalizedMessages,
+          );
+          if (!messageSaved) {
+            if (systemPrompt) await systemMessageStorage.delete(newSession.id);
+            return { ok: false, error: "会话消息保存失败，未导入会话" };
+          }
+          if (
+            (await messageStorage.get(newSession.id)).length !==
+            normalizedMessages.length
+          ) {
+            await messageStorage.delete(newSession.id);
+            if (systemPrompt) await systemMessageStorage.delete(newSession.id);
+            return { ok: false, error: "会话消息保存失败，未导入会话" };
+          }
+        } catch (error) {
+          await messageStorage.delete(newSession.id);
+          if (systemPrompt) await systemMessageStorage.delete(newSession.id);
+          console.error("[importTransferredSession] 保存会话失败", error);
+          return { ok: false, error: "会话保存失败，未导入会话" };
+        }
+        set((current) => ({
+          currentSessionIndex: 0,
+          chatListView: "sessions",
+          sessions: [newSession, ...current.sessions],
+          sessionPagination: {
+            ...current.sessionPagination,
+            loadedCount: Math.min(
+              current.sessionPagination.loadedCount + 1,
+              current.sessions.length + 1,
+            ),
+            hasMore:
+              current.sessionPagination.loadedCount + 1 <
+              current.sessions.length + 1,
+          },
+        }));
+        return { ok: true };
+      },
+
       /** 通过分享链接无损载入会话：当前为空则覆盖当前会话，否则新建会话并载入 */
       async loadShareByLink(
         shareId: string,

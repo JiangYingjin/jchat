@@ -34,8 +34,11 @@ export function AuthPage() {
 
     const hasPermission = await checkAccessCodeSync(currentAccessCode);
     if (hasPermission) {
-      // 有权限，跳转到首页
-      router.push(Path.Home);
+      // 有权限时恢复二维码携带的配对入口，避免登录后丢失配对码。
+      const pairHash = window.location.hash.match(
+        /^#pair=[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}$/i,
+      )?.[0];
+      router.push(pairHash ? `${Path.Settings}${pairHash}` : Path.Home);
     }
     // 如果没有权限，不更新 chatStore.accessCode，也不离开 auth 页面
   };

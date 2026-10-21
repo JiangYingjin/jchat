@@ -5,7 +5,11 @@
 
 import type { MessageRole } from "../client/api";
 import type { MultimodalContent } from "../client/api";
-import { buildSystemContentForShare, convertImageUrlsToBase64 } from "./chat";
+import {
+  buildSystemContentForShare,
+  convertImageUrlsToBase64,
+  embedImageForTransfer,
+} from "./chat";
 
 /** 当前全量分享 payload 版本，用于兼容与迁移 */
 export const SHARE_PAYLOAD_VERSION = 1;
@@ -119,18 +123,38 @@ export type SessionLikeForShare = {
 export async function buildFullSharePayload(
   session: SessionLikeForShare & Record<string, unknown>,
   systemMessageData: { text: string; images: string[] } | null,
+  options: { embedImages?: boolean } = {},
 ): Promise<FullSharePayload> {
   const sessionMeta = toShareSessionMeta(session);
   const systemPrompt: ShareSystemPrompt | null = systemMessageData
     ? {
         text: systemMessageData.text,
-        images: [...systemMessageData.images],
+        images: options.embedImages
+          ? await Promise.all(
+              systemMessageData.images.map(embedImageForTransfer),
+            )
+          : [...systemMessageData.images],
       }
     : null;
 
   const messages: FullSharePayloadMessage[] = [];
   for (const msg of session.messages) {
-    const content = await convertImageUrlsToBase64(msg.content);
+    const content =
+      options.embedImages && Array.isArray(msg.content)
+        ? await Promise.all(
+            msg.content.map(async (part) =>
+              part?.type === "image_url" && part.image_url?.url
+                ? {
+                    ...part,
+                    image_url: {
+                      ...part.image_url,
+                      url: await embedImageForTransfer(part.image_url.url),
+                    },
+                  }
+                : part,
+            ),
+          )
+        : await convertImageUrlsToBase64(msg.content);
     const date =
       typeof msg.date === "string"
         ? msg.date

@@ -38,6 +38,7 @@ import { Settings } from "./settings";
 import { ChatPage as Chat } from "./chat";
 import { MergePendingView } from "./merge-pending-view";
 import { AuthPage as AuthComponent } from "./auth";
+import { DeviceTransferRuntime } from "./device-transfer";
 
 // 3. 辅助/工具组件
 // -----------------------------------------------------------------------------
@@ -93,7 +94,12 @@ function Screen() {
   useEffect(() => {
     // 只在非 auth 页面进行权限检查
     if (!isAuth) {
-      checkAndHandleAuth(() => router.push(Path.Auth));
+      checkAndHandleAuth(() => {
+        const pairHash = window.location.hash.match(
+          /^#pair=[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}$/i,
+        )?.[0];
+        router.push(`${Path.Auth}${pairHash ?? ""}`);
+      });
     }
   }, [pathname, router, isAuth]);
 
@@ -140,7 +146,10 @@ function Screen() {
       {isAuth ? (
         <AuthComponent />
       ) : (
-        <MobileAwareLayout isHome={isHome} isMobileScreen={isMobileScreen} />
+        <>
+          <DeviceTransferRuntime />
+          <MobileAwareLayout isHome={isHome} isMobileScreen={isMobileScreen} />
+        </>
       )}
     </div>
   );
