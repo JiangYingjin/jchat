@@ -14,6 +14,13 @@ export type TransferStatus = {
   connecting: boolean;
 };
 
+export type RemoteSessionSummary = {
+  id: string;
+  title: string;
+  messageCount: number;
+  lastUpdate: number;
+};
+
 export type DeviceTransferEvent = Record<string, any> & { type: string };
 type Listener = (event: DeviceTransferEvent) => void;
 
@@ -172,14 +179,9 @@ class DeviceTransferClient {
     this.stopped = false;
     this.token = null;
     await this.connect(false);
-    const result = this.waitFor(
-      ["pair.approved", "pair.denied", "error"],
-      () => true,
-      5 * 60 * 1000,
-    );
+    const result = this.waitFor(["pair.completed", "error"], () => true, 15000);
     this.send({ type: "pair.join", pairCode, deviceType: deviceType() });
     const event = await result;
-    if (event.type === "pair.denied") throw new Error("对端拒绝了配对请求");
     if (event.type === "error") throw new Error(event.message || "配对失败");
     if (typeof event.token !== "string")
       throw new Error("配对响应缺少设备凭据");
@@ -189,9 +191,47 @@ class DeviceTransferClient {
     this.emit({ type: "status", ...this.status });
   }
 
-  async requestSession(): Promise<FullSharePayload> {
+  async requestPeerSessions(): Promise<RemoteSessionSummary[]> {
     await this.ensureAuthenticated();
     if (!this.status.peerOnline) throw new Error("对端当前离线");
+    const requestId = crypto.randomUUID();
+    const result = this.waitFor(
+      ["sessions.list.response", "sessions.list.error"],
+      (event) => event.requestId === requestId,
+      15000,
+    );
+    this.send({ type: "sessions.list.request", requestId });
+    const event = await result;
+    if (event.type === "sessions.list.error") {
+      throw new Error(event.reason || "加载对端会话失败");
+    }
+    if (!Array.isArray(event.sessions)) throw new Error("对端会话列表格式无效");
+    return event.sessions.filter(
+      (item: unknown): item is RemoteSessionSummary =>
+        Boolean(item) &&
+        typeof item === "object" &&
+        typeof (item as RemoteSessionSummary).id === "string" &&
+        typeof (item as RemoteSessionSummary).title === "string" &&
+        typeof (item as RemoteSessionSummary).messageCount === "number" &&
+        typeof (item as RemoteSessionSummary).lastUpdate === "number",
+    );
+  }
+
+  respondSessionList(
+    requestId: string,
+    sessions: RemoteSessionSummary[],
+  ): void {
+    this.send({
+      type: "sessions.list.response",
+      requestId,
+      sessions: sessions.slice(0, 5),
+    });
+  }
+
+  async requestSession(sessionId: string): Promise<FullSharePayload> {
+    await this.ensureAuthenticated();
+    if (!this.status.peerOnline) throw new Error("对端当前离线");
+    if (!sessionId) throw new Error("请先选择要传送的会话");
     if (this.requestResult) throw new Error("已有会话请求正在处理");
     const result = new Promise<FullSharePayload>((resolve, reject) => {
       this.requestResult = { resolve, reject };
@@ -206,30 +246,8 @@ class DeviceTransferClient {
         5 * 60 * 1000,
       );
     });
-    this.send({ type: "transfer.request" });
+    this.send({ type: "transfer.request", sessionId });
     return result;
-  }
-
-  async resolvePairRequest(requestId: string, approve: boolean): Promise<void> {
-    await this.ensureAuthenticated();
-    this.send({ type: "pair.resolve", requestId, approve });
-  }
-
-  async resolveTransferRequest(
-    transferId: string,
-    approve: boolean,
-  ): Promise<void> {
-    await this.ensureAuthenticated();
-    const result = this.waitFor(
-      "transfer.resolved",
-      (event) => event.transferId === transferId,
-      15000,
-    );
-    this.send({ type: "transfer.resolve", transferId, approve });
-    const event = await result;
-    if (event.type === "error")
-      throw new Error(event.message || "传送请求处理失败");
-    if (!event.approved) return;
   }
 
   async sendSnapshot(
@@ -447,7 +465,7 @@ class DeviceTransferClient {
       this.reconnectDelay = 1000;
       this.emit({ type: "status", ...this.status });
     } else if (
-      event.type === "pair.approved" &&
+      event.type === "pair.completed" &&
       typeof event.token === "string"
     ) {
       await this.saveToken(event.token);

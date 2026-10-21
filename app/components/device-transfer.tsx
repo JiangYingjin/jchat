@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { buildFullSharePayload, type FullSharePayload } from "../utils/share";
+import { messageStorage } from "../store/message";
 import {
   deviceTransferClient,
   type DeviceTransferEvent,
+  type RemoteSessionSummary,
   type TransferStatus,
   MAX_TRANSFER_BYTES,
 } from "../utils/device-transfer";
@@ -15,13 +17,6 @@ import { IconButton } from "./button";
 import { List, ListItem, Modal, showToast } from "./ui-lib";
 import Locale from "../locales";
 import styles from "../styles/settings.module.scss";
-
-function deviceLabel(value: unknown): string {
-  if (value === "desktop") return "电脑";
-  if (value === "mobile") return "手机";
-  if (value === "tablet") return "平板";
-  return "另一台设备";
-}
 
 function extractPairCode(value: string): string | null {
   const text = value.trim().toUpperCase();
@@ -110,14 +105,24 @@ function PairCodeScanner({
       >
         <div className={styles["device-transfer-scanner"]}>
           <video ref={videoRef} playsInline muted />
-          <p>{error || "将另一台设备上的二维码放入取景框"}</p>
+          <p>
+            {error || "将另一台设备上的二维码放入取景框，识别后立即完成配对"}
+          </p>
         </div>
       </Modal>
     </div>
   );
 }
 
-async function buildCurrentSessionSnapshot(): Promise<FullSharePayload> {
+function findSession(sessionId: string) {
+  const chat = useChatStore.getState();
+  return (
+    chat.groupSessions[sessionId] ||
+    chat.sessions.find((session) => session.id === sessionId)
+  );
+}
+
+async function buildRecentSessionSummaries(): Promise<RemoteSessionSummary[]> {
   if (
     typeof window === "undefined" ||
     (window as any).__jchat_data_restored !== true
@@ -125,15 +130,43 @@ async function buildCurrentSessionSnapshot(): Promise<FullSharePayload> {
     throw new Error("本机聊天数据尚未恢复完成");
   }
   const chat = useChatStore.getState();
-  const session = chat.currentSession();
-  if (!session?.id) {
-    throw new Error("当前没有可传送的会话");
+  const sessions = new Map<string, (typeof chat.sessions)[number]>();
+  for (const session of [
+    ...chat.sessions,
+    ...Object.values(chat.groupSessions),
+  ]) {
+    if (session?.id && !sessions.has(session.id))
+      sessions.set(session.id, session);
   }
-  const messages =
-    (session.groupId && chat.groupSessions[session.id]?.messages) ||
-    session.messages;
+  return Array.from(sessions.values())
+    .filter((session) => session.messageCount > 0)
+    .sort((left, right) => right.lastUpdate - left.lastUpdate)
+    .slice(0, 5)
+    .map((session) => ({
+      id: session.id,
+      title: session.title || "未命名会话",
+      messageCount: session.messageCount,
+      lastUpdate: session.lastUpdate,
+    }));
+}
+
+async function buildSessionSnapshot(
+  sessionId: string,
+): Promise<FullSharePayload> {
+  if (
+    typeof window === "undefined" ||
+    (window as any).__jchat_data_restored !== true
+  ) {
+    throw new Error("本机聊天数据尚未恢复完成");
+  }
+  const session = findSession(sessionId);
+  if (!session?.id) {
+    throw new Error("对端请求的会话已不存在，请刷新最近会话列表");
+  }
+  const messages = await messageStorage.get(session.id);
+  if (!messages.length) throw new Error("所选会话没有可传送的消息");
   if (messages.some((message) => message.streaming)) {
-    throw new Error("当前会话仍在生成内容，请稍后再试");
+    throw new Error("所选会话仍在生成内容，请稍后再试");
   }
   const systemPrompt = await systemMessageStorage.get(session.id);
   const snapshot = await buildFullSharePayload(
@@ -150,29 +183,57 @@ async function buildCurrentSessionSnapshot(): Promise<FullSharePayload> {
   return snapshot;
 }
 
-/** 全局在线连接与接收端授权弹窗；无论用户当前在哪个页面都能响应对端请求。 */
+/** 全局在线连接与对端目录/传送处理；无论用户当前在哪个页面都能响应请求。 */
 export function DeviceTransferRuntime() {
-  const [pairRequest, setPairRequest] = useState<DeviceTransferEvent | null>(
-    null,
-  );
-  const [transferRequest, setTransferRequest] =
-    useState<DeviceTransferEvent | null>(null);
   const [transferProgress, setTransferProgress] = useState("");
+
+  const sendRequestedSession = useCallback(
+    async (transferId: string, sessionId: string) => {
+      try {
+        setTransferProgress("正在准备所选会话…");
+        const snapshot = await buildSessionSnapshot(sessionId);
+        setTransferProgress("正在发送所选会话…");
+        await deviceTransferClient.sendSnapshot(transferId, snapshot);
+        setTransferProgress("");
+        showToast("所选会话已传送给对端");
+      } catch (error) {
+        setTransferProgress("");
+        deviceTransferClient.cancelTransfer();
+        showToast(error instanceof Error ? error.message : "会话传送失败");
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     const unsubscribe = deviceTransferClient.subscribe((event) => {
-      if (event.type === "pair.request") setPairRequest(event);
-      if (event.type === "transfer.request") setTransferRequest(event);
+      if (event.type === "sessions.list.request") {
+        void buildRecentSessionSummaries()
+          .then((sessions) =>
+            deviceTransferClient.respondSessionList(event.requestId, sessions),
+          )
+          .catch((error) => {
+            deviceTransferClient.respondSessionList(event.requestId, []);
+            showToast(
+              error instanceof Error ? error.message : "读取会话列表失败",
+            );
+          });
+      }
+      if (event.type === "transfer.request") {
+        void sendRequestedSession(event.transferId, event.sessionId);
+      }
       if (event.type === "sending-progress") {
         const percent = Math.floor(
           (event.sentBytes / Math.max(event.totalBytes, 1)) * 100,
         );
-        setTransferProgress(`正在发送当前会话 ${percent}%`);
+        setTransferProgress(`正在发送所选会话 ${percent}%`);
       }
-      if (event.type === "transfer.error") setTransferProgress("");
+      if (event.type === "transfer.error") {
+        setTransferProgress("");
+        if (event.reason) showToast(event.reason);
+      }
       if (event.type === "pair.revoked") {
-        setPairRequest(null);
-        setTransferRequest(null);
+        setTransferProgress("");
       }
     });
     void deviceTransferClient.initialize().catch((error) => {
@@ -182,98 +243,10 @@ export function DeviceTransferRuntime() {
       unsubscribe();
       deviceTransferClient.dispose();
     };
-  }, []);
-
-  const resolvePair = async (approve: boolean) => {
-    const pending = pairRequest;
-    setPairRequest(null);
-    if (!pending) return;
-    try {
-      await deviceTransferClient.resolvePairRequest(pending.requestId, approve);
-    } catch (error) {
-      showToast(error instanceof Error ? error.message : "配对处理失败");
-    }
-  };
-
-  const resolveTransfer = async (approve: boolean) => {
-    const pending = transferRequest;
-    setTransferRequest(null);
-    if (!pending) return;
-    try {
-      await deviceTransferClient.resolveTransferRequest(
-        pending.transferId,
-        approve,
-      );
-      if (!approve) return;
-      setTransferProgress("正在准备当前会话…");
-      const snapshot = await buildCurrentSessionSnapshot();
-      setTransferProgress("正在发送当前会话…");
-      await deviceTransferClient.sendSnapshot(pending.transferId, snapshot);
-      setTransferProgress("");
-      showToast("当前会话已发送给对端");
-    } catch (error) {
-      setTransferProgress("");
-      deviceTransferClient.cancelTransfer();
-      showToast(error instanceof Error ? error.message : "会话传送失败");
-    }
-  };
+  }, [sendRequestedSession]);
 
   return (
     <>
-      {pairRequest && (
-        <div className="modal-mask">
-          <Modal
-            title="新设备配对请求"
-            onClose={() => void resolvePair(false)}
-            actions={[
-              <IconButton
-                key="deny"
-                text="拒绝"
-                onClick={() => void resolvePair(false)}
-                bordered
-              />,
-              <IconButton
-                key="approve"
-                text="确认配对"
-                type="primary"
-                onClick={() => void resolvePair(true)}
-                bordered
-              />,
-            ]}
-          >
-            <p>{deviceLabel(pairRequest.deviceType)}希望与本设备配对。</p>
-            <p>配对后双方都可以向对方请求当前会话。</p>
-          </Modal>
-        </div>
-      )}
-      {transferRequest && (
-        <div className="modal-mask">
-          <Modal
-            title="跨设备会话请求"
-            onClose={() => void resolveTransfer(false)}
-            actions={[
-              <IconButton
-                key="deny"
-                text="拒绝"
-                onClick={() => void resolveTransfer(false)}
-                bordered
-              />,
-              <IconButton
-                key="approve"
-                text="发送当前会话"
-                type="primary"
-                onClick={() => void resolveTransfer(true)}
-                bordered
-              />,
-            ]}
-          >
-            <p>
-              {deviceLabel(transferRequest.fromDevice)}请求获取本机当前会话。
-            </p>
-            <p>确认后会发送完整会话内容，包括系统提示词、消息和图片。</p>
-          </Modal>
-        </div>
-      )}
       {transferProgress && (
         <div className="modal-mask">
           <Modal
@@ -309,11 +282,12 @@ export function DeviceTransferSettings() {
   const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [qrImage, setQrImage] = useState("");
   const [codeInput, setCodeInput] = useState("");
+  const [pendingQrPairCode, setPendingQrPairCode] = useState("");
   const [scannerOpen, setScannerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
-  const [receivedPayload, setReceivedPayload] =
-    useState<FullSharePayload | null>(null);
+  const [peerSessions, setPeerSessions] = useState<RemoteSessionSummary[]>([]);
+  const [selectedPeerSessionId, setSelectedPeerSessionId] = useState("");
 
   useEffect(() => {
     setStatus(deviceTransferClient.getStatus());
@@ -339,7 +313,6 @@ export function DeviceTransferSettings() {
         );
         setProgress(`正在发送会话 ${percentage}%`);
       }
-      if (event.type === "transfer.approved") setProgress("对端正在准备会话…");
       if (event.type === "transfer.error") setProgress("");
       if (event.type === "pair.revoked") {
         setPairCode("");
@@ -380,6 +353,7 @@ export function DeviceTransferSettings() {
     const fromQr = extractPairCode(window.location.href);
     if (fromQr) {
       setCodeInput(fromQr);
+      setPendingQrPairCode(fromQr);
       window.history.replaceState(
         null,
         "",
@@ -439,49 +413,76 @@ export function DeviceTransferSettings() {
     }
   };
 
-  const joinPairing = async () => {
-    const code = extractPairCode(codeInput) ?? codeInput.trim().toUpperCase();
-    if (!code) return;
+  const joinPairing = useCallback(
+    async (pairingCode?: string) => {
+      const value = pairingCode ?? codeInput;
+      const code = extractPairCode(value) ?? value.trim().toUpperCase();
+      if (!code) return;
+      setBusy(true);
+      try {
+        await deviceTransferClient.joinPairing(code);
+        setCodeInput("");
+        window.sessionStorage.removeItem(PAIR_CODE_SESSION_KEY);
+        setStatus(deviceTransferClient.getStatus());
+        showToast("设备配对成功");
+      } catch (error) {
+        showToast(error instanceof Error ? error.message : "配对失败");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [codeInput],
+  );
+
+  useEffect(() => {
+    if (!pendingQrPairCode || busy || status.paired) return;
+    setPendingQrPairCode("");
+    void joinPairing(pendingQrPairCode);
+  }, [busy, joinPairing, pendingQrPairCode, status.paired]);
+
+  const loadPeerSessions = async () => {
     setBusy(true);
+    setProgress("正在读取对端最近会话…");
     try {
-      await deviceTransferClient.joinPairing(code);
-      setCodeInput("");
-      window.sessionStorage.removeItem(PAIR_CODE_SESSION_KEY);
-      setStatus(deviceTransferClient.getStatus());
-      showToast("设备配对成功");
+      const sessions = await deviceTransferClient.requestPeerSessions();
+      setPeerSessions(sessions);
+      setSelectedPeerSessionId("");
+      if (!sessions.length) showToast("对端没有可传送的会话");
+      setProgress("");
     } catch (error) {
-      showToast(error instanceof Error ? error.message : "配对失败");
+      setProgress("");
+      showToast(error instanceof Error ? error.message : "读取对端会话失败");
     } finally {
       setBusy(false);
     }
   };
 
-  const requestSession = async () => {
-    setBusy(true);
-    setProgress("等待对端确认");
-    try {
-      const payload = await deviceTransferClient.requestSession();
-      setReceivedPayload(payload);
-      setProgress("");
-    } catch (error) {
-      setProgress("");
-      showToast(error instanceof Error ? error.message : "会话请求失败");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const importSession = async () => {
-    if (!receivedPayload) return;
-    const result = await useChatStore
-      .getState()
-      .importTransferredSession(receivedPayload);
-    if (!result.ok) {
-      showToast(result.error || "会话导入失败");
+  const transferSelectedSession = async () => {
+    if (!selectedPeerSessionId) {
+      showToast("请先选择一个会话");
       return;
     }
-    setReceivedPayload(null);
-    showToast("会话已导入为新会话");
+    setBusy(true);
+    setProgress("正在请求传送所选会话…");
+    try {
+      const payload = await deviceTransferClient.requestSession(
+        selectedPeerSessionId,
+      );
+      setProgress("正在导入会话…");
+      const result = await useChatStore
+        .getState()
+        .importTransferredSession(payload);
+      if (!result.ok) throw new Error(result.error || "会话导入失败");
+      setProgress("");
+      setPeerSessions([]);
+      setSelectedPeerSessionId("");
+      showToast("所选会话已传送并导入为新会话");
+    } catch (error) {
+      setProgress("");
+      showToast(error instanceof Error ? error.message : "会话传送失败");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const forgetPair = async () => {
@@ -505,13 +506,6 @@ export function DeviceTransferSettings() {
   };
 
   const switchToScanner = async () => {
-    if (
-      !window.confirm(
-        "取消本机配对码后，对方将无法继续使用它。是否改为扫描对端二维码？",
-      )
-    ) {
-      return;
-    }
     setBusy(true);
     try {
       await deviceTransferClient.forgetPair();
@@ -527,15 +521,18 @@ export function DeviceTransferSettings() {
     }
   };
 
-  const onScannedCode = useCallback((value: string) => {
-    const code = extractPairCode(value);
-    setScannerOpen(false);
-    if (!code) {
-      showToast("没有识别到有效的 JChat 配对二维码");
-      return;
-    }
-    setCodeInput(code);
-  }, []);
+  const onScannedCode = useCallback(
+    (value: string) => {
+      const code = extractPairCode(value);
+      setScannerOpen(false);
+      if (!code) {
+        showToast("没有识别到有效的 JChat 配对二维码");
+        return;
+      }
+      void joinPairing(code);
+    },
+    [joinPairing],
+  );
 
   return (
     <>
@@ -558,11 +555,14 @@ export function DeviceTransferSettings() {
           {status.paired ? (
             <div className={styles["device-transfer-actions"]}>
               <IconButton
-                text="向对端请求会话"
-                onClick={() => void requestSession()}
+                text="查看对端最近 5 条会话"
+                onClick={() => void loadPeerSessions()}
                 disabled={busy || !status.peerOnline}
                 bordered
               />
+              <span className={styles["device-transfer-status"]}>
+                只显示摘要；选中后会自动传送并导入完整会话
+              </span>
               <IconButton
                 text="解除配对"
                 onClick={() => void forgetPair()}
@@ -573,6 +573,40 @@ export function DeviceTransferSettings() {
                 <span className={styles["device-transfer-status"]}>
                   {progress}
                 </span>
+              )}
+              {peerSessions.length > 0 && (
+                <div className={styles["device-transfer-session-list"]}>
+                  <strong>选择要传送到本设备的会话</strong>
+                  {peerSessions.map((session) => (
+                    <label
+                      className={styles["device-transfer-session-option"]}
+                      key={session.id}
+                    >
+                      <input
+                        type="radio"
+                        name="device-transfer-session"
+                        value={session.id}
+                        checked={selectedPeerSessionId === session.id}
+                        onChange={() => setSelectedPeerSessionId(session.id)}
+                        disabled={busy}
+                      />
+                      <span>
+                        <strong>{session.title || "未命名会话"}</strong>
+                        <small>
+                          {session.messageCount} 条消息 ·{" "}
+                          {new Date(session.lastUpdate).toLocaleString()}
+                        </small>
+                      </span>
+                    </label>
+                  ))}
+                  <IconButton
+                    text="传送到本设备"
+                    onClick={() => void transferSelectedSession()}
+                    disabled={busy || !selectedPeerSessionId}
+                    type="primary"
+                    bordered
+                  />
+                </div>
               )}
             </div>
           ) : status.configured ? (
@@ -592,7 +626,7 @@ export function DeviceTransferSettings() {
                   )}
                   <div>
                     <strong>让另一台设备扫描</strong>
-                    <span>对方确认后才会建立配对</span>
+                    <span>对方扫码后立即完成配对</span>
                     <code>{pairCode}</code>
                     <span>
                       {secondsRemaining > 0
@@ -665,39 +699,6 @@ export function DeviceTransferSettings() {
           onCode={onScannedCode}
           onClose={() => setScannerOpen(false)}
         />
-      )}
-
-      {receivedPayload && (
-        <div className="modal-mask">
-          <Modal
-            title="确认导入会话"
-            onClose={() => setReceivedPayload(null)}
-            actions={[
-              <IconButton
-                key="cancel"
-                text="取消"
-                onClick={() => setReceivedPayload(null)}
-                bordered
-              />,
-              <IconButton
-                key="import"
-                text="导入为新会话"
-                type="primary"
-                onClick={() => void importSession()}
-                bordered
-              />,
-            ]}
-          >
-            <p>
-              {typeof receivedPayload.session.title === "string"
-                ? receivedPayload.session.title
-                : "未命名会话"}
-            </p>
-            <p>
-              {receivedPayload.messages.length} 条消息，将作为新会话加入本机。
-            </p>
-          </Modal>
-        </div>
       )}
     </>
   );

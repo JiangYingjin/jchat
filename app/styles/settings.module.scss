@@ -322,6 +322,57 @@ input.mem0-input {
   margin-top: 8px;
 }
 
+.device-transfer-session-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: min(100%, 560px);
+  margin-top: 8px;
+
+  > strong {
+    color: var(--black);
+    font-size: 13px;
+  }
+}
+
+.device-transfer-session-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: var(--border-in-light);
+  border-radius: 9px;
+  background: var(--white);
+  color: var(--black);
+  cursor: pointer;
+
+  input {
+    flex: 0 0 auto;
+    accent-color: var(--primary);
+  }
+
+  > span {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  strong {
+    overflow: hidden;
+    font-size: 13px;
+    font-weight: 500;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  small {
+    color: var(--black);
+    opacity: 0.6;
+    font-size: 11px;
+  }
+}
+
 .device-transfer-pair-card {
   display: flex;
   align-items: center;
