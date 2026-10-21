@@ -360,6 +360,34 @@ class MessageStorage {
     return true;
   }
 
+  /** 等待一条关键消息快照真正写入 IndexedDB，供跨设备导入等事务性流程使用。 */
+  async saveAndWait(
+    sessionId: string,
+    messages: ChatMessage[],
+  ): Promise<boolean> {
+    if (
+      typeof window !== "undefined" &&
+      (window as any).__jchat_data_restored !== true
+    ) {
+      return false;
+    }
+    const storage = this.getStorage();
+    if (!storage) return false;
+    try {
+      await this.saveLimit(async () => {
+        await storage.setItem(sessionId, messages);
+      });
+      this.getSessionState(sessionId).lastSaveTimestamp = Date.now();
+      return true;
+    } catch (error) {
+      console.error(
+        `[MessageStorage] 关键会话快照写入失败: ${sessionId}`,
+        error,
+      );
+      return false;
+    }
+  }
+
   /**
    * 检查 IndexedDB 是否正常工作
    */

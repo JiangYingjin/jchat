@@ -285,3 +285,49 @@ input.mem0-input {
     }
   }
 }
+
+.device-transfer-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.device-transfer-divider,
+.device-transfer-status {
+  color: var(--black);
+  opacity: 0.65;
+  font-size: 12px;
+}
+
+.device-transfer-code {
+  width: min(100%, 260px);
+  min-height: 38px;
+  padding: 8px 10px;
+  border: var(--border-in-light);
+  border-radius: 8px;
+  background: var(--white);
+  color: var(--black);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+}
+
+.device-transfer-pair-code {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  padding: 12px;
+  border: var(--border-in-light);
+  border-radius: 10px;
+  color: var(--black);
+  font-size: 12px;
+
+  strong {
+    font-size: 22px;
+    letter-spacing: 0.12em;
+    user-select: all;
+  }
+}

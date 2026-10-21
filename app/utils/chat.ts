@@ -93,6 +93,21 @@ export function compressImage(file: Blob, maxSize: number): Promise<string> {
   });
 }
 
+/** 将一张会话图片内嵌为可跨设备导入的 data URL；失败时抛出，禁止静默丢图。 */
+export async function embedImageForTransfer(imageUrl: string): Promise<string> {
+  if (imageUrl.startsWith("data:image/")) return imageUrl;
+  const response = await fetch(imageUrl, {
+    method: "GET",
+    mode: "cors",
+    credentials: "include",
+  });
+  if (!response.ok) throw new Error(`图片下载失败（HTTP ${response.status}）`);
+  const blob = await response.blob();
+  if (!blob.type.startsWith("image/"))
+    throw new Error("会话附件不是可读取的图片");
+  return compressImage(blob, 256 * 1024);
+}
+
 export async function convertImageUrlsToBase64(
   content: RequestMessage["content"],
 ) {

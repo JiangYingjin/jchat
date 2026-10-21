@@ -28,6 +28,7 @@ import EyeIcon from "../icons/eye.svg";
 import Locale from "../locales";
 import { Path } from "../constant";
 import { checkAndHandleAuth } from "../utils/auth";
+import { DeviceTransferSettings } from "./device-transfer";
 
 // --- 2. Main Exported Component ---
 // The primary component of this file, placed at the top for easy discoverability.
@@ -106,6 +107,7 @@ export function Settings() {
       </div>
 
       <div className={styles["settings"]}>
+        <DeviceTransferSettings />
         <LocalDataItems />
       </div>
     </ErrorBoundary>

@@ -38,6 +38,7 @@ import { Settings } from "./settings";
 import { ChatPage as Chat } from "./chat";
 import { MergePendingView } from "./merge-pending-view";
 import { AuthPage as AuthComponent } from "./auth";
+import { DeviceTransferRuntime } from "./device-transfer";
 
 // 3. 辅助/工具组件
 // -----------------------------------------------------------------------------
@@ -140,7 +141,10 @@ function Screen() {
       {isAuth ? (
         <AuthComponent />
       ) : (
-        <MobileAwareLayout isHome={isHome} isMobileScreen={isMobileScreen} />
+        <>
+          <DeviceTransferRuntime />
+          <MobileAwareLayout isHome={isHome} isMobileScreen={isMobileScreen} />
+        </>
       )}
     </div>
   );
