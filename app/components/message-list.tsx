@@ -397,26 +397,48 @@ export const MessageList = React.memo(function MessageList({
       setMsgRenderIndex(newStart);
       programmaticScrollRef.current = true;
 
-      // 末条短消息可能因容器底部空间不足而无法顶端对齐，补足滚动尾部空间。
-      if (leaveRoomForTopAlignment) {
-        setNavigationTailHeight(viewport.clientHeight + 24);
-      }
+      const alignMessage = () => {
+        const currentViewport = scrollRef.current;
+        const element = findMessageElement(messageId);
+        if (!currentViewport || !element) {
+          programmaticScrollRef.current = false;
+          return;
+        }
 
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          const currentViewport = scrollRef.current;
-          const element = findMessageElement(messageId);
-          if (currentViewport && element) {
-            const viewportTop = currentViewport.getBoundingClientRect().top;
-            const elementTop = element.getBoundingClientRect().top;
-            currentViewport.scrollTop +=
-              elementTop - viewportTop - viewportOffset;
+        const viewportTop = currentViewport.getBoundingClientRect().top;
+        const elementTop = element.getBoundingClientRect().top;
+        const scrollDelta = elementTop - viewportTop - viewportOffset;
+
+        if (leaveRoomForTopAlignment) {
+          const tail = currentViewport.querySelector<HTMLElement>(
+            "[data-navigation-tail]",
+          );
+          const currentTailHeight = tail?.getBoundingClientRect().height ?? 0;
+          const baseMaxScroll =
+            currentViewport.scrollHeight -
+            currentTailHeight -
+            currentViewport.clientHeight;
+          const targetScrollTop = currentViewport.scrollTop + scrollDelta;
+          // 仅补足将末条消息顶端对齐所需的差额，避免在会话末尾留下整屏空滚动区。
+          const requiredTailHeight = Math.max(
+            0,
+            Math.ceil(targetScrollTop - baseMaxScroll + 1),
+          );
+
+          if (Math.abs(requiredTailHeight - currentTailHeight) > 1) {
+            setNavigationTailHeight(requiredTailHeight);
+            requestAnimationFrame(() => requestAnimationFrame(alignMessage));
+            return;
           }
-          requestAnimationFrame(() => {
-            programmaticScrollRef.current = false;
-          });
+        }
+
+        currentViewport.scrollTop += scrollDelta;
+        requestAnimationFrame(() => {
+          programmaticScrollRef.current = false;
         });
-      });
+      };
+
+      requestAnimationFrame(() => requestAnimationFrame(alignMessage));
     },
     [messages, setAutoScroll, setHitBottom, findMessageElement],
   );
@@ -650,6 +672,7 @@ export const MessageList = React.memo(function MessageList({
           ) && (
             <div
               aria-hidden="true"
+              data-navigation-tail="true"
               className={styles["scroll-navigation-tail"]}
               style={{ height: navigationTailHeight }}
             />
