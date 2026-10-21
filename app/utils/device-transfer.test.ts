@@ -10,6 +10,7 @@ class FakeWebSocket {
   static instances: FakeWebSocket[] = [];
 
   readyState = FakeWebSocket.CONNECTING;
+  sent: string[] = [];
   onopen: (() => void) | null = null;
   onclose: (() => void) | null = null;
   onerror: (() => void) | null = null;
@@ -19,7 +20,9 @@ class FakeWebSocket {
     FakeWebSocket.instances.push(this);
   }
 
-  send(_data: string) {}
+  send(data: string) {
+    this.sent.push(data);
+  }
 
   close() {
     this.readyState = FakeWebSocket.CLOSING;
@@ -33,6 +36,10 @@ class FakeWebSocket {
   finishClose() {
     this.readyState = FakeWebSocket.CLOSED;
     this.onclose?.();
+  }
+
+  message(value: Record<string, unknown>) {
+    this.onmessage?.({ data: JSON.stringify(value) });
   }
 }
 
@@ -80,4 +87,50 @@ test("late close from revoked socket does not disconnect the replacement socket"
   await replacementConnection;
   client.emit({ type: "room.created" });
   assert.equal((await pendingResponse).type, "room.created");
+});
+
+test("revoked credentials are cleared and pairing retries with a new room", async () => {
+  globals.window = { location: { href: "https://chat.jyj.cx/settings" } };
+  globals.WebSocket = FakeWebSocket;
+  FakeWebSocket.instances = [];
+
+  const client = new DeviceTransferClient() as unknown as {
+    socket: FakeWebSocket | null;
+    token: string | null;
+    status: { configured: boolean; paired: boolean };
+    connect(authenticate: boolean): Promise<void>;
+    createPairing(): Promise<{ pairCode: string; expiresIn: number }>;
+  };
+  client.token = "revoked-token";
+  client.status.configured = true;
+
+  const authentication = client.connect(true);
+  const staleSocket = FakeWebSocket.instances[0];
+  staleSocket.open();
+  staleSocket.message({
+    type: "error",
+    message: "设备配对已解除，请重新配对",
+  });
+  await assert.rejects(authentication, /设备配对已解除/);
+  assert.equal(client.token, null);
+  assert.equal(client.status.configured, false);
+  assert.equal(client.socket, null);
+
+  const pairing = client.createPairing();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  const freshSocket = FakeWebSocket.instances[1];
+  freshSocket.open();
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(JSON.parse(freshSocket.sent[0]).type, "room.create");
+
+  freshSocket.message({
+    type: "room.created",
+    token: "fresh-token",
+    pairCode: "ABCDEFGH2345",
+    expiresIn: 300,
+  });
+  assert.deepEqual(await pairing, {
+    pairCode: "ABCDEFGH2345",
+    expiresIn: 300,
+  });
 });
