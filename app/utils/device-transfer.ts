@@ -108,7 +108,7 @@ function isFullSharePayload(value: unknown): value is FullSharePayload {
   });
 }
 
-class DeviceTransferClient {
+export class DeviceTransferClient {
   private socket: WebSocket | null = null;
   private token: string | null = null;
   private listeners = new Set<Listener>();
@@ -334,8 +334,9 @@ class DeviceTransferClient {
       connecting: false,
     };
     this.suppressReconnect = true;
-    this.socket?.close();
+    const socket = this.socket;
     this.socket = null;
+    socket?.close();
     this.emit({ type: "status", ...this.status });
   }
 
@@ -431,6 +432,9 @@ class DeviceTransferClient {
         this.emit({ type: "error", message: "跨设备连接失败" });
       };
       socket.onclose = () => {
+        // 解除配对后用户可以立刻重新连接。旧连接的 close 事件可能晚于新
+        // WebSocket 建立；只有当前连接关闭时，才允许它清理共享连接状态。
+        if (this.socket !== socket) return;
         clearTimeout(timeout);
         this.status.connected = false;
         this.status.connecting = false;
@@ -481,6 +485,8 @@ class DeviceTransferClient {
     } else if (event.type === "pair.revoked") {
       await deviceTransferStorage.clear();
       this.token = null;
+      const revokedSocket = this.socket;
+      this.socket = null;
       this.status = {
         configured: false,
         paired: false,
@@ -490,7 +496,12 @@ class DeviceTransferClient {
       };
       this.suppressReconnect = true;
       this.emit({ type: "status", ...this.status });
-      this.socket?.close();
+      for (const waiter of Array.from(this.waiters)) {
+        waiter.reject(new Error("设备配对已解除"));
+      }
+      this.requestResult?.reject(new Error("设备配对已解除"));
+      this.requestResult = null;
+      revokedSocket?.close();
     } else if (event.type === "transfer.waiting") {
       this.activeTransferId = event.transferId;
     } else if (event.type === "transfer.start") {
