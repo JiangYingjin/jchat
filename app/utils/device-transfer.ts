@@ -159,7 +159,15 @@ export class DeviceTransferClient {
   async createPairing(): Promise<{ pairCode: string; expiresIn: number }> {
     this.stopped = false;
     this.token = (await deviceTransferStorage.getToken()) ?? null;
-    await this.connect(Boolean(this.token));
+    const hadToken = Boolean(this.token);
+    try {
+      await this.connect(hadToken);
+    } catch (error) {
+      // If the peer revoked the pair while this device was offline, auth clears
+      // the stale token. Continue this same click by creating a fresh room.
+      if (!hadToken || this.token !== null) throw error;
+      await this.connect(false);
+    }
     const expected = this.token ? "pair.code" : "room.created";
     const result = this.waitFor(expected, () => true, 10000);
     this.send({
@@ -362,6 +370,23 @@ export class DeviceTransferClient {
     this.suppressReconnect = false;
   }
 
+  private async clearRevokedCredentials(): Promise<void> {
+    await deviceTransferStorage.clear();
+    this.token = null;
+    this.suppressReconnect = true;
+    const staleSocket = this.socket;
+    this.socket = null;
+    this.status = {
+      configured: false,
+      paired: false,
+      connected: false,
+      peerOnline: false,
+      connecting: false,
+    };
+    this.emit({ type: "status", ...this.status });
+    staleSocket?.close();
+  }
+
   private async ensureAuthenticated(): Promise<void> {
     if (!this.token) throw new Error("尚未配对设备");
     await this.connect(true);
@@ -404,9 +429,13 @@ export class DeviceTransferClient {
             deviceType: deviceType(),
           });
           auth.then(
-            () => {
+            (event) => {
               clearTimeout(timeout);
-              resolve();
+              if (event.type === "error") {
+                reject(new Error(event.message || "设备认证失败"));
+              } else {
+                resolve();
+              }
             },
             (error) => {
               clearTimeout(timeout);
@@ -534,6 +563,13 @@ export class DeviceTransferClient {
       this.requestResult?.reject(new Error(event.message || "跨设备操作失败"));
       this.requestResult = null;
       this.receiveState = null;
+      if (
+        typeof event.message === "string" &&
+        (event.message.includes("设备配对已解除") ||
+          event.message.includes("设备凭据无效或已过期"))
+      ) {
+        await this.clearRevokedCredentials();
+      }
     }
     this.resolveWaiters(event);
     this.emit(event);
