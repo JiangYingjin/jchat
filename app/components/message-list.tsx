@@ -713,6 +713,16 @@ export const MessageList = React.memo(function MessageList({
 
       {contextMenu.render(
         <>
+          {contextMenuMode === "remove" && (
+            <div
+              className={sidebarStyles["search-context-item"]}
+              onClick={() => {
+                void captureBookmark(contextMenuBookmarkId ?? undefined);
+              }}
+            >
+              更新为当前位置
+            </div>
+          )}
           <div
             className={sidebarStyles["search-context-item"]}
             onClick={() => {
@@ -725,16 +735,6 @@ export const MessageList = React.memo(function MessageList({
           >
             {contextMenuMode === "remove" ? "删除标记" : "标记当前位置"}
           </div>
-          {contextMenuMode === "remove" && (
-            <div
-              className={sidebarStyles["search-context-item"]}
-              onClick={() => {
-                void captureBookmark(contextMenuBookmarkId ?? undefined);
-              }}
-            >
-              更新为当前位置
-            </div>
-          )}
         </>,
       )}
     </div>
