@@ -15,6 +15,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@fortaine/fetch-event-source": "^3.0.6",
     "@svgr/webpack": "^8.1.0",
+    "@zxing/browser": "0.2.1",
     "clsx": "^2.1.1",
     "heic2any": "^0.0.4",
     "html-to-image": "^1.11.13",
@@ -28,6 +29,7 @@
     "nanoid": "^5.1.16",
     "next": "^16.2.11",
     "p-limit": "^7.2.0",
+    "qrcode": "1.5.4",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-markdown": "^10.1.0",
@@ -45,6 +47,7 @@
   "devDependencies": {
     "@types/lodash-es": "^4.17.12",
     "@types/node": "^24.10.9",
+    "@types/qrcode": "1.5.6",
     "@types/react": "^19.2.10",
     "@types/react-dom": "^19.2.3",
     "@types/react-katex": "^3.0.4",

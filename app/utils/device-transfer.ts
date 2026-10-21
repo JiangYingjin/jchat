@@ -8,6 +8,7 @@ export const TRANSFER_CHUNK_BYTES = 256 * 1024;
 
 export type TransferStatus = {
   configured: boolean;
+  paired: boolean;
   connected: boolean;
   peerOnline: boolean;
   connecting: boolean;
@@ -112,6 +113,7 @@ class DeviceTransferClient {
   private connectingPromise: Promise<void> | null = null;
   private status: TransferStatus = {
     configured: false,
+    paired: false,
     connected: false,
     peerOnline: false,
     connecting: false,
@@ -182,6 +184,7 @@ class DeviceTransferClient {
     if (typeof event.token !== "string")
       throw new Error("配对响应缺少设备凭据");
     await this.saveToken(event.token);
+    this.status.paired = true;
     this.status.peerOnline = true;
     this.emit({ type: "status", ...this.status });
   }
@@ -307,6 +310,7 @@ class DeviceTransferClient {
     this.token = null;
     this.status = {
       configured: false,
+      paired: false,
       connected: false,
       peerOnline: false,
       connecting: false,
@@ -438,6 +442,7 @@ class DeviceTransferClient {
     } else if (event.type === "auth.ok") {
       this.status.connected = true;
       this.status.connecting = false;
+      this.status.paired = event.paired === true;
       this.status.peerOnline = event.online === true;
       this.reconnectDelay = 1000;
       this.emit({ type: "status", ...this.status });
@@ -446,8 +451,10 @@ class DeviceTransferClient {
       typeof event.token === "string"
     ) {
       await this.saveToken(event.token);
+      this.status.paired = true;
       this.status.peerOnline = true;
     } else if (event.type === "device.status") {
+      this.status.paired = event.paired === true;
       this.status.peerOnline = event.online === true;
       this.emit({ type: "status", ...this.status });
     } else if (event.type === "device.replaced") {
@@ -458,6 +465,7 @@ class DeviceTransferClient {
       this.token = null;
       this.status = {
         configured: false,
+        paired: false,
         connected: false,
         peerOnline: false,
         connecting: false,

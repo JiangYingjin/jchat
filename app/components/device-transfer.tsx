@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import QRCode from "qrcode";
 import { buildFullSharePayload, type FullSharePayload } from "../utils/share";
 import {
   deviceTransferClient,
@@ -20,6 +21,100 @@ function deviceLabel(value: unknown): string {
   if (value === "mobile") return "手机";
   if (value === "tablet") return "平板";
   return "另一台设备";
+}
+
+function extractPairCode(value: string): string | null {
+  const text = value.trim().toUpperCase();
+  if (/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12}$/.test(text)) return text;
+  try {
+    const url = new URL(value);
+    const match = url.hash.match(
+      /^#PAIR=([ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{12})$/i,
+    );
+    if (
+      typeof window !== "undefined" &&
+      url.origin === window.location.origin &&
+      url.pathname === "/settings" &&
+      match
+    ) {
+      return match[1].toUpperCase();
+    }
+  } catch {
+    // 扫描结果不是 URL 时继续返回无效码。
+  }
+  return null;
+}
+
+const PAIR_CODE_SESSION_KEY = "jchat:device-transfer:pair-code";
+
+function PairCodeScanner({
+  onCode,
+  onClose,
+}: {
+  onCode: (code: string) => void;
+  onClose: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let disposed = false;
+    let stopScanning: (() => void) | undefined;
+    void import("@zxing/browser")
+      .then(({ BrowserQRCodeReader }) => {
+        if (!videoRef.current) throw new Error("摄像头预览尚未准备好");
+        const reader = new BrowserQRCodeReader();
+        return reader.decodeFromVideoDevice(
+          undefined,
+          videoRef.current,
+          (result) => {
+            if (!result || disposed) return;
+            disposed = true;
+            onCode(result.getText());
+          },
+        );
+      })
+      .then((controls) => {
+        stopScanning = () => controls.stop();
+        if (disposed) controls.stop();
+      })
+      .catch((cause: unknown) => {
+        if (!disposed) {
+          setError(
+            cause instanceof Error
+              ? cause.message
+              : "无法启动摄像头，请检查浏览器权限或手动输入配对码",
+          );
+        }
+      });
+
+    return () => {
+      disposed = true;
+      stopScanning?.();
+    };
+  }, [onCode]);
+
+  return (
+    <div className="modal-mask">
+      <Modal
+        title="扫描配对二维码"
+        onClose={onClose}
+        actions={[
+          <IconButton
+            key="close-scanner"
+            text="关闭"
+            onClick={onClose}
+            bordered
+          />,
+        ]}
+      >
+        <div className={styles["device-transfer-scanner"]}>
+          <video ref={videoRef} playsInline muted />
+          <p>{error || "将另一台设备上的二维码放入取景框"}</p>
+        </div>
+      </Modal>
+    </div>
+  );
 }
 
 async function buildCurrentSessionSnapshot(): Promise<FullSharePayload> {
@@ -210,7 +305,11 @@ export function DeviceTransferRuntime() {
 export function DeviceTransferSettings() {
   const [status, setStatus] = useState(deviceTransferClient.getStatus());
   const [pairCode, setPairCode] = useState("");
+  const [pairExpiresAt, setPairExpiresAt] = useState(0);
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
+  const [qrImage, setQrImage] = useState("");
   const [codeInput, setCodeInput] = useState("");
+  const [scannerOpen, setScannerOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState("");
   const [receivedPayload, setReceivedPayload] =
@@ -222,6 +321,7 @@ export function DeviceTransferSettings() {
       if (event.type === "status") {
         setStatus({
           configured: event.configured === true,
+          paired: event.paired === true,
           connected: event.connected === true,
           peerOnline: event.peerOnline === true,
           connecting: event.connecting === true,
@@ -241,15 +341,96 @@ export function DeviceTransferSettings() {
       }
       if (event.type === "transfer.approved") setProgress("对端正在准备会话…");
       if (event.type === "transfer.error") setProgress("");
+      if (event.type === "pair.revoked") {
+        setPairCode("");
+        setPairExpiresAt(0);
+        window.sessionStorage.removeItem(PAIR_CODE_SESSION_KEY);
+      }
+      if (event.type === "status" && event.paired === true) {
+        setPairCode("");
+        setPairExpiresAt(0);
+        window.sessionStorage.removeItem(PAIR_CODE_SESSION_KEY);
+      }
     });
   }, []);
 
+  useEffect(() => {
+    const encoded = window.sessionStorage.getItem(PAIR_CODE_SESSION_KEY);
+    if (encoded) {
+      try {
+        const value = JSON.parse(encoded) as {
+          code?: string;
+          expiresAt?: number;
+        };
+        if (
+          typeof value.code === "string" &&
+          typeof value.expiresAt === "number" &&
+          value.expiresAt > Date.now() &&
+          extractPairCode(value.code)
+        ) {
+          setPairCode(value.code);
+          setPairExpiresAt(value.expiresAt);
+        } else {
+          window.sessionStorage.removeItem(PAIR_CODE_SESSION_KEY);
+        }
+      } catch {
+        window.sessionStorage.removeItem(PAIR_CODE_SESSION_KEY);
+      }
+    }
+    const fromQr = extractPairCode(window.location.href);
+    if (fromQr) {
+      setCodeInput(fromQr);
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${window.location.search}`,
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!pairCode || !pairExpiresAt) {
+      setQrImage("");
+      setSecondsRemaining(0);
+      return;
+    }
+    const updateRemaining = () =>
+      setSecondsRemaining(
+        Math.max(0, Math.ceil((pairExpiresAt - Date.now()) / 1000)),
+      );
+    updateRemaining();
+    const timer = window.setInterval(updateRemaining, 1000);
+    let active = true;
+    const pairUrl = new URL("/settings", window.location.origin);
+    pairUrl.hash = `pair=${pairCode}`;
+    void QRCode.toDataURL(pairUrl.toString(), {
+      width: 216,
+      margin: 2,
+      errorCorrectionLevel: "M",
+    })
+      .then((image) => {
+        if (active) setQrImage(image);
+      })
+      .catch(() => {
+        if (active) setQrImage("");
+      });
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [pairCode, pairExpiresAt]);
+
   const createPairing = async () => {
     setBusy(true);
-    setPairCode("");
     try {
       const result = await deviceTransferClient.createPairing();
       setPairCode(result.pairCode);
+      const expiresAt = Date.now() + result.expiresIn * 1000;
+      setPairExpiresAt(expiresAt);
+      window.sessionStorage.setItem(
+        PAIR_CODE_SESSION_KEY,
+        JSON.stringify({ code: result.pairCode, expiresAt }),
+      );
       setStatus(deviceTransferClient.getStatus());
     } catch (error) {
       showToast(error instanceof Error ? error.message : "配对码生成失败");
@@ -259,12 +440,13 @@ export function DeviceTransferSettings() {
   };
 
   const joinPairing = async () => {
-    const code = codeInput.trim().toUpperCase();
+    const code = extractPairCode(codeInput) ?? codeInput.trim().toUpperCase();
     if (!code) return;
     setBusy(true);
     try {
       await deviceTransferClient.joinPairing(code);
       setCodeInput("");
+      window.sessionStorage.removeItem(PAIR_CODE_SESSION_KEY);
       setStatus(deviceTransferClient.getStatus());
       showToast("设备配对成功");
     } catch (error) {
@@ -303,14 +485,18 @@ export function DeviceTransferSettings() {
   };
 
   const forgetPair = async () => {
-    if (!window.confirm("解除配对后，双方需要重新配对才能传送会话。继续吗？"))
-      return;
+    const question = status.paired
+      ? "解除配对后，双方需要重新配对才能传送会话。继续吗？"
+      : "取消当前配对码后，对方将无法继续使用它。继续吗？";
+    if (!window.confirm(question)) return;
     setBusy(true);
     try {
       await deviceTransferClient.forgetPair();
       setPairCode("");
+      setPairExpiresAt(0);
+      window.sessionStorage.removeItem(PAIR_CODE_SESSION_KEY);
       setStatus(deviceTransferClient.getStatus());
-      showToast("设备配对已解除");
+      showToast(status.paired ? "设备配对已解除" : "配对码已取消");
     } catch (error) {
       showToast(error instanceof Error ? error.message : "解除配对失败");
     } finally {
@@ -318,23 +504,58 @@ export function DeviceTransferSettings() {
     }
   };
 
+  const switchToScanner = async () => {
+    if (
+      !window.confirm(
+        "取消本机配对码后，对方将无法继续使用它。是否改为扫描对端二维码？",
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      await deviceTransferClient.forgetPair();
+      setPairCode("");
+      setPairExpiresAt(0);
+      window.sessionStorage.removeItem(PAIR_CODE_SESSION_KEY);
+      setStatus(deviceTransferClient.getStatus());
+      setScannerOpen(true);
+    } catch (error) {
+      showToast(error instanceof Error ? error.message : "切换配对方式失败");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const onScannedCode = useCallback((value: string) => {
+    const code = extractPairCode(value);
+    setScannerOpen(false);
+    if (!code) {
+      showToast("没有识别到有效的 JChat 配对二维码");
+      return;
+    }
+    setCodeInput(code);
+  }, []);
+
   return (
     <>
       <List>
         <ListItem
           title={Locale.Settings.DeviceTransfer.Title}
           subTitle={
-            status.configured
+            status.paired
               ? status.peerOnline
-                ? "已配对，对端在线"
+                ? "已配对 · 对端在线"
                 : status.connecting
-                  ? "正在连接对端…"
-                  : "已配对，对端当前离线"
-              : "电脑和手机完成配对后，双方都可以互相请求当前会话"
+                  ? "已配对 · 正在连接对端…"
+                  : "已配对 · 对端离线"
+              : status.connecting
+                ? "正在连接配对服务…"
+                : "尚未配对 · 电脑和手机可以任选一端发起配对"
           }
           vertical
         >
-          {status.configured ? (
+          {status.paired ? (
             <div className={styles["device-transfer-actions"]}>
               <IconButton
                 text="向对端请求会话"
@@ -354,12 +575,60 @@ export function DeviceTransferSettings() {
                 </span>
               )}
             </div>
+          ) : status.configured ? (
+            <div className={styles["device-transfer-pairing"]}>
+              {pairCode ? (
+                <div className={styles["device-transfer-pair-card"]}>
+                  {qrImage ? (
+                    <img src={qrImage} alt="JChat 配对二维码" />
+                  ) : (
+                    <div
+                      className={styles["device-transfer-qr-fallback"]}
+                      role="img"
+                      aria-label="二维码生成失败，请使用下方配对码"
+                    >
+                      二维码暂不可用
+                    </div>
+                  )}
+                  <div>
+                    <strong>让另一台设备扫描</strong>
+                    <span>对方确认后才会建立配对</span>
+                    <code>{pairCode}</code>
+                    <span>
+                      {secondsRemaining > 0
+                        ? `配对码 ${Math.floor(secondsRemaining / 60)}:${String(secondsRemaining % 60).padStart(2, "0")} 后过期`
+                        : "配对码已过期，请刷新二维码"}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <p className={styles["device-transfer-status"]}>
+                  此设备尚未配对。生成二维码后，请在另一台设备扫描或输入配对码。
+                </p>
+              )}
+              <div className={styles["device-transfer-actions"]}>
+                <IconButton
+                  text={pairCode ? "刷新二维码" : "显示配对二维码"}
+                  onClick={() => void createPairing()}
+                  disabled={busy}
+                  type="primary"
+                  bordered
+                />
+                <IconButton
+                  text="改为扫描对端二维码"
+                  onClick={() => void switchToScanner()}
+                  disabled={busy}
+                  bordered
+                />
+              </div>
+            </div>
           ) : (
             <div className={styles["device-transfer-actions"]}>
               <IconButton
-                text="生成配对码"
-                onClick={() => void createPairing()}
+                text="扫描配对二维码"
+                onClick={() => setScannerOpen(true)}
                 disabled={busy}
+                type="primary"
                 bordered
               />
               <span className={styles["device-transfer-divider"]}>或</span>
@@ -369,8 +638,8 @@ export function DeviceTransferSettings() {
                 onChange={(event) =>
                   setCodeInput(event.target.value.toUpperCase())
                 }
-                placeholder="输入另一台设备的配对码"
-                maxLength={20}
+                placeholder="输入 12 位配对码"
+                maxLength={12}
                 autoComplete="one-time-code"
                 aria-label="配对码"
               />
@@ -380,16 +649,23 @@ export function DeviceTransferSettings() {
                 disabled={busy || !codeInput.trim()}
                 bordered
               />
-              {pairCode && (
-                <div className={styles["device-transfer-pair-code"]}>
-                  <span>请在另一台设备输入此配对码（5 分钟内有效）</span>
-                  <strong>{pairCode}</strong>
-                </div>
-              )}
+              <IconButton
+                text="在本设备生成二维码"
+                onClick={() => void createPairing()}
+                disabled={busy}
+                bordered
+              />
             </div>
           )}
         </ListItem>
       </List>
+
+      {scannerOpen && (
+        <PairCodeScanner
+          onCode={onScannedCode}
+          onClose={() => setScannerOpen(false)}
+        />
+      )}
 
       {receivedPayload && (
         <div className="modal-mask">
