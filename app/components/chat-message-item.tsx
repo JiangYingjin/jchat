@@ -67,6 +67,7 @@ export function ChatMessageItem({
         className={
           isUser ? styles["chat-message-user"] : styles["chat-message"]
         }
+        data-message-id={message.id}
       >
         <div
           className={
