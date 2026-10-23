@@ -2,9 +2,9 @@ import md5 from "spark-md5";
 import { FALLBACK_BASE_URL } from "../constant";
 
 /**
- * 服务端 /api/openai 代理访问上游（One API / Django v1）的 origin。
+ * 服务端 /api/openai 代理访问 OpenAI 兼容上游的 origin。
  * 未设置 SERVER_BASE_URL 时与 BASE_URL 相同。
- * 与 Django 同机部署时设为 http://127.0.0.1:<本机端口>，可避免 Next 服务端经公网域名绕 HK 再穿透回内网，降低 Connect 超时与 TLS 抖动。
+ * 与上游同机部署时可设置为 loopback 地址，避免经公网代理回源。
  * 若设置 SERVER_UNIX_SOCKET（如 /run/dj_app_stable.sock），则 /api/openai 将优先通过 Unix socket 转发。
  */
 function resolveUpstreamBaseUrl(): string {
@@ -22,6 +22,7 @@ declare global {
       SERVER_UNIX_SOCKET?: string;
       API_KEY?: string;
       MODELS?: string;
+      DEFAULT_MODEL?: string;
       LONG_TEXT_MODEL?: string;
       GROUP_SESSION_MODEL?: string;
       SESSION_TITLE_MODEL?: string;
@@ -101,6 +102,11 @@ export const getServerSideConfig = () => {
     );
   }
 
+  // 默认模型可显式配置；未设置时兼容旧行为，使用列表首项。
+  const defaultModel = process.env.DEFAULT_MODEL?.trim();
+  const validDefaultModel =
+    defaultModel && models.includes(defaultModel) ? defaultModel : models[0];
+
   // 验证 LONG_TEXT_MODEL 环境变量（可选）
   const longTextModel = process.env.LONG_TEXT_MODEL?.trim();
   const validLongTextModel =
@@ -144,6 +150,6 @@ export const getServerSideConfig = () => {
     longTextModel: validLongTextModel,
     groupSessionModel: validGroupSessionModel,
     sessionTitleModel: validSessionTitleModel,
-    defaultModel: models.length > 0 ? models[0] : undefined,
+    defaultModel: validDefaultModel,
   };
 };

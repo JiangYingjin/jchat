@@ -73,6 +73,7 @@ export function ConfigError({ error }: ConfigErrorProps) {
                 <p className="mb-2">请确保在环境变量中正确配置以下变量：</p>
                 <div className="rounded bg-blue-100 p-3 font-mono text-xs">
                   <div>MODELS=&quot;model1,model2,model3&quot;</div>
+                  <div># 可选：DEFAULT_MODEL=&quot;model1&quot;</div>
                   <div className="text-gray-600">
                     # 可选：LONG_TEXT_MODEL=&quot;model2&quot;
                   </div>

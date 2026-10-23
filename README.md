@@ -110,6 +110,8 @@ pnpm install
 API_KEY="sk-or-v1-..."
 BASE_URL="https://openrouter.ai/api/v1"
 MODELS="openai/gpt-5.6-luna,anthropic/claude-sonnet-5,google/gemini-3.1-flash"
+# 可选：显式设置默认模型；未设置时使用 MODELS 的第一项
+DEFAULT_MODEL="openai/gpt-5.6-luna"
 ```
 
 启动开发服务器：
