@@ -192,6 +192,7 @@ export const MessageList = React.memo(function MessageList({
           setAutoScroll(false);
           setTimeout(() => {
             if (scrollRef.current) {
+              programmaticScrollRef.current = true;
               scrollRef.current.scrollTop = scrollState.scrollTop;
               debugLog("MESSAGE_LIST", "滚动位置已恢复", {
                 scrollKey: sessionIdForRestore,
@@ -199,6 +200,11 @@ export const MessageList = React.memo(function MessageList({
                 scrollTop: scrollState.scrollTop,
               });
             }
+            // 恢复造成的 scroll 事件不能被当成用户滚动，否则可能误判为触底并重新自动滚动。
+            setTimeout(() => {
+              programmaticScrollRef.current = false;
+              isRestoringRef.current = false;
+            }, 100);
           }, 100);
         } else {
           // 分享页无保存状态：保持在顶部；会话页：重置到最后一页
@@ -206,10 +212,18 @@ export const MessageList = React.memo(function MessageList({
             setMsgRenderIndex(0);
             setAutoScroll(false);
             setTimeout(() => {
-              if (scrollRef.current) scrollRef.current.scrollTop = 0;
+              if (scrollRef.current) {
+                programmaticScrollRef.current = true;
+                scrollRef.current.scrollTop = 0;
+              }
+              setTimeout(() => {
+                programmaticScrollRef.current = false;
+                isRestoringRef.current = false;
+              }, 100);
             }, 100);
           } else {
             resetToLastPage();
+            isRestoringRef.current = false;
           }
         }
       })
@@ -220,11 +234,18 @@ export const MessageList = React.memo(function MessageList({
         });
         if (sessionIdForRestore.startsWith("share_")) {
           setMsgRenderIndex(0);
-          if (scrollRef.current) scrollRef.current.scrollTop = 0;
+          setAutoScroll(false);
+          if (scrollRef.current) {
+            programmaticScrollRef.current = true;
+            scrollRef.current.scrollTop = 0;
+          }
+          setTimeout(() => {
+            programmaticScrollRef.current = false;
+            isRestoringRef.current = false;
+          }, 100);
+        } else {
+          isRestoringRef.current = false;
         }
-      })
-      .finally(() => {
-        isRestoringRef.current = false;
       });
   }, [
     scrollKey,
@@ -532,7 +553,19 @@ export const MessageList = React.memo(function MessageList({
     const prevPageMsgIndex = msgRenderIndex - CHAT_PAGE_SIZE;
     const nextPageMsgIndex = msgRenderIndex + CHAT_PAGE_SIZE;
 
-    if (!programmaticScrollRef.current) {
+    const isUserScroll =
+      !programmaticScrollRef.current && !isRestoringRef.current;
+
+    if (isRestoringRef.current) {
+      debugLog("MESSAGE_LIST", "恢复期间忽略滚动事件", {
+        scrollKey,
+        scrollTop: e.scrollTop,
+        scrollHeight: e.scrollHeight,
+        viewportHeight: e.clientHeight,
+      });
+    }
+
+    if (isUserScroll) {
       if (isTouchTopEdge && !isTouchBottomEdge) {
         updateMsgRenderIndex(prevPageMsgIndex);
       } else if (isTouchBottomEdge) {
@@ -540,13 +573,13 @@ export const MessageList = React.memo(function MessageList({
       }
     }
 
-    if (!programmaticScrollRef.current) {
+    if (isUserScroll) {
       setHitBottom(isHitBottom);
       setAutoScroll(isHitBottom);
     }
 
     // 保存滚动状态（会话页与分享页按 scrollKey 隔离存储）
-    if (scrollKey) {
+    if (scrollKey && !isRestoringRef.current) {
       saveScrollState(e.scrollTop, msgRenderIndex, e.clientHeight);
     }
   };
@@ -555,7 +588,7 @@ export const MessageList = React.memo(function MessageList({
   useEffect(() => {
     if (autoScroll && !isRestoringRef.current) {
       requestAnimationFrame(() => {
-        if (scrollRef.current) {
+        if (scrollRef.current && !isRestoringRef.current) {
           scrollRef.current.scrollTo(0, scrollRef.current.scrollHeight);
         }
       });
