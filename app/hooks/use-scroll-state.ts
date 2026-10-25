@@ -35,12 +35,18 @@ export function useScrollState(sessionId: string) {
    * 防抖保存滚动状态（优化版：避免触发 ChatStore 完整持久化）
    */
   const debouncedSave = useDebouncedCallback(
-    async (scrollTop: number, messageIndex: number, viewportHeight: number) => {
+    async (
+      scrollTop: number,
+      messageIndex: number,
+      viewportHeight: number,
+      targetSessionId: string,
+    ) => {
       try {
         // 检查是否与上次保存的状态相同，避免重复保存
         const currentState = currentScrollStateRef.current;
         if (
           currentState &&
+          currentState.sessionId === targetSessionId &&
           currentState.scrollTop === scrollTop &&
           currentState.messageIndex === messageIndex &&
           currentState.viewportHeight === viewportHeight
@@ -50,7 +56,7 @@ export function useScrollState(sessionId: string) {
         }
 
         debugLog("DEBOUNCED_SAVE_START", {
-          sessionId,
+          sessionId: targetSessionId,
           scrollTop,
           messageIndex,
           viewportHeight,
@@ -58,7 +64,7 @@ export function useScrollState(sessionId: string) {
 
         // 创建滚动状态对象
         const scrollState: SessionScrollState = {
-          sessionId,
+          sessionId: targetSessionId,
           scrollTop,
           messageIndex,
           viewportHeight,
@@ -67,14 +73,14 @@ export function useScrollState(sessionId: string) {
 
         // 完全脱离 Zustand 体系，直接保存到存储
         const { scrollStorage } = await import("../store/scroll");
-        const success = await scrollStorage.save(sessionId, scrollState);
+        const success = await scrollStorage.save(targetSessionId, scrollState);
 
         if (success) {
           currentScrollStateRef.current = scrollState;
           setLastSavedState(scrollState);
 
           debugLog("DEBOUNCED_SAVE_SUCCESS", {
-            sessionId,
+            sessionId: targetSessionId,
             scrollTop,
             messageIndex,
           });
@@ -90,6 +96,14 @@ export function useScrollState(sessionId: string) {
       leading: false,
       trailing: true,
     },
+  );
+
+  // 将会话 ID 固化到这次防抖调用的参数中，避免切换会话时 flush 使用新会话 ID。
+  const saveScrollState = useCallback(
+    (scrollTop: number, messageIndex: number, viewportHeight: number) => {
+      debouncedSave(scrollTop, messageIndex, viewportHeight, sessionId);
+    },
+    [debouncedSave, sessionId],
   );
 
   /**
@@ -260,7 +274,7 @@ export function useScrollState(sessionId: string) {
     hasUnsavedChanges: hasUnsavedChanges(),
 
     // 方法
-    saveScrollState: debouncedSave,
+    saveScrollState,
     saveImmediately,
     restoreScrollState,
     getCurrentScrollState,
